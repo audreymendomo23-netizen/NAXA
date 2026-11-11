@@ -14,9 +14,7 @@ BEGIN
   FROM storage.buckets
   WHERE id='partner-catalogue-photos';
 
-  IF NOT FOUND
-     OR v_public IS DISTINCT FROM TRUE
-     OR v_limit <> 2097152
+  IF NOT FOUND OR v_public IS DISTINCT FROM TRUE OR v_limit <> 2097152
      OR NOT (v_mimes @> ARRAY['image/jpeg','image/png','image/webp']) THEN
     RAISE EXCEPTION 'Le bucket partner-catalogue-photos n’est pas configuré comme attendu';
   END IF;
@@ -25,20 +23,40 @@ BEGIN
     SELECT 1 FROM pg_attribute
     WHERE attrelid='public.partner_products'::regclass
       AND attname='photo_path' AND NOT attisdropped
-  ) OR NOT EXISTS (
-    SELECT 1 FROM pg_attribute
-    WHERE attrelid='public.partner_products'::regclass
-      AND attname='photo_source_url' AND NOT attisdropped
-  ) OR NOT EXISTS (
-    SELECT 1 FROM pg_attribute
-    WHERE attrelid='public.partner_products'::regclass
-      AND attname='photo_licence' AND NOT attisdropped
-  ) OR NOT EXISTS (
-    SELECT 1 FROM pg_attribute
-    WHERE attrelid='public.partner_products'::regclass
-      AND attname='photo_rights_confirmed_at' AND NOT attisdropped
   ) THEN
-    RAISE EXCEPTION 'Les champs de provenance et de droits photo sont incomplets';
+    RAISE EXCEPTION 'Le chemin photo public du produit est absent';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid='public.partner_products'::regclass
+      AND attname IN ('photo_source_url','photo_licence','photo_rights_confirmed_at','photo_rights_confirmed_by','photo_uploaded_by')
+      AND NOT attisdropped
+  ) THEN
+    RAISE EXCEPTION 'La provenance photo ne doit pas rester sur la ligne publique partner_products';
+  END IF;
+
+  IF to_regclass('public.partner_product_photo_provenance') IS NULL
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid='public.partner_product_photo_provenance'::regclass) THEN
+    RAISE EXCEPTION 'La table privée de provenance photo est absente ou sans RLS';
+  END IF;
+
+  IF has_table_privilege('anon','public.partner_product_photo_provenance','SELECT') THEN
+    RAISE EXCEPTION 'La provenance photo est lisible anonymement';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='partner_product_photo_provenance'
+      AND policyname='partner_product_photo_provenance_member_manage'
+      AND cmd='ALL'
+  ) THEN
+    RAISE EXCEPTION 'La règle de provenance limitée au partenaire est absente';
+  END IF;
+
+  IF NOT has_function_privilege('authenticated','public.partner_link_catalogue_photo(uuid,uuid,text,text,text,text)','EXECUTE')
+     OR has_function_privilege('anon','public.partner_link_catalogue_photo(uuid,uuid,text,text,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'Les droits de la RPC photo catalogue sont incorrects';
   END IF;
 
   SELECT with_check INTO v_expr
@@ -74,14 +92,6 @@ BEGIN
       AND coalesce(qual,'') ILIKE '%partner-catalogue-photos%'
   ) THEN
     RAISE EXCEPTION 'Les objets photo catalogue doivent être remplacés par nouveau chemin, pas écrasés';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname='public' AND tablename='partner_products'
-      AND policyname='partner_products_member_manage' AND cmd='ALL'
-  ) THEN
-    RAISE EXCEPTION 'La politique existante de gestion du catalogue partenaire est absente';
   END IF;
 END
 $test$;

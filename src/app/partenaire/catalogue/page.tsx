@@ -22,20 +22,31 @@ export default async function CataloguePartenaire({ searchParams }: { searchPara
   const active = (memberships as any[]).filter((m) => m.partners?.status === "active");
   if (!active.length) redirect("/");
   const ids = active.map((m) => m.partner_id);
-  const [productsResult, movementsResult, associationsResult, alertsResult] = await Promise.all([
-    sb.from("partner_products").select("id,partner_id,universe_slug,name,brand,description,category,price_fcfa,stock_quantity,unit_label,low_stock_threshold,status,updated_at,expires_at,photo_url,photo_path,photo_source_url,photo_licence,photo_rights_confirmed_at,photo_uploaded_by")
+  const [productsResult, movementsResult, associationsResult, alertsResult, photoProvenanceResult] = await Promise.all([
+    sb.from("partner_products").select("id,partner_id,universe_slug,name,brand,description,category,price_fcfa,stock_quantity,unit_label,low_stock_threshold,status,updated_at,expires_at,photo_url,photo_path")
       .in("partner_id", ids).order("updated_at", { ascending: false }).limit(200),
     sb.from("stock_movements").select("id,partner_id,product_id,quantity_delta,movement_type,reason,created_at")
       .in("partner_id", ids).order("created_at", { ascending: false }).limit(80),
     sb.from("partner_universes").select("partner_id,universe_slug,enabled").in("partner_id", ids),
     sb.rpc("get_partner_catalogue_alerts"),
+    sb.from("partner_product_photo_provenance").select("product_id,partner_id,universe_slug,source_url,licence").in("partner_id", ids),
   ]);
-  const products = productsResult.data ?? [];
+  const photoProvenanceByProduct = new Map<string, any>(
+    (photoProvenanceResult.data ?? []).map((row: any) => [row.product_id, row]),
+  );
+  const products = (productsResult.data ?? []).map((product: any) => {
+    const provenance = photoProvenanceByProduct.get(product.id);
+    return {
+      ...product,
+      photo_source_url: provenance?.source_url ?? null,
+      photo_licence: provenance?.licence ?? null,
+    };
+  });
   const movements = movementsResult.data ?? [];
   const associations = associationsResult.data ?? [];
   const alerts = alertsResult.data ?? [];
   const alertsBroken = !!alertsResult.error;
-  const broken = !!(productsResult.error || movementsResult.error || associationsResult.error);
+  const broken = !!(productsResult.error || movementsResult.error || associationsResult.error || photoProvenanceResult.error);
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-6xl space-y-5 pt-4">
     <header className="-mx-4 flex items-center justify-between bg-naxa-green-900 px-4 py-3 text-white sm:mx-0 sm:rounded-2xl"><Logo taille={32}/><nav className="flex flex-wrap gap-3"><Link href="/partenaire/reservations" className="font-bold underline">Réservations</Link>{active.some((m: any) => m.partners?.partner_type === "professionnel_domicile") && <Link href="/partenaire/prestations" className="font-bold underline">Prestations à domicile</Link>}<Link href="/" className="font-bold underline">← Accueil</Link></nav></header>
     <div><p className="text-xs font-extrabold uppercase tracking-widest text-teal-800">NAXA · Espace partenaire</p><h1 className="mt-1 text-3xl font-black">Catalogue et stocks</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Les nouveaux produits sont enregistrés en brouillon. Les mouvements de stock sont conservés dans un journal, et le stock ne peut pas devenir négatif.</p></div>

@@ -6,6 +6,7 @@ const test = require("node:test");
 const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const migration = read("supabase/migrations/20261111100000_partner_catalogue_photo_library.sql");
+const provenanceMigration = read("supabase/migrations/20261111101500_private_partner_photo_provenance.sql");
 const sqlTest = read("supabase/tests/20261111100000_partner_catalogue_photo_library.sql");
 const page = read("src/app/partenaire/catalogue/page.tsx");
 const actions = read("src/app/partenaire/catalogue/actions.ts");
@@ -19,12 +20,22 @@ test("bucket photo public uniquement pour l’affichage catalogue, avec taille e
   assert.match(migration, /image\/png/);
 });
 
-test("provenance et déclaration de droits sont conservées sans présenter cela comme une certification NAXA", () => {
-  for (const column of ["photo_path", "photo_source_url", "photo_licence", "photo_rights_confirmed_at", "photo_rights_confirmed_by", "photo_uploaded_by"]) {
-    assert.match(migration, new RegExp("ADD COLUMN IF NOT EXISTS " + column));
-  }
-  assert.match(migration, /ne constitue pas une certification juridique NAXA/);
-  assert.match(migration, /partner_products_photo_provenance_complete/);
+test("la provenance est séparée de partner_products, protégée par RLS et non lisible anonymement", () => {
+  assert.match(provenanceMigration, /CREATE TABLE IF NOT EXISTS public\.partner_product_photo_provenance/);
+  assert.match(provenanceMigration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(provenanceMigration, /REVOKE ALL ON public\.partner_product_photo_provenance FROM PUBLIC, anon, authenticated/);
+  assert.match(provenanceMigration, /partner_product_photo_provenance_member_manage/);
+  assert.match(sqlTest, /has_table_privilege\('anon','public\.partner_product_photo_provenance','SELECT'\)/);
+  assert.match(provenanceMigration, /source_url text NOT NULL/);
+  assert.match(provenanceMigration, /licence text NOT NULL/);
+});
+
+test("les RPC lient et retirent atomiquement une photo au produit dans le périmètre partenaire", () => {
+  assert.match(provenanceMigration, /partner_link_catalogue_photo/);
+  assert.match(provenanceMigration, /partner_unlink_catalogue_photo/);
+  assert.match(provenanceMigration, /GRANT EXECUTE ON FUNCTION public\.partner_link_catalogue_photo[\s\S]*TO authenticated/);
+  assert.match(actions, /sb\.rpc\("partner_link_catalogue_photo"/);
+  assert.match(actions, /sb\.rpc\("partner_unlink_catalogue_photo"/);
 });
 
 test("upload et suppression Storage sont bornés au partenaire, à l’univers et au produit exacts", () => {
@@ -37,8 +48,6 @@ test("upload et suppression Storage sont bornés au partenaire, à l’univers e
   assert.match(migration, /pm\.user_id = \(SELECT auth\.uid\(\)\)/);
   assert.match(migration, /pm\.member_role IN \('owner', 'manager', 'operator'\)/);
   assert.doesNotMatch(migration, /CREATE POLICY partner_catalogue_photo_update/);
-  const deletePolicy = migration.split("CREATE POLICY partner_catalogue_photo_delete")[1].split("END IF;")[0];
-  assert.doesNotMatch(deletePolicy, /pp\.photo_path = name/);
 });
 
 test("le formulaire photo compresse en WebP, refuse les formats non admis et exige source/licence/droits", () => {
@@ -52,13 +61,13 @@ test("le formulaire photo compresse en WebP, refuse les formats non admis et exi
   assert.match(uploader, /upsert: false/);
 });
 
-test("la fiche partenaire relie l’image au produit et la vitrine publique continue d’utiliser photo_url", () => {
-  assert.match(page, /PartnerCataloguePhoto/);
-  assert.match(page, /photo_url,photo_path,photo_source_url,photo_licence/);
+test("le parcours partenaire charge la provenance via la table protégée", () => {
+  assert.match(page, /partner_product_photo_provenance/);
+  assert.match(page, /photo_source_url: provenance\?\.source_url/);
+  assert.match(page, /photo_licence: provenance\?\.licence/);
   assert.match(actions, /enregistrerPhotoProduitCatalogue/);
   assert.match(actions, /retirerPhotoProduitCatalogue/);
   assert.match(actions, /getPublicUrl\(photoPath\)/);
-  assert.match(actions, /photo_rights_confirmed_by: userId/);
   assert.match(catalog, /photo_url/);
 });
 
@@ -69,11 +78,11 @@ test("le chemin Storage est contrôlé côté serveur et le bucket reste fermé 
   assert.match(e2e, /partner-catalogue-photos/);
 });
 
-test("le contrat SQL couvre le bucket, la provenance et les policies partenaire", () => {
+test("le contrat SQL couvre le bucket, la provenance protégée et les policies partenaire", () => {
   assert.match(sqlTest, /partner-catalogue-photos/);
-  assert.match(sqlTest, /partner_catalogue_photo_insert/);
-  assert.match(sqlTest, /partner_catalogue_photo_delete/);
-  assert.match(sqlTest, /partner_products_photo_provenance_complete/);
+  assert.match(sqlTest, /partner_product_photo_provenance_member_manage/);
+  assert.match(sqlTest, /partner_link_catalogue_photo/);
+  assert.match(sqlTest, /has_table_privilege\('anon'/);
 });
 
 process.stdout.write("Contrat photos catalogue partenaire vérifié.\n");

@@ -25,10 +25,9 @@ async function partnerContext() {
 }
 
 
-// Catalogue photo partenaire — les octets sont envoyés au bucket dédié via la session
-// du membre ; cette action ne lie que le chemin qui appartient à son partenaire/produit.
+// Catalogue photo partenaire — les droits et sources restent dans la table RLS dédiée.
 const PARTNER_PHOTO_BUCKET = "partner-catalogue-photos";
-const WEBP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i;
+const WEBP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.webp$/i;
 
 function cheminPhotoAutorise(path: string, partnerId: string, productId: string) {
   const prefix = partnerId + "/" + productId + "/";
@@ -45,7 +44,7 @@ function urlHttps(value: string) {
 }
 
 export async function enregistrerPhotoProduitCatalogue(form: FormData): Promise<{ ok: boolean; message: string }> {
-  const { sb, userId, memberships } = await partnerContext();
+  const { sb, memberships } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);
   const productId = field(form, "product_id", 36);
   const photoPath = field(form, "photo_path", 180);
@@ -61,12 +60,13 @@ export async function enregistrerPhotoProduitCatalogue(form: FormData): Promise<
   }
 
   const { data: product, error: productError } = await sb.from("partner_products")
-    .select("id,partner_id,universe_slug,photo_path")
+    .select("id,partner_id,universe_slug,photo_path,status")
     .eq("id", productId)
     .eq("partner_id", partnerId)
     .maybeSingle();
-  if (productError || !product || !["parapharmacie", "bebe-maman"].includes(product.universe_slug)) {
-    return { ok: false, message: "Produit introuvable dans ce partenaire." };
+  if (productError || !product || product.status === "archived"
+      || !["parapharmacie", "bebe-maman"].includes(product.universe_slug)) {
+    return { ok: false, message: "Produit introuvable, archivé ou non autorisé dans ce partenaire." };
   }
 
   const { data: association, error: associationError } = await sb.from("partner_universes")
@@ -79,20 +79,17 @@ export async function enregistrerPhotoProduitCatalogue(form: FormData): Promise<
   }
 
   const publicUrl = sb.storage.from(PARTNER_PHOTO_BUCKET).getPublicUrl(photoPath).data.publicUrl;
-  const now = new Date().toISOString();
-  const { data: updated, error: updateError } = await sb.from("partner_products").update({
-    photo_url: publicUrl,
-    photo_path: photoPath,
-    photo_source_url: sourceUrl,
-    photo_licence: licence,
-    photo_rights_confirmed_at: now,
-    photo_rights_confirmed_by: userId,
-    photo_uploaded_by: userId,
-    updated_at: now,
-  }).eq("id", productId).eq("partner_id", partnerId).select("id").maybeSingle();
+  const { data: linked, error: linkError } = await sb.rpc("partner_link_catalogue_photo", {
+    p_partner_id: partnerId,
+    p_product_id: productId,
+    p_photo_path: photoPath,
+    p_photo_url: publicUrl,
+    p_source_url: sourceUrl,
+    p_licence: licence,
+  });
 
-  if (updateError || updated?.id !== productId) {
-    return { ok: false, message: "La photo n’a pas pu être liée au produit. Vérifiez l’accès au catalogue." };
+  if (linkError || linked !== true) {
+    return { ok: false, message: "La photo n’a pas pu être associée au produit. Vérifiez les droits du partenaire." };
   }
 
   if (product.photo_path && product.photo_path !== photoPath
@@ -121,18 +118,11 @@ export async function retirerPhotoProduitCatalogue(form: FormData): Promise<{ ok
     .maybeSingle();
   if (productError || !product) return { ok: false, message: "Produit introuvable." };
 
-  const { data: updated, error: updateError } = await sb.from("partner_products").update({
-    photo_url: null,
-    photo_path: null,
-    photo_source_url: null,
-    photo_licence: null,
-    photo_rights_confirmed_at: null,
-    photo_rights_confirmed_by: null,
-    photo_uploaded_by: null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", productId).eq("partner_id", partnerId).select("id").maybeSingle();
-
-  if (updateError || updated?.id !== productId) {
+  const { data: unlinked, error: unlinkError } = await sb.rpc("partner_unlink_catalogue_photo", {
+    p_partner_id: partnerId,
+    p_product_id: productId,
+  });
+  if (unlinkError || unlinked !== true) {
     return { ok: false, message: "Impossible de retirer la photo du produit." };
   }
 
