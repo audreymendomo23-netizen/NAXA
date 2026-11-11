@@ -42,7 +42,7 @@ export async function confirmerReglementPromoteur(formData: FormData) {
   const { error } = await db.rpc("admin_confirmer_reglement_promoteur", { p_reglement: id, p_admin: user.id });
   if (error) redirect("/admin/pilotage/reglements?erreur=confirmation");
   const { error: verificationUpdateError } = await db.from("abonnement_promoteur_reglements")
-    .update({ verification_status: "confirmed_admin", verification_level: 3, updated_at: new Date().toISOString() })
+    .update({ verification_status: "confirmed_admin", updated_at: new Date().toISOString() })
     .eq("id", id).eq("statut", "confirme");
   if (verificationUpdateError) console.error("NAXA: impossible d’actualiser le statut de vérification du règlement", verificationUpdateError.message);
   revalidatePath("/admin/pilotage/reglements");

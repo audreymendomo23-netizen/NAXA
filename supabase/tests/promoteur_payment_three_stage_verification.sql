@@ -35,7 +35,7 @@ begin
     raise exception 'Le registre doit garantir l''unicite globale des references';
   end if;
   if position('verification_deadline_at' in v_guard)=0
-     or position('r.statut = ''en_attente''' in v_guard)=0 then
+     or position('en_attente' in v_guard)=0 then
     raise exception 'Le garde de validite doit respecter la tolerance de 24 heures';
   end if;
   if position('verification_deadline_at' in v_sync)=0
