@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "responsable" | "stock" | "pharmacien" | "comptable" | "admin" | "livreur";
+type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "responsable" | "stock" | "pharmacien" | "comptable" | "admin" | "livreur" | "parapharmacie";
 type Props = { current: Space };
 type Profile = {
   role: string | null;
@@ -18,7 +18,7 @@ type Profile = {
   consent_accepted_at: string | null;
   pharmacie_id: string | null;
 };
-type SpaceChoice = { key: string; space: Space; roleCode: string; pharmacyId: string | null; pharmacyName: string | null };
+type SpaceChoice = { key: string; space: Space; roleCode: string; pharmacyId: string | null; pharmacyName: string | null; partnerId: string | null; partnerName: string | null };
 
 const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
   client: { label: "Espace client", href: "/client" },
@@ -31,6 +31,7 @@ const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
   comptable: { label: "Espace Comptable", href: "/pharmacie/comptable" },
   admin: { label: "Espace Admin", href: "/admin" },
   livreur: { label: "Poste Livreur", href: "/pharmacie/livreur" },
+  parapharmacie: { label: "ERP Parapharmacie", href: "/partenaire/catalogue" },
 };
 
 function spaceForRole(roleCode: string): Space | null {
@@ -55,6 +56,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [activeChoiceKey, setActiveChoiceKey] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -76,8 +78,20 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           const space = spaceForRole(roleCode);
           if (!space) return;
           const key = `${roleCode}:${pharmacyId ?? "global"}`;
-          choices.set(key, { key, space, roleCode, pharmacyId, pharmacyName });
+          choices.set(key, { key, space, roleCode, pharmacyId, pharmacyName, partnerId: null, partnerName: null });
         };
+        const addPartner = (roleCode: string, partnerId: string, partnerName: string) => {
+          const key = `${roleCode}:partner:${partnerId}`;
+          choices.set(key, { key, space: "parapharmacie", roleCode, pharmacyId: null, pharmacyName: null, partnerId, partnerName });
+        };
+        const [{ data: activeRole }, { data: activePharmacy }, { data: activePartner }] = await Promise.all([
+          sb.rpc("naxa_business_function"),
+          sb.rpc("naxa_active_role_pharmacy"),
+          sb.rpc("naxa_active_role_partner"),
+        ]);
+        const activeKey = activePartner ? `${activeRole}:partner:${activePartner}`
+          : `${activeRole}:${activePharmacy ?? "global"}`;
+        if (alive) setActiveChoiceKey(activeKey);
 
         if (profile.actif === true) {
           if (profile.role === "admin") add("admin", null);
@@ -107,6 +121,30 @@ export function EspaceNaxaSwitcher({ current }: Props) {
               add(roleCode, pharmacyId, pharmacyName);
             }
           }
+
+          const [{ data: partnerMemberships }, { data: partnerAssignments }] = await Promise.all([
+            sb.from("partner_members").select("partner_id,member_role,partners!inner(name,status,partner_type)")
+              .eq("user_id", auth.user.id),
+            sb.from("naxa_partner_professional_assignments")
+              .select("partner_id,role_code,commence_at,expire_at,statut,partners!inner(name,status,partner_type)")
+              .eq("profile_id", auth.user.id).eq("statut", "active"),
+          ]);
+          for (const membership of partnerMemberships ?? []) {
+            const partner = membership.partners as { name?: string; status?: string; partner_type?: string } | { name?: string; status?: string; partner_type?: string }[] | null;
+            const detail = Array.isArray(partner) ? partner[0] : partner;
+            if (detail?.partner_type === "parapharmacie" && detail.status === "active" && membership.member_role === "owner") {
+              addPartner("promoteur", String(membership.partner_id), detail.name ?? "Parapharmacie");
+            }
+          }
+          const now = Date.now();
+          for (const assignment of partnerAssignments ?? []) {
+            if (new Date(assignment.commence_at).getTime() > now) continue;
+            if (assignment.expire_at && new Date(assignment.expire_at).getTime() <= now) continue;
+            const partner = assignment.partners as { name?: string; status?: string; partner_type?: string } | { name?: string; status?: string; partner_type?: string }[] | null;
+            const detail = Array.isArray(partner) ? partner[0] : partner;
+            if (detail?.partner_type !== "parapharmacie" || detail.status !== "active") continue;
+            addPartner(String(assignment.role_code), String(assignment.partner_id), detail.name ?? "Parapharmacie");
+          }
         }
 
         if (alive) setSpaces([...choices.values()]);
@@ -119,24 +157,29 @@ export function EspaceNaxaSwitcher({ current }: Props) {
     return () => { alive = false; };
   }, []);
 
-  const available = spaces.filter((choice) => choice.space !== current);
+  const available = spaces.filter((choice) => choice.key !== activeChoiceKey);
   if (loading || available.length === 0) return null;
 
   async function ouvrirEspace(choice: SpaceChoice) {
     setErrorMessage("");
     const sb = supabaseBrowser();
-    const { error } = await sb.rpc("naxa_select_active_role", {
-      p_role_code: choice.roleCode,
-      p_pharmacie_id: choice.pharmacyId,
-    });
+    const { error } = choice.partnerId
+      ? await sb.rpc("naxa_select_active_role", {
+          p_role_code: choice.roleCode, p_pharmacie_id: null, p_partner_id: choice.partnerId,
+        })
+      : await sb.rpc("naxa_select_active_role", {
+          p_role_code: choice.roleCode, p_pharmacie_id: choice.pharmacyId,
+        });
     if (error) {
       setErrorMessage("Impossible d’activer ce poste. Vérifiez que l’affectation est toujours valide.");
       return;
     }
     const base = SPACE_DETAILS[choice.space].href;
-    const href = choice.pharmacyId && (choice.space === "pharmacie" || choice.space === "responsable")
-      ? `${base}&pharmacie=${encodeURIComponent(choice.pharmacyId)}`
-      : base;
+    const href = choice.partnerId
+      ? `${base}?partenaire=${encodeURIComponent(choice.partnerId)}`
+      : choice.pharmacyId && (choice.space === "pharmacie" || choice.space === "responsable")
+        ? `${base}&pharmacie=${encodeURIComponent(choice.pharmacyId)}`
+        : base;
     window.location.assign(href);
   }
 
@@ -150,7 +193,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
         {available.map((choice) => (
           <button key={choice.key} type="button" role="menuitem" onClick={() => void ouvrirEspace(choice)}
             className="block w-full rounded-lg px-3 py-3 text-left text-sm font-semibold hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800">
-            {SPACE_DETAILS[choice.space].label}{choice.pharmacyName ? ` · ${choice.pharmacyName}` : ""}
+            {choice.partnerId ? SPACE_DETAILS.parapharmacie.label : SPACE_DETAILS[choice.space].label}{choice.partnerName ? ` · ${choice.partnerName}` : choice.pharmacyName ? ` · ${choice.pharmacyName}` : ""}
           </button>
         ))}
         {errorMessage && <p role="alert" className="px-3 py-2 text-xs text-red-700">{errorMessage}</p>}
