@@ -13,7 +13,7 @@ ALTER TABLE public.partner_products
       photo_url IS NOT NULL
       AND split_part(photo_path, '/', 1) = partner_id::text
       AND split_part(photo_path, '/', 2) = id::text
-      AND split_part(photo_path, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.webp$'
+      AND split_part(photo_path, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
     )
   );
 
@@ -122,7 +122,7 @@ BEGIN
      OR length(btrim(p_licence)) NOT BETWEEN 5 AND 500
      OR p_photo_path !~* (
        '^' || p_partner_id::text || '/' || p_product_id::text ||
-       '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.webp$'
+       '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
      )
      OR p_photo_url !~* '^https://[^/]+/storage/v1/object/public/partner-catalogue-photos/'
      OR right(p_photo_url, length(p_photo_path)) <> p_photo_path THEN
