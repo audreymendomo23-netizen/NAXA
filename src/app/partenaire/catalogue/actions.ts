@@ -10,18 +10,67 @@ type Universe = typeof universes[number];
 const field = (form: FormData, key: string, max = 180) => String(form.get(key) ?? "").trim().slice(0, max);
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-async function partnerContext() {
+async function partnerContext(requiredPrivilege?: string, requestedPartnerId?: string) {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/partenaire/catalogue");
   const { data: memberships, error } = await sb.from("partner_members")
-    .select("partner_id,member_role,partners!inner(id,name,status)")
-    .eq("user_id", auth.user.id)
-    .in("member_role", ["owner", "manager", "operator"]);
+    .select("partner_id,member_role,partners!inner(id,name,status,partner_type)")
+    .eq("user_id", auth.user.id);
   if (error || !memberships?.length) redirect("/?erreur=espace_partenaire");
-  const eligible = memberships.filter((m: any) => m.partners?.status === "active");
-  if (!eligible.length) redirect("/?erreur=partenaire_inactif");
-  return { sb, userId: auth.user.id, memberships: eligible };
+  const eligible = (memberships as any[]).filter((m) => m.partners?.status === "active");
+  const parapharmacies = eligible.filter((m) => m.partners?.partner_type === "parapharmacie");
+  let activePartnerId: string | null = null;
+  const { data: currentPartner, error: currentPartnerError } = await sb.rpc("naxa_active_role_partner");
+  if (!currentPartnerError && typeof currentPartner === "string") activePartnerId = currentPartner;
+
+  // Accès direct raisonnable lorsqu'un seul établissement Parapharmacie est disponible.
+  if (!activePartnerId && parapharmacies.length === 1) {
+    const membership = parapharmacies[0];
+    let roleCode = membership.member_role === "owner" ? "promoteur" : null;
+    if (!roleCode) {
+      const { data: assignments } = await sb.from("naxa_partner_professional_assignments")
+        .select("role_code,commence_at,expire_at,statut")
+        .eq("profile_id", auth.user.id).eq("partner_id", membership.partner_id)
+        .eq("statut", "active").order("accorde_at", { ascending: false });
+      const now = Date.now();
+      const current = (assignments ?? []).find((a: any) =>
+        new Date(a.commence_at).getTime() <= now
+        && (!a.expire_at || new Date(a.expire_at).getTime() > now),
+      );
+      roleCode = current?.role_code ?? null;
+    }
+    if (roleCode) {
+      const { error: selectError } = await sb.rpc("naxa_select_active_role", {
+        p_role_code: roleCode, p_pharmacie_id: null, p_partner_id: membership.partner_id,
+      });
+      if (!selectError) activePartnerId = membership.partner_id;
+    }
+  }
+
+  if (activePartnerId) {
+    const selected = parapharmacies.find((m) => m.partner_id === activePartnerId);
+    if (!selected || (requestedPartnerId && requestedPartnerId !== activePartnerId)) {
+      redirect("/?erreur=perimetre_partenaire");
+    }
+    if (requiredPrivilege) {
+      const { data: allowed, error: privilegeError } = await sb.rpc("naxa_can_partner", {
+        p_privilege: requiredPrivilege, p_partner_id: activePartnerId,
+      });
+      if (privilegeError || allowed !== true) redirect("/partenaire/catalogue?erreur=autorisation");
+    }
+    return { sb, userId: auth.user.id, memberships: [selected], activePartnerId, isParapharmacy: true };
+  }
+
+  if (parapharmacies.length) redirect("/partenaire/catalogue?erreur=selection_espace");
+  const legacy = eligible.filter((m) =>
+    m.partners?.partner_type !== "parapharmacie"
+    && ["owner", "manager", "operator"].includes(m.member_role),
+  );
+  if (!legacy.length || (requestedPartnerId && !legacy.some((m) => m.partner_id === requestedPartnerId))) {
+    redirect("/?erreur=espace_partenaire");
+  }
+  return { sb, userId: auth.user.id, memberships: legacy, activePartnerId: null, isParapharmacy: false };
 }
 
 
@@ -44,8 +93,8 @@ function urlHttps(value: string) {
 }
 
 export async function enregistrerPhotoProduitCatalogue(form: FormData): Promise<{ ok: boolean; message: string }> {
-  const { sb, memberships } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);
+  const { sb, memberships } = await partnerContext("EDIT_PRODUCT", partnerId);
   const productId = field(form, "product_id", 36);
   const photoPath = field(form, "photo_path", 180);
   const sourceUrl = field(form, "photo_source_url", 1000);
@@ -136,8 +185,8 @@ export async function retirerPhotoProduitCatalogue(form: FormData): Promise<{ ok
 }
 
 export async function creerProduitCatalogue(form: FormData) {
-  const { sb, userId, memberships } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);
+  const { sb, userId, memberships } = await partnerContext("CREATE_PRODUCT", partnerId);
   const universe = field(form, "universe_slug", 40) as Universe;
   const name = field(form, "name", 180);
   const brand = field(form, "brand", 120) || null;
@@ -179,8 +228,8 @@ export async function creerProduitCatalogue(form: FormData) {
 }
 
 export async function ajusterStockCatalogue(form: FormData) {
-  const { sb, memberships } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);
+  const { sb, memberships } = await partnerContext("EDIT_STOCK_QUANTITY", partnerId);
   const productId = field(form, "product_id", 36);
   const delta = Number(field(form, "quantity_delta", 24).replace(",", "."));
   const kind = field(form, "movement_type", 24);
@@ -204,10 +253,10 @@ export async function ajusterStockCatalogue(form: FormData) {
 }
 
 export async function changerEtatProduitCatalogue(form: FormData) {
-  const { sb, memberships } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);
   const productId = field(form, "product_id", 36);
   const status = field(form, "status", 20);
+  const { sb, memberships } = await partnerContext(status === "archived" ? "ARCHIVE_PRODUCT" : "EDIT_PRODUCT", partnerId);
   if (!memberships.some((m: any) => m.partner_id === partnerId) || !uuid(partnerId) || !uuid(productId) ||
       !["draft", "archived", "active"].includes(status)) redirect("/partenaire/catalogue?erreur=produit");
   const { data: product } = await sb.from("partner_products").select("id,partner_id,universe_slug,name,brand,category,description")
@@ -253,8 +302,8 @@ function parseSemicolonCsv(source: string): string[][] {
 }
 
 export async function importerCsvCatalogue(form: FormData) {
-  const { sb } = await partnerContext();
   const partnerId = field(form, "partner_id", 36);
+  const { sb } = await partnerContext("IMPORT_PRODUCTS", partnerId);
   const universe = field(form, "universe_slug", 40) as Universe;
   const file = form.get("csv_file");
   if (!uuid(partnerId) || !universes.includes(universe) || !(file instanceof File) || file.size < 1 || file.size > 2_000_000) {
