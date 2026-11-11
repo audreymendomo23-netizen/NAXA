@@ -15,6 +15,7 @@ export type MedicamentPhoto = {
   attribution: string | null;
   title: string;
   kind: "boite" | "comprime";
+  provider: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
 };
 
 export type PhotosMedicament = {
@@ -102,6 +103,215 @@ function likelyCombinationMismatch(title: string, queryTokens: string[]): boolea
   return detectedIngredients.some((ingredient) => !query.has(ingredient));
 }
 
+
+const CIMA_BASE = "https://cima.aemps.es/cima/rest";
+const CIMA_ATTRIBUTION = "Fuente de la información: Agencia Española de Medicamentos y Productos Sanitarios (AEMPS).";
+const CIMA_LICENSE = "AEMPS — données ouvertes, réutilisation gratuite avec attribution de la source.";
+const CIMA_NAME_ALIASES: Record<string, string> = {
+  acetaminophen: "paracetamol",
+  ibuprofen: "ibuprofeno",
+  amoxicillin: "amoxicilina",
+  aspirin: "aspirina",
+  diclofenac: "diclofenaco",
+  omeprazole: "omeprazol",
+  azithromycin: "azitromicina",
+  metformin: "metformina",
+  cetirizine: "cetirizina",
+  loratadine: "loratadina",
+  atorvastatin: "atorvastatina",
+  amlodipine: "amlodipino",
+  losartan: "losartan",
+  salbutamol: "salbutamol"
+};
+
+type CimaPhotoEntry = { tipo?: string; url?: string };
+type CimaIngredient = string | { nombre?: string; principioActivo?: string };
+type CimaMedicine = {
+  nregistro?: string;
+  nombre?: string;
+  fotos?: CimaPhotoEntry[];
+  principiosActivos?: CimaIngredient[];
+  labtitular?: string;
+};
+type CimaResponse = {
+  resultados?: CimaMedicine[];
+  results?: CimaMedicine[];
+  data?: CimaMedicine[];
+  // L'endpoint de détail /medicamento renvoie directement une fiche.
+  nombre?: string;
+  nregistro?: string;
+  fotos?: CimaPhotoEntry[];
+  principiosActivos?: CimaIngredient[];
+};
+type OpenProductsFactsResponse = {
+  code?: string;
+  status?: number;
+  product?: {
+    code?: string;
+    product_name?: string;
+    brands?: string;
+    categories_tags?: string[];
+    image_front_url?: string;
+    image_url?: string;
+  };
+};
+
+function cimaSearchTerm(query: string): string {
+  return identityTokens(query).map((token) => CIMA_NAME_ALIASES[token] ?? token).join(" ");
+}
+
+function cimaNameMatches(query: string, candidateName: string): boolean {
+  const wanted = identityTokens(query).map((token) => CIMA_NAME_ALIASES[token] ?? token);
+  const actual = new Set(identityTokens(candidateName));
+  return wanted.length > 0 && wanted.every((token) => actual.has(token));
+}
+
+function cimaIngredients(medicine: CimaMedicine): string {
+  return (medicine.principiosActivos ?? []).map((ingredient) => {
+    if (typeof ingredient === "string") return ingredient;
+    return ingredient.nombre ?? ingredient.principioActivo ?? "";
+  }).filter(Boolean).join(" + ");
+}
+
+function safeCimaImageUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.hostname !== "cima.aemps.es" || !url.pathname.includes("/cima/fotos/")) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCimaJson(url: string): Promise<CimaResponse | null> {
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(4500),
+      next: { revalidate: 604800 }
+    });
+    if (!response.ok) return null;
+    const value: unknown = await response.json();
+    return value && typeof value === "object" ? value as CimaResponse : null;
+  } catch {
+    return null;
+  }
+}
+
+function cimaPhoto(
+  query: string,
+  medicine: CimaMedicine,
+  kind: "boite" | "comprime"
+): MedicamentPhoto | null {
+  const name = medicine.nombre ?? "";
+  if (!cimaNameMatches(query, name)) return null;
+  const ingredients = cimaIngredients(medicine);
+  if (likelyCombinationMismatch(name + " " + ingredients, identityTokens(query))) return null;
+  const wantedType = kind === "boite" ? "materialas" : "formafarmac";
+  const entry = (medicine.fotos ?? []).find((photo) => photo.tipo?.toLowerCase() === wantedType);
+  const url = safeCimaImageUrl(entry?.url);
+  if (!url) return null;
+  const registration = (medicine.nregistro ?? "").trim();
+  return {
+    url,
+    sourceUrl: registration
+      ? CIMA_BASE + "/medicamento?nregistro=" + encodeURIComponent(registration)
+      : "https://sede.aemps.gob.es/datos-abiertos/",
+    licence: CIMA_LICENSE,
+    attribution: CIMA_ATTRIBUTION,
+    title: name,
+    kind,
+    provider: "cima_aemps"
+  };
+}
+
+/**
+ * CIMA/AEMPS est une source institutionnelle gratuite officiellement classée
+ * parmi les données ouvertes réutilisables sous réserve d'attribution.
+ * Les photos sont récupérées directement depuis les URLs fotos de l'API.
+ * Le nom doit correspondre; une DCI seule ne récupère pas arbitrairement
+ * l'emballage d'une marque différente.
+ */
+async function searchCima(query: string): Promise<PhotosMedicament> {
+  const searchTerm = cimaSearchTerm(query);
+  if (!searchTerm) return { boite: null, comprime: null };
+
+  const params = new URLSearchParams({
+    nombre: searchTerm,
+    comerc: "1",
+    pagina: "1"
+  });
+  const list = await fetchCimaJson(CIMA_BASE + "/medicamentos?" + params.toString());
+  const records = list?.resultados ?? list?.results ?? list?.data ?? [];
+  const matching = records
+    .filter((record) => typeof record.nombre === "string" && cimaNameMatches(query, record.nombre))
+    .filter((record) => !likelyCombinationMismatch(record.nombre ?? "", identityTokens(query)))
+    .slice(0, 4);
+  if (!matching.length) return { boite: null, comprime: null };
+
+  let selected = matching.find((record) => Array.isArray(record.fotos) && record.fotos.length > 0) ?? matching[0];
+  if ((!selected.fotos || selected.fotos.length === 0) && selected.nregistro) {
+    const detailParams = new URLSearchParams({ nregistro: selected.nregistro });
+    const detail = await fetchCimaJson(CIMA_BASE + "/medicamento?" + detailParams.toString());
+    if (detail && typeof detail.nombre === "string" && cimaNameMatches(query, detail.nombre)) {
+      selected = detail as CimaMedicine;
+    }
+  }
+
+  return {
+    boite: cimaPhoto(query, selected, "boite"),
+    comprime: cimaPhoto(query, selected, "comprime")
+  };
+}
+
+/**
+ * Open Products Facts n'est interrogé que lorsqu'un code-barres complet est
+ * fourni. L'égalité du GTIN doit être exacte et la fiche doit être catégorisée
+ * comme médicament. Les photos restent distantes pour conserver CC BY-SA.
+ */
+async function searchOpenProductsFactsByBarcode(barcode: string): Promise<MedicamentPhoto | null> {
+  if (!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(barcode)) return null;
+  const fields = "code,product_name,brands,categories_tags,image_front_url,image_url";
+  const url = "https://world.openproductsfacts.org/api/v2/product/" + barcode + ".json?fields=" + fields;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "NAXA/1.0 (https://naxa.cm; naxa.home@gmail.com)"
+      },
+      signal: AbortSignal.timeout(3500),
+      next: { revalidate: 604800 }
+    });
+    if (!response.ok) return null;
+    const json = await response.json() as OpenProductsFactsResponse;
+    const product = json.product;
+    if (json.status !== 1 || (product?.code ?? json.code) !== barcode) return null;
+    const categories = (product.categories_tags ?? []).join(" ").toLowerCase();
+    if (!/\b(?:medicines?|medications?|pharmaceutical|drugs?)\b/.test(categories)) return null;
+    const rawImage = product.image_front_url ?? product.image_url;
+    if (!rawImage) return null;
+    let image: URL;
+    try {
+      image = new URL(rawImage);
+    } catch {
+      return null;
+    }
+    if (image.protocol !== "https:" || !image.hostname.endsWith("openproductsfacts.org")) return null;
+    return {
+      url: image.toString(),
+      sourceUrl: "https://world.openproductsfacts.org/product/" + barcode,
+      licence: "CC BY-SA (Open Products Facts — attribution et partage à l'identique requis).",
+      attribution: "Open Products Facts — photographie contributive.",
+      title: [product.product_name, product.brands].filter(Boolean).join(" — ") || barcode,
+      kind: "boite",
+      provider: "open_products_facts"
+    };
+  } catch {
+    return null;
+  }
+}
+
 function searchVariants(query: string, kind: "boite" | "comprime"): string[] {
   const tokens = identityTokens(query);
   const variants = [
@@ -121,8 +331,9 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
   const required = identityTokens(query);
   if (!required.length) return null;
 
-  const variants = searchVariants(query, kind);
-  const requests = variants.map(async (variant) => {
+  // Deux variantes séquentielles par type : au plus deux requêtes Commons en parallèle
+  // (boîte + comprimé), conformément aux limites et bonnes pratiques Wikimedia.
+  for (const variant of searchVariants(query, kind).slice(0, 2)) {
     const params = new URLSearchParams({
       action: "query",
       generator: "search",
@@ -135,63 +346,62 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
       iiurlwidth: "640",
       format: "json"
     });
+    let pages: CommonsPage[] = [];
     try {
       const response = await fetch("https://commons.wikimedia.org/w/api.php?" + params.toString(), {
         headers: {
           Accept: "application/json",
-          "User-Agent": "NAXA/1.0 (medicine catalogue; contact: naxa.home@gmail.com)"
+          "User-Agent": "NAXA/1.0 (https://naxa.cm; naxa.home@gmail.com)"
         },
-        signal: AbortSignal.timeout(3500),
-        next: { revalidate: 86400 }
+        signal: AbortSignal.timeout(4000),
+        next: { revalidate: 604800 }
       });
-      if (!response.ok) return [];
+      // Ne pas réessayer immédiatement après un 429 : le cache et les recherches
+      // séquentielles évitent de relancer une rafale vers l'infrastructure Commons.
+      if (!response.ok) return null;
       const json = await response.json() as CommonsResponse;
-      return Object.values(json.query?.pages ?? {});
+      pages = Object.values(json.query?.pages ?? {});
     } catch {
-      return [];
+      continue;
     }
-  });
 
-  const pageMap = new Map<string, CommonsPage>();
-  for (const pages of await Promise.all(requests)) {
-    for (const page of pages) if (page.title) pageMap.set(page.title, page);
-  }
+    const ranked = pages.map((page) => {
+      const info = page.imageinfo?.[0];
+      const title = page.title ?? "";
+      const normalizedTitle = normalize(title.replace(/^File:/i, ""));
+      const titleTokens = new Set(normalizedTitle.split(/\s+/));
+      const matchingCount = required.filter((token) => titleTokens.has(token)).length;
+      const coverage = matchingCount / required.length;
+      const detectedKind = kindOf(page);
+      const exactCoreMatch = required.some((token) => titleTokens.has(token));
+      const combinationMismatch = likelyCombinationMismatch(title, required);
+      return { info, title, matchingCount, coverage, detectedKind, exactCoreMatch, combinationMismatch };
+    }).filter((item) =>
+      item.info?.thumburl?.startsWith("https://") &&
+      item.info.url?.startsWith("https://") &&
+      item.info.descriptionurl?.startsWith("https://") &&
+      item.exactCoreMatch &&
+      item.coverage >= 0.75 &&
+      item.detectedKind === kind &&
+      !item.combinationMismatch
+    ).sort((a, b) =>
+      b.coverage - a.coverage || b.matchingCount - a.matchingCount
+    );
 
-  const ranked = [...pageMap.values()].map((page) => {
-    const info = page.imageinfo?.[0];
-    const title = page.title ?? "";
-    const normalizedTitle = normalize(title.replace(/^File:/i, ""));
-    const titleTokens = new Set(normalizedTitle.split(/\s+/));
-    const matchingCount = required.filter((token) => titleTokens.has(token)).length;
-    const coverage = matchingCount / required.length;
-    const detectedKind = kindOf(page);
-    const exactCoreMatch = required.some((token) => titleTokens.has(token));
-    const combinationMismatch = likelyCombinationMismatch(title, required);
-    return { page, info, title, matchingCount, coverage, detectedKind, exactCoreMatch, combinationMismatch };
-  }).filter((item) =>
-    item.info?.thumburl?.startsWith("https://") &&
-    item.info.url?.startsWith("https://") &&
-    item.info.descriptionurl?.startsWith("https://") &&
-    item.exactCoreMatch &&
-    item.coverage >= 0.75 &&
-    item.detectedKind === kind &&
-    !item.combinationMismatch
-  ).sort((a, b) =>
-    b.coverage - a.coverage || b.matchingCount - a.matchingCount
-  );
-
-  for (const item of ranked) {
-    const info = item.info!;
-    const rights = allowedCommercialLicense(info);
-    if (!rights) continue;
-    return {
-      url: info.thumburl!,
-      sourceUrl: info.descriptionurl!,
-      licence: rights.licence,
-      attribution: rights.attribution,
-      title: item.title.replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, ""),
-      kind
-    };
+    for (const item of ranked) {
+      const info = item.info!;
+      const rights = allowedCommercialLicense(info);
+      if (!rights) continue;
+      return {
+        url: info.thumburl!,
+        sourceUrl: info.descriptionurl!,
+        licence: rights.licence,
+        attribution: rights.attribution,
+        title: item.title.replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, ""),
+        kind,
+        provider: "wikimedia_commons"
+      };
+    }
   }
   return null;
 }
@@ -206,12 +416,29 @@ async function searchCommons(query: string, kind: "boite" | "comprime"): Promise
  */
 export async function rechercherPhotosMedicament(term: string): Promise<PhotosMedicament> {
   const query = term.trim().slice(0, 80);
+  if (!query) return { boite: null, comprime: null };
+
+  // Recherche directe par GTIN dans Open Products Facts : seulement si l'identité
+  // du code-barres est exacte et que la fiche indique une catégorie médicament.
+  if (/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(query)) {
+    const barcodePhoto = await searchOpenProductsFactsByBarcode(query);
+    if (barcodePhoto) return { boite: barcodePhoto, comprime: null };
+  }
   if (!identityTokens(query).length) return { boite: null, comprime: null };
-  const [boite, comprime] = await Promise.all([
-    searchCommons(query, "boite"),
-    searchCommons(query, "comprime")
+
+  // CIMA est interrogé en premier : API publique AEMPS et réutilisation ouverte
+  // avec attribution. Commons complète uniquement les vues manquantes.
+  const cima = await searchCima(query);
+  if (cima.boite && cima.comprime) return cima;
+
+  const commons = await Promise.all([
+    cima.boite ? Promise.resolve(null) : searchCommons(query, "boite"),
+    cima.comprime ? Promise.resolve(null) : searchCommons(query, "comprime")
   ]);
-  return { boite, comprime };
+  return {
+    boite: cima.boite ?? commons[0],
+    comprime: cima.comprime ?? commons[1]
+  };
 }
 
 /** Compatibilité avec les appels existants : la boîte est prioritaire. */
