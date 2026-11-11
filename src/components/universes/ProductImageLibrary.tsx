@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 type UniverseKey = "parapharmacie" | "bebe-maman";
 
 type OpenBeautyFactsProduct = {
