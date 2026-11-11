@@ -14,7 +14,8 @@ begin
      or v_enabled not ilike '%profiles%'
      or v_enabled not ilike '%actif%'
      or v_enabled not ilike '%suivi_connecte%'
-     or v_enabled not ilike '%coalesce%' then
+     or v_enabled not ilike '%coalesce%'
+     or v_enabled ilike '%universe.suivi%' then
     raise exception 'Suivi active-user gate does not enforce current identity, active profile and global flag';
   end if;
 
