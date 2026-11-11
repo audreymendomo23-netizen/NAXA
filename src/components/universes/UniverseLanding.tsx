@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { MenuUnivers } from "@/components/universes/MenuUnivers";
 
 type UniverseKey = "parapharmacie" | "bebe-maman" | "examens" | "prestations" | "suivi" | "aide";
 
@@ -54,19 +53,11 @@ const universes: Record<UniverseKey, Universe> = {
   },
 };
 
-const universeOrder: UniverseKey[] = ["parapharmacie", "bebe-maman", "examens", "suivi", "prestations", "aide"];
-
 export function UniverseLanding({ universe, comingSoon = false }: { universe: UniverseKey; comingSoon?: boolean }) {
   const item = universes[universe];
   return (
     <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
       <div className="mx-auto max-w-5xl pt-4 sm:pt-6">
-<div className="flex items-center justify-between gap-3">
-          <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-bold text-[#064B2A] transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]" aria-label="Retour à l’accueil Pharmacie">
-            <span aria-hidden="true">←</span> NAXA · Accueil
-          </Link>
-          <MenuUnivers />
-        </div>
 
         <section className="mt-4 overflow-hidden rounded-3xl border bg-white shadow-sm" style={{ borderColor: item.border }}>
           <div className="p-6 sm:p-9" style={{ backgroundColor: item.soft }}>
@@ -79,7 +70,7 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
             <p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">{item.description}</p>
           </div>
 
-          <div className="grid gap-6 p-5 sm:grid-cols-[1.1fr_0.9fr] sm:p-7">
+          <div className="grid gap-6 p-5 sm:p-7">
             <section aria-labelledby="universe-features">
               <h2 id="universe-features" className="text-lg font-extrabold">Dans cet espace</h2>
               <ul className="mt-4 space-y-3">
@@ -107,22 +98,7 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
               )}
             </section>
 
-            <aside className="rounded-2xl border border-slate-200 bg-[#F8FAF9] p-4 sm:p-5" aria-labelledby="other-universes">
-              <h2 id="other-universes" className="text-base font-extrabold">Explorer les espaces NAXA</h2>
-              <p className="mt-1 text-sm leading-5 text-slate-600">Passez d’un univers à l’autre sans perdre votre chemin.</p>
-              <nav className="mt-3 space-y-2" aria-label="Autres espaces NAXA">
-                {universeOrder.filter((key) => key !== universe).map((key) => {
-                  const other = universes[key];
-                  return (
-                    <Link key={key} href={other.route} className="flex min-h-11 items-center gap-3 rounded-xl border border-transparent bg-white px-3 py-2 text-sm font-bold transition hover:border-slate-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#064B2A]">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg" style={{ backgroundColor: other.soft, color: other.color }} aria-hidden="true">{other.icon}</span>
-                      <span>{other.title}</span>
-                      <span className="ml-auto text-slate-400" aria-hidden="true">›</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            </aside>
+
           </div>
         </section>
         <p className="mx-auto mt-5 max-w-3xl px-2 text-center text-xs leading-5 text-slate-500">{universe === "suivi" ? "Les appareils sont des éléments de suivi personnel. NAXA ne vend pas ces appareils dans cet espace et ne pose aucun diagnostic." : "Les services affichés dépendent de leur activation et de la disponibilité des partenaires. NAXA ne confirme pas une réservation tant qu’une confirmation explicite n’a pas été fournie."}</p>

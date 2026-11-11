@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { UniverseLanding } from "@/components/universes/UniverseLanding";
-import { MenuUnivers } from "@/components/universes/MenuUnivers";
 import { requestHomeService } from "./actions";
 
 type HomeServiceOffer = {
@@ -41,12 +40,7 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
 
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
     <div className="mx-auto max-w-6xl pt-4">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/" className="inline-flex min-h-11 items-center rounded-full px-3 font-bold text-[#064B2A]">← NAXA · Accueil</Link>
-        <span className="rounded-full bg-[#FFEFEA] px-3 py-2 text-xs font-bold text-[#9B3527]">Demande sans paiement en ligne</span>
-        <MenuUnivers />
-      </header>
-      <section className="mt-4 rounded-3xl border border-[#FAD0C6] bg-[#FFEFEA] p-6 sm:p-8">
+      <section className="rounded-3xl border border-[#FAD0C6] bg-[#FFEFEA] p-6 sm:p-8">
         <p className="text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
         <h1 className="mt-2 text-3xl font-black sm:text-4xl">Prestations et soins à domicile</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">Découvrez les services publiés par les professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
