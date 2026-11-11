@@ -7,6 +7,7 @@ import {
   ECOSYSTEMES,
   enregistrerEcosystemeSelectionne,
   ecosystemeDepuisChemin,
+  lireEcosystemeSelectionne,
   type EcosystemeId,
 } from "@/lib/ecosystemes";
 
@@ -21,12 +22,21 @@ const englishLabels: Record<EcosystemeId, string> = {
 
 export function MenuUnivers() {
   const pathname = usePathname();
-  const currentEcosystem = ecosystemeDepuisChemin(pathname);
+  const [currentEcosystem, setCurrentEcosystem] = useState<EcosystemeId>(() => ecosystemeDepuisChemin(pathname));
   const [availability, setAvailability] = useState<Record<string, boolean>>({ pharmacie: true });
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<"fr" | "en">("fr");
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const path = pathname.split(/[?#]/, 1)[0] || "/";
+    const sharedRoute = path === "/client" || path.startsWith("/client/")
+      || path.startsWith("/reservation/") || path.startsWith("/univers-reservation/");
+    setCurrentEcosystem(sharedRoute
+      ? lireEcosystemeSelectionne() ?? "pharmacie"
+      : ecosystemeDepuisChemin(path));
+  }, [pathname]);
 
   useEffect(() => {
     let active = true;

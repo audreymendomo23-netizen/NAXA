@@ -13,6 +13,8 @@ import {
   ECOSYSTEME_PAR_ID,
   enregistrerEcosystemeSelectionne,
   ecosystemeDepuisChemin,
+  lireEcosystemeSelectionne,
+  type EcosystemeId,
 } from "@/lib/ecosystemes";
 
 const actions = [
@@ -70,7 +72,15 @@ function CadenasVerrouille() {
 export function EnTeteClient() {
   const router = useRouter();
   const pathname = usePathname();
-  const ecosystemeActif = ecosystemeDepuisChemin(pathname);
+  const [ecosystemeActif, setEcosystemeActif] = useState<EcosystemeId>(() => ecosystemeDepuisChemin(pathname));
+  useEffect(() => {
+    const chemin = pathname.split(/[?#]/, 1)[0] || "/";
+    const routePartagee = chemin === "/client" || chemin.startsWith("/client/")
+      || chemin.startsWith("/reservation/") || chemin.startsWith("/univers-reservation/");
+    setEcosystemeActif(routePartagee
+      ? lireEcosystemeSelectionne() ?? "pharmacie"
+      : ecosystemeDepuisChemin(chemin));
+  }, [pathname]);
   const themeEcosysteme = ECOSYSTEME_PAR_ID[ecosystemeActif];
   const universesMenu = ECOSYSTEMES.filter((item) => item.id !== ecosystemeActif);
   const headerScene = pathname.includes("profil") || pathname.includes("messages") || pathname.includes("posologie")
@@ -154,7 +164,7 @@ export function EnTeteClient() {
 
   return <header data-naxa-ecosysteme={ecosystemeActif} className="naxa-green-header sticky top-0 z-50 isolate min-h-[104px] overflow-visible px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white transition-colors duration-500" style={{ backgroundColor: themeEcosysteme.color }}>
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" style={{ backgroundColor: themeEcosysteme.color }}>
-      <div className="absolute inset-0 bg-cover bg-center transition-[background-image] duration-500" style={{ backgroundImage: `url("${headerScene.image}")`, backgroundPosition: headerScene.position }} />
+      {ecosystemeActif === "pharmacie" && <div className="absolute inset-0 bg-cover bg-center transition-[background-image] duration-500" style={{ backgroundImage: `url("${headerScene.image}")`, backgroundPosition: headerScene.position }} />}
       <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(90deg, ${themeEcosysteme.color}F2, ${themeEcosysteme.color}D9 58%, ${themeEcosysteme.color}C9)` }} />
       <div className="absolute inset-0" style={{ backgroundColor: themeEcosysteme.color, opacity: 0.12 }} />
     </div>
@@ -162,7 +172,7 @@ export function EnTeteClient() {
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <Logo clair taille={38}/>
-          <p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">{themeEcosysteme.tagline}</p>
+          <p key={ecosystemeActif} className="naxa-ecosysteme-tagline mt-0 text-[11px] font-semibold tracking-wide text-white/85">{themeEcosysteme.tagline}</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           {ecosystemeActif === "pharmacie" && <BoutonPanierEntete/>}
@@ -224,5 +234,15 @@ export function EnTeteClient() {
         </button>
       </nav>}
     </div>
+    <style jsx>{`
+      @keyframes naxa-ecosysteme-identite {
+        from { opacity: .55; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .naxa-ecosysteme-tagline { animation: naxa-ecosysteme-identite 420ms ease-out both; }
+      @media (prefers-reduced-motion: reduce) {
+        .naxa-ecosysteme-tagline { animation: none !important; }
+      }
+    `}</style>
   </header>;
 }

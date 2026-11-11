@@ -126,14 +126,7 @@ export default function Accueil() {
       }
     }
     setAgeGate(confirmed ? null : "minor");
-    if (confirmed) {
-      const destination = destinationApresAge();
-      if (destination) {
-        window.location.replace(destination);
-        return;
-      }
-      setSelectionEcosystemeVisible(true);
-    }
+    if (confirmed) setSelectionEcosystemeVisible(true);
   }
 
   useEffect(() => {
