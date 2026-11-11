@@ -464,7 +464,7 @@ export function AccueilClient() {
             <div className="min-w-0">
               <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#FFE23D] drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">NAXA vous connecte</p>
               <p className="mb-1 text-[16px] font-extrabold leading-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Quel produit recherchez-vous en pharmacie aujourd'hui?</p>
-              <p className="mb-5 text-[13px] leading-5 text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Commande préparée et livrée rapidement par votre pharmacie vérifiée.</p>
+              <p className="mb-5 text-[13px] leading-5 text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Commande possible, préparée et livrée rapidement par votre pharmacie vérifiée.</p>
 
       <div ref={searchWrapRef} className="naxa-enter relative z-30 mb-3">
         <form onSubmit={soumettre} className="flex gap-2">
