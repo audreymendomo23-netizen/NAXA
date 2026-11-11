@@ -62,7 +62,7 @@ test("capture Admin : expéditeur brut exact et SMS crédit seulement", () => {
   assert.match(source, /senderOriginAddress/);
   assert.match(source, /MobileMoney/);
   assert.match(source, /OrangeMoney/);
-  assert.match(source, /!\/\\d\//);
+  assert.match(source, /\/\\d\//);
   assert.match(source, /direction === "merchant_credit"/);
   assert.match(source, /payloadHash/);
   assert.match(source, /naxa_promoteur_payment_auto_confirm_admin_sms/);

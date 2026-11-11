@@ -22,8 +22,9 @@ test("un échec de compensation est journalisé et ne se présente jamais comme 
   assert.match(page, /ne renvoyez pas le même paiement avant vérification/);
 });
 
-test("la période annoncée dans l'espace Promoteur respecte un mois calendaire", () => {
-  assert.match(page, /un mois calendaire/);
+test("la tolérance de vérification est de 24 heures sans renouvellement automatique", () => {
+  assert.match(page, /tolérance de vérification de 24 heures/);
+  assert.match(page, /ne renouvelle pas l’abonnement/);
   assert.doesNotMatch(page, /échéance est calculée à 31 jours/);
 });
 
