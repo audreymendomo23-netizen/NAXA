@@ -31,7 +31,7 @@ function appartientAuParcoursClient(pathname: string) {
     || pathname === "/bebe-maman"
     || pathname.startsWith("/bebe-maman/")
     || pathname === "/suivi"
-    || pathname.startsWith("/suivi/") && !pathname.startsWith("/suivi/professionnel");
+    || (pathname.startsWith("/suivi/") && !pathname.startsWith("/suivi/professionnel"));
 }
 
 export function ParcoursClientShell({ children }: { children: React.ReactNode }) {

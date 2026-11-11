@@ -165,7 +165,7 @@ export function EnTeteClient() {
           <p className="mt-0 text-[11px] font-semibold tracking-wide text-white/85">{themeEcosysteme.tagline}</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          {["pharmacie", "parapharmacie", "bebe-maman"].includes(ecosystemeActif) && <BoutonPanierEntete/>}
+          {(ecosystemeActif === "pharmacie" || ecosystemeActif === "parapharmacie" || ecosystemeActif === "bebe-maman") && <BoutonPanierEntete/>}
           <BoutonNotifications/>
           <button type="button" aria-label={searchOpen ? "Fermer la recherche générale" : "Rechercher dans NAXA"} aria-expanded={searchOpen} onClick={() => { setSearchOpen(v => !v); setMenuOpen(false); }} data-naxa-client-search className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><IconeNAXA name="search" size={22}/></button>
           <button type="button" aria-label={menuOpen ? "Fermer le menu" : "Autres services"} aria-expanded={menuOpen} onClick={() => { setMenuOpen(v => !v); setSearchOpen(false); }} data-naxa-client-menu className="flex h-10 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]">

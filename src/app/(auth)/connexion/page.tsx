@@ -8,6 +8,7 @@ import { Logo } from "@/components/Logo";
 import { CocheValidation } from "@/components/CocheValidation";
 import {
   ecosystemeDepuisChemin,
+  estEcosystemeId,
   ECOSYSTEME_PAR_ID,
   espaceAuthentificationEcosysteme,
   routeProfessionnelleEcosysteme,
@@ -205,14 +206,15 @@ function GoogleIcon() {
 function TitreEspace() {
   const search = useSearchParams();
   const retour = search.get("retour") || "/";
-  const ecosysteme = ecosystemeDepuisChemin(retour);
+  const queryEcosysteme = search.get("ecosysteme");
+  const ecosysteme = estEcosystemeId(queryEcosysteme) ? queryEcosysteme : ecosystemeDepuisChemin(retour);
   const titre = search.get("professionnel") === "1"
-    ? "Accès professionnel · " + ECOSYSTEME_PAR_ID[ecosysteme].shortLabel
+    ? "Accès pro · " + ECOSYSTEME_PAR_ID[ecosysteme].shortLabel
     : ecosysteme === "pharmacie" ? "Espace pharmacie" : "Espace " + ECOSYSTEME_PAR_ID[ecosysteme].shortLabel;
 
   return (
     <p
-      className="reveal inline-flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-4 py-2 text-xl font-extrabold tracking-tight text-[#064B2A] shadow-sm"
+      className="reveal inline-flex max-w-[46vw] items-center gap-2 truncate whitespace-nowrap rounded-full border-[1.5px] border-naxa-green-100 bg-white/70 px-3 py-2 text-sm font-extrabold tracking-tight text-[#064B2A] shadow-sm sm:max-w-none sm:px-4 sm:text-xl"
       style={d(0)}
     >
       <span
@@ -228,11 +230,12 @@ function TitreEspace() {
 function AccesProfessionnel() {
   const search = useSearchParams();
   const retour = search.get("retour") || "/";
-  const ecosysteme = ecosystemeDepuisChemin(retour);
-  if (search.get("espace") === "pharmacie") return null;
+  const queryEcosysteme = search.get("ecosysteme");
+  const ecosysteme = estEcosystemeId(queryEcosysteme) ? queryEcosysteme : ecosystemeDepuisChemin(retour);
+  if (search.get("espace") === "pharmacie" || search.get("professionnel") === "1") return null;
   const target = routeProfessionnelleEcosysteme(ecosysteme);
   const authSpace = espaceAuthentificationEcosysteme(ecosysteme);
-  const href = `/connexion?espace=${authSpace}&retour=${encodeURIComponent(target)}&professionnel=1`;
+  const href = `/connexion?espace=${authSpace}&retour=${encodeURIComponent(target)}&professionnel=1&ecosysteme=${ecosysteme}`;
   return (
     <Link
       href={href}

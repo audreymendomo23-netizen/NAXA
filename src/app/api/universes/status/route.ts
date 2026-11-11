@@ -28,7 +28,9 @@ export async function GET() {
       );
     }
 
-    const rows = new Map((data ?? []).map((row) => [row.slug, row.enabled === true]));
+    const rows = new Map<string, boolean>(
+      (data ?? []).map((row) => [row.slug, row.enabled === true] as const),
+    );
     const universes: Record<string, boolean> = { pharmacie: true };
     for (const slug of CONFIGURABLE_UNIVERSES) universes[slug] = rows.get(slug) === true;
 
