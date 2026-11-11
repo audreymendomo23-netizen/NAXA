@@ -620,7 +620,7 @@ export async function GET(request: Request) {
         title,
         body: "Ouvrez NAXA pour consulter votre notification.",
         url: typeof item.target_url === "string" ? item.target_url : "/notifications",
-        tag: `naxa-notification-${item.id}`,
+        tag: `naxa-notification-${item.outbox_id}`,
         vibrate,
       });
 
