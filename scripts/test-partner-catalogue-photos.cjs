@@ -13,6 +13,7 @@ const actions = read("src/app/partenaire/catalogue/actions.ts");
 const uploader = read("src/app/partenaire/catalogue/PartnerCataloguePhoto.tsx");
 const e2e = read("scripts/storage-e2e.cjs");
 const catalog = read("src/components/universes/UniverseCatalog.tsx");
+const productGrid = read("src/components/universes/UniverseProductGrid.tsx");
 
 test("bucket photo public uniquement pour l’affichage catalogue, avec taille et MIME bornés", () => {
   assert.match(migration, /'partner-catalogue-photos'[\s\S]*true[\s\S]*2097152[\s\S]*image\/webp/);
@@ -59,6 +60,8 @@ test("le formulaire photo compresse en WebP, refuse les formats non admis et exi
   assert.match(uploader, /licence\.trim\(\)\.length < 5/);
   assert.match(uploader, /rightsConfirmed/);
   assert.match(uploader, /upsert: false/);
+  assert.match(uploader, /MAX_DECODED_PIXELS = 32_000_000/);
+  assert.match(uploader, /setSourceUrl\(photoSourceUrl \?\? ""\)/);
 });
 
 test("le parcours partenaire charge la provenance via la table protégée", () => {
@@ -69,10 +72,20 @@ test("le parcours partenaire charge la provenance via la table protégée", () =
   assert.match(actions, /retirerPhotoProduitCatalogue/);
   assert.match(actions, /getPublicUrl\(photoPath\)/);
   assert.match(catalog, /photo_url/);
+  assert.match(productGrid, /UniverseProductImage/);
+  assert.match(productGrid, /aspect-\[4\/3\]/);
+  assert.match(productGrid, /Photo non chargée/);
+  assert.match(productGrid, /Prix affiché par le partenaire/);
+  assert.match(productGrid, /Présentation neutre/);
+  assert.match(productGrid, /Aucun produit sponsorisé, classement publicitaire ni avantage promotionnel/);
+  assert.doesNotMatch(productGrid, /prix barré|remise spéciale|sponsorisé par|mise en avant/i);
 });
 
 test("le chemin Storage est contrôlé côté serveur et le bucket reste fermé aux comptes non partenaires", () => {
   assert.match(actions, /cheminPhotoAutorise\(photoPath, partnerId, productId\)/);
+  const pathValidator = actions.split("\n").find(line => line.includes("WEBP_FILE"));
+  assert.ok(pathValidator && pathValidator.includes(String.fromCharCode(92) + ".webp"));
+  assert.ok(!pathValidator.includes(String.fromCharCode(92) + String.fromCharCode(92) + ".webp"));
   assert.match(actions, /memberships\.some/);
   assert.match(e2e, /BUCKET_PARTNER_CATALOGUE_PHOTOS/);
   assert.match(e2e, /partner-catalogue-photos/);

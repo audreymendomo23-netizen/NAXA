@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
@@ -11,10 +11,16 @@ import {
 const BUCKET = "partner-catalogue-photos";
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
 const MAX_STORED_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 8000;
+const MAX_DECODED_PIXELS = 32_000_000;
 
 async function convertirWebp(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   try {
+    if (bitmap.width > MAX_IMAGE_DIMENSION || bitmap.height > MAX_IMAGE_DIMENSION ||
+        bitmap.width * bitmap.height > MAX_DECODED_PIXELS) {
+      throw new Error("Image trop grande à décoder. Choisissez une photo de dimensions plus modestes.");
+    }
     const ratio = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
@@ -71,6 +77,12 @@ export function PartnerCataloguePhoto({
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading" | "saving" | "removing" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setSourceUrl(photoSourceUrl ?? "");
+    setLicence(photoLicence ?? "");
+    setRightsConfirmed(false);
+  }, [photoSourceUrl, photoLicence]);
 
   async function upload(file: File) {
     setMessage("");

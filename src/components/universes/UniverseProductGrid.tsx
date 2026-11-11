@@ -8,6 +8,35 @@ const CART_KEY = "naxa-universe-cart-v1";
 type Product = { product_id: string; partner_id: string; partner_name: string; universe_slug: string; name: string; brand: string | null; category: string; description: string | null; photo_url: string | null; price_fcfa: number; available_quantity: number; unit_label: string };
 type Line = { productId: string; partnerId: string; partnerName: string; universe: string; name: string; price: number; quantity: number; maxQuantity: number };
 
+function UniverseProductImage({ product, universe }: { product: Product; universe: "parapharmacie" | "bebe-maman" }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [product.photo_url]);
+  const baby = universe === "bebe-maman";
+  return (
+    <div className={baby
+      ? "relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-rose-50 via-white to-amber-50"
+      : "relative aspect-square w-full overflow-hidden bg-[#F8F6F7]"}>
+      {baby && <><span aria-hidden="true" className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/70"/><span aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-rose-100/50"/></>}
+      {product.photo_url && !failed ? (
+        <img
+          src={product.photo_url}
+          alt={"Photo de " + product.name}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          className={baby ? "relative z-10 h-full w-full object-contain p-3 sm:p-4" : "relative z-10 h-full w-full object-contain p-2"}
+        />
+      ) : (
+        <div className="relative z-10 flex h-full flex-col items-center justify-center gap-2 text-slate-400">
+          <span className={baby ? "text-5xl font-light text-rose-300" : "text-4xl"} aria-hidden="true">{baby ? "♡" : "✳"}</span>
+          <span className="text-[10px] font-semibold">{failed ? "Photo non chargée" : "Photo indisponible"}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function UniverseProductGrid({ products, universe }: { products: Product[]; universe: "parapharmacie" | "bebe-maman" }) {
   const [cart, setCart] = useState<Line[]>([]);
   const [ready, setReady] = useState(false);
@@ -115,15 +144,26 @@ const eligibleProducts = useMemo(() => products.filter(p => {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">{visibleProducts.map(p => {
         const stock = Math.max(0, Math.floor(Number(p.available_quantity)));
         const selected = cart.find(x => x.productId === p.product_id);
-        return <article key={p.product_id} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="aspect-square w-full bg-[#F8F6F7]">{p.photo_url ? <img src={p.photo_url} alt={p.name} loading="lazy" className="h-full w-full object-contain p-2" /> : <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400"><span className="text-4xl" aria-hidden="true">{universe === "bebe-maman" ? "♡" : "✳"}</span><span className="text-[10px] font-semibold">Photo indisponible</span></div>}</div>
-          <div className="space-y-1.5 p-3">
-            <p className="truncate text-[10px] font-bold uppercase tracking-wide" style={{ color: theme }}>{p.category}</p>
-            <h2 className="min-h-10 text-sm font-extrabold leading-5">{p.name}</h2>
-            {p.brand && <p className="truncate text-xs text-slate-600">{p.brand}</p>}
-            {p.description && <p className="max-h-8 overflow-hidden text-xs leading-4 text-slate-600">{p.description}</p>}
+        const baby = universe === "bebe-maman";
+        return <article key={p.product_id} className={baby
+          ? "min-w-0 overflow-hidden rounded-3xl border border-rose-100 bg-white shadow-[0_8px_24px_rgba(148,70,103,0.08)]"
+          : "min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"}>
+          <UniverseProductImage product={p} universe={universe}/>
+          <div className={baby ? "space-y-2.5 p-3 sm:p-4" : "space-y-1.5 p-3"}>
+            <p className={baby
+              ? "inline-flex max-w-full rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-800"
+              : "truncate text-[10px] font-bold uppercase tracking-wide"} style={baby ? undefined : { color: theme }}>{p.category}</p>
+            <h2 className={baby ? "min-h-12 text-sm font-extrabold leading-5 text-slate-900 sm:text-base" : "min-h-10 text-sm font-extrabold leading-5"}>{p.name}</h2>
+            {p.brand && <p className="truncate text-xs font-medium text-slate-600">{p.brand}</p>}
+            {p.description && <p className={baby ? "line-clamp-3 min-h-[3.75rem] text-xs leading-5 text-slate-600" : "max-h-8 overflow-hidden text-xs leading-4 text-slate-600"}>{p.description}</p>}
             <p className="truncate text-[10px] text-slate-500">Partenaire : {p.partner_name}</p>
-            <div className="flex flex-wrap items-baseline justify-between gap-1"><strong className="text-sm font-black">{money(Number(p.price_fcfa))}</strong><span className={stock > 0 ? "text-[10px] font-semibold text-emerald-800" : "text-[10px] font-semibold text-red-700"}>{stock} disponible(s)</span></div>
+            <div className={baby ? "rounded-xl bg-[#FBF5F7] p-2.5" : "flex flex-wrap items-baseline justify-between gap-1"}>
+              {baby && <p className="mb-1 text-[10px] font-semibold text-slate-500">Prix affiché par le partenaire</p>}
+              <div className="flex flex-wrap items-baseline justify-between gap-1">
+                <strong className="text-sm font-black text-slate-900">{money(Number(p.price_fcfa))}</strong>
+                <span className={stock > 0 ? "text-[10px] font-semibold text-emerald-800" : "text-[10px] font-semibold text-red-700"}>{stock} disponible(s)</span>
+              </div>
+            </div>
             <button type="button" onClick={() => add(p)} disabled={stock < 1} className="mt-2 min-h-10 w-full rounded-xl px-2 py-2 text-xs font-bold text-white sm:text-sm disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: theme }}>{stock < 1 ? "Indisponible" : selected ? "Ajouter un autre" : "Ajouter au panier"}</button>
           </div>
         </article>;

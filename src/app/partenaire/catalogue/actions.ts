@@ -27,7 +27,7 @@ async function partnerContext() {
 
 // Catalogue photo partenaire — les droits et sources restent dans la table RLS dédiée.
 const PARTNER_PHOTO_BUCKET = "partner-catalogue-photos";
-const WEBP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.webp$/i;
+const WEBP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i;
 
 function cheminPhotoAutorise(path: string, partnerId: string, productId: string) {
   const prefix = partnerId + "/" + productId + "/";
