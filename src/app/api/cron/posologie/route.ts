@@ -534,9 +534,108 @@ export async function GET(request: Request) {
     }
   }
 
+  // Dispatcher central des notifications de tous les univers NAXA.
+  // Le contenu des messages est volontairement masqué sur l'écran verrouillé.
+  let notificationPushChecked = 0;
+  let notificationPushSent = 0;
+  let notificationPushFailed = 0;
+  const { data: outboxItems, error: outboxError } = await db
+    .from("naxa_notification_push_outbox")
+    .select("id,recipient_id,notification_type,target_url,attempts")
+    .eq("state", "pending")
+    .lt("attempts", 12)
+    .order("created_at", { ascending: true })
+    .limit(500);
+
+  if (outboxError) {
+    failed++;
+    notificationPushFailed++;
+  } else {
+    notificationPushChecked = outboxItems?.length ?? 0;
+    const outboxSubscriptions = new Map<string, any[]>();
+    for (const item of outboxItems ?? []) {
+      await db.from("naxa_notification_push_outbox")
+        .update({ attempts: Number(item.attempts ?? 0) + 1, updated_at: new Date().toISOString(), last_error: null })
+        .eq("id", item.id).eq("state", "pending");
+
+      let subscriptions = outboxSubscriptions.get(item.recipient_id);
+      if (!subscriptions) {
+        const { data, error: subscriptionError } = await db.from("naxa_push_subscriptions")
+          .select("endpoint,subscription").eq("user_id", item.recipient_id);
+        if (subscriptionError) {
+          failed++;
+          notificationPushFailed++;
+          await db.from("naxa_notification_push_outbox")
+            .update({ last_error: "push_subscription_read_failed", updated_at: new Date().toISOString() })
+            .eq("id", item.id).eq("state", "pending");
+          continue;
+        }
+        subscriptions = data ?? [];
+        outboxSubscriptions.set(item.recipient_id, subscriptions);
+      }
+
+      // L'absence d'appareil inscrit ne bloque pas la notification in-app.
+      if (!subscriptions.length) {
+        await db.from("naxa_notification_push_outbox")
+          .update({ state: "sent", updated_at: new Date().toISOString(), last_error: "no_push_subscription" })
+          .eq("id", item.id).eq("state", "pending");
+        continue;
+      }
+
+      const kind = String(item.notification_type ?? "").toLowerCase();
+      const isCall = /call|appel|incoming_call/.test(kind);
+      const isMessage = /message|sms/.test(kind);
+      const isReminder = /rappel|reminder|appointment/.test(kind);
+      const title = isCall ? "Appel NAXA" : isMessage ? "Nouveau message NAXA" :
+        isReminder ? "Rappel NAXA" : "Notification NAXA";
+      const vibrate = isCall ? [700, 250, 700, 250, 900] :
+        isMessage ? [180, 80, 180] : isReminder ? [300, 120, 300] : [160, 80, 160];
+      const payload = JSON.stringify({
+        type: kind,
+        title,
+        body: "Ouvrez NAXA pour consulter votre notification.",
+        url: typeof item.target_url === "string" ? item.target_url : "/notifications",
+        tag: `naxa-notification-${item.id}`,
+        vibrate,
+      });
+
+      let deliveryFailed = false;
+      for (const subscription of subscriptions) {
+        try {
+          await webpush.sendNotification(subscription.subscription, payload, {
+            TTL: 3600,
+            urgency: isCall || isReminder ? "high" : "normal",
+          });
+          sent++;
+          notificationPushSent++;
+        } catch (error) {
+          const status = (error as { statusCode?: number }).statusCode;
+          if (status === 404 || status === 410) {
+            await db.from("naxa_push_subscriptions")
+              .delete().eq("endpoint", subscription.endpoint).eq("user_id", item.recipient_id);
+          } else {
+            deliveryFailed = true;
+            failed++;
+            notificationPushFailed++;
+          }
+        }
+      }
+
+      if (!deliveryFailed) {
+        await db.from("naxa_notification_push_outbox")
+          .update({ state: "sent", updated_at: new Date().toISOString(), last_error: null })
+          .eq("id", item.id).eq("state", "pending");
+      } else {
+        await db.from("naxa_notification_push_outbox")
+          .update({ last_error: "push_delivery_failed", updated_at: new Date().toISOString() })
+          .eq("id", item.id).eq("state", "pending");
+      }
+    }
+  }
+
   // Un worker planifié ne doit jamais renvoyer un faux vert quand un sous-traitement a échoué.
   // Le dispatcher/pg_cron peut ainsi remonter l'échec HTTP et l'historiser.
-  const hasFailures = failed > 0 || suiviFailed > 0 || favorisRappelsEchecs > 0 || homeServiceRemindersFailed > 0;
+  const hasFailures = failed > 0 || suiviFailed > 0 || favorisRappelsEchecs > 0 || homeServiceRemindersFailed > 0 || notificationPushFailed > 0;
   return NextResponse.json({
     ok: !hasFailures,
     checked: data?.length ?? 0,
@@ -555,6 +654,9 @@ export async function GET(request: Request) {
     homeServiceRemindersDue,
     homeServiceRemindersPush,
     homeServiceRemindersFailed,
+    notificationPushChecked,
+    notificationPushSent,
+    notificationPushFailed,
     at: now.toISOString(),
   }, { status: hasFailures ? 503 : 200 });
 }
