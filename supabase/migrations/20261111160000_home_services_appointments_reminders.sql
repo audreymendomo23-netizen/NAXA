@@ -34,7 +34,8 @@ create table if not exists public.home_service_reminder_dispatches (
   scheduled_at timestamptz not null,
   due_at timestamptz not null,
   notification_created_at timestamptz,
-  state text not null default 'pending' check (state in ('pending','sent')),
+  state text not null default 'pending' check (state in ('pending','processing','sent')),
+  locked_at timestamptz,
   attempts integer not null default 0 check (attempts >= 0),
   last_error text,
   created_at timestamptz not null default now(),
@@ -44,7 +45,7 @@ create table if not exists public.home_service_reminder_dispatches (
 
 create index if not exists home_service_reminder_dispatches_due_idx
   on public.home_service_reminder_dispatches(due_at)
-  where state='pending';
+  where state in ('pending','processing');
 
 alter table public.home_service_reminder_preferences enable row level security;
 alter table public.home_service_reminder_dispatches enable row level security;
@@ -134,6 +135,51 @@ revoke all on public.home_service_reminder_preferences from public,anon;
 grant select,insert,update,delete on public.home_service_reminder_preferences to authenticated;
 revoke all on public.home_service_reminder_dispatches from public,anon,authenticated;
 grant all on public.home_service_reminder_dispatches to service_role;
+
+create or replace function public.claim_home_service_reminder_dispatches(p_batch_size integer default 500)
+returns table(
+  dispatch_id uuid,
+  request_id uuid,
+  recipient_id uuid,
+  offset_minutes integer,
+  scheduled_at timestamptz,
+  notification_created_at timestamptz,
+  attempts integer
+)
+language plpgsql
+security definer
+set search_path=''
+as $function$
+begin
+  return query
+  with picked as (
+    select d.id as dispatch_id
+    from public.home_service_reminder_dispatches d
+    where d.due_at<=now() and d.attempts<12
+      and (
+        d.state='pending'
+        or (d.state='processing' and coalesce(d.locked_at,d.updated_at)<now()-interval '10 minutes')
+      )
+    order by d.due_at
+    for update skip locked
+    limit greatest(1,least(coalesce(p_batch_size,500),1000))
+  ), claimed as (
+    update public.home_service_reminder_dispatches d
+    set state='processing',locked_at=now(),attempts=d.attempts+1,
+        updated_at=now(),last_error=null
+    from picked p
+    where d.id=p.dispatch_id
+    returning d.id as dispatch_id,d.request_id,d.recipient_id,d.offset_minutes,
+      d.scheduled_at,d.notification_created_at,d.attempts
+  )
+  select c.dispatch_id,c.request_id,c.recipient_id,c.offset_minutes,
+    c.scheduled_at,c.notification_created_at,c.attempts
+  from claimed c;
+end;
+$function$;
+
+revoke all on function public.claim_home_service_reminder_dispatches(integer) from public,anon,authenticated;
+grant execute on function public.claim_home_service_reminder_dispatches(integer) to service_role;
 
 -- La confirmation devient une véritable prise de rendez-vous : le professionnel
 -- choisit explicitement le créneau retenu, distinct de la préférence du client.
@@ -269,7 +315,8 @@ create table if not exists public.naxa_notification_push_outbox (
   title text not null check (length(trim(title)) between 1 and 160),
   body text not null check (length(body) <= 1000),
   target_url text not null default '/notifications',
-  state text not null default 'pending' check (state in ('pending','sent')),
+  state text not null default 'pending' check (state in ('pending','processing','sent')),
+  locked_at timestamptz,
   attempts integer not null default 0 check (attempts >= 0),
   last_error text,
   created_at timestamptz not null default now(),
@@ -284,6 +331,47 @@ create index if not exists naxa_notification_push_outbox_pending_idx
 alter table public.naxa_notification_push_outbox enable row level security;
 revoke all on public.naxa_notification_push_outbox from public,anon,authenticated;
 grant all on public.naxa_notification_push_outbox to service_role;
+
+create or replace function public.claim_naxa_notification_push_outbox(p_batch_size integer default 500)
+returns table(
+  outbox_id uuid,
+  recipient_id uuid,
+  notification_type text,
+  target_url text,
+  attempts integer
+)
+language plpgsql
+security definer
+set search_path=''
+as $function$
+begin
+  return query
+  with picked as (
+    select o.id as outbox_id
+    from public.naxa_notification_push_outbox o
+    where o.attempts<12
+      and (
+        o.state='pending'
+        or (o.state='processing' and coalesce(o.locked_at,o.updated_at)<now()-interval '10 minutes')
+      )
+    order by o.created_at
+    for update skip locked
+    limit greatest(1,least(coalesce(p_batch_size,500),1000))
+  ), claimed as (
+    update public.naxa_notification_push_outbox o
+    set state='processing',locked_at=now(),attempts=o.attempts+1,
+        updated_at=now(),last_error=null
+    from picked p
+    where o.id=p.outbox_id
+    returning o.id as outbox_id,o.recipient_id,o.notification_type,o.target_url,o.attempts
+  )
+  select c.outbox_id,c.recipient_id,c.notification_type,c.target_url,c.attempts
+  from claimed c;
+end;
+$function$;
+
+revoke all on function public.claim_naxa_notification_push_outbox(integer) from public,anon,authenticated;
+grant execute on function public.claim_naxa_notification_push_outbox(integer) to service_role;
 
 create or replace function public.enqueue_naxa_notification_push()
 returns trigger
