@@ -46,7 +46,6 @@ export async function lirePreuvePaiement(file: File | Blob): Promise<LecturePreu
     const loading = pdfjs.getDocument({
       data: new Uint8Array(await file.arrayBuffer()),
       useWorkerFetch: false,
-      isEvalSupported: false,
     });
     const pdf = await loading.promise;
     const pageCount = Math.min(pdf.numPages, 3);
@@ -80,7 +79,7 @@ export async function lirePreuvePaiement(file: File | Blob): Promise<LecturePreu
         canvas.height = Math.ceil(viewport.height);
         const context = canvas.getContext("2d", { alpha: false });
         if (!context) throw new Error("Impossible de preparer la page PDF pour l'OCR.");
-        await page.render({ canvasContext: context, viewport }).promise;
+        await page.render({ canvas, canvasContext: context, viewport }).promise;
         const { data } = await worker.recognize(canvas);
         const recognized = String(data.text ?? "").trim();
         if (recognized) fragments.push("[Page " + pageNumber + "] " + recognized);
@@ -90,7 +89,7 @@ export async function lirePreuvePaiement(file: File | Blob): Promise<LecturePreu
         canvas.height = 0;
       }
     } finally {
-      await pdf.destroy();
+      await loading.destroy();
     }
 
     const text = fragments.join("\n\n").slice(0, 12000);
