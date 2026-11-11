@@ -90,6 +90,30 @@ begin
     or has_table_privilege('anon','public.naxa_notification_push_outbox','SELECT') then
     raise exception 'Global notification Push outbox is exposed to client roles';
   end if;
+
+  if to_regprocedure('public.claim_home_service_reminder_dispatches(integer)') is null then
+    raise exception 'Atomic home-service reminder claim RPC missing';
+  end if;
+  if not has_function_privilege('service_role',
+      'public.claim_home_service_reminder_dispatches(integer)','EXECUTE')
+    or has_function_privilege('authenticated',
+      'public.claim_home_service_reminder_dispatches(integer)','EXECUTE')
+    or has_function_privilege('anon',
+      'public.claim_home_service_reminder_dispatches(integer)','EXECUTE') then
+    raise exception 'Home-service reminder claim RPC grants are unsafe';
+  end if;
+
+  if to_regprocedure('public.claim_naxa_notification_push_outbox(integer)') is null then
+    raise exception 'Atomic global notification Push claim RPC missing';
+  end if;
+  if not has_function_privilege('service_role',
+      'public.claim_naxa_notification_push_outbox(integer)','EXECUTE')
+    or has_function_privilege('authenticated',
+      'public.claim_naxa_notification_push_outbox(integer)','EXECUTE')
+    or has_function_privilege('anon',
+      'public.claim_naxa_notification_push_outbox(integer)','EXECUTE') then
+    raise exception 'Global notification Push claim RPC grants are unsafe';
+  end if;
 end
 $test$;
 
