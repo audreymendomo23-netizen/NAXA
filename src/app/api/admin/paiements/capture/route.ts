@@ -149,13 +149,38 @@ export async function POST(request: Request) {
       if (!snapshot?.reference_destination ||
           normalize(snapshot.reference_destination) !== normalize(device.merchant_reference)) return false;
       const declaredPhone = phoneTail(row.compte_payeur);
-      if (declaredPhone && declaredPhone !== phoneTail(parsed.payerNumber)) return false;
+      if (!declaredPhone || declaredPhone !== phoneTail(parsed.payerNumber)) return false;
       if (providerAt && row.paye_le) {
         const paid = new Date(row.paye_le).getTime();
         if (providerAt.getTime() < paid - 15 * 60_000 || providerAt.getTime() > paid + 30 * 60_000) return false;
       }
       return true;
     });
+
+    if (pendingMatches.length > 1) {
+      const { data: event, error: eventError } = await db.from("naxa_admin_payment_capture_events").insert({
+        admin_id: auth.user.id,
+        device_id: device.id,
+        reglement_id: null,
+        canal,
+        direction: "merchant_credit",
+        success: true,
+        transaction_reference: reference,
+        amount: parsed.amount,
+        currency: "FCFA",
+        payer_number: phoneTail(parsed.payerNumber),
+        merchant_reference: device.merchant_reference,
+        sender_origin_id: senderOriginAddress,
+        provider_occurred_at: parsed.occurredAt,
+        sms_received_at: smsReceivedAt.toISOString(),
+        payload_sha256: payloadHash,
+        match_status: "ambiguous",
+      }).select("id").single();
+      if (eventError?.code === "23505") return NextResponse.json({ received: true, status: "duplicate" }, { status: 409 });
+      if (eventError || !event) return NextResponse.json({ error: "Conservation de l'evenement ambigu impossible." }, { status: 503 });
+      await notifyAdmins(db, "Plusieurs reglements en attente correspondent au canal, montant, code marchand et payeur. Reference " + reference + ". Aucun renouvellement automatique.");
+      return NextResponse.json({ received: true, eventId: event.id, status: "ambiguous" }, { status: 202 });
+    }
 
     let reglementId: string | null = pendingMatches.length === 1 ? pendingMatches[0].id : null;
 
