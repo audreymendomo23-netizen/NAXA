@@ -35,7 +35,7 @@ Alimenter le catalogue public NAXA avec des images réellement rattachées à un
 
 - CIMA : API publique sans clé ni quota payant annoncé ; ne pas lancer de synchronisation massive inutile. Cache serveur 7 jours.
 - Wikimedia Commons : respecter les règles de l'API et son User-Agent descriptif. Le service peut appliquer des limites adaptatives ; limiter les appels simultanés, utiliser le cache 7 jours et ne pas relancer immédiatement après HTTP 429.
-- Open Products Facts : endpoint public par code-barres ; aucun quota garanti n'est supposé par NAXA. Utiliser un appel à la demande et un cache 7 jours.
+- Open Products Facts : endpoint public par code-barres ; sa documentation indique que son API est largement compatible avec Open Food Facts. Par prudence, NAXA applique le plafond de lecture produit documenté par Open Food Facts (15 lectures/minute/IP) comme limite conservative, sans présumer qu'il s'agit d'un quota contractuel OPF. Aucun endpoint de recherche texte n'est utilisé ; uniquement un GET par GTIN exact et cache 7 jours.
 - Aucun secret ni clé API payante n'est nécessaire pour ces trois sources.
 
 ## Vérifications à effectuer après intégration
