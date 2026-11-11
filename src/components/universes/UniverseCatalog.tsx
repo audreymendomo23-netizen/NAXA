@@ -24,7 +24,7 @@ const actionErrorText: Record<string, string> = {
 export async function UniverseCatalog({ universe, actionError }: { universe: UniverseKey; actionError?: string }) {
   const actionMessage = actionError ? actionErrorText[actionError] ?? "Cette action n’a pas abouti. Réessayez." : null;
   const actionNotice = actionMessage ? <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{actionMessage}</p> : null;
-  const { data, error } = await supabasePublic(30).rpc("get_universe_catalog_for_cart", { p_universe_slug: universe });
+  const { data, error } = await supabasePublic(30).rpc("get_universe_catalog", { p_universe_slug: universe });
   if (error) {
     return <><UniverseLanding universe={universe}/><div className="mx-auto max-w-3xl px-4">{actionNotice}<p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue est temporairement indisponible. Réessayez dans quelques instants.</p></div></>;
   }

@@ -42,7 +42,8 @@ test("recherche, tri et effacement des filtres restent disponibles", () => {
 });
 
 test("les cartes affichent les informations factuelles utiles à la décision", () => {
-  assert.match(grid, /Partenaire : \{p\.partner_name\}/);
+  assert.match(grid, /universe === "bebe-maman" \? "Pharmacie" : "Professionnel Parapharmacie"/);
+  assert.match(grid, /p\.partner_name/);
   assert.match(grid, /money\(Number\(p\.price_fcfa\)\)/);
   assert.match(grid, /\{stock\} disponible\(s\)/);
   assert.match(grid, /Ajouter au panier/);

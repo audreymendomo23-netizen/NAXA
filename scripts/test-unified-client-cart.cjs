@@ -11,6 +11,7 @@ const basket = read("src/app/panier/page.tsx");
 const medicationCheckout = read("src/app/commande/nouvelle/page.tsx");
 const catalog = read("src/components/universes/UniverseCatalog.tsx");
 const migration = read("supabase/migrations/20261111233239_unified_client_cart_catalog_owner.sql");
+const finalMigration = read("supabase/migrations/20261111234144_unified_client_cart_extend_public_catalog.sql");
 
 test("le panier principal conserve les métadonnées Bébé & Maman", () => {
   for (const field of ["type_article", "universe_product_id", "pharmacie_id", "pharmacie_nom", "prix_unitaire_fcfa", "photo_url", "quantite_max"]) {
@@ -52,9 +53,10 @@ test("le checkout médicaments exclut les lignes Bébé & Maman", () => {
   assert.doesNotMatch(medicationCheckout, /const items=lignes\.map/);
 });
 
-test("le RPC catalogue expose l'identifiant de pharmacie sans modifier le RPC existant", () => {
-  assert.match(catalog, /get_universe_catalog_for_cart/);
-  assert.match(migration, /returns table\([\s\S]*pharmacie_id uuid/);
-  assert.match(migration, /grant execute on function public\.get_universe_catalog_for_cart/);
-  assert.doesNotMatch(migration, /drop function|cascade/i);
+test("le RPC catalogue existant expose aussi l'identifiant de pharmacie", () => {
+  assert.ok(catalog.includes('rpc("get_universe_catalog"'));
+  assert.ok(finalMigration.includes("pharmacie_id uuid"));
+  assert.ok(finalMigration.includes("drop function public.get_universe_catalog_for_cart(text)"));
+  assert.ok(finalMigration.includes("grant execute on function public.get_universe_catalog(text)"));
+  assert.ok(!finalMigration.toLowerCase().includes("cascade"));
 });
