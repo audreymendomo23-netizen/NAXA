@@ -127,8 +127,9 @@ function likelyCombinationMismatch(title: string, queryTokens: string[]): boolea
 
 
 const CIMA_BASE = "https://cima.aemps.es/cima/rest";
-const CIMA_ATTRIBUTION = "Fuente de la información: Agencia Española de Medicamentos y Productos Sanitarios (AEMPS).";
-const CIMA_LICENSE = "AEMPS — données ouvertes, réutilisation gratuite avec attribution de la source.";
+// CIMA expose les URLs des photos mais sa structure documentée ne garantit pas
+// une licence par fichier. Les photos sont soumises par les titulaires d'AMM.
+// Aucune image CIMA n'est affichée sans licence commerciale explicite sur le média.
 const CIMA_NAME_ALIASES: Record<string, string> = {
   acetaminophen: "paracetamol",
   ibuprofen: "ibuprofeno",
@@ -161,7 +162,19 @@ const CIMA_NAME_ALIASES: Record<string, string> = {
   salbutamol: "salbutamol"
 };
 
-type CimaPhotoEntry = { tipo?: string; url?: string };
+type CimaPhotoEntry = {
+  tipo?: string;
+  url?: string;
+  licence?: string;
+  license?: string;
+  licencia?: string;
+  licenceUrl?: string;
+  licenseUrl?: string;
+  licenciaUrl?: string;
+  auteur?: string;
+  author?: string;
+  attribution?: string;
+};
 type CimaIngredient = string | { nombre?: string; principioActivo?: string };
 type CimaMedicine = {
   nregistro?: string;
@@ -219,6 +232,21 @@ function cimaIngredients(medicine: CimaMedicine): string {
   }).filter(Boolean).join(" + ");
 }
 
+function allowedCimaImageRights(photo: CimaPhotoEntry): { licence: string; attribution: string | null } | null {
+  const licence = (photo.licence ?? photo.license ?? photo.licencia ?? "").trim();
+  const licenceUrl = (photo.licenceUrl ?? photo.licenseUrl ?? photo.licenciaUrl ?? "").trim();
+  const attribution = (photo.attribution ?? photo.auteur ?? photo.author ?? "").trim();
+  if (!licence) return null;
+  const permitted = /^(?:CC0(?:\\s|$)|Public Domain(?:\\s|$)|CC BY(?:-SA)?(?:\\s|$))/i.test(licence);
+  if (!permitted || /\\b(?:NC|ND)\\b|non.?commercial|no.?derivatives/i.test(licence)) return null;
+  if (/^CC BY/i.test(licence) && !attribution) return null;
+  if (!licenceUrl && !/^CC0(?:\\s|$)|^Public Domain(?:\\s|$)/i.test(licence)) return null;
+  return {
+    licence: [licence, licenceUrl].filter(Boolean).join(" — "),
+    attribution: attribution || null
+  };
+}
+
 function safeCimaImageUrl(raw: string | undefined): string | null {
   if (!raw) return null;
   try {
@@ -257,15 +285,18 @@ function cimaPhoto(
   const wantedType = kind === "boite" ? "materialas" : "formafarmac";
   const entry = (medicine.fotos ?? []).find((photo) => photo.tipo?.toLowerCase() === wantedType);
   const url = safeCimaImageUrl(entry?.url);
-  if (!url) return null;
+  const rights = entry ? allowedCimaImageRights(entry) : null;
+  // L'API CIMA documentée fournit type + URL + date, pas de licence image.
+  // L'ouverture des données AEMPS n'est pas assimilée à une cession des droits des laboratoires.
+  if (!url || !rights) return null;
   const registration = (medicine.nregistro ?? "").trim();
   return {
     url,
     sourceUrl: registration
       ? CIMA_BASE + "/medicamento?nregistro=" + encodeURIComponent(registration)
       : "https://sede.aemps.gob.es/datos-abiertos/",
-    licence: CIMA_LICENSE,
-    attribution: CIMA_ATTRIBUTION,
+    licence: rights.licence,
+    attribution: rights.attribution,
     title: name,
     kind,
     provider: "cima_aemps"
