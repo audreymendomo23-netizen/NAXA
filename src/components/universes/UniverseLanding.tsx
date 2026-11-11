@@ -41,10 +41,10 @@ const universes: Record<UniverseKey, Universe> = {
     bullets: ["Services et zones d’intervention", "Demandes de réservation", "Adresse protégée jusqu’à confirmation"],
   },
   suivi: {
-    title: "Dispositifs médicaux", slogan: "Espace en préparation",
-    description: "Cet univers reste désactivé en phase 1, dans l’attente de la validation du cadre légal et opérationnel.",
+    title: "Dispositifs médicaux", slogan: "Mon suivi santé connecté",
+    description: "Un espace personnel pour enregistrer vos mesures, retrouver vos appareils et suivre l’évolution de vos données de santé, avec votre consentement.",
     route: "/suivi", color: "#1D4ED8", soft: "#EAF2FE", border: "#C7DAFB", icon: "＋",
-    bullets: ["Aucun dispositif ni service de suivi connecté n’est activé", "Aucune mesure de santé n’est collectée dans cet espace", "L’ouverture interviendra après validation dédiée"],
+    bullets: ["Ajoutez les appareils que vous utilisez au quotidien", "Saisissez, scannez ou synchronisez les mesures compatibles", "Consultez votre historique et partagez certaines données avec un professionnel vérifié"],
   },
   aide: {
     title: "Aide NAXA", slogan: "Nous sommes là pour vous guider",
@@ -72,7 +72,7 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
           <div className="p-6 sm:p-9" style={{ backgroundColor: item.soft }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm" style={{ color: item.color }} aria-hidden="true">{item.icon}</div>
-              {comingSoon && <span className="inline-flex min-h-9 items-center rounded-full border border-white/80 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm">Bientôt disponible</span>}
+              {comingSoon && universe !== "suivi" && <span className="inline-flex min-h-9 items-center rounded-full border border-white/80 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm">Bientôt disponible</span>}
             </div>
             <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.12em]" style={{ color: item.color }}>{item.slogan}</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">{item.title}</h1>
@@ -91,9 +91,11 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
                 ))}
               </ul>
               {universe === "suivi" && (
-                <p role="status" className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
-                  Cet espace est informatif uniquement et ne permet pas encore d’ajouter, de synchroniser ou de partager des données de santé.
-                </p>
+                <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+                  <p className="font-extrabold">Vos données restent sous votre contrôle.</p>
+                  <p className="mt-1">Les images illustrent les catégories d’appareils. Elles ne représentent pas une marque et ne garantissent pas la compatibilité de votre modèle.</p>
+                  <Link href="/suivi" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-bold text-white hover:bg-blue-800">Ouvrir mon suivi santé</Link>
+                </div>
               )}
               {universe === "aide" && (
                 <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -123,7 +125,7 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
             </aside>
           </div>
         </section>
-        <p className="mx-auto mt-5 max-w-3xl px-2 text-center text-xs leading-5 text-slate-500">Les services affichés dépendent de leur activation et de la disponibilité des partenaires. NAXA ne confirme pas une réservation tant qu’une confirmation explicite n’a pas été fournie.</p>
+        <p className="mx-auto mt-5 max-w-3xl px-2 text-center text-xs leading-5 text-slate-500">{universe === "suivi" ? "Les appareils sont des éléments de suivi personnel. NAXA ne vend pas ces appareils dans cet espace et ne pose aucun diagnostic." : "Les services affichés dépendent de leur activation et de la disponibilité des partenaires. NAXA ne confirme pas une réservation tant qu’une confirmation explicite n’a pas été fournie."}</p>
       </div>
     </main>
   );

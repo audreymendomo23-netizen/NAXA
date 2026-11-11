@@ -7,6 +7,7 @@ const migration = fs.readFileSync("supabase/migration_148_suivi_21_dispositifs_i
 const sqlTest = fs.readFileSync("supabase/tests/148_suivi_21_dispositifs_interoperabilite.sql", "utf8");
 const measurementMigration = fs.readFileSync("supabase/migration_150_suivi_mesures_multidispositifs.sql", "utf8");
 const measurementTest = fs.readFileSync("supabase/tests/150_suivi_mesures_multidispositifs.sql", "utf8");
+const deviceSchemaMigration = fs.readFileSync("supabase/migrations/20261111000000_suivi_user_devices_catalog.sql", "utf8");
 
 const catalogKeys = [...component.matchAll(/\{ key:"([^"]+)", name:/g)].map(match => match[1]);
 assert.equal(catalogKeys.length, 21, "le catalogue UI doit présenter exactement 21 dispositifs");
@@ -39,5 +40,14 @@ assert.match(sqlTest, /naxa_148_device_interoperability_pass/, "test SQL de migr
 assert.match(measurementMigration, /capacite_vitale/, "types de mesure étendus manquants");
 assert.match(measurementTest, /naxa_150_extended_measurement_types_pass/, "test SQL des mesures étendues manquant");
 assert.ok(cron.includes('"cholesterol_ldl"].includes(type)') && cron.includes('"ecg_note","capacite_vitale"].includes(type)'), "le moteur de rappels doit mapper les nouvelles familles");
+assert.match(component, /Mon suivi santé/, "le nouvel accueil doit être présent");
+assert.match(component, /grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/, "les appareils doivent apparaître en grandes cartes responsives");
+assert.match(component, /Image src=\\{sb\\.storage\\.from\\("dispositifs"\\)\\.getPublicUrl\\(device\\.image\\)/, "les cartes doivent utiliser les visuels du stockage dispositifs");
+assert.ok(!component.includes("auto-cols-[76px]"), "l’ancien ruban de miniatures ne doit plus être affiché");
+assert.match(universe, /Mon suivi santé connecté/, "l’univers ne doit plus présenter le suivi comme en préparation");
+assert.match(deviceSchemaMigration, /create table if not exists public\\.suivi_user_devices/, "la table personnelle doit être créée par une migration standard");
+assert.match(deviceSchemaMigration, /enable row level security/, "RLS doit être activé sur les appareils personnels");
+assert.match(deviceSchemaMigration, /suivi_has_consent/, "l’activation doit rester conditionnée au consentement");
+assert.match(deviceSchemaMigration, /bouteille_hydratation/, "la migration doit couvrir les 21 catégories");
 
 console.log("PASS — 21 dispositifs, saisie/scan/Bluetooth, Push et rappels planifiés");
