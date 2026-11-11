@@ -152,7 +152,7 @@ export function EnTeteClient() {
     router.push(href);
   }
 
-  return <header className="naxa-green-header sticky top-0 z-50 isolate min-h-[104px] overflow-visible px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white" style={{ backgroundColor: themeEcosysteme.color }}>
+  return <header data-naxa-ecosysteme={ecosystemeActif} className="naxa-green-header sticky top-0 z-50 isolate min-h-[104px] overflow-visible px-4 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] text-white transition-colors duration-500" style={{ backgroundColor: themeEcosysteme.color }}>
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" style={{ backgroundColor: themeEcosysteme.color }}>
       <div className="absolute inset-0 bg-cover bg-center transition-[background-image] duration-500" style={{ backgroundImage: `url("${headerScene.image}")`, backgroundPosition: headerScene.position }} />
       <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(90deg, ${themeEcosysteme.color}F2, ${themeEcosysteme.color}D9 58%, ${themeEcosysteme.color}C9)` }} />

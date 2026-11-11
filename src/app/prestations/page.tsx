@@ -41,7 +41,8 @@ export default async function PrestationsPage({ searchParams }: { searchParams: 
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-[#1F2937]">
     <div className="mx-auto max-w-6xl pt-4">
       <section className="rounded-3xl border border-[#FAD0C6] bg-[#FFEFEA] p-6 sm:p-8">
-        <p className="text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
+        <span className="inline-flex rounded-full bg-white/80 px-3 py-1.5 text-xs font-extrabold text-[#9B3527]">Demande sans paiement en ligne</span>
+        <p className="mt-3 text-xs font-extrabold uppercase tracking-widest text-[#D4402B]">NAXA · Services de proximité</p>
         <h1 className="mt-2 text-3xl font-black sm:text-4xl">Prestations et soins à domicile</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">Découvrez les services publiés par les professionnels partenaires. Envoyez une demande, puis attendez la confirmation du professionnel avant de vous organiser.</p>
         <p className="mt-3 text-sm font-bold">{filteredOffers.length} prestation(s) affichée(s) sur {offers.length}</p>

@@ -258,6 +258,7 @@ function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
   const retour = search.get("retour") || "/";
+  const professionnel = search.get("professionnel") === "1";
   const [username, setUsername] = useState("");
   const [usernameRecognition, setUsernameRecognition] = useState<"idle" | "checking" | "recognized">("idle");
   const [password, setPassword] = useState("");
@@ -557,18 +558,25 @@ function Formulaire() {
         </p>
       )}
 
-      <p
-        className="reveal text-center text-base text-slate-600 !text-naxa-green-900"
-        style={d(9)}
-      >
-        Vous n'avez pas de compte ?{" "}
-        <Link
-          href={`/creation-compte?retour=${encodeURIComponent(retour)}`}
-          className="font-bold underline text-naxa-green-900"
+      {!professionnel && (
+        <p
+          className="reveal text-center text-base text-slate-600 !text-naxa-green-900"
+          style={d(9)}
         >
-          Créer un compte
-        </Link>
-      </p>
+          Vous n'avez pas de compte ?{" "}
+          <Link
+            href={`/creation-compte?retour=${encodeURIComponent(retour)}`}
+            className="font-bold underline text-naxa-green-900"
+          >
+            Créer un compte
+          </Link>
+        </p>
+      )}
+      {professionnel && (
+        <p className="text-center text-xs leading-5 text-slate-500">
+          Utilisez les identifiants professionnels qui vous ont été attribués. Les accès restent soumis aux habilitations de votre organisation.
+        </p>
+      )}
     </form>
   );
 }
