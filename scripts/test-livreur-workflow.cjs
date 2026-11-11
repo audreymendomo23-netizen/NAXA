@@ -92,7 +92,7 @@ test("les missions sont bloquées si la pharmacie est suspendue ou archivée", (
 });
 
 test("une mission peut être réaffectée avant collecte, jamais après", () => {
-  assert.match(files.reoffer, /v_m\\.picked_up_at is not null/);
+  assert.match(files.reoffer, /v_m\.picked_up_at is not null/);
   assert.match(files.reoffer, /set offer_status='recalled'/);
   assert.match(files.reoffer, /commande_statut='preparation'/);
 });
