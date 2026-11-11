@@ -48,7 +48,9 @@ begin
      or position('payer_number' in v_confirm)=0
      or position('destination_snapshot' in v_confirm)=0
      or position('admin_confirmer_reglement_promoteur' in v_confirm)=0
-     or position('verification_deadline_at' in v_confirm)=0 then
+     or position('verification_deadline_at' in v_confirm)=0
+     or position('interval ''30 minutes''' in v_confirm)=0
+     or position('interval ''15 minutes''' in v_confirm)=0 then
     raise exception 'La RPC ne verifie pas tous les elements necessaires avant renouvellement';
   end if;
 

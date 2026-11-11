@@ -64,6 +64,8 @@ begin
      or a.destination_snapshot->>'reference_destination'<>d.merchant_reference
      or a.verification_deadline_at<=now()
      or e.sms_received_at<a.declared_at-interval '5 minutes'
+     or e.sms_received_at<a.paye_le-interval '15 minutes'
+     or e.sms_received_at>a.paye_le+interval '30 minutes'
      or e.sms_received_at>a.verification_deadline_at then
     raise exception 'Montant, destination ou fenetre de verification differents';
   end if;
