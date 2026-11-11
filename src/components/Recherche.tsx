@@ -121,7 +121,52 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
         const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(terme), { signal: controller.signal });
         if (!response.ok) throw new Error("catalogue indisponible");
         const data = await response.json() as { results?: MedicamentRecherche[] };
-        const results = Array.isArray(data.results) ? data.results : [];
+        let results = Array.isArray(data.results) ? data.results : [];
+        // Recherche directe par EAN/GTIN : OPF n'est appelé que sur code-barres exact.
+        if (results.length === 0 && /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(terme)) {
+          try {
+            const barcodeResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(terme), { signal: controller.signal });
+            if (barcodeResponse.ok) {
+              const barcodePayload = await barcodeResponse.json() as {
+                photo?: {
+                  url: string; sourceUrl: string; licence: string; attribution: string | null;
+                  title: string; kind: "boite" | "comprime";
+                  provider?: "open_products_facts" | "cima_aemps" | "wikimedia_commons" | "catalogue_local_verifie";
+                } | null;
+              };
+              const photo = barcodePayload.photo;
+              if (photo?.provider === "open_products_facts" && photo.url && photo.sourceUrl && photo.licence) {
+                results = [{
+                  id: "opf-" + terme,
+                  name: photo.title || "Médicament — code " + terme,
+                  brand: null,
+                  activeIngredient: null,
+                  form: null,
+                  definition: null,
+                  indications: null,
+                  imageUrl: photo.url,
+                  imageSource: "Open Products Facts — emballage · " + photo.licence,
+                  imageSourceUrl: photo.sourceUrl,
+                  imageLicense: photo.licence,
+                  imageAttribution: photo.attribution,
+                  imageTitle: photo.title,
+                  imageVariants: { boite: photo, comprime: null },
+                  source: ["Open Products Facts"],
+                  availability: "non_verifiee",
+                  partnerPharmacyCount: null,
+                  lowestPartnerPrice: null,
+                  localProductId: null,
+                  localInformationValidated: false,
+                  localInformationSource: null,
+                  cameroonRegulatoryStatus: "a_verifier",
+                  cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php"
+                }];
+              }
+            }
+          } catch {
+            // Une fiche code-barres absente ou indisponible ne bloque pas la recherche classique.
+          }
+        }
         if (controller.signal.aborted) return;
         setMedicaments(results);
         setRechercheCatalogue("repos");
