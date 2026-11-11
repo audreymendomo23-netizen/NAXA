@@ -89,7 +89,8 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
         licence: product.photo_licence,
         attribution: null,
         title: product.nom,
-        kind: "boite"
+        kind: "boite",
+        provider: "catalogue_local_verifie"
       };
     }
 
@@ -156,7 +157,12 @@ export async function GET(request: NextRequest) {
   }
 
   const photos = await rechercherPhotosMedicament(query);
-  return NextResponse.json({ photo: photos.boite ?? photos.comprime, photos, source: "wikimedia_commons" }, {
-    headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" }
+  const selected = photos.boite ?? photos.comprime;
+  return NextResponse.json({
+    photo: selected,
+    photos,
+    source: selected?.provider ?? "aucune_source_gratuite_trouvee"
+  }, {
+    headers: { "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=2592000" }
   });
 }
