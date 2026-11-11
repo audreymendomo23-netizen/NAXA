@@ -37,6 +37,8 @@ Alimenter le catalogue public NAXA avec des images réellement rattachées à un
 
 ## Vérifications à effectuer après intégration
 
+- La saisie d'un EAN/GTIN exact dans les deux interfaces de recherche déclenche une lecture OPF uniquement lorsque la recherche catalogue ne renvoie aucun résultat ; un code sans fiche médicament revient sans image et ne déclenche aucune recherche textuelle de secours.
+
 - npm run test:catalogue-medicaments
 - npx tsc --noEmit
 - Recette visuelle sur plusieurs marques et DCI, avec vérification séparée des images de boîte et de forme pharmaceutique.
