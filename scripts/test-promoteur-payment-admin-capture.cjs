@@ -21,6 +21,13 @@ const migration = read("supabase/migrations/20261111022000_promoteur_payment_adm
 const rpcMigration = read("supabase/migrations/20261111022500_promoteur_payment_admin_sms_auto_confirm_rpc.sql");
 const declarationFix = read("supabase/migrations/20261111023000_promoteur_payment_declaration_sms_received_at_fix.sql");
 const sqlTest = read("supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql");
+const androidRoot = "android/payment-companion/";
+const androidManifest = read(androidRoot + "app/src/main/AndroidManifest.xml");
+const androidReceiver = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsReceiver.java");
+const androidApi = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/NaxaApi.java");
+const androidVault = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SecureVault.java");
+const androidBuild = read(androidRoot + "app/build.gradle");
+const androidReadme = read(androidRoot + "README.md");
 
 test("toutes les nouvelles routes/composants TypeScript se transpilent", () => {
   for (const [file, source] of Object.entries(sources)) {
@@ -100,4 +107,39 @@ test("migration SQL réserve l'accès aux RPC et aux tables Admin", () => {
   assert.match(rpcMigration, /service_role/);
   assert.match(declarationFix, /provider_occurred_at,sms_received_at/);
   assert.match(sqlTest, /has_function_privilege/);
+});
+
+
+test("compagnon Android : ne demande que RECEIVE_SMS et n'accede pas à READ_SMS ou aux notifications", () => {
+  assert.match(androidManifest, /android\.permission\.RECEIVE_SMS/);
+  assert.doesNotMatch(androidManifest, /android\.permission\.READ_SMS/);
+  assert.doesNotMatch(androidManifest, /NotificationListenerService/);
+  assert.match(androidReceiver, /Telephony\.Sms\.Intents\.getMessagesFromIntent/);
+  assert.match(androidReceiver, /getOriginatingAddress\(\)/);
+  assert.doesNotMatch(androidReceiver, /getDisplayOriginatingAddress/);
+});
+
+test("compagnon Android : filtre uniquement les identifiants alphanumeriques officiels", () => {
+  assert.match(androidReceiver, /ORANGEMONEY/);
+  assert.match(androidReceiver, /MOBILEMONEY/);
+  assert.match(androidReceiver, /normalized\.matches\("\[0-9\]\+"\)/);
+  assert.match(androidApi, /api\/admin\/paiements\/capture/);
+  assert.match(androidApi, /api\/promoteur\/paiements\/capture/);
+});
+
+test("compagnon Android : jetons chiffres par Android Keystore AES-GCM", () => {
+  assert.match(androidVault, /AndroidKeyStore/);
+  assert.match(androidVault, /AES\/GCM\/NoPadding/);
+  assert.doesNotMatch(androidVault, /smsText|smsBody|messageBody/);
+  assert.match(androidApi, /deviceToken/);
+  assert.match(androidApi, /smsReceivedAt/);
+});
+
+test("compagnon Android : versions Gradle/API et restriction Play Protect documentees", () => {
+  assert.match(androidBuild, /9\.4\.0/);
+  assert.match(androidBuild, /compileSdk 37/);
+  assert.match(androidBuild, /targetSdk 36/);
+  assert.match(androidReadme, /hard-restricted/);
+  assert.match(androidReadme, /Play Protect/);
+  assert.match(androidReadme, /Ne pas recommander de désactiver Play Protect/);
 });
