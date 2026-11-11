@@ -12,11 +12,21 @@ function UniverseProductImage({ product, universe }: { product: Product; univers
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [product.photo_url]);
   const baby = universe === "bebe-maman";
+  const imageStyle = baby
+    ? { backgroundImage: "linear-gradient(135deg, #FDEEF4 0%, #FFFFFF 56%, #FFF6E8 100%)" }
+    : { backgroundImage: "linear-gradient(135deg, #E6F7F6 0%, #FFFFFF 56%, #EFFAF4 100%)" };
   return (
-    <div className={baby
-      ? "relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-rose-50 via-white to-amber-50"
-      : "relative aspect-square w-full overflow-hidden bg-[#F8F6F7]"}>
-      {baby && <><span aria-hidden="true" className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/70"/><span aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-rose-100/50"/></>}
+    <div className="relative aspect-[4/3] w-full overflow-hidden" style={imageStyle}>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/70"
+      />
+      <span
+        aria-hidden="true"
+        className={baby
+          ? "pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-rose-100/50"
+          : "pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-teal-100/60"}
+      />
       {product.photo_url && !failed ? (
         <img
           src={product.photo_url}
@@ -25,11 +35,16 @@ function UniverseProductImage({ product, universe }: { product: Product; univers
           decoding="async"
           referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
-          className={baby ? "relative z-10 h-full w-full object-contain p-3 sm:p-4" : "relative z-10 h-full w-full object-contain p-2"}
+          className="relative z-10 h-full w-full object-contain p-3 sm:p-4"
         />
       ) : (
         <div className="relative z-10 flex h-full flex-col items-center justify-center gap-2 text-slate-400">
-          <span className={baby ? "text-5xl font-light text-rose-300" : "text-4xl"} aria-hidden="true">{baby ? "♡" : "✳"}</span>
+          <span
+            className={baby ? "text-5xl font-light text-rose-300" : "text-5xl font-light text-teal-300"}
+            aria-hidden="true"
+          >
+            {baby ? "♡" : "✳"}
+          </span>
           <span className="text-[10px] font-semibold">{failed ? "Photo non chargée" : "Photo indisponible"}</span>
         </div>
       )}
@@ -100,18 +115,52 @@ const eligibleProducts = useMemo(() => products.filter(p => {
   const change = (id: string, n: number) => setCart(old => old.map(x => x.productId === id ? { ...x, quantity: Math.max(1, Math.min(x.maxQuantity, n)) } : x));
   const remove = (id: string) => setCart(old => old.filter(x => x.productId !== id));
   const money = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n) + " FCFA";
-  const theme = universe === "bebe-maman" ? "#AD2D63" : "#096A6F";
+  const palette = universe === "bebe-maman"
+    ? {
+        accent: "#C93774",
+        soft: "#FDEEF4",
+        border: "#F7CADC",
+        priceSurface: "#FBF5F7",
+        text: "#8F2455",
+        shadow: "0 8px 24px rgba(148,70,103,0.08)",
+      }
+    : {
+        accent: "#0B7F85",
+        soft: "#E6F7F6",
+        border: "#BFE6E4",
+        priceSurface: "#F1FAFA",
+        text: "#075E63",
+        shadow: "0 8px 24px rgba(11,127,133,0.08)",
+      };
 
   return <div>
-    <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Filtres du catalogue">
+    <section
+      className="mb-5 rounded-3xl border bg-white p-4 shadow-sm sm:p-5"
+      style={{ borderColor: palette.border }}
+      aria-label="Filtres du catalogue"
+    >
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
         <div>
-          <label htmlFor="universe-search" className="mb-2 block text-sm font-bold text-slate-800">{universe === "bebe-maman" ? "Rechercher (facultatif)" : "Rechercher un produit"}</label>
-          <input id="universe-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Nom, marque, catégorie ou partenaire…" className="min-h-11 w-full rounded-xl border border-slate-300 px-3 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" />
+          <label htmlFor="universe-search" className="mb-2 block text-sm font-bold text-slate-800">
+            {universe === "bebe-maman" ? "Rechercher (facultatif)" : "Rechercher un produit"}
+          </label>
+          <input
+            id="universe-search"
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Nom, marque, catégorie ou partenaire…"
+            className="min-h-11 w-full rounded-xl border border-slate-300 px-3 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
+          />
         </div>
         <div>
           <label htmlFor="universe-sort" className="mb-2 block text-sm font-bold text-slate-800">Ordre d’affichage</label>
-          <select id="universe-sort" value={sort} onChange={e => setSort(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">
+          <select
+            id="universe-sort"
+            value={sort}
+            onChange={e => setSort(e.target.value)}
+            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3"
+          >
             {universe !== "bebe-maman" && <option value="recommended">Ordre du catalogue</option>}
             <option value="name">Nom A à Z</option>
             <option value="price-asc">Prix croissant</option>
@@ -119,55 +168,107 @@ const eligibleProducts = useMemo(() => products.filter(p => {
           </select>
         </div>
       </div>
-      {universe === "bebe-maman" ? (
-        <div className="mt-4">
-          <p className="mb-2 text-sm font-bold text-slate-800">Catégories</p>
-          <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrer par catégorie">
-            {categories.map(c => <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)} className={category === c ? "shrink-0 whitespace-nowrap rounded-full border border-transparent px-3 py-2 text-xs font-bold text-white" : "shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"} style={category === c ? { backgroundColor: theme } : undefined}>{c}</button>)}
-          </div>
+
+      <div className="mt-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-bold text-slate-800">Catégories</p>
+          <span className="text-xs text-slate-500">{categories.length - 1} catégorie(s)</span>
         </div>
-      ) : (
-        <div className="mt-3">
-          <label htmlFor="universe-category" className="mb-1 block text-sm font-semibold">Catégorie</label>
-          <select id="universe-category" value={category} onChange={e => setCategory(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">{categories.map(c => <option key={c} value={c}>{c}</option>)}</select>
+        <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="Filtrer par catégorie">
+          {categories.map(c => (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={category === c}
+              onClick={() => setCategory(c)}
+              className={category === c
+                ? "shrink-0 whitespace-nowrap rounded-full border border-transparent px-3.5 py-2.5 text-xs font-bold text-white shadow-sm"
+                : "shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 transition hover:border-slate-300"}
+              style={category === c ? { backgroundColor: palette.accent } : undefined}
+            >
+              {c}
+            </button>
+          ))}
         </div>
-      )}
-      <p className="mt-3 text-xs text-slate-500" aria-live="polite">{visibleProducts.length} produit(s) affiché(s) sur {eligibleProducts.length} disponible(s) dans le catalogue.</p>
-      {universe === "bebe-maman" && <p className="mt-2 text-xs leading-5 text-slate-600">Présentation neutre : informations descriptives, prix et disponibilité. Aucun produit sponsorisé, classement publicitaire ni avantage promotionnel.</p>}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <p className="text-xs text-slate-500" aria-live="polite">
+          {visibleProducts.length} produit(s) affiché(s) sur {eligibleProducts.length} référence(s) disponible(s).
+        </p>
+        {universe === "bebe-maman" && (
+          <p className="text-xs leading-5 text-slate-600">
+            Présentation neutre : informations descriptives, prix et disponibilité. Aucun produit sponsorisé, classement publicitaire ni avantage promotionnel.
+          </p>
+        )}
+      </div>
     </section>
 
-    {visibleProducts.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+    {visibleProducts.length === 0 ? <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
       <p className="font-bold">{eligibleProducts.length === 0 ? "Aucun produit n’est actuellement publié dans cet univers." : "Aucun produit ne correspond à votre recherche."}</p>
       <p className="mt-1 text-sm text-slate-600">{eligibleProducts.length === 0 ? "Les articles apparaîtront ici lorsque les partenaires auront publié leurs références avec leur prix, leur disponibilité et, si possible, leur photo." : "Modifiez le mot-clé ou choisissez une autre catégorie."}</p>
-      {(query || category !== "Toutes les catégories" || sort !== (universe === "bebe-maman" ? "name" : "recommended")) && <button type="button" onClick={() => { setQuery(""); setCategory("Toutes les catégories"); setSort(universe === "bebe-maman" ? "name" : "recommended"); }} className="mt-4 min-h-11 rounded-xl px-4 font-bold text-white" style={{ backgroundColor: theme }}>Effacer les filtres</button>}
+      {(query || category !== "Toutes les catégories" || sort !== (universe === "bebe-maman" ? "name" : "recommended")) && (
+        <button
+          type="button"
+          onClick={() => { setQuery(""); setCategory("Toutes les catégories"); setSort(universe === "bebe-maman" ? "name" : "recommended"); }}
+          className="mt-4 min-h-11 rounded-xl px-4 font-bold text-white"
+          style={{ backgroundColor: palette.accent }}
+        >
+          Effacer les filtres
+        </button>
+      )}
     </div> :
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">{visibleProducts.map(p => {
-        const stock = Math.max(0, Math.floor(Number(p.available_quantity)));
-        const selected = cart.find(x => x.productId === p.product_id);
-        const baby = universe === "bebe-maman";
-        return <article key={p.product_id} className={baby
-          ? "min-w-0 overflow-hidden rounded-3xl border border-rose-100 bg-white shadow-[0_8px_24px_rgba(148,70,103,0.08)]"
-          : "min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"}>
-          <UniverseProductImage product={p} universe={universe}/>
-          <div className={baby ? "space-y-2.5 p-3 sm:p-4" : "space-y-1.5 p-3"}>
-            <p className={baby
-              ? "inline-flex max-w-full rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-800"
-              : "truncate text-[10px] font-bold uppercase tracking-wide"} style={baby ? undefined : { color: theme }}>{p.category}</p>
-            <h2 className={baby ? "min-h-12 text-sm font-extrabold leading-5 text-slate-900 sm:text-base" : "min-h-10 text-sm font-extrabold leading-5"}>{p.name}</h2>
-            {p.brand && <p className="truncate text-xs font-medium text-slate-600">{p.brand}</p>}
-            {p.description && <p className={baby ? "line-clamp-3 min-h-[3.75rem] text-xs leading-5 text-slate-600" : "max-h-8 overflow-hidden text-xs leading-4 text-slate-600"}>{p.description}</p>}
-            <p className="truncate text-[10px] text-slate-500">Partenaire : {p.partner_name}</p>
-            <div className={baby ? "rounded-xl bg-[#FBF5F7] p-2.5" : "flex flex-wrap items-baseline justify-between gap-1"}>
-              {baby && <p className="mb-1 text-[10px] font-semibold text-slate-500">Prix affiché par le partenaire</p>}
-              <div className="flex flex-wrap items-baseline justify-between gap-1">
-                <strong className="text-sm font-black text-slate-900">{money(Number(p.price_fcfa))}</strong>
-                <span className={stock > 0 ? "text-[10px] font-semibold text-emerald-800" : "text-[10px] font-semibold text-red-700"}>{stock} disponible(s)</span>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+        {visibleProducts.map(p => {
+          const stock = Math.max(0, Math.floor(Number(p.available_quantity)));
+          const selected = cart.find(x => x.productId === p.product_id);
+          const baby = universe === "bebe-maman";
+          return (
+            <article
+              key={p.product_id}
+              className="group min-w-0 overflow-hidden rounded-3xl border bg-white shadow-sm transition-shadow hover:shadow-md"
+              style={{ borderColor: palette.border, boxShadow: palette.shadow }}
+            >
+              <UniverseProductImage product={p} universe={universe}/>
+              <div className="space-y-2.5 p-3 sm:p-4">
+                <p
+                  className="inline-flex max-w-full rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
+                  style={{ backgroundColor: palette.soft, color: palette.text }}
+                  title={p.category}
+                >
+                  <span className="truncate">{p.category}</span>
+                </p>
+                <h2 className="line-clamp-2 min-h-12 text-sm font-extrabold leading-5 text-slate-900 sm:text-base">
+                  {p.name}
+                </h2>
+                {p.brand && <p className="truncate text-xs font-medium text-slate-600">{p.brand}</p>}
+                {p.description && (
+                  <p className="line-clamp-3 min-h-[3.75rem] text-xs leading-5 text-slate-600">{p.description}</p>
+                )}
+                <p className="truncate text-[10px] text-slate-500">Partenaire : {p.partner_name}</p>
+                <div className="rounded-xl p-2.5" style={{ backgroundColor: palette.priceSurface }}>
+                  <p className="mb-1 text-[10px] font-semibold text-slate-500">Prix affiché par le partenaire</p>
+                  <div className="flex flex-wrap items-baseline justify-between gap-1">
+                    <strong className="text-sm font-black text-slate-900">{money(Number(p.price_fcfa))}</strong>
+                    <span className={stock > 0 ? "text-[10px] font-semibold text-emerald-800" : "text-[10px] font-semibold text-red-700"}>
+                      {stock} disponible(s)
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => add(p)}
+                  disabled={stock < 1}
+                  className="mt-1 min-h-11 w-full rounded-xl px-2 py-2 text-xs font-bold text-white transition hover:brightness-95 sm:text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ backgroundColor: palette.accent }}
+                >
+                  {stock < 1 ? "Indisponible" : selected ? "Ajouter un autre" : "Ajouter au panier"}
+                </button>
               </div>
-            </div>
-            <button type="button" onClick={() => add(p)} disabled={stock < 1} className="mt-2 min-h-10 w-full rounded-xl px-2 py-2 text-xs font-bold text-white sm:text-sm disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: theme }}>{stock < 1 ? "Indisponible" : selected ? "Ajouter un autre" : "Ajouter au panier"}</button>
-          </div>
-        </article>;
-      })}</div>
+            </article>
+          );
+        })}
+      </div>
     }
     <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-extrabold">Mon panier multi-univers</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold">{cart.reduce((n, x) => n + x.quantity, 0)} article(s)</span></div><p className="mt-1 text-sm text-slate-600">Panier conservé sur cet appareil. Les réservations sont regroupées par partenaire et par univers pour garantir le retrait au bon endroit.</p>
       {!ready ? <p className="mt-4 text-sm text-slate-500">Chargement du panier…</p> : cart.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Ajoutez un produit pour préparer une réservation.</p> : <div className="mt-4 space-y-4">{groups.map(g => {
