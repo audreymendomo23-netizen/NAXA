@@ -33,11 +33,33 @@ const actions = [
   { titre: "Bébé & maman", description: "Produits bébé et maternité", href: "/bebe-maman", mots: "bébé maman maternité" },
   { titre: "Dispositifs médicaux", description: "Matériel et dispositifs", href: "/suivi", mots: "dispositifs médicaux matériel" },
   { titre: "Examens médicaux", description: "Trouver un examen", href: "/examens", mots: "examens analyses laboratoire" },
-  { titre: "Soins à domicile", description: "Prestations et soins", href: "/prestations", mots: "soins domicile prestations" },
+  { titre: "Prestations / Soins à domicile", description: "Prestations et soins", href: "/prestations", mots: "prestations soins domicile" },
   { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "/aide", mots: "aide contact assistance support" },
 ];
 
 const cle = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").trim();
+
+function CadenasVerrouille() {
+  return (
+    <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-100/25 bg-gradient-to-br from-white/15 to-white/5 text-[#FFE38A] shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-[18px] w-[18px]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M7.5 10V7.4a4.5 4.5 0 0 1 9 0V10" />
+        <rect x="5.5" y="10" width="13" height="10.5" rx="2.4" />
+        <circle cx="12" cy="14.2" r="1.15" fill="currentColor" stroke="none" />
+        <path d="M12 15.5v1.5" />
+      </svg>
+    </span>
+  );
+}
 
 export function EnTeteClient() {
   const router = useRouter();
@@ -89,7 +111,15 @@ export function EnTeteClient() {
 
   function ouvrirAction(href: string) {
     closeSearchAndMenu();
-    const verrouille = ["/parapharmacie", "/bebe-maman", "/examens", "/prestations", "/aide"].some(path => href === path || href.startsWith(path + "?"));
+    const chemin = href.split("?")[0];
+    const notificationsParEspace: Record<string, string> = {
+      "/examens": "Vous êtes un laboratoire ou centre d'imagerie médicale agréé? Contactez-nous",
+      "/prestations": "Vous êtes un Infirmier diplomés d'Etat, Sage-femmeDiplomés d'etat,Kinésithérapeuthe ou physiothérapeuthe diplomé, aide-soignant diplomé, Médécin généraliste, Technicien de laboratoire diplomé, Psychologue clinicien diplomé? Contactez-nous",
+      "/aide": "Veuillez contactez les services d'urgences au numero 119 , 112 , 111 , 118 , ou vous rapprocher de l'officine la plus proche",
+    };
+    const notification = notificationsParEspace[chemin];
+    if (notification) { notifierNAXA(notification); return; }
+    const verrouille = ["/parapharmacie", "/bebe-maman"].includes(chemin);
     const aideVerrouillee = href.startsWith("mailto:") && /subject=(Besoin|Centre|Contact)%20?d/i.test(href);
     if (verrouille || aideVerrouillee) { notifierNAXA("Cet espace n'est pas disponible actuellement"); return; }
     if (href.startsWith("mailto:")) { window.location.href = href; return; }
@@ -137,9 +167,29 @@ export function EnTeteClient() {
  { titre: "Bébé & maman", href: "/bebe-maman", locked: true },
  { titre: "Dispositifs médicaux", href: "/suivi", locked: false },
  { titre: "Examens médicaux", href: "/examens", locked: true },
- { titre: "Prestations et soins à domicile", href: "/prestations", locked: true },
-].map(item => item.locked ? <button key={item.titre} type="button" onClick={() => { closeSearchAndMenu(); notifierNAXA("Cet espace n'est pas disponible actuellement"); }} className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white/90 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><span>{item.titre}</span><IconeNAXA name="lock" size={16}/></button> : <Link key={item.titre} href={item.href} onClick={closeSearchAndMenu} className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"><span>{item.titre}</span><IconeNAXA name="chevron-right" size={17}/></Link>)}
-<button type="button" onClick={() => { closeSearchAndMenu(); notifierNAXA("Cet espace n'est pas disponible actuellement"); }} className="mt-1 flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white hover:bg-white/10"><span>Besoin d’aide ?</span><IconeNAXA name="lock" size={16}/></button>
+ { titre: "Prestations / Soins à domicile", href: "/prestations", locked: true },
+].map(item => item.locked ? (
+          <button
+            key={item.titre}
+            type="button"
+            onClick={() => ouvrirAction(item.href)}
+            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white/90 transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"
+          >
+            <span>{item.titre}</span>
+            <CadenasVerrouille />
+          </button>
+        ) : (
+          <Link
+            key={item.titre}
+            href={item.href}
+            onClick={closeSearchAndMenu}
+            className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFE23D]"
+          >
+            <span>{item.titre}</span>
+            <IconeNAXA name="chevron-right" size={17}/>
+          </Link>
+        ))}
+<button type="button" onClick={() => ouvrirAction("/aide")} className="mt-1 flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10"><span>Besoin d’aide ?</span><CadenasVerrouille /></button>
       </nav>}
     </div>
   </header>;
