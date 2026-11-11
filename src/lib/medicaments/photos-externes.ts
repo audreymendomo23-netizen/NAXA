@@ -74,10 +74,10 @@ const IMAGE_IDENTITY_STOPWORDS = new Set([
 ]);
 
 function strictImageIdentityTokens(value: string): string[] {
-  return normalize(value).split(/\\s+/).filter((token) =>
+  return normalize(value).split(/\s+/).filter((token) =>
     token.length > 0 &&
     !IMAGE_IDENTITY_STOPWORDS.has(token) &&
-    !/^\\d+(?:[.,]\\d+)?(?:mg|mcg|ug|g|kg|ml|iu|ui)?$/.test(token) &&
+    !/^\d+(?:[.,]\d+)?(?:mg|mcg|ug|g|kg|ml|iu|ui)?$/.test(token) &&
     !/^(?:mg|mcg|ug|g|kg|ml|iu|ui)$/.test(token)
   );
 }
