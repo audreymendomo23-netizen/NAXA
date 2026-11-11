@@ -431,13 +431,13 @@ export async function rechercherPhotosMedicament(term: string): Promise<PhotosMe
   const cima = await searchCima(query);
   if (cima.boite && cima.comprime) return cima;
 
-  const commons = await Promise.all([
-    cima.boite ? Promise.resolve(null) : searchCommons(query, "boite"),
-    cima.comprime ? Promise.resolve(null) : searchCommons(query, "comprime")
-  ]);
+  // Un seul appel Commons par médicament à la fois, afin que deux recherches
+  // simultanées côté interface restent dans la limite de concurrence recommandée.
+  const commonsBox = cima.boite ? null : await searchCommons(query, "boite");
+  const commonsPill = cima.comprime ? null : await searchCommons(query, "comprime");
   return {
-    boite: cima.boite ?? commons[0],
-    comprime: cima.comprime ?? commons[1]
+    boite: cima.boite ?? commonsBox,
+    comprime: cima.comprime ?? commonsPill
   };
 }
 
