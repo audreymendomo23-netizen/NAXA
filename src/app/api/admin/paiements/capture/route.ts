@@ -80,10 +80,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Telephone Admin non enrole pour ce canal." }, { status: 403 });
     }
 
-    const [{ data: currentDestination, error: destinationError }] = await Promise.all([
-      db.from("naxa_payment_destinations").select("reference_destination,beneficiaire")
-        .eq("canal", canal).eq("actif", true).maybeSingle(),
-    ]);
+    const { data: currentDestination, error: destinationError } = await db.from("naxa_payment_destinations")
+      .select("reference_destination,beneficiaire")
+      .eq("canal", canal).eq("actif", true).maybeSingle();
     if (destinationError || !currentDestination ||
         normalize(currentDestination.reference_destination) !== normalize(device.merchant_reference)) {
       return NextResponse.json({ error: "Le code marchand a change. Reenrolez le telephone Admin." }, { status: 409 });
@@ -120,7 +119,6 @@ export async function POST(request: Request) {
       merchantMatches &&
       providerTimeValid
     );
-    const parsedAmount = parsed?.amount ?? 1;
     const reference = String(parsed?.reference ?? ("UNKNOWN-" + createHash("sha256").update(smsText).digest("hex").slice(0, 18))).slice(0, 160);
     const bodyHash = createHash("sha256").update(smsText).digest("hex");
     const payloadHash = createHash("sha256").update(JSON.stringify({
@@ -128,7 +126,7 @@ export async function POST(request: Request) {
       smsReceivedAt: smsReceivedAt.toISOString(), bodyHash,
     })).digest("hex");
 
-    if (!completeCredit) {
+    if (!parsed || !completeCredit || parsed.amount === null) {
       const { data: admins } = await db.from("profiles").select("id").eq("role", "admin").eq("actif", true);
       if (admins?.length) await db.from("notifications").insert(admins.map((item: { id: string }) => ({
         user_id: item.id, type: "abonnement_capture_admin_a_revoir",
@@ -150,7 +148,8 @@ export async function POST(request: Request) {
       const snapshot = row.destination_snapshot as { reference_destination?: string } | null;
       if (!snapshot?.reference_destination ||
           normalize(snapshot.reference_destination) !== normalize(device.merchant_reference)) return false;
-      if (!samePhone(parsed.payerNumber, row.compte_payeur)) return false;
+      const declaredPhone = phoneTail(row.compte_payeur);
+      if (declaredPhone && declaredPhone !== phoneTail(parsed.payerNumber)) return false;
       if (providerAt && row.paye_le) {
         const paid = new Date(row.paye_le).getTime();
         if (providerAt.getTime() < paid - 15 * 60_000 || providerAt.getTime() > paid + 30 * 60_000) return false;
@@ -159,8 +158,6 @@ export async function POST(request: Request) {
     });
 
     let reglementId: string | null = pendingMatches.length === 1 ? pendingMatches[0].id : null;
-    let promoterId: string | null = pendingMatches.length === 1 ? pendingMatches[0].promoteur_id : null;
-    let sourceIntentId: string | null = null;
 
     if (!reglementId) {
       const { data: intents, error: intentsError } = await db.from("naxa_promoteur_payment_intents")
@@ -219,8 +216,6 @@ export async function POST(request: Request) {
           return NextResponse.json({ received: true, status: "manual_review", message: "Le SMS est reconnu mais la declaration n'a pas pu etre creee. Traitement manuel requis." }, { status: 202 });
         }
         reglementId = regId as string;
-        promoterId = intent.promoteur_id;
-        sourceIntentId = intent.id;
         await db.from("naxa_promoteur_payment_intents").update({
           status: "submission_created", linked_reglement_id: reglementId, updated_at: now.toISOString(),
         }).eq("id", intent.id);
