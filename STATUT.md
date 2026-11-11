@@ -13,7 +13,9 @@
 - Tolérance : une déclaration valide ouvre 24 h de vérification et le cron de validité diffère uniquement l'expiration commerciale pendant cette fenêtre. La règle ne réactive aucun compte/profil/pharmacie déjà inactif ou suspendu indépendamment.
 - Sécurité : l'analyse manuelle reste en attente d'une confirmation Admin ; aucune capture Android n'est considérée comme preuve opérateur cryptographiquement authentifiée. Le niveau 1 natif reste inopérant tant que l'application Android et son service SMS ne sont pas livrés.
 
-**Non prouvé à ce point :** test Node ciblé, typecheck, lint, build, tests sur SIM MTN/Orange, enrôlement Admin et intégration Android native. Le niveau 2 (enrôlement/capture Android Admin) et le renouvellement sans intervention Admin ne sont pas livrés. OCR image/PDF absent ; preuve jointe inspectable par Admin seulement. Statut JAUNE ; ne pas présenter le chantier comme terminé.
+**Vérification locale complémentaire :** 5/5 formats SMS sur le parseur déterministe ; 2/2 tests de repli IA avec réponse Gemini simulée (anglais + date DD/MM/YYYY, puis rejet d'une date inventée). Ce n'est pas un appel réel à Gemini.
+
+**Non prouvé à ce point :** suite Node du dépôt (`node --test scripts/test-*.cjs`), typecheck, lint, build, tests sur SIM MTN/Orange, enrôlement Admin et intégration Android native. Le niveau 2 (enrôlement/capture Android Admin) et le renouvellement sans intervention Admin ne sont pas livrés. OCR image/PDF absent ; preuve jointe inspectable par Admin seulement. Statut JAUNE ; ne pas présenter le chantier comme terminé.
 
 ## Import stock hybride IA + moteur — 10/11/2026
 
