@@ -129,7 +129,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
       {(pending ?? []).map(r => {
         const proof = proofLinks.get(r.id);
         const isVideo = /\.(mp4|webm|mov)$/i.test(r.preuve_path);
-        return <article key={r.id} className="rounded-3xl bg-white p-4 sm:p-5">
+        return <article id={"paiement-" + r.id} key={r.id} className="rounded-3xl bg-white p-4 sm:p-5">
           <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-extrabold">{promoterLabel(r.promoteur_id)}</h3><p className="mt-1 break-words text-sm text-slate-700">Pharmacie(s) : <span className="font-semibold">{pharmacyLabel(r.promoteur_id)}</span></p><p className="text-xs text-slate-500">Déclaration reçue (T0) : {date(r.declared_at ?? r.created_at)}</p></div><strong className="text-lg">{money(r.montant)}</strong></div>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div><dt className="text-slate-500">Canal de paiement</dt><dd className="font-semibold">{CANAUX[r.canal] ?? r.canal}{r.canal_autre ? " · " + r.canal_autre : ""}</dd></div>
