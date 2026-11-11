@@ -45,45 +45,54 @@ export async function changerStatutPartenaire(form: FormData) {
 }
 
 export async function changerActivationUnivers(form: FormData) {
-  const { sb, actor } = await admin();
+  const { sb } = await admin();
   const slug = field(form, "slug", 40);
   const flag = field(form, "flag_key", 100);
-  const enabled = field(form, "enabled", 5) === "true";
-  if (!slugs.includes(slug) || flag !== "universe." + slug || slug === "aide" || (slug === "suivi" && enabled)) {
+  const enabledValue = field(form, "enabled", 5);
+  if (
+    !["parapharmacie", "bebe-maman", "examens", "suivi", "prestations"].includes(slug) ||
+    flag !== "universe." + slug ||
+    !["true", "false"].includes(enabledValue)
+  ) {
     redirect("/admin/univers?erreur=parametres");
   }
+  const enabled = enabledValue === "true";
 
+  // RPC réservé à l'Admin : modifie le registre et les indicateurs de façon atomique
+  // et inscrit lui-même l'événement dans le journal d'audit.
   const { error: rpcError } = await sb.rpc("admin_set_universe_enabled", {
     p_slug: slug,
     p_enabled: enabled,
   });
   if (rpcError) redirect("/admin/univers?erreur=schema");
 
-  // Vérifier l’état réellement persisté : un retour RPC sans erreur ne suffit
-  // pas à annoncer une activation effective dans l’interface.
-  const [{ data: universe, error: universeError }, { data: feature, error: featureError }] = await Promise.all([
+  // Contrôle de persistance : l'interface ne confirme jamais un état non relu.
+  const [{ data: universe, error: universeError }, { data: feature, error: featureError }, trackingResult] = await Promise.all([
     sb.from("universes").select("enabled").eq("slug", slug).maybeSingle(),
     sb.from("feature_flags").select("enabled").eq("flag_key", flag).maybeSingle(),
+    slug === "suivi"
+      ? sb.from("feature_flags").select("enabled").eq("flag_key", "suivi_connecte").maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
-  if (universeError || featureError || !universe || !feature ||
-      universe.enabled !== enabled || feature.enabled !== enabled) {
+  if (
+    universeError || featureError || trackingResult.error ||
+    !universe || !feature ||
+    universe.enabled !== enabled || feature.enabled !== enabled ||
+    (slug === "suivi" && trackingResult.data?.enabled !== enabled)
+  ) {
     redirect("/admin/univers?erreur=activation_verification");
   }
 
-  const { error: journalError } = await sb.from("audit_log").insert({
-    actor_id: actor,
-    action: "universe.status_changed",
-    entity_type: "universe",
-    entity_id: slug,
-    metadata: { enabled, verified: true },
-  });
-  if (journalError) redirect("/admin/univers?erreur=journal");
-
   revalidatePath("/admin");
   revalidatePath("/admin/univers");
-  revalidatePath("/admin/prestations");
-  revalidatePath("/admin/examens");
-  revalidatePath("/" + slug);
+  revalidatePath("/");
+  revalidatePath("/parapharmacie");
+  revalidatePath("/bebe-maman");
+  revalidatePath("/examens");
+  revalidatePath("/client/examens");
+  revalidatePath("/suivi");
+  revalidatePath("/suivi/professionnel");
+  revalidatePath("/prestations");
   redirect("/admin/univers?ok=activation");
 }
 
