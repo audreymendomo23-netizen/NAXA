@@ -167,8 +167,8 @@ begin
     where c.reglement_id=a.id
       and c.reference_normalisee=e.reference_normalisee
       and c.canal=e.canal
-      and c.source_level=2
-      and c.source_type='merchant_sms'
+      and c.source_level in (1,2)
+      and c.source_type in ('payer_sms','merchant_sms')
       and (c.sms_received_at is null or c.sms_received_at=e.sms_received_at)
   ) then
     raise exception 'La reference du SMS marchand n est pas rattachee au dossier';
