@@ -73,8 +73,8 @@ export async function POST(request: Request) {
     if (intent.canal !== canal) return NextResponse.json({ error: "Le canal SMS ne correspond pas au paiement prepare." }, { status: 409 });
 
     const destination = intent.destination_snapshot as { beneficiaire?: string; reference_destination?: string };
-    const officialSender = parsed?.senderTrusted === true &&
-      normalize(senderOriginAddress) === normalize(canal === "orange_money" ? "OrangeMoney" : "MobileMoney");
+    const expectedSenderId = canal === "orange_money" ? "OrangeMoney" : "MobileMoney";
+    const officialSender = normalize(senderOriginAddress) === normalize(expectedSenderId) && !/\d/.test(senderOriginAddress);
     const timeWithinIntent = smsReceivedAt.getTime() >= new Date(intent.created_at).getTime() - 5 * 60_000 &&
       smsReceivedAt.getTime() <= new Date(intent.expires_at).getTime() + 5 * 60_000;
     const providerTime = parsed?.occurredAt ? new Date(parsed.occurredAt).getTime() : null;

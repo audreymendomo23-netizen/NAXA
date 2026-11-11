@@ -27,7 +27,30 @@ function validateAiFields(value: unknown, raw: string, channel: PaymentChannel, 
   const source = normalizePaymentSms(raw);
   if (!Number.isSafeInteger(amount) || amount <= 0) return null;
   if (!reference || !normalizePaymentReference(raw).includes(normalizePaymentReference(reference))) return null;
-  if (occurred && !source.includes(occurred.slice(0, 10))) return null;
+  if (occurred) {
+    const local = occurred.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\+01:00)?$/);
+    if (!local) return null;
+    const [, year, month, day, hour, minute, second = "00"] = local;
+    const dateForms = [
+      year + "-" + month + "-" + day,
+      day + "/" + month + "/" + year,
+      day + "-" + month + "-" + year,
+      month + "/" + day + "/" + year,
+    ];
+    const monthNames = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+    const monthShort = monthNames.map(name => name.slice(0,3));
+    const monthIndex = Number(month) - 1;
+    const englishMonth = monthNames[monthIndex];
+    const englishMonthShort = monthShort[monthIndex];
+    const namedDate = monthIndex >= 0 && monthIndex < 12 && (
+      new RegExp("\\b" + englishMonth + "\\s+" + Number(day) + "(?:st|nd|rd|th)?[,]?\\s+" + year + "\\b").test(source) ||
+      new RegExp("\\b" + Number(day) + "\\s+" + englishMonth + "\\s+" + year + "\\b").test(source) ||
+      new RegExp("\\b" + englishMonthShort + "\\s+" + Number(day) + "(?:st|nd|rd|th)?[,]?\\s+" + year + "\\b").test(source)
+    );
+    const hasDate = dateForms.some(form => source.includes(form)) || namedDate;
+    const hasTime = source.includes(hour + ":" + minute + ":" + second) || source.includes(hour + ":" + minute);
+    if (!hasDate || !hasTime) return null;
+  }
   if (!occurred && channel === "mtn_momo") return null;
   if (!/(reussi|finalise|success|successful|completed|complete|received|credited)/i.test(source)) return null;
   const rawDigits = raw.replace(/\D/g, "");
