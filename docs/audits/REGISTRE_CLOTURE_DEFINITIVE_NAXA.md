@@ -180,3 +180,14 @@ Ne pas réimprimer le registre complet à chaque conversation ; citer les IDs et
 **Statut : JAUNE — rapprochement et contrôle serveur testés, sécurité RPC corrigée et E2E SQL Replay PASS ; l'appel fournisseur IA réel, la recette HTTP/fichier externe et les contrôles globaux du dépôt restent non prouvés.**
 
 **Périmètre :** changements de code sur QA, migration et données de test sur Replay uniquement ; aucune écriture Supabase Production, aucun changement de configuration de clé, aucun déploiement.
+
+
+---
+
+## Paiements abonnement Promoteur — 11/11/2026 — JAUNE
+
+**Périmètre ajouté au code QA :** retrait du virement pour les nouvelles déclarations ; analyse SMS FR/EN par règles + IA ; dépôt de justificatifs à la déclaration ; registre unique de références (y compris alias PP/MP) ; distinction heure opérateur / réception SMS / déclaration serveur ; tolérance commerciale de 24 h.
+
+**Niveau 1 :** contrat serveur de capture renforcé pour exiger un SMS brut, un expéditeur brut reconnu, un appareil Promoteur enrôlé et une intention active. **Niveau 2 :** RPC sécurisé d'ajout d'une référence secondaire disponible, mais capture sur téléphone Admin et son enrôlement restent à construire. **Niveau 3 :** SMS collé et justificatifs joints, extraction automatique et revue Admin si doute ; OCR image/PDF automatique non implémenté.
+
+**Réserves :** migration Replay non encore appliquée ; tests Node/SQL, typecheck, lint/build et SMS opérateur réels non encore exécutés. Aucun module Android natif, aucune écriture Production et aucun déploiement. La tolérance de 24 h maintient uniquement un accès déjà actif ; elle ne réactive pas une suspension antérieure.

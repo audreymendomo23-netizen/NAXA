@@ -47,3 +47,16 @@ Contrat de capture : Bearer token de session Supabase du Promoteur, `deviceId`, 
 - Main reste inchangée. Aucune donnée ni migration Supabase Production n'a été touchée, et aucun déploiement Vercel n'a été lancé.
 
 - Renforcement QA : la préparation du paiement a été déplacée côté compagnon Android ; l'interface web est uniquement en lecture et rappelle que la page ne peut pas se substituer au téléphone enrôlé.
+
+
+## Mise à jour — circuit à trois niveaux, 11 novembre 2026
+
+Le code QA ajoute une analyse FR/EN par règles et repli Gemini/Groq, avec extraction déterministe et sans stockage du SMS brut. Le formulaire Promoteur joint une preuve dès la déclaration et la soumission est enregistrée au niveau 3 en revue manuelle. Le message court MTN Successintegral n'est pas accepté comme preuve complète.
+
+L'API du niveau 1 exige désormais le corps SMS, l'expéditeur brut (OrangeMoney/MobileMoney), l'heure de réception et le rapprochement d'un paiement préalablement préparé sur un appareil Promoteur enrôlé. La destination et le montant sont comparés aux valeurs lues côté serveur. Cette API n'est pas encore raccordée à un compagnon Android natif : le dépôt ne contient toujours pas de module Android.
+
+Le niveau 2 est préparé côté base par le registre de références secondaires, qui permet de rattacher une référence marchand différente au règlement existant sans réutilisation globale. L'enrôlement d'un téléphone Admin et l'endpoint de capture Admin restent à construire.
+
+La migration ajoute une unicité globale des références normalisées, des horodatages distincts opérateur/réception/déclaration et une fenêtre de 24 h. La fenêtre préserve un compte déjà actif jusqu'à la fin du délai sans réactiver une suspension indépendante ou un profil/pharmacie déjà inactif. Les preuves manuelles sont analysées mais ne peuvent pas déclencher seules un renouvellement.
+
+La migration et les tests restent à exécuter sur Supabase Replay ; aucune Production et aucun déploiement ne sont concernés.

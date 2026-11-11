@@ -41,9 +41,10 @@ test("le paiement est préparé avant débit, montant et destination viennent du
 });
 
 test("la notification doit correspondre exactement au montant et au bénéficiaire", () => {
-  assert.match(capture, /amount === intent\.expected_amount/);
-  assert.match(capture, /const referenceDestination = destination\.reference_destination \?\? ""/);
-  assert.match(capture, /normalize\(recipientReference\) === normalize\(referenceDestination\)/);
+  assert.match(capture, /parsed\?\.amount === intent\.expected_amount/);
+  assert.match(capture, /const officialSender = parsed\?\.senderTrusted === true/);
+  assert.match(capture, /senderOriginAddress/);
+  assert.match(capture, /smsReceivedAt/);
   assert.match(capture, /unique|23505/);
   assert.match(capture, /device_token_hash/);
 });

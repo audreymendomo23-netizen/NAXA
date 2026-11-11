@@ -6,7 +6,6 @@ import { enregistrerDestinationPaiement } from "./actions";
 const CHANNELS = [
   { canal: "orange_money", label: "Orange Money", placeholder: "Code marchand Orange Money" },
   { canal: "mtn_momo", label: "MTN Mobile Money", placeholder: "Code marchand MTN MoMo" },
-  { canal: "virement", label: "Virement bancaire", placeholder: "Numéro de compte bancaire / RIB" },
 ] as const;
 
 type Destination = {
@@ -93,7 +92,7 @@ export default async function ConfigurationDestinationsPaiement({
                     />
                   </label>
                   <label className="grid gap-1 text-sm font-semibold">
-                    {channel.canal === "virement" ? "Compte bancaire" : "Code marchand"}
+                    Code marchand
                     <input
                       name="reference_destination"
                       required
@@ -133,7 +132,7 @@ export default async function ConfigurationDestinationsPaiement({
           })}
         </section>
         <p className="text-xs text-slate-500">
-          Les coordonnées ne sont pas préremplies. N'activez un canal qu'après avoir vérifié le code marchand ou le compte bancaire réel.
+          Les coordonnées ne sont pas préremplies. N'activez un canal qu'après avoir vérifié le code marchand réel.
         </p>
       </div>
     </main>

@@ -41,6 +41,10 @@ export async function confirmerReglementPromoteur(formData: FormData) {
   // La preuve complémentaire est facultative ; l’Administrateur confirme après rapprochement externe.
   const { error } = await db.rpc("admin_confirmer_reglement_promoteur", { p_reglement: id, p_admin: user.id });
   if (error) redirect("/admin/pilotage/reglements?erreur=confirmation");
+  const { error: verificationUpdateError } = await db.from("abonnement_promoteur_reglements")
+    .update({ verification_status: "confirmed_admin", verification_level: 3, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("statut", "confirme");
+  if (verificationUpdateError) console.error("NAXA: impossible d’actualiser le statut de vérification du règlement", verificationUpdateError.message);
   revalidatePath("/admin/pilotage/reglements");
   revalidatePath("/admin/pilotage/validite");
   revalidatePath("/pharmacie/promoteur");
@@ -57,6 +61,9 @@ export async function contesterReglementPromoteur(formData: FormData) {
   const db = supabaseAdmin();
   const { error } = await db.rpc("admin_refuser_reglement_promoteur", { p_reglement: id, p_admin: user.id, p_motif: motif });
   if (error) redirect("/admin/pilotage/reglements?erreur=contestation");
+  await db.from("abonnement_promoteur_reglements")
+    .update({ verification_status: "invalid", updated_at: new Date().toISOString() })
+    .eq("id", id).eq("statut", "conteste");
   revalidatePath("/admin/pilotage/reglements");
   revalidatePath("/promoteur/paiements");
   revalidatePath("/notifications");

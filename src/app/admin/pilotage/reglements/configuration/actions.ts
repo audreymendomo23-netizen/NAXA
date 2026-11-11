@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
-const CANAUX = new Set(["orange_money", "mtn_momo", "virement"]);
+const CANAUX = new Set(["orange_money", "mtn_momo"]);
 
 export async function enregistrerDestinationPaiement(formData: FormData) {
   const { user } = await requireAdminActive("/admin/pilotage/reglements/configuration");

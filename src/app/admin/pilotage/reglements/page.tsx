@@ -17,7 +17,7 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
   await requireAdminActive("/admin/pilotage/reglements");
   const db = supabaseAdmin();
   const [{ data: pending, error: pendingError }, { data: recent, error: recentError }] = await Promise.all([
-    db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,destination_snapshot,declared_at,created_at").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
+    db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,destination_snapshot,declared_at,created_at,verification_deadline_at,verification_level,verification_status,verification_details").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_au,declared_at,destination_snapshot,created_at,motif_contestation").neq("statut", "en_attente").order("created_at", { ascending: false }).limit(50),
   ]);
   const paymentRows = [...(pending ?? []), ...(recent ?? [])];
@@ -112,7 +112,15 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
             <div><dt className="text-slate-500">Compte / numéro payeur</dt><dd className="font-semibold">{r.compte_payeur || "—"}</dd></div>
             <div><dt className="text-slate-500">Référence de transaction</dt><dd className="font-semibold">{r.reference || "Non renseignée"}</dd></div>
             <div><dt className="text-slate-500">Date de paiement déclarée</dt><dd className="font-semibold">{date(r.paye_le)}</dd></div><div><dt className="text-slate-500">Destination utilisée</dt><dd className="font-semibold">{r.destination_snapshot ? `${r.destination_snapshot.beneficiaire} · ${r.destination_snapshot.reference_destination}` : "Instantané non disponible"}</dd></div>
+            <div><dt className="text-slate-500">Fin de la tolérance</dt><dd className="font-semibold">{date(r.verification_deadline_at)}</dd></div>
           </dl>
+          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm">
+            <p className="font-bold text-sky-950">Analyse algorithmique · Niveau {r.verification_level ?? 0}/3</p>
+            <p className="mt-1 text-sky-900">État : {r.verification_status ?? "pending"} · Analyseur : {r.verification_details?.parser ?? "non exécuté"} · Qualité : {r.verification_details?.quality ?? "inconnue"}</p>
+            <p className="mt-1 text-sky-900">Type : {r.verification_details?.direction ?? "non identifié"} · Montant extrait : {r.verification_details?.amount ?? "—"} FCFA · Référence extraite : {r.verification_details?.extractedReference ?? "—"}</p>
+            {Array.isArray(r.verification_details?.reasons) && r.verification_details.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-sky-900">{r.verification_details.reasons.map((reason: string, index: number) => <li key={index}>{reason}</li>)}</ul>}
+            <p className="mt-2 text-xs text-sky-900">L’analyse aide au rapprochement. La validation finale exige encore le contrôle de l’encaissement réel par l’Administrateur.</p>
+          </div>
           {proof && <div className="mt-4 rounded-2xl border border-slate-200 p-3">
             {isVideo && <video controls preload="metadata" className="mb-3 max-h-80 w-full rounded-xl bg-black" src={proof}>Votre navigateur ne peut pas lire cette vidéo.</video>}
             {!isVideo && /\.(jpg|jpeg|png|webp)$/i.test(r.preuve_path) && <a href={proof} target="_blank" rel="noreferrer"><Image width={1280} height={800} unoptimized src={proof} alt="Preuve du paiement envoyée par le Promoteur" className="mb-3 max-h-80 max-w-full rounded-xl object-contain" /></a>}
