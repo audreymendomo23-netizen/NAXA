@@ -341,19 +341,7 @@ on public.naxa_partner_professional_assignments(partner_id,statut,expire_at);
 alter table public.naxa_partner_professional_assignments enable row level security;
 revoke all on public.naxa_partner_professional_assignments from public,anon;
 grant select on public.naxa_partner_professional_assignments to authenticated;
-drop policy if exists naxa_partner_assignments_participant_read on public.naxa_partner_professional_assignments;
-create policy naxa_partner_assignments_participant_read
-on public.naxa_partner_professional_assignments for select to authenticated
-using (
-  profile_id=(select auth.uid())
-  or accorde_par=(select auth.uid())
-  or revoque_par=(select auth.uid())
-  or public.is_admin()
-  or (
-    private.naxa_partner_scope_allows((select auth.uid()),partner_id,'PARTENAIRE')
-    and private.naxa_has_partner_privilege('VIEW_TEAM',partner_id)
-  )
-);
+-- RLS de la table des affectations installé après les helpers d'autorisation.
 
 -- Le registre reste unique par profil : un seul poste/espace sélectionné.
 alter table public.naxa_profile_active_roles
@@ -573,6 +561,29 @@ as $function$
   end
 $function$;
 
+drop policy if exists naxa_partner_assignments_participant_read on public.naxa_partner_professional_assignments;
+create policy naxa_partner_assignments_participant_read
+on public.naxa_partner_professional_assignments for select to authenticated
+using (
+  profile_id=(select auth.uid())
+  or accorde_par=(select auth.uid())
+  or revoque_par=(select auth.uid())
+  or public.is_admin()
+  or (
+    private.naxa_partner_scope_allows((select auth.uid()),partner_id,'PARTENAIRE')
+    and private.naxa_has_partner_privilege('VIEW_TEAM',partner_id)
+  )
+);
+
+revoke all on function private.naxa_partner_scope_allows(uuid,uuid,text) from public,anon;
+grant execute on function private.naxa_partner_scope_allows(uuid,uuid,text) to authenticated,service_role;
+revoke all on function private.naxa_has_partner_privilege(text,uuid) from public,anon;
+grant execute on function private.naxa_has_partner_privilege(text,uuid) to authenticated,service_role;
+revoke all on function private.naxa_partner_actor_can(uuid,text) from public,anon;
+grant execute on function private.naxa_partner_actor_can(uuid,text) to authenticated,service_role;
+
+
+
 revoke all on function public.naxa_can_partner(text,uuid) from public,anon;
 grant execute on function public.naxa_can_partner(text,uuid) to authenticated,service_role;
 revoke all on function public.naxa_active_role_partner(uuid) from public,anon;
@@ -660,6 +671,18 @@ drop trigger if exists naxa_partner_owner_privileges_sync on public.admin_partne
 create trigger naxa_partner_owner_privileges_sync
 after insert or update of universe_slug,architecture_code,promoteur_id on public.admin_partner_dossiers
 for each row execute function private.naxa_sync_partner_owner_privileges_from_dossier();
+
+do $sync_existing$
+declare r record;
+begin
+  for r in
+    select partner_id from public.naxa_partner_architectures
+    where active=true
+  loop
+    perform private.naxa_sync_partner_owner_privileges(r.partner_id);
+  end loop;
+end;
+$sync_existing$;
 
 -- 5. Synchronisation du poste actif pour les affectations du domaine Parapharmacie.
 create or replace function private.naxa_sync_partner_active_role()
@@ -1239,23 +1262,51 @@ drop policy if exists partner_products_legacy_delete on public.partner_products;
 create policy partner_products_professional_read
 on public.partner_products for select to authenticated
 using (
-  private.naxa_partner_actor_can(partner_id,'VIEW_PRODUCTS')
-  or private.naxa_partner_actor_can(partner_id,'VIEW_STOCK')
+  exists (
+    select 1 from public.partner_universes pu
+    where pu.partner_id=partner_products.partner_id
+      and pu.universe_slug=partner_products.universe_slug and pu.enabled=true
+  )
+  and (
+    private.naxa_partner_actor_can(partner_id,'VIEW_PRODUCTS')
+    or private.naxa_partner_actor_can(partner_id,'VIEW_STOCK')
+  )
 );
 
 create policy partner_products_professional_insert
 on public.partner_products for insert to authenticated
-with check (private.naxa_partner_actor_can(partner_id,'CREATE_PRODUCT'));
+with check (
+  exists (
+    select 1 from public.partner_universes pu
+    where pu.partner_id=partner_products.partner_id
+      and pu.universe_slug=partner_products.universe_slug and pu.enabled=true
+  )
+  and private.naxa_partner_actor_can(partner_id,'CREATE_PRODUCT')
+);
 
 create policy partner_products_professional_update
 on public.partner_products for update to authenticated
 using (
-  private.naxa_partner_actor_can(partner_id,'EDIT_PRODUCT')
-  or private.naxa_partner_actor_can(partner_id,'ARCHIVE_PRODUCT')
+  exists (
+    select 1 from public.partner_universes pu
+    where pu.partner_id=partner_products.partner_id
+      and pu.universe_slug=partner_products.universe_slug and pu.enabled=true
+  )
+  and (
+    private.naxa_partner_actor_can(partner_id,'EDIT_PRODUCT')
+    or private.naxa_partner_actor_can(partner_id,'ARCHIVE_PRODUCT')
+  )
 )
 with check (
-  private.naxa_partner_actor_can(partner_id,'EDIT_PRODUCT')
-  or private.naxa_partner_actor_can(partner_id,'ARCHIVE_PRODUCT')
+  exists (
+    select 1 from public.partner_universes pu
+    where pu.partner_id=partner_products.partner_id
+      and pu.universe_slug=partner_products.universe_slug and pu.enabled=true
+  )
+  and (
+    private.naxa_partner_actor_can(partner_id,'EDIT_PRODUCT')
+    or private.naxa_partner_actor_can(partner_id,'ARCHIVE_PRODUCT')
+  )
 );
 
 create policy partner_products_legacy_delete
