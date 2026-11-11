@@ -10,7 +10,7 @@ export type LecturePreuvePaiement = {
 async function createPaymentOcrWorker() {
   const { createWorker } = await import("tesseract.js");
   const base = typeof window === "undefined" ? "" : window.location.origin;
-  return createWorker("fra", 1, {
+  return createWorker("fra+eng", 1, {
     workerPath: base + "/api/ocr-assets/tesseract/worker.min.js",
     langPath: base + "/api/ocr-assets/tesseract/lang",
     corePath: base + "/api/ocr-assets/tesseract/core",
