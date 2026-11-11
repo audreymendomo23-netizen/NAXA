@@ -237,10 +237,10 @@ function allowedCimaImageRights(photo: CimaPhotoEntry): { licence: string; attri
   const licenceUrl = (photo.licenceUrl ?? photo.licenseUrl ?? photo.licenciaUrl ?? "").trim();
   const attribution = (photo.attribution ?? photo.auteur ?? photo.author ?? "").trim();
   if (!licence) return null;
-  const permitted = /^(?:CC0(?:\\s|$)|Public Domain(?:\\s|$)|CC BY(?:-SA)?(?:\\s|$))/i.test(licence);
-  if (!permitted || /\\b(?:NC|ND)\\b|non.?commercial|no.?derivatives/i.test(licence)) return null;
+  const permitted = /^(?:CC0(?:\s|$)|Public Domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(licence);
+  if (!permitted || /\b(?:NC|ND)\b|non.?commercial|no.?derivatives/i.test(licence)) return null;
   if (/^CC BY/i.test(licence) && !attribution) return null;
-  if (!licenceUrl && !/^CC0(?:\\s|$)|^Public Domain(?:\\s|$)/i.test(licence)) return null;
+  if (!licenceUrl && !/^CC0(?:\s|$)|^Public Domain(?:\s|$)/i.test(licence)) return null;
   return {
     licence: [licence, licenceUrl].filter(Boolean).join(" — "),
     attribution: attribution || null
@@ -374,7 +374,10 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
     } catch {
       return null;
     }
-    if (image.protocol !== "https:" || !image.hostname.endsWith("openproductsfacts.org")) return null;
+    if (image.protocol !== "https:" || !(
+      image.hostname === "openproductsfacts.org" ||
+      image.hostname.endsWith(".openproductsfacts.org")
+    )) return null;
     return {
       url: image.toString(),
       sourceUrl: "https://world.openproductsfacts.org/product/" + barcode,
