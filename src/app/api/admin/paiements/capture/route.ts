@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     const reference = String(parsed?.reference ?? ("UNKNOWN-" + createHash("sha256").update(smsText).digest("hex").slice(0, 18))).slice(0, 160);
     const bodyHash = createHash("sha256").update(smsText).digest("hex");
     const payloadHash = createHash("sha256").update(JSON.stringify({
-      deviceId, canal, reference, parsedAmount, senderOriginAddress,
+      deviceId, canal, reference, parsedAmount: parsed?.amount ?? null, senderOriginAddress,
       smsReceivedAt: smsReceivedAt.toISOString(), bodyHash,
     })).digest("hex");
 
@@ -183,6 +183,20 @@ export async function POST(request: Request) {
 
       if (matchingIntents.length === 1) {
         const intent = matchingIntents[0];
+        const { data: promoterProfile, error: promoterPhoneError } = await db.from("profiles")
+          .select("phone").eq("id", intent.promoteur_id).eq("role", "promoteur").eq("actif", true).maybeSingle();
+        if (promoterPhoneError || !promoterProfile || !samePhone(parsed.payerNumber, promoterProfile.phone)) {
+          const { data: event, error: eventError } = await db.from("naxa_admin_payment_capture_events").insert({
+            admin_id: auth.user.id, device_id: device.id, reglement_id: null, canal,
+            direction: "merchant_credit", success: true, transaction_reference: reference,
+            amount: parsed.amount, currency: "FCFA", payer_number: phoneTail(parsed.payerNumber),
+            merchant_reference: device.merchant_reference, sender_origin_id: senderOriginAddress,
+            provider_occurred_at: parsed.occurredAt, sms_received_at: smsReceivedAt.toISOString(),
+            payload_sha256: payloadHash, match_status: "manual_review",
+          }).select("id").single();
+          await notifyAdmins(db, "Le payeur du SMS marchand n'a pas pu etre relie a l'unique paiement prepare. Verification manuelle requise.");
+          return NextResponse.json({ received: true, eventId: event?.id ?? null, status: "manual_review" }, { status: 202 });
+        }
         const { data: regId, error: submitError } = await db.rpc("promoteur_soumettre_reglement", {
           p_promoteur: intent.promoteur_id,
           p_montant: parsed.amount,
