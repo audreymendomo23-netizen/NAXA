@@ -136,6 +136,7 @@ const eligibleProducts = useMemo(() => products.filter(p => {
         pharmacie_nom: p.partner_name,
         prix_unitaire_fcfa: Number(p.price_fcfa),
         photo_url: p.photo_url,
+        quantite_max: max,
       });
       setCartError(ok ? "" : "Le panier est plein ou la quantité maximale est déjà atteinte.");
       return;

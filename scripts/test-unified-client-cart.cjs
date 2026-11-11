@@ -13,11 +13,14 @@ const catalog = read("src/components/universes/UniverseCatalog.tsx");
 const migration = read("supabase/migrations/20261111233239_unified_client_cart_catalog_owner.sql");
 
 test("le panier principal conserve les métadonnées Bébé & Maman", () => {
-  for (const field of ["type_article", "universe_product_id", "pharmacie_id", "pharmacie_nom", "prix_unitaire_fcfa", "photo_url"]) {
+  for (const field of ["type_article", "universe_product_id", "pharmacie_id", "pharmacie_nom", "prix_unitaire_fcfa", "photo_url", "quantite_max"]) {
     assert.match(cart, new RegExp(field));
   }
   assert.match(cart, /MAX_LIGNES/);
   assert.match(cart, /MAX_QTE/);
+  assert.match(cart, /quantite_max/);
+  assert.match(grid, /quantite_max: max/);
+  assert.match(basket, /line\.quantite_max \?\? MAX_QTE/);
 });
 
 test("Bébé & Maman rejoint le panier principal uniquement avec une pharmacie identifiée", () => {
