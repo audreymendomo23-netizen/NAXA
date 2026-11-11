@@ -165,6 +165,15 @@ begin
   where reference_normalisee=v_reference and reglement_id=r.id;
   if v_id is not null then return v_id; end if;
 
+  -- Empêche aussi une référence secondaire (ex. MP) de réutiliser la référence
+  -- principale d'un ancien règlement conservé dans l'historique bancaire.
+  if exists (
+    select 1 from public.abonnement_promoteur_reglements existing
+    where existing.reference_normalisee=v_reference and existing.id<>r.id
+  ) then
+    raise exception 'Cette reference de transaction existe deja dans l historique des reglements NAXA';
+  end if;
+
   insert into public.naxa_promoteur_payment_reference_claims(
     reglement_id,canal,transaction_reference,source_level,source_type,
     provider_occurred_at,sms_received_at,payload_sha256

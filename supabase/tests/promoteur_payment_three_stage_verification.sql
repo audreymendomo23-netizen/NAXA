@@ -34,6 +34,10 @@ begin
   if v_idx is null or position('unique' in lower(v_idx))=0 then
     raise exception 'Le registre doit garantir l''unicite globale des references';
   end if;
+  if position('verification_deadline_at' in v_claim_rpc)=0
+     or position('existing.referencenormalisee' in v_claim_rpc)=0 then
+    raise exception 'Le rapprochement secondaire doit rejeter les références déjà présentes dans les règlements historiques';
+  end if;
   if position('verification_deadline_at' in v_guard)=0
      or position('en_attente' in v_guard)=0 then
     raise exception 'Le garde de validite doit respecter la tolerance de 24 heures';
