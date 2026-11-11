@@ -7,10 +7,7 @@ Alimenter le catalogue public NAXA avec des images réellement rattachées à un
 ## Ordre de résolution en production
 
 1. **Catalogue local NAXA vérifié** : priorité aux fichiers déjà enregistrés avec source HTTPS, licence et date de vérification.
-2. **CIMA / AEMPS (Espagne)** : API REST publique gratuite. La recherche s'effectue sur le nom, puis sur la fiche de détail si nécessaire. Les champs fotos distinguent :
-   - materialas : image du conditionnement ;
-   - formafarmac : image de la forme pharmaceutique.
-   Les données ouvertes AEMPS sont réutilisables gratuitement avec attribution de la source. L'attribution est conservée dans l'objet photo. Les résultats CIMA restent des présentations espagnoles : ne jamais les décrire comme l'emballage camerounais.
+2. **CIMA / AEMPS (Espagne)** : API REST publique gratuite. La recherche et les métadonnées sont consultables. Les champs fotos documentés distinguent materialas (conditionnement) et formafarmac (forme pharmaceutique), mais le schéma d'API documenté ne fournit que type, URL et date pour chaque photo. L'AEMPS indique que les laboratoires titulaires déposent volontairement ces images. L'ouverture des données gérées par l'AEMPS ne démontre donc pas, à elle seule, une licence commerciale propre à chaque image fournie par un tiers. Conséquence : NAXA n'affiche aucune photo CIMA à moins que la fiche image fournisse elle-même une licence CC0, domaine public, CC BY ou CC BY-SA explicite, avec attribution quand nécessaire. Avec la réponse CIMA standard, les photos sont donc bloquées par défaut. Les résultats restent des présentations espagnoles : ne jamais les décrire comme l'emballage camerounais.
 3. **Wikimedia Commons** : recherche complémentaire uniquement pour les types encore absents. Seules les licences CC0, domaine public, CC BY et CC BY-SA sont acceptées ; les licences NC/ND sont rejetées. L'URL de la page du fichier, la licence et l'attribution sont conservées. Les recherches sont mises en cache 7 jours et les appels simultanés limités à deux par médicament.
 4. **Open Products Facts** : utilisé uniquement lorsqu'un GTIN/EAN exact est fourni à l'endpoint photo. La fiche doit renvoyer le même code-barres et une catégorie médicament/pharmaceutique. La photo est affichée depuis la source, sans copie locale, sous CC BY-SA ; l'attribution et la fiche source sont conservées. Ne pas fusionner les données de cette base dans le référentiel maître NAXA sans traiter les obligations ODbL et share-alike.
 
@@ -24,7 +21,7 @@ Alimenter le catalogue public NAXA avec des images réellement rattachées à un
 
 ## Garde-fous
 
-- CIMA : HTTPS et hôte officiel strict, type de photo explicite, correspondance du nom requise.
+- CIMA : HTTPS et hôte officiel strict, type de photo explicite, correspondance du nom requise et licence commerciale fournie par le média lui-même ; à défaut, rejet systématique.
 - Open Products Facts : code-barres exact, catégorie médicament et licence CC BY-SA ; aucun rapprochement flou par nom.
 - Wikimedia : correspondance textuelle, type boîte/comprimé, détection de combinaisons et licence vérifiée.
 - Une photo absente ou incertaine reste un placeholder ; une image de principe actif ne remplace pas une photo de produit commercial.
