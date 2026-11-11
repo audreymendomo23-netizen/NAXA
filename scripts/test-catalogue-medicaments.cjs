@@ -204,6 +204,11 @@ test("photos : le chargement client borne la concurrence et conserve la provenan
   assert.ok(recherche.includes("Recherche directe par EAN/GTIN"));
   assert.ok(recherche.includes('photo?.provider === "open_products_facts"'));
   assert.ok(resultats.includes('photo?.provider==="open_products_facts"'));
+  assert.ok(route.includes("id,nom,dci,code_barre,forme"));
+  assert.ok(route.includes("barcode: localProduct?.code_barre"));
+  assert.ok(recherche.includes("item.barcode"));
+  assert.ok(resultats.includes("item.barcode"));
+  assert.ok(photoResolver.includes("Un code-barres est un identifiant"));
   assert.ok(resultats.includes("Math.min(2,ciblesPhoto.length)"));
   assert.ok(resultats.includes("AEMPS / CIMA"));
   assert.ok(photoRoute.includes("aucune_source_gratuite_trouvee"));
