@@ -43,7 +43,7 @@ begin
   where id=d.admin_id and role::text='admin' and actif=true;
   if not found then raise exception 'Un compte Administrateur actif est requis'; end if;
 
-  if e.sender_origin_id <> case e.canal when 'orange_money' then 'OrangeMoney' else 'MobileMoney' end
+  if e.sender_origin_id <> (case e.canal when 'orange_money' then 'OrangeMoney' else 'MobileMoney' end)
      or e.sender_origin_id ~ '[0-9]'
      or e.direction<>'merchant_credit'
      or e.success is not true
@@ -91,7 +91,6 @@ begin
       and c.canal=e.canal
       and c.source_level in (1,2)
       and c.source_type in ('payer_sms','merchant_sms')
-      and (c.sms_received_at is null or c.sms_received_at=e.sms_received_at)
   ) then
     raise exception 'La reference du SMS marchand n est pas rattachee au dossier';
   end if;
