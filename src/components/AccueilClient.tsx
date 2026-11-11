@@ -462,8 +462,9 @@ export function AccueilClient() {
           <div className="absolute inset-0" aria-hidden="true" style={{ background: "linear-gradient(105deg, rgba(6,75,42,0.55) 0%, rgba(6,75,42,0.28) 38%, rgba(6,75,42,0.05) 72%, rgba(6,75,42,0.05) 100%)" }} />
           <div className="relative z-10 grid grid-cols-1 gap-6 p-5 sm:p-6 md:min-h-[320px] md:grid-cols-[minmax(0,60%)_minmax(0,40%)] md:gap-0 md:p-8">
             <div className="min-w-0">
-              <p className="mb-1 text-[16px] font-bold leading-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Quel médicament recherchez-vous aujourd'hui ?</p>
-              <p className="mb-5 text-[13px] leading-5 text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Livraison rapide par les pharmacies vérifiées</p>
+              <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#FFE23D] drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">NAXA vous connecte</p>
+              <p className="mb-1 text-[16px] font-extrabold leading-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Quel produit recherchez-vous en pharmacie aujourd'hui?</p>
+              <p className="mb-5 text-[13px] leading-5 text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.22)]">Commande préparée et livrée rapidement par votre pharmacie vérifiée.</p>
 
       <div ref={searchWrapRef} className="naxa-enter relative z-30 mb-3">
         <form onSubmit={soumettre} className="flex gap-2">
