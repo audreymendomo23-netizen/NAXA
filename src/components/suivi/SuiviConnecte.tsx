@@ -451,6 +451,17 @@ export function SuiviConnecte() {
         setNotice("La valeur reçue est invalide. Aucune donnée n’a été enregistrée.");
         return;
       }
+      const { data: authData } = await sb.auth.getUser();
+      if (!authData.user) throw new Error("Session expired");
+      const syncAt = new Date().toISOString();
+      const { error: syncError } = await sb.from("suivi_user_devices").update({
+        device_model: String(device.name ?? "Capteur cardiaque").slice(0,120),
+        protocol: "heart_rate/heart_rate_measurement",
+        last_sync_at: syncAt,
+        last_error: null,
+        updated_at: syncAt
+      }).eq("user_id",authData.user.id).eq("device_key","capteur_cardiaque_bluetooth");
+      if (syncError) throw syncError;
       setSelectedType("frequence_cardiaque");
       setValue(String(bpm));
       setPendingMeasurementSource("bluetooth");
@@ -539,8 +550,7 @@ export function SuiviConnecte() {
       const { error: metadataError } = await sb.from("suivi_user_devices").update({
         device_model: String(connected.name ?? "Appareil Bluetooth").slice(0,120),
         protocol: serviceIds.join(",").slice(0,80) || "BLE-GATT",
-        last_sync_at: new Date().toISOString(),
-        last_error: null,
+        last_error: matchedService ? null : "Aucun décodeur standard vérifié pour ce modèle",
         updated_at: new Date().toISOString()
       }).eq("user_id",authData.user.id).eq("device_key",deviceKey);
       if (metadataError) throw metadataError;
@@ -560,6 +570,13 @@ export function SuiviConnecte() {
           });
         }
         const parsed = profile.parse(reading);
+        const verifiedSyncAt = new Date().toISOString();
+        const { error: syncError } = await sb.from("suivi_user_devices").update({
+          last_sync_at: verifiedSyncAt,
+          last_error: null,
+          updated_at: verifiedSyncAt
+        }).eq("user_id",authData.user.id).eq("device_key",deviceKey);
+        if (syncError) throw syncError;
         setSelectedType(profile.type);
         setValue(String(Number(parsed.toFixed(3))));
         setPendingMeasurementSource("bluetooth");
