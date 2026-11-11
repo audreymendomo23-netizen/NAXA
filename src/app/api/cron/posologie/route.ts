@@ -341,6 +341,7 @@ export async function GET(request: Request) {
   let homeServiceRemindersDue = 0;
   let homeServiceRemindersPush = 0;
   let homeServiceRemindersFailed = 0;
+  let homeServiceRemindersCancelled = 0;
   let homeServiceAvailable = true;
   let homeServiceSchemaReady = true;
 
@@ -466,6 +467,54 @@ export async function GET(request: Request) {
           } else {
             const subscriptionCache = new Map<string, any[]>();
             for (const dispatch of pendingDispatches ?? []) {
+              const retryState = Number(dispatch.attempts) >= 12 ? "failed" : "pending";
+              const [appointmentGuard, dispatchGuard] = await Promise.all([
+                db.from("home_service_requests")
+                  .select("status,scheduled_at")
+                  .eq("id", dispatch.request_id)
+                  .maybeSingle(),
+                db.from("home_service_reminder_dispatches")
+                  .select("state")
+                  .eq("id", dispatch.dispatch_id)
+                  .maybeSingle(),
+              ]);
+
+              if (appointmentGuard.error || dispatchGuard.error) {
+                failed++;
+                homeServiceRemindersFailed++;
+                await db.from("home_service_reminder_dispatches")
+                  .update({
+                    state: retryState,
+                    locked_at: null,
+                    last_error: retryState === "failed"
+                      ? "max_attempts_exhausted:pre_send_state_check_failed"
+                      : "pre_send_state_check_failed",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", dispatch.dispatch_id).eq("state", "processing");
+                continue;
+              }
+
+              const appointmentStillValid =
+                appointmentGuard.data?.status === "confirmed" &&
+                appointmentGuard.data?.scheduled_at &&
+                new Date(appointmentGuard.data.scheduled_at).getTime() ===
+                  new Date(dispatch.scheduled_at).getTime();
+              if (!appointmentStillValid || dispatchGuard.data?.state !== "processing") {
+                if (dispatchGuard.data?.state === "processing") {
+                  await db.from("home_service_reminder_dispatches")
+                    .update({
+                      state: "cancelled",
+                      locked_at: null,
+                      last_error: "appointment_or_reminder_scope_changed_before_send",
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", dispatch.dispatch_id).eq("state", "processing");
+                }
+                homeServiceRemindersCancelled++;
+                continue;
+              }
+
               homeServiceRemindersDue++;
 
               if (!dispatch.notification_created_at) {
@@ -477,23 +526,43 @@ export async function GET(request: Request) {
                   type: "home_service_appointment_reminder",
                   titre: lead === 0 ? "Votre rendez-vous commence maintenant" : `Rendez-vous ${when}`,
                   corps: "Un rendez-vous confirmé de prestations à domicile approche. Ouvrez NAXA pour consulter les détails.",
+                  related_entity_id: dispatch.dispatch_id,
                 });
                 if (notificationError) {
                   failed++;
                   homeServiceRemindersFailed++;
                   await db.from("home_service_reminder_dispatches")
-                    .update({ state: "pending", locked_at: null, last_error: "notification_insert_failed", updated_at: new Date().toISOString() })
+                    .update({
+                      state: retryState,
+                      locked_at: null,
+                      last_error: retryState === "failed"
+                        ? "max_attempts_exhausted:notification_insert_failed"
+                        : "notification_insert_failed",
+                      updated_at: new Date().toISOString(),
+                    })
                     .eq("id", dispatch.dispatch_id).eq("state", "processing");
                   continue;
                 }
-                const { error: markNotificationError } = await db.from("home_service_reminder_dispatches")
+                const { data: markedDispatch, error: markNotificationError } = await db.from("home_service_reminder_dispatches")
                   .update({ notification_created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-                  .eq("id", dispatch.dispatch_id).eq("state", "processing");
-                if (markNotificationError) {
+                  .eq("id", dispatch.dispatch_id).eq("state", "processing")
+                  .select("id").maybeSingle();
+                if (markNotificationError || !markedDispatch) {
                   failed++;
                   homeServiceRemindersFailed++;
+                  await db.from("notifications").delete()
+                    .eq("related_entity_id", dispatch.dispatch_id)
+                    .eq("user_id", dispatch.recipient_id)
+                    .eq("type", "home_service_appointment_reminder");
                   await db.from("home_service_reminder_dispatches")
-                    .update({ state: "pending", locked_at: null, last_error: "notification_claim_update_failed", updated_at: new Date().toISOString() })
+                    .update({
+                      state: retryState,
+                      locked_at: null,
+                      last_error: retryState === "failed"
+                        ? "max_attempts_exhausted:notification_claim_update_failed"
+                        : "notification_claim_update_failed",
+                      updated_at: new Date().toISOString(),
+                    })
                     .eq("id", dispatch.dispatch_id).eq("state", "processing");
                   continue;
                 }
@@ -508,7 +577,14 @@ export async function GET(request: Request) {
                   failed++;
                   homeServiceRemindersFailed++;
                   await db.from("home_service_reminder_dispatches")
-                    .update({ state: "pending", locked_at: null, last_error: "push_subscription_read_failed", updated_at: new Date().toISOString() })
+                    .update({
+                      state: retryState,
+                      locked_at: null,
+                      last_error: retryState === "failed"
+                        ? "max_attempts_exhausted:push_subscription_read_failed"
+                        : "push_subscription_read_failed",
+                      updated_at: new Date().toISOString(),
+                    })
                     .eq("id", dispatch.dispatch_id).eq("state", "processing");
                   continue;
                 }
@@ -552,7 +628,14 @@ export async function GET(request: Request) {
                   .eq("id", dispatch.dispatch_id).eq("state", "processing");
               } else {
                 await db.from("home_service_reminder_dispatches")
-                  .update({ state: "pending", locked_at: null, last_error: "push_delivery_failed", updated_at: new Date().toISOString() })
+                  .update({
+                    state: retryState,
+                    locked_at: null,
+                    last_error: retryState === "failed"
+                      ? "max_attempts_exhausted:push_delivery_failed"
+                      : "push_delivery_failed",
+                    updated_at: new Date().toISOString(),
+                  })
                   .eq("id", dispatch.dispatch_id).eq("state", "processing");
               }
             }
@@ -583,6 +666,7 @@ export async function GET(request: Request) {
     notificationPushChecked = outboxItems?.length ?? 0;
     const outboxSubscriptions = new Map<string, any[]>();
     for (const item of outboxItems ?? []) {
+      const outboxRetryState = Number(item.attempts) >= 12 ? "failed" : "pending";
       let subscriptions = outboxSubscriptions.get(item.recipient_id);
       if (!subscriptions) {
         const { data, error: subscriptionError } = await db.from("naxa_push_subscriptions")
@@ -591,7 +675,14 @@ export async function GET(request: Request) {
           failed++;
           notificationPushFailed++;
           await db.from("naxa_notification_push_outbox")
-            .update({ state: "pending", locked_at: null, last_error: "push_subscription_read_failed", updated_at: new Date().toISOString() })
+            .update({
+              state: outboxRetryState,
+              locked_at: null,
+              last_error: outboxRetryState === "failed"
+                ? "max_attempts_exhausted:push_subscription_read_failed"
+                : "push_subscription_read_failed",
+              updated_at: new Date().toISOString(),
+            })
             .eq("id", item.outbox_id).eq("state", "processing");
           continue;
         }
@@ -652,7 +743,14 @@ export async function GET(request: Request) {
           .eq("id", item.outbox_id).eq("state", "processing");
       } else {
         await db.from("naxa_notification_push_outbox")
-          .update({ state: "pending", locked_at: null, last_error: "push_delivery_failed", updated_at: new Date().toISOString() })
+          .update({
+            state: outboxRetryState,
+            locked_at: null,
+            last_error: outboxRetryState === "failed"
+              ? "max_attempts_exhausted:push_delivery_failed"
+              : "push_delivery_failed",
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", item.outbox_id).eq("state", "processing");
       }
     }
@@ -679,6 +777,7 @@ export async function GET(request: Request) {
     homeServiceRemindersDue,
     homeServiceRemindersPush,
     homeServiceRemindersFailed,
+    homeServiceRemindersCancelled,
     notificationPushChecked,
     notificationPushSent,
     notificationPushFailed,
