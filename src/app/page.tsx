@@ -84,8 +84,8 @@ const iconesEtapes = [IconeRecherche, IconeTrouve, IconeCompare, IconeReserve];
 
 export default function Accueil() {
   const [langue, setLangue] = useState<Langue>("fr");
-  const [introVisible, setIntroVisible] = useState(false);
-  const [ageGate, setAgeGate] = useState<"required" | "minor" | null>("required");
+  const [introVisible, setIntroVisible] = useState(true);
+  const [ageGate, setAgeGate] = useState<"required" | "minor" | null>(null);
   const [selectionEcosystemeVisible, setSelectionEcosystemeVisible] = useState(false);
 
   function ageStatus(): "adult" | "minor" | "missing" {
@@ -127,150 +127,23 @@ export default function Accueil() {
     }
     setAgeGate(confirmed ? null : "minor");
     if (confirmed) {
-      setSelectionEcosystemeVisible(false);
-      setIntroVisible(true);
+      const destination = destinationApresAge();
+      if (destination) {
+        window.location.replace(destination);
+        return;
+      }
+      setSelectionEcosystemeVisible(true);
     }
   }
 
   useEffect(() => {
-    let actif = true;
-    const key = "naxa-intro-seen-v1";
-
-    // Afficher immédiatement le contrôle d'âge, sans attendre la réponse Supabase.
-    // La déclaration d'accueil est indépendante de celles demandées pour les actions.
-    const ageInitial = ageStatus();
-    const destination = destinationApresAge();
-    const selectionInitiale = lireEcosystemeSelectionne();
-    const forcerChoixEcosysteme = new URLSearchParams(window.location.search).get("choisirEcosysteme") === "1";
-    if (ageInitial === "adult" && destination) {
-      enregistrerCookieAge(true);
-      window.location.replace(destination);
-      return () => { actif = false; };
-    }
-    if (ageInitial === "adult" && forcerChoixEcosysteme) {
-      setAgeGate(null);
-      setIntroVisible(false);
-      setSelectionEcosystemeVisible(true);
-      return () => { actif = false; };
-    }
-    if (ageInitial === "adult" && selectionInitiale && selectionInitiale !== "pharmacie") {
-      void fetch("/api/universes/status", { cache: "no-store" })
-        .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("status")))
-        .then((result: { universes?: Partial<Record<EcosystemeId, boolean>> }) => {
-          if (!actif) return;
-          if (result.universes?.[selectionInitiale] === true) {
-            window.location.replace(ECOSYSTEME_PAR_ID[selectionInitiale].href);
-          } else {
-            setSelectionEcosystemeVisible(true);
-          }
-        })
-        .catch(() => { if (actif) setSelectionEcosystemeVisible(true); });
-      setAgeGate(null);
-      setIntroVisible(false);
-      return () => { actif = false; };
-    }
-    setAgeGate(ageInitial === "adult" ? null : ageInitial === "minor" ? "minor" : "required");
-    setIntroVisible(false);
-
-    const sb = supabaseBrowser();
-
-    const redirigerClientConnecte = async (userId: string) => {
-      // Un client connecté doit retrouver son accueil client, pas l'accueil public.
-      // Respecter le contrôle d'âge avant toute redirection vers une page protégée.
-      if (ageStatus() !== "adult" || window.location.pathname !== "/") return;
-      if (new URLSearchParams(window.location.search).get("choisirEcosysteme") === "1") {
-        setSelectionEcosystemeVisible(true);
-        return;
-      }
-      const { data: profile, error } = await sb
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
-      if (actif && !error && profile?.role === "client" && window.location.pathname === "/") {
-        const selected = lireEcosystemeSelectionne();
-        if (!selected) {
-          setSelectionEcosystemeVisible(true);
-          return;
-        }
-        window.location.replace(selected === "pharmacie" ? "/client" : ECOSYSTEME_PAR_ID[selected].href);
-      }
-    };
-
-    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
-      if (!actif) return;
-      if (session) {
-        setIntroVisible(false);
-        void redirigerClientConnecte(session.user.id);
-        return;
-      }
-      if (event === "SIGNED_OUT") {
-        try {
-          window.sessionStorage.removeItem(key);
-        } catch {
-          // La session reste déconnectée même si le stockage est indisponible.
-        }
-      }
-    });
-
-    void sb.auth.getSession().then(({ data: { session } }) => {
-      if (!actif) return;
-      const age = ageStatus();
-      if (age === "adult") enregistrerCookieAge(true);
-      if (age === "minor") enregistrerCookieAge(false);
-      if (age === "missing") {
-        setAgeGate("required");
-        setIntroVisible(false);
-        return;
-      }
-      if (age === "minor") {
-        setAgeGate("minor");
-        setIntroVisible(false);
-        return;
-      }
-      setAgeGate(null);
-      if (session) {
-        setIntroVisible(false);
-        if (forcerChoixEcosysteme) setSelectionEcosystemeVisible(true);
-        else void redirigerClientConnecte(session.user.id);
-        return;
-      }
-      if (!selectionInitiale) {
-        try {
-          if (window.sessionStorage.getItem(key) === "1") {
-            setIntroVisible(false);
-            setSelectionEcosystemeVisible(true);
-            return;
-          }
-          window.sessionStorage.setItem(key, "1");
-        } catch {
-          // En cas de stockage indisponible, privilégier l'accès au sélecteur.
-        }
-        setIntroVisible(true);
-      } else {
-        try {
-          if (window.sessionStorage.getItem(key) === "1") {
-            setIntroVisible(false);
-            return;
-          }
-          window.sessionStorage.setItem(key, "1");
-        } catch {
-          // L'accueil reste utilisable si le stockage est indisponible.
-        }
-        setIntroVisible(true);
-      }
-    }).catch(() => {
-      if (actif) {
-        const age = ageStatus();
-        setAgeGate(age === "adult" ? null : age === "minor" ? "minor" : "required");
-        setIntroVisible(false);
-      }
-    });
-
-    return () => {
-      actif = false;
-      subscription.unsubscribe();
-    };
+    // L'animation d'ouverture précède systématiquement le contrôle d'âge.
+    // Le contrôle d'âge et le choix d'écosystème sont déclenchés à la fin du splash.
+    const age = ageStatus();
+    if (age === "adult") enregistrerCookieAge(true);
+    if (age === "minor") enregistrerCookieAge(false);
+    setAgeGate(null);
+    setIntroVisible(true);
   }, []);
   const langueInitialisee = useRef(false);
   const [position, setPosition] = useState<EtatPosition>("inconnue");
@@ -326,9 +199,68 @@ export default function Accueil() {
     }
   }
 
-  function terminerAnimationOuverture() {
+  async function terminerAnimationOuverture() {
     setIntroVisible(false);
-    setSelectionEcosystemeVisible(true);
+    const age = ageStatus();
+    if (age === "missing") {
+      setAgeGate("required");
+      return;
+    }
+    if (age === "minor") {
+      setAgeGate("minor");
+      return;
+    }
+    enregistrerCookieAge(true);
+
+    const destination = destinationApresAge();
+    if (destination) {
+      window.location.replace(destination);
+      return;
+    }
+
+    if (new URLSearchParams(window.location.search).get("choisirEcosysteme") === "1") {
+      setSelectionEcosystemeVisible(true);
+      return;
+    }
+
+    const selected = lireEcosystemeSelectionne();
+    if (!selected) {
+      setSelectionEcosystemeVisible(true);
+      return;
+    }
+
+    if (selected !== "pharmacie") {
+      try {
+        const response = await fetch("/api/universes/status", { cache: "no-store" });
+        if (!response.ok) throw new Error("universe_status");
+        const result = await response.json() as { universes?: Partial<Record<EcosystemeId, boolean>> };
+        if (result.universes?.[selected] === true) {
+          window.location.replace(ECOSYSTEME_PAR_ID[selected].href);
+          return;
+        }
+      } catch {
+        // Le sélecteur reste le point de repli si l'état Admin est indisponible.
+      }
+      setSelectionEcosystemeVisible(true);
+      return;
+    }
+
+    try {
+      const sb = supabaseBrowser();
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await sb
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (profile?.role === "client") {
+          window.location.replace("/client");
+        }
+      }
+    } catch {
+      // L'accueil public Pharmacie reste accessible en cas de lecture de session indisponible.
+    }
   }
 
   function localiser() {
