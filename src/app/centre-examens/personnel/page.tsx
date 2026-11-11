@@ -1,6 +1,7 @@
 import { getExamUserContext, requireExamCapability, EXAM_ROLE_LABELS } from "@/lib/examens/access";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { assignExamStaff, revokeExamStaff, setExamActiveRole } from "../actions";
+import ExamStaffInvitePanel from "@/components/ExamStaffInvitePanel";
 
 const roles=Object.entries(EXAM_ROLE_LABELS).filter(([key])=>key!=="directeur");
 
@@ -22,6 +23,7 @@ export default async function PersonnelExamensPage({searchParams}:{searchParams:
   const ownRoles=active.filter((a:any)=>a.user_id===user.id);
   return <div className="space-y-4">
     <header><p className="text-xs font-bold uppercase tracking-widest text-blue-700">Organisation du centre</p><h2 className="mt-1 text-2xl font-black">Personnel et affectations</h2><p className="mt-1 text-sm text-slate-600">Les postes Examens sont autonomes. Ils n’héritent pas des privilèges Pharmacie.</p></header>
+    <ExamStaffInvitePanel centerId={centerId} />
     {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">Modification enregistrée.</p>}
     {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Impossible de charger les affectations.</p>}
     <section className="rounded-2xl border bg-white p-5"><h3 className="font-extrabold">Affecter un compte NAXA existant</h3><form action={assignExamStaff} className="mt-3 grid gap-3 sm:grid-cols-2"><input type="hidden" name="center_id" value={centerId}/><label className="text-sm font-semibold">Nom utilisateur ou téléphone exact<input name="identifier" required minLength={3} maxLength={120} placeholder="Identifiant du compte NAXA" className="mt-1 min-h-11 w-full rounded-lg border px-3"/></label><label className="text-sm font-semibold">Poste<select name="role_key" required className="mt-1 min-h-11 w-full rounded-lg border px-3">{roles.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><div className="sm:col-span-2"><button className="min-h-11 rounded-xl bg-blue-900 px-4 font-bold text-white">Créer l’affectation</button></div></form><p className="mt-2 text-xs leading-5 text-slate-500">Cette action rattache un compte déjà actif. Elle ne crée pas de compte Auth et ne modifie pas son rôle global NAXA.</p></section>
