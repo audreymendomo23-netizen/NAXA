@@ -189,7 +189,7 @@ type OpenProductsFactsResponse = {
     brands?: string;
     categories_tags?: string[];
     image_front_url?: string;
-    image_url?: string;
+    images?: Record<string, { uploader?: string; uploaded_t?: string }>;
   };
 };
 
@@ -318,7 +318,7 @@ async function searchCima(query: string): Promise<PhotosMedicament> {
  */
 async function searchOpenProductsFactsByBarcode(barcode: string): Promise<MedicamentPhoto | null> {
   if (!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(barcode)) return null;
-  const fields = "code,product_name,brands,categories_tags,image_front_url,image_url";
+  const fields = "code,product_name,brands,categories_tags,image_front_url,images";
   const url = "https://world.openproductsfacts.org/api/v2/product/" + barcode + ".json?fields=" + fields;
   try {
     const response = await fetch(url, {
@@ -335,7 +335,7 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
     if (json.status !== 1 || (product?.code ?? json.code) !== barcode) return null;
     const categories = (product.categories_tags ?? []).join(" ").toLowerCase();
     if (!/\b(?:medicines?|medications?|pharmaceutical|drugs?)\b/.test(categories)) return null;
-    const rawImage = product.image_front_url ?? product.image_url;
+    const rawImage = product.image_front_url;
     if (!rawImage) return null;
     let image: URL;
     try {
@@ -348,7 +348,9 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
       url: image.toString(),
       sourceUrl: "https://world.openproductsfacts.org/product/" + barcode,
       licence: "CC BY-SA (Open Products Facts — attribution et partage à l'identique requis).",
-      attribution: "Open Products Facts — photographie contributive.",
+      attribution: product.images?.front?.uploader
+        ? product.images.front.uploader + " — Open Products Facts (CC BY-SA)."
+        : "Contributeurs Open Products Facts (CC BY-SA).",
       title: [product.product_name, product.brands].filter(Boolean).join(" — ") || barcode,
       kind: "boite",
       provider: "open_products_facts"
