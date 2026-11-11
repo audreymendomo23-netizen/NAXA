@@ -71,11 +71,11 @@ BEGIN
     CREATE POLICY partner_catalogue_photo_insert
     ON storage.objects FOR INSERT TO authenticated
     WITH CHECK (
-      bucket_id = 'partner-catalogue-photos'
-      AND array_length(string_to_array(name, '/'), 1) = 3
-      AND split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-      AND split_part(name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-      AND split_part(name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
+      storage.objects.bucket_id = 'partner-catalogue-photos'
+      AND array_length(string_to_array(storage.objects.name, '/'), 1) = 3
+      AND split_part(storage.objects.name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      AND split_part(storage.objects.name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      AND split_part(storage.objects.name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
       AND EXISTS (
         SELECT 1
         FROM public.partner_products pp
@@ -85,8 +85,8 @@ BEGIN
           ON pu.partner_id = pp.partner_id
          AND pu.universe_slug = pp.universe_slug
          AND pu.enabled IS TRUE
-        WHERE pp.partner_id::text = split_part(name, '/', 1)
-          AND pp.id::text = split_part(name, '/', 2)
+        WHERE pp.partner_id::text = split_part(storage.objects.name, '/', 1)
+          AND pp.id::text = split_part(storage.objects.name, '/', 2)
           AND pp.universe_slug IN ('parapharmacie', 'bebe-maman')
           AND pp.status <> 'archived'
           AND pm.user_id = (SELECT auth.uid())
@@ -103,9 +103,9 @@ BEGIN
     CREATE POLICY partner_catalogue_photo_delete
     ON storage.objects FOR DELETE TO authenticated
     USING (
-      bucket_id = 'partner-catalogue-photos'
-      AND array_length(string_to_array(name, '/'), 1) = 3
-      AND split_part(name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
+      storage.objects.bucket_id = 'partner-catalogue-photos'
+      AND array_length(string_to_array(storage.objects.name, '/'), 1) = 3
+      AND split_part(storage.objects.name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
       AND EXISTS (
         SELECT 1
         FROM public.partner_products pp
@@ -115,8 +115,8 @@ BEGIN
           ON pu.partner_id = pp.partner_id
          AND pu.universe_slug = pp.universe_slug
          AND pu.enabled IS TRUE
-        WHERE pp.partner_id::text = split_part(name, '/', 1)
-          AND pp.id::text = split_part(name, '/', 2)
+        WHERE pp.partner_id::text = split_part(storage.objects.name, '/', 1)
+          AND pp.id::text = split_part(storage.objects.name, '/', 2)
           AND pm.user_id = (SELECT auth.uid())
           AND pm.member_role IN ('owner', 'manager', 'operator')
       )
@@ -131,14 +131,14 @@ BEGIN
     CREATE POLICY partner_catalogue_photo_owner_read
     ON storage.objects FOR SELECT TO authenticated
     USING (
-      bucket_id = 'partner-catalogue-photos'
+      storage.objects.bucket_id = 'partner-catalogue-photos'
       AND EXISTS (
         SELECT 1
         FROM public.partner_products pp
         JOIN public.partner_members pm ON pm.partner_id = pp.partner_id
-        WHERE pp.partner_id::text = split_part(name, '/', 1)
-          AND pp.id::text = split_part(name, '/', 2)
-          AND pp.photo_path = name
+        WHERE pp.partner_id::text = split_part(storage.objects.name, '/', 1)
+          AND pp.id::text = split_part(storage.objects.name, '/', 2)
+          AND pp.photo_path = storage.objects.name
           AND pm.user_id = (SELECT auth.uid())
           AND pm.member_role IN ('owner', 'manager', 'operator')
       )
