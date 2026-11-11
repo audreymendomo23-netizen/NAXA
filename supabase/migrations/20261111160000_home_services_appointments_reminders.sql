@@ -392,6 +392,7 @@ begin
 
   v_target:=case
     when new.type like 'abonnement_%' then '/promoteur/paiements'
+    when new.type='home_service_offer' and exists (select 1 from public.profiles p where p.id=new.user_id and p.role='admin') then '/admin/prestations'
     when new.type like 'home_service_%' then '/partenaire/prestations'
     when new.type like 'reservation%' then '/notifications'
     when new.type like 'suivi_%' then '/suivi'
