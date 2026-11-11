@@ -45,7 +45,9 @@ const ACTIVE_INGREDIENT_TOKENS = new Set([
   "quinine", "dihydroartemisinin", "piperaquine", "losartan", "amlodipine",
   "hydrochlorothiazide", "atorvastatin", "rosuvastatin", "warfarin", "rivaroxaban",
   "ibuprofeno", "amoxicilina", "aspirina", "diclofenaco", "omeprazol", "azitromicina",
-  "metformina", "cetirizina", "loratadina", "atorvastatina", "amlodipino"
+  "metformina", "cetirizina", "loratadina", "atorvastatina", "amlodipino",
+  "clavulanico", "artemeter", "lumefantrina", "dihidroartemisinina", "piperaquina",
+  "amodiaquina", "sulfametoxazol", "trimetoprima"
 ]);
 
 function normalize(value: string): string {
@@ -122,6 +124,16 @@ const CIMA_NAME_ALIASES: Record<string, string> = {
   azithromycine: "azitromicina",
   metformin: "metformina",
   metformine: "metformina",
+  clavulanate: "clavulanico",
+  clavulanic: "clavulanico",
+  clavulanique: "clavulanico",
+  artemether: "artemeter",
+  lumefantrine: "lumefantrina",
+  dihydroartemisinin: "dihidroartemisinina",
+  piperaquine: "piperaquina",
+  amodiaquine: "amodiaquina",
+  sulfamethoxazole: "sulfametoxazol",
+  trimethoprim: "trimetoprima",
   cetirizine: "cetirizina",
   loratadine: "loratadina",
   atorvastatin: "atorvastatina",
