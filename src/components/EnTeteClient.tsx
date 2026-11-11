@@ -85,6 +85,7 @@ export function EnTeteClient() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [universesAvailability, setUniversesAvailability] = useState<Record<string, boolean>>({ pharmacie: true });
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -105,6 +106,22 @@ export function EnTeteClient() {
   }, [searchOpen, menuOpen]);
 
   useEffect(() => { if (searchOpen) requestAnimationFrame(() => inputRef.current?.focus()); }, [searchOpen]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/universes/status", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("universe_status");
+        return response.json() as Promise<{ universes?: Record<string, boolean> }>;
+      })
+      .then((result) => {
+        if (active) setUniversesAvailability({ pharmacie: true, ...(result.universes ?? {}) });
+      })
+      .catch(() => {
+        if (active) setUniversesAvailability({ pharmacie: true });
+      });
+    return () => { active = false; };
+  }, []);
 
   const suggestions = useMemo(() => {
     const q = cle(query);
@@ -127,6 +144,10 @@ export function EnTeteClient() {
     }
     if (href.startsWith("mailto:")) { window.location.href = href; return; }
     const target = ECOSYSTEMES.find((item) => item.href === chemin);
+    if (target && universesAvailability[target.id] !== true) {
+      notifierNAXA("Cet écosystème est actuellement verrouillé par l’administration NAXA.");
+      return;
+    }
     if (target) enregistrerEcosystemeSelectionne(target.id);
     router.push(href);
   }
@@ -168,22 +189,35 @@ export function EnTeteClient() {
 
       {menuOpen && <nav data-naxa-client-menu aria-label="Changer d’écosystème" className="absolute right-4 top-[calc(100%-8px)] z-[1003] w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/20 p-2 text-white shadow-2xl" style={{ backgroundColor: themeEcosysteme.color }}>
         <p className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/70">Changer d’écosystème</p>
-        {universesMenu.map((item) => (
-          <Link
-            key={item.id}
-            href={item.href}
-            onClick={() => {
-              closeSearchAndMenu();
-              enregistrerEcosystemeSelectionne(item.id);
-            }}
-            className="flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2"
-            style={{ outlineColor: themeEcosysteme.accent }}
-          >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg font-black" style={{ color: item.color, backgroundColor: item.softColor }}>{item.symbol}</span>
-            <span className="min-w-0 flex-1">{item.label}</span>
-            <IconeNAXA name="chevron-right" size={17}/>
-          </Link>
-        ))}
+        {universesMenu.map((item) => {
+          const enabled = universesAvailability[item.id] === true;
+          const commonClass = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white transition";
+          const contents = (
+            <>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg font-black" style={{ color: item.color, backgroundColor: item.softColor }}>{item.symbol}</span>
+              <span className="min-w-0 flex-1">{item.label}</span>
+              {enabled ? <IconeNAXA name="chevron-right" size={17}/> : <CadenasVerrouille />}
+            </>
+          );
+          return enabled ? (
+            <Link
+              key={item.id}
+              href={item.href}
+              onClick={() => {
+                closeSearchAndMenu();
+                enregistrerEcosystemeSelectionne(item.id);
+              }}
+              className={commonClass + " hover:bg-white/15 focus-visible:outline focus-visible:outline-2"}
+              style={{ outlineColor: themeEcosysteme.accent }}
+            >
+              {contents}
+            </Link>
+          ) : (
+            <button key={item.id} type="button" disabled className={commonClass + " cursor-not-allowed opacity-60"} aria-disabled="true">
+              {contents}
+            </button>
+          );
+        })}
         <button type="button" onClick={() => ouvrirAction("/aide")} className="mt-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10">
           <span>Besoin d’aide ?</span>
           <IconeNAXA name="chevron-right" size={17}/>

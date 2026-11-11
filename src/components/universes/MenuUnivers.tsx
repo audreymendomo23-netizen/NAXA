@@ -2,22 +2,47 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  ECOSYSTEMES,
+  enregistrerEcosystemeSelectionne,
+  ecosystemeDepuisChemin,
+  type EcosystemeId,
+} from "@/lib/ecosystemes";
 
-const universes = [
-  { fr: "Pharmacie", en: "Pharmacy", href: "/" },
-  { fr: "Parapharmacie", en: "Parapharmacy", href: "/parapharmacie" },
-  { fr: "Bébé & maman", en: "Baby & Mom", href: "/bebe-maman" },
-  { fr: "Dispositifs médicaux", en: "Medical devices", href: "/suivi" },
-  { fr: "Examens médicaux", en: "Medical tests", href: "/examens" },
-  { fr: "Prestations et soins à domicile", en: "Home services and care", href: "/prestations" },
-  { fr: "Besoin d’aide ?", en: "Need help?", href: "/aide" },
-];
+const englishLabels: Record<EcosystemeId, string> = {
+  pharmacie: "Pharmacy",
+  parapharmacie: "Parapharmacy",
+  examens: "Medical tests",
+  prestations: "Home care",
+  "bebe-maman": "Mom & Baby",
+  dispositifs: "Medical devices",
+};
 
 export function MenuUnivers() {
+  const pathname = usePathname();
+  const currentEcosystem = ecosystemeDepuisChemin(pathname);
+  const [availability, setAvailability] = useState<Record<string, boolean>>({ pharmacie: true });
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<"fr" | "en">("fr");
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/universes/status", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("universe_status");
+        return response.json() as Promise<{ universes?: Record<string, boolean> }>;
+      })
+      .then((result) => {
+        if (active) setAvailability({ pharmacie: true, ...(result.universes ?? {}) });
+      })
+      .catch(() => {
+        if (active) setAvailability({ pharmacie: true });
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const syncLanguage = () => {
@@ -79,11 +104,27 @@ export function MenuUnivers() {
       {open && (
         <nav id="menu-univers-naxa" aria-label={t.title} className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-emerald-100 bg-white p-2 text-[#064B2A] shadow-xl">
           <p className="px-3 py-2 text-xs font-extrabold uppercase tracking-wide text-emerald-800">{t.title}</p>
-          {universes.map((universe) => (
-            <Link key={universe.href} href={universe.href} onClick={() => setOpen(false)} className="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#064B2A]">
-              <span>{universe[language]}</span><span aria-hidden="true">›</span>
-            </Link>
-          ))}
+          {ECOSYSTEMES.filter((universe) => universe.id !== currentEcosystem).map((universe) => {
+            const enabled = availability[universe.id] === true;
+            const label = language === "en" ? englishLabels[universe.id] : universe.label;
+            return enabled ? (
+              <Link
+                key={universe.id}
+                href={universe.href}
+                onClick={() => {
+                  setOpen(false);
+                  enregistrerEcosystemeSelectionne(universe.id);
+                }}
+                className="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#064B2A]"
+              >
+                <span>{label}</span><span aria-hidden="true">›</span>
+              </Link>
+            ) : (
+              <div key={universe.id} aria-disabled="true" className="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-slate-400">
+                <span>{label}</span><span aria-label="Verrouillé" title="Verrouillé">🔒</span>
+              </div>
+            );
+          })}
         </nav>
       )}
     </div>

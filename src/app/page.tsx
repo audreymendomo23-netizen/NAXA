@@ -316,7 +316,7 @@ export default function Accueil() {
 
   function terminerAnimationOuverture() {
     setIntroVisible(false);
-    if (!lireEcosystemeSelectionne()) setSelectionEcosystemeVisible(true);
+    setSelectionEcosystemeVisible(true);
   }
 
   function localiser() {

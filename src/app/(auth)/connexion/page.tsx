@@ -245,7 +245,8 @@ function AccesProfessionnel() {
         <path d="M5 20c.5-3.4 2.8-5.2 7-5.2s6.5 1.8 7 5.2"/>
         <path d="M18.5 4.5h3M20 3v3"/>
       </svg>
-      <span>Accès professionnel</span>
+      <span className="sm:hidden">Accès pro</span>
+      <span className="hidden sm:inline">Accès professionnel</span>
     </Link>
   );
 }
