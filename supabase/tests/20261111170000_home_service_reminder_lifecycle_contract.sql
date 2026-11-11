@@ -70,7 +70,7 @@ begin
     into v_claim_definition;
   if position('pref.enabled' in v_claim_definition)=0
     or position('pr.actif' in v_claim_definition)=0
-    or position('partenaire_domicile' in v_claim_definition)=0 then
+    or position('professionnel_domicile' in v_claim_definition)=0 then
     raise exception 'Atomic reminder claim must enforce preference, active profile and partner scope';
   end if;
 
