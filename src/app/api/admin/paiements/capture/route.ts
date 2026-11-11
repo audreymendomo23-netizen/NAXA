@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const smsReceivedAt = new Date(String(body.smsReceivedAt ?? ""));
 
     if (!accessToken || !deviceId || deviceToken.length < 32 ||
-        !["orange_money", "mtn_momo"].includes(String(canal)) ||
+        (canal !== "orange_money" && canal !== "mtn_momo") ||
         smsText.length < 12 || !senderOriginAddress || !Number.isFinite(smsReceivedAt.getTime())) {
       return NextResponse.json({ error: "Capture SMS Admin incomplete ou invalide." }, { status: 400 });
     }
@@ -146,8 +146,9 @@ export async function POST(request: Request) {
 
     const pendingMatches = (pendingRows ?? []).filter(row => {
       const snapshot = row.destination_snapshot as { reference_destination?: string } | null;
-      if (!snapshot?.reference_destination ||
-          normalize(snapshot.reference_destination) !== normalize(device.merchant_reference)) return false;
+      const destinationReference = snapshot?.reference_destination;
+      if (typeof destinationReference !== "string" || !destinationReference ||
+          normalize(destinationReference) !== normalize(device.merchant_reference)) return false;
       const declaredPhone = phoneTail(row.compte_payeur);
       if (!declaredPhone || declaredPhone !== phoneTail(parsed.payerNumber)) return false;
       if (providerAt && row.paye_le) {
