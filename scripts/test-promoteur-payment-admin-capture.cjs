@@ -29,6 +29,7 @@ const androidVault = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompan
 const androidBuild = read(androidRoot + "app/build.gradle");
 const androidRootBuild = read(androidRoot + "build.gradle");
 const androidReadme = read(androidRoot + "README.md");
+const paymentOcrAssets = read("src/app/api/ocr-assets/[...asset]/route.ts");
 
 test("toutes les nouvelles routes/composants TypeScript se transpilent", () => {
   for (const [file, source] of Object.entries(sources)) {
@@ -82,6 +83,8 @@ test("OCR : fichier image/PDF local, limite pages, aucun texte brut persistant",
   const component = sources["src/components/admin/PromoteurPaymentProofOcr.tsx"];
   assert.match(ocr, /application\/pdf/);
   assert.match(ocr, /Math\.min\(pdf\.numPages, 3\)/);
+  assert.match(ocr, /createWorker\("fra\+eng"/);
+  assert.match(paymentOcrAssets, /eng\.traineddata\.gz/);
   assert.match(ocr, /worker\.recognize/);
   assert.match(action, /rawTextStored: false/);
   assert.match(action, /verification_details: details/);
