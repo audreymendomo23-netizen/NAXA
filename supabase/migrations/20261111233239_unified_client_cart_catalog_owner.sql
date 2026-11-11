@@ -54,7 +54,7 @@ as $function$
   left join public.pharmacies ph
     on pp.universe_slug = 'bebe-maman'
    and ph.id = pp.pharmacie_id
-   and ph.actif = true and ph.visible_recherche = true
+   and ph.actif is true and ph.visible_recherche is true and ph.est_demo is false and ph.archivee_le is null
   left join public.pharmacie_services ps
     on ps.pharmacie_id = ph.id and ps.service_slug = 'bebe-maman' and ps.status = 'active'
   where pp.universe_slug = p_universe_slug

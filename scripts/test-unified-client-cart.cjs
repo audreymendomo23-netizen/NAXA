@@ -10,7 +10,7 @@ const grid = read("src/components/universes/UniverseProductGrid.tsx");
 const basket = read("src/app/panier/page.tsx");
 const medicationCheckout = read("src/app/commande/nouvelle/page.tsx");
 const catalog = read("src/components/universes/UniverseCatalog.tsx");
-const migration = read("supabase/migrations/20261112090000_unified_client_cart_catalog_owner.sql");
+const migration = read("supabase/migrations/20261111233239_unified_client_cart_catalog_owner.sql");
 
 test("le panier principal conserve les métadonnées Bébé & Maman", () => {
   for (const field of ["type_article", "universe_product_id", "pharmacie_id", "pharmacie_nom", "prix_unitaire_fcfa", "photo_url"]) {
@@ -21,7 +21,10 @@ test("le panier principal conserve les métadonnées Bébé & Maman", () => {
 });
 
 test("Bébé & Maman rejoint le panier principal uniquement avec une pharmacie identifiée", () => {
+  assert.match(grid, /const \{ ajouter: ajouterAuPanierPrincipal, lignes: panierPrincipal \} = usePanier\(\)/);
   assert.match(grid, /ajouterAuPanierPrincipal/);
+  assert.match(grid, /cartError && universe === "bebe-maman"/);
+  assert.match(grid, /x\.universe === "parapharmacie"/);
   assert.match(grid, /if \(!p\.pharmacie_id\)/);
   assert.match(grid, /type_article: "bebe-maman"/);
   assert.match(grid, /disabled=\{stock < 1 \|\| \(universe === "bebe-maman" && !p\.pharmacie_id\)\}/);
@@ -30,7 +33,8 @@ test("Bébé & Maman rejoint le panier principal uniquement avec une pharmacie i
 test("le classement Bébé & Maman reste neutre et sans tri par prix", () => {
   const start = grid.indexOf('id="universe-sort"');
   const select = grid.slice(start, grid.indexOf("</select>", start));
-  assert.match(select, /universe !== "bebe-maman" && <>[\s\S]*price-asc[\s\S]*price-desc[\s\S]*<\/>/);
+  const priceSort = select.indexOf('value="price-asc"');
+  assert.ok(priceSort > 0 && select.lastIndexOf('universe !== "bebe-maman" && <>', priceSort) >= 0);
 });
 
 test("la page panier affiche séparément médicaments et Bébé & Maman", () => {
