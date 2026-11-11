@@ -34,11 +34,11 @@ select wrong_user_id,'authenticated','authenticated',
   '{"naxa_signup_pending":"true"}'::jsonb,now(),now()
 from exam_staff_invite_fixture;
 
-insert into public.profiles(id,role,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif)
-select owner_id,'client','owner_'||replace(owner_id::text,'-',''),'Test','Owner','699000001','CM',date '1990-01-01',true,now(),true
+insert into public.profiles(id,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif)
+select owner_id,'owner_'||replace(owner_id::text,'-',''),'Test','Owner','699000001','CM',date '1990-01-01',true,now(),true
 from exam_staff_invite_fixture
 union all
-select invitee_id,'client','invitee_'||replace(invitee_id::text,'-',''),'Test','Invitee','699000002','CM',date '1990-01-01',true,now(),true
+select invitee_id,'invitee_'||replace(invitee_id::text,'-',''),'Test','Invitee','699000002','CM',date '1990-01-01',true,now(),true
 from exam_staff_invite_fixture;
 
 insert into public.partners(id,name,partner_type,status,created_by)
