@@ -82,7 +82,7 @@ create or replace function public.naxa_promoteur_payment_auto_confirm_admin_sms(
 language plpgsql
 security definer
 set search_path = ''
-as $function$
+as $
 declare
   e public.naxa_admin_payment_capture_events%rowtype;
   d public.naxa_admin_payment_devices%rowtype;
@@ -208,7 +208,7 @@ begin
     'numero_recu',v_confirmation->>'numero_recu'
   );
 end;
-$function$;
+$;
 
 revoke all on function public.naxa_promoteur_payment_auto_confirm_admin_sms(uuid)
   from public,anon,authenticated;
