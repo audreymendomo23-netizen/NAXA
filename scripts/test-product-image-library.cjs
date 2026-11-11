@@ -5,20 +5,24 @@ const test = require("node:test");
 
 const root = path.join(__dirname, "..");
 const library = fs.readFileSync(path.join(root, "src/components/universes/ProductImageLibrary.tsx"), "utf8");
+const helper = fs.readFileSync(path.join(root, "src/lib/catalogue/product-image-library.ts"), "utf8");
 const catalog = fs.readFileSync(path.join(root, "src/components/universes/UniverseCatalog.tsx"), "utf8");
+const route = fs.readFileSync(path.join(root, "src/app/api/bibliotheque-images/route.ts"), "utf8");
+const preview = fs.readFileSync(path.join(root, "src/components/universes/ProductImageLibraryPreview.tsx"), "utf8");
+const home = fs.readFileSync(path.join(root, "src/components/AccueilClient.tsx"), "utf8");
 
 test("la bibliothèque utilise la recherche officielle Open Beauty Facts avec cache quotidien", () => {
-  assert.match(library, /world\.openbeautyfacts\.org\/cgi\/search\.pl/);
-  assert.match(library, /User-Agent/);
-  assert.match(library, /next: \{ revalidate: 86400 \}/);
-  assert.match(library, /page_size/);
-  assert.match(library, /photographers_tags/);
+  assert.match(helper, /world\.openbeautyfacts\.org\/cgi\/search\.pl/);
+  assert.match(helper, /User-Agent/);
+  assert.match(helper, /next: \{ revalidate: 86400 \}/);
+  assert.match(helper, /page_size/);
+  assert.match(helper, /photographers_tags/);
 });
 
 test("les URL photo sont limitées au domaine d’images Open Beauty Facts en HTTPS", () => {
-  assert.match(library, /url\.protocol === "https:"/);
-  assert.match(library, /url\.hostname === "images\.openbeautyfacts\.org"/);
-  assert.match(library, /\/images\/products\//);
+  assert.match(helper, /url\.protocol === "https:"/);
+  assert.match(helper, /url\.hostname === "images\.openbeautyfacts\.org"/);
+  assert.match(helper, /\/images\/products\//);
 });
 
 test("les images sont attribuées et la licence CC BY-SA est affichée", () => {
@@ -33,14 +37,27 @@ test("la bibliothèque reste informative, sans prix, stock, commande ni publicit
   assert.match(library, /aucun prix, classement, placement sponsorisé ni incitation à l’achat/);
   assert.match(library, /ne prouve ni référencement local, ni stock, ni disponibilité/);
   assert.doesNotMatch(library, /Ajouter au panier|Commander|Prix FCFA|en stock/i);
+  assert.match(preview, /sans prix, sans classement commercial et sans indication de stock/);
+  assert.doesNotMatch(preview, /Ajouter au panier|Commander|Prix FCFA|en stock/i);
 });
 
 test("Bébé & Maman filtre les références autour du bébé et de la maternité", () => {
-  assert.match(library, /baby\|bébé\|bebe\|infant\|newborn/);
-  assert.match(library, /universe === "bebe-maman"/);
+  assert.match(helper, /baby\|bébé\|bebe\|infant\|newborn/);
+  assert.match(helper, /universe === "bebe-maman"/);
+  assert.match(library, /aucun prix, classement, placement sponsorisé ni incitation à l’achat/);
 });
 
-test("la galerie est visible sur la vitrine principale uniquement si l’univers est activé", () => {
-  assert.match(catalog, /featureFlag\?\.enabled === true/);
+test("la galerie est visible sur les vitrines Parapharmacie et Bébé & Maman", () => {
   assert.match(catalog, /<ProductImageLibrary universe=\{universe\} \/>/);
 });
+
+test("l’aperçu de bibliothèque est intégré à l’accueil principal du client", () => {
+  assert.match(route, /naxa-age-status-v2/);
+  assert.match(route, /loadProductImageLibrary\("parapharmacie"\)/);
+  assert.match(route, /loadProductImageLibrary\("bebe-maman"\)/);
+  assert.match(preview, /\/api\/bibliotheque-images/);
+  assert.match(home, /<ProductImageLibraryPreview \/>/);
+  assert.match(home, /Bibliothèque visuelle/);
+});
+
+process.stdout.write("Bibliothèque visuelle et affichage principal vérifiés.\n");

@@ -14,6 +14,7 @@ import { basculerFavori, ecouterFavoris, lireFavoris } from "@/lib/favoris-clien
 import { normaliserRecherche, suggestionsMedicaments } from "@/lib/accueil-textes";
 import CartePharmaciesProches from "@/components/CartePharmaciesProches";
 import { PharmaciesGardeListe } from "@/components/gardes/PharmaciesGardeListe";
+import { ProductImageLibraryPreview } from "@/components/universes/ProductImageLibraryPreview";
 
 type Produit = {
   id: string;
@@ -537,7 +538,9 @@ export function AccueilClient() {
         {error && <span className="sr-only" role="status">Aucun classement de recherches réelles disponible pour le moment.</span>}
       </section>}
 
-            <section className="mb-6">
+      <ProductImageLibraryPreview />
+
+      <section className="mb-6">
         <h2 className="mb-3 text-[22px] font-extrabold tracking-[-0.03em] text-[#0B3D26]">Pharmacies de garde</h2>
         <div className="overflow-hidden rounded-[22px] border border-[#D7E7DC] bg-gradient-to-br from-white to-[#EDF7F0] shadow-[0_12px_28px_rgba(5,74,41,0.12)]">
           <div className="border-b border-[#E0EAE3] px-4 py-3">
