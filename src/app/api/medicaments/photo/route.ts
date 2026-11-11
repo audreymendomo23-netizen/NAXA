@@ -53,10 +53,41 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       .replace(/[%_,]/g, " ").replace(/\s+/g, " ").trim();
     if (safeQuery.length < 3) return null;
 
+    const fields = "nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le";
+    const barcode = query.replace(/\\D/g, "");
+    if (/^(?:\\d{8}|\\d{12}|\\d{13}|\\d{14})$/.test(barcode)) {
+      // Un GTIN ne peut retrouver qu'une fiche portant exactement ce code.
+      const { data } = await sb.from("produits")
+        .select(fields)
+        .eq("code_barre", barcode)
+        .limit(2);
+      for (const product of (data ?? []) as Array<{
+        nom: string; dci: string | null; synonymes: string[] | null;
+        photo_path: string | null; photo_url: string | null; photo_source_url: string | null;
+        photo_licence: string | null; photo_verifiee_le: string | null;
+      }>) {
+        if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url?.startsWith("https://")) continue;
+        const url = product.photo_path
+          ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
+          : product.photo_url;
+        if (!url?.startsWith("https://")) continue;
+        return {
+          url,
+          sourceUrl: product.photo_source_url,
+          licence: product.photo_licence,
+          attribution: null,
+          title: product.nom,
+          kind: "boite",
+          provider: "catalogue_local_verifie"
+        };
+      }
+      return null;
+    }
+
     // Première priorité : fiche locale NAXA dont la photo a une licence et une date de vérification.
     const [byName, byIngredient] = await Promise.all([
       sb.from("produits")
-        .select("nom,dci,synonymes,photo_path,photo_url,photo_source_url,photo_licence,photo_verifiee_le")
+        .select(fields)
         .ilike("nom", "%" + safeQuery + "%")
         .limit(12),
       sb.from("produits")
@@ -131,7 +162,8 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
         licence: image.licence,
         attribution: image.source_nom || null,
         title: [ref.nom, image.libelle_presentation].filter(Boolean).join(" — "),
-        kind: "boite"
+        kind: "boite",
+        provider: "catalogue_local_verifie"
       };
     }
   } catch {
