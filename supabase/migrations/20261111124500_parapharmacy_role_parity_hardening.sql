@@ -56,6 +56,39 @@ end;
 $function$;
 revoke all on function private.naxa_ensure_professional_account_domain(uuid,text) from public,anon,authenticated;
 
+-- Un profil de base Promoteur est une identité professionnelle Pharmacie,
+-- même si aucun lien d'officine n'a encore été créé.
+create or replace function private.naxa_guard_profile_professional_domain()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+begin
+  if new.role::text in ('pharmacie','caisse','promoteur') then
+    perform private.naxa_ensure_professional_account_domain(new.id,'PHARMACIE');
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists naxa_profile_professional_domain_guard on public.profiles;
+create trigger naxa_profile_professional_domain_guard
+before insert or update of role on public.profiles
+for each row execute function private.naxa_guard_profile_professional_domain();
+
+do $promoter_collision$
+begin
+  if exists(
+    select 1 from public.profiles p
+    join public.naxa_professional_account_domains d on d.profile_id=p.id
+    where p.role::text='promoteur' and d.domain_code='PARAPHARMACIE'
+  ) then
+    raise exception 'Séparation requise : une identité Promoteur Pharmacie est déjà marquée Parapharmacie.';
+  end if;
+end;
+$promoter_collision$;
+
 -- Backfill explicite des Promoteurs Pharmacie non encore liés à une officine.
 insert into public.naxa_professional_account_domains(profile_id,domain_code)
 select p.id,'PHARMACIE'
