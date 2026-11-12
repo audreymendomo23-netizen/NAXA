@@ -54,14 +54,25 @@ export async function GET(request:Request) {
     checked++;
     const group=family(s.measurement_type);
     if(!group) continue;
+    const {data:account}=await db.from("profiles").select("actif").eq("id",s.user_id).maybeSingle();
+    if(account?.actif!==true) continue;
     const {data:consent}=await db.from("suivi_consents").select("granted,revoked_at").eq("user_id",s.user_id).eq("family_key",group).maybeSingle();
     if(!consent?.granted||consent.revoked_at) continue;
     const lead=Math.max(1,Math.min(30,Number(s.lead_minutes)||5));
+    const timezone=String(s.timezone||"Africa/Douala");
     let target;
-    try { target=zoned(new Date(now.getTime()+lead*60000),String(s.timezone||"Africa/Douala")); } catch { failed++; continue; }
-    if(String(s.local_time).slice(0,5)!==target.time) continue;
-    const activeDays=Array.isArray(s.days_of_week)?s.days_of_week.map(Number):[0,1,2,3,4,5,6];
-    if(!activeDays.includes(target.weekday)) continue;
+    try {
+      const onTime=zoned(new Date(now.getTime()+lead*60000),timezone);
+      const oneMinuteGrace=zoned(new Date(now.getTime()+(lead-1)*60000),timezone);
+      const scheduledTime=String(s.local_time).slice(0,5);
+      const activeDays=Array.isArray(s.days_of_week)?s.days_of_week.map(Number):[0,1,2,3,4,5,6];
+      target=onTime.time===scheduledTime&&activeDays.includes(onTime.weekday)
+        ? onTime
+        : oneMinuteGrace.time===scheduledTime&&activeDays.includes(oneMinuteGrace.weekday)
+          ? oneMinuteGrace
+          : null;
+    } catch { failed++; continue; }
+    if(!target) continue;
     const key=target.date+"T"+String(s.local_time).slice(0,5);
     if(s.last_prealert_key===key) continue;
     const freshMins=Math.max(1,Math.min(1440,Number(s.freshness_window_minutes)||5));
