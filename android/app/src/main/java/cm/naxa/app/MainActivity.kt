@@ -103,6 +103,22 @@ class MainActivity : Activity() {
 
     inner class NaxaBridge {
         @JavascriptInterface fun isAvailable(): Boolean = true
+        @JavascriptInterface fun getFcmToken(): String =
+            getSharedPreferences(NaxaFirebaseMessagingService.PREFS, MODE_PRIVATE)
+                .getString(NaxaFirebaseMessagingService.TOKEN_KEY, "").orEmpty()
+        @JavascriptInterface fun refreshFcmToken() {
+            runOnUiThread {
+                if (com.google.firebase.FirebaseApp.getApps(this@MainActivity).isEmpty()) return@runOnUiThread
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                    .addOnSuccessListener { token ->
+                        getSharedPreferences(NaxaFirebaseMessagingService.PREFS, MODE_PRIVATE)
+                            .edit().putString(NaxaFirebaseMessagingService.TOKEN_KEY, token).apply()
+                        val script = "window.dispatchEvent(new CustomEvent('naxa-fcm-token',{detail:{token:" +
+                            JSONObject.quote(token) + "}}))"
+                        if (::web.isInitialized) web.evaluateJavascript(script, null)
+                    }
+            }
+        }
         @JavascriptInterface fun startScan(deviceKey: String, ownerUserId: String) {
             pendingDeviceKey = deviceKey.take(80)
             pendingDeviceOwnerId = ownerUserId.take(80)
