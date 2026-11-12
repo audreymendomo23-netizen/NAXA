@@ -393,35 +393,45 @@ export function SuiviConnecte() {
   const selectedSavedDevice = selectedDeviceInstances[0];
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
-    const existing = devices.find(d => d.device_key === device.key && d.active) ?? devices.find(d => d.device_key === device.key);
-    if ((!existing || !existing.active) && !consents[device.family]) {
+    const instances=devices.filter(item=>item.device_key===device.key);
+    const shouldActivate=!instances.some(item=>item.active);
+    if(shouldActivate&&!consents[device.family]){
       setNotice(`Acceptez d’abord le consentement « ${families.find(f=>f.key===device.family)?.label} » pour activer ce dispositif.`);
       return;
     }
-    setBusy(true); setNotice("");
-    const { data:userData } = await sb.auth.getUser();
-    if (!userData.user) { setNotice("Session expirée. Reconnectez-vous."); setBusy(false); return; }
-    if(existing?.active && existing.platform_device_id){
-      const session=bluetoothSessions.current.get(existing.platform_device_id);
-      if(session){
-        if(session.retryTimer) window.clearTimeout(session.retryTimer);
-        bluetoothSessions.current.delete(existing.platform_device_id);
-        try { if(session.device?.gatt?.connected) session.device.gatt.disconnect(); } catch { /* L'appareil est déjà fermé. */ }
+    setBusy(true);setNotice("");
+    const {data:userData}=await sb.auth.getUser();
+    if(!userData.user){setNotice("Session expirée. Reconnectez-vous.");setBusy(false);return;}
+    if(!shouldActivate){
+      for(const instance of instances.filter(item=>item.active&&item.platform_device_id)){
+        const session=bluetoothSessions.current.get(instance.platform_device_id!);
+        if(!session)continue;
+        if(session.retryTimer)window.clearTimeout(session.retryTimer);
+        bluetoothSessions.current.delete(instance.platform_device_id!);
+        try{if(session.device?.gatt?.connected)session.device.gatt.disconnect();}catch{/* Déjà déconnecté. */}
       }
     }
-    const { error } = existing
+    const result=instances.length
       ? await sb.from("suivi_user_devices").update({
-          active:!existing.active,
-          auto_reconnect:existing.active?false:!!existing.platform_device_id,
-          connection_state:existing.active?"disconnected":(existing.connection_state??"disconnected"),
+          active:shouldActivate,
+          auto_reconnect:shouldActivate,
+          connection_state:shouldActivate?"disconnected":"disconnected",
           updated_at:new Date().toISOString()
-        }).eq("id",existing.id).eq("user_id",userData.user.id)
-      : await sb.from("suivi_user_devices").insert({user_id:userData.user.id,device_key:device.key,device_name:device.name,connection_mode:device.mode,capabilities:["manual","bluetooth","scan"],active:true});
-    if (error) setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
-    else {
-      const { data } = await sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at").eq("user_id",userData.user.id).order("created_at",{ascending:true});
+        }).eq("user_id",userData.user.id).eq("device_key",device.key)
+      : await sb.from("suivi_user_devices").insert({
+          user_id:userData.user.id,device_key:device.key,device_name:device.name,
+          connection_mode:device.mode,capabilities:["manual","bluetooth","scan"],active:true,
+          auto_reconnect:false,connection_state:"unpaired"
+        });
+    if(result.error)setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
+    else{
+      const {data}=await sb.from("suivi_user_devices")
+        .select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at")
+        .eq("user_id",userData.user.id).order("created_at",{ascending:true});
       setDevices((data??[]) as UserDevice[]);
-      setNotice(existing ? (existing.active ? "Dispositif désactivé." : "Dispositif réactivé.") : "Dispositif activé dans votre espace privé.");
+      setNotice(instances.length
+        ? shouldActivate?"Tous les appareils de cette catégorie sont réactivés.":"Tous les appareils de cette catégorie sont désactivés."
+        :"Catégorie activée dans votre espace privé.");
     }
     setBusy(false);
   }
