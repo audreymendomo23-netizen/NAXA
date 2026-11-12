@@ -5,7 +5,7 @@ import ExamStaffInvitePanel from "@/components/ExamStaffInvitePanel";
 
 const roles=Object.entries(EXAM_ROLE_LABELS).filter(([key])=>key!=="directeur");
 
-export default async function PersonnelExamensPage({searchParams}:{searchParams:{centre?:string}}){
+export default async function PersonnelExamensPage({searchParams}:{searchParams:{centre?:string;ok?:string}}){
   const context=await getExamUserContext();
   const centerId=searchParams.centre||context.activeAssignments[0]?.center_id||"";
   const {sb,user}=await requireExamCapability(centerId,"staff_manage");
