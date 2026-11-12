@@ -199,7 +199,7 @@ export function SuiviConnecte() {
           const existing=await sb.from("suivi_user_devices").select("id")
             .eq("user_id",authData.user.id).eq("platform_device_id",deviceId).maybeSingle();
           if(existing.error)throw existing.error;
-          const payload={platform_device_id:deviceId,device_model:name,connection_state:"connected",
+          const payload={device_key:deviceKey,connection_mode:"bluetooth",active:true,platform_device_id:deviceId,device_model:name,connection_state:"connected",
             auto_reconnect:true,background_supported:false,last_seen_at:new Date().toISOString(),
             last_error:null,updated_at:new Date().toISOString()};
           const saved=existing.data?.id
@@ -319,7 +319,7 @@ export function SuiviConnecte() {
     if (!allowed || !devices.some(device=>device.active && device.auto_reconnect && device.platform_device_id)) return;
     const native=(window as any).NaxaAndroid;
     if(native?.isAvailable?.()){
-      for(const saved of devices.filter(device=>device.active&&device.auto_reconnect&&device.platform_device_id&&consents[deviceCatalogFamily(device.device_key)])){
+      for(const saved of devices.filter(device=>device.active&&device.auto_reconnect&&device.platform_device_id&&/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i.test(device.platform_device_id)&&consents[deviceCatalogFamily(device.device_key)])){
         if(nativeReconnectRequested.current.has(saved.platform_device_id!))continue;
         nativeReconnectRequested.current.add(saved.platform_device_id!);
         native.reconnect(saved.platform_device_id,saved.device_key);
