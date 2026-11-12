@@ -15,11 +15,32 @@ create table if not exists public.reservation_item_lots (
 create index if not exists reservation_item_lots_lot_idx on public.reservation_item_lots(lot_id);
 alter table public.reservation_item_lots enable row level security;
 drop policy if exists reservation_item_lots_participant_read on public.reservation_item_lots;
-create policy reservation_item_lots_participant_read on public.reservation_item_lots
- for select to authenticated using(exists(
-  select 1 from public.reservations r where r.id=reservation_id and
-   (r.client_id=(select auth.uid()) or public.is_admin()
-    or public.naxa_scope_allows((select auth.uid()),r.pharmacie_id,'PHARMACIE'))));
+-- The canonical scope helper may be installed later in Preview's mixed legacy/canonical replay.
+-- If it is not available yet, the policy is installed by the canonical lifecycle migration
+-- immediately after the helper definition; never create a permissive fallback policy.
+do $policy$
+begin
+  if to_regprocedure('public.naxa_scope_allows(uuid,uuid,text)') is not null then
+    execute $create$
+      create policy reservation_item_lots_participant_read
+      on public.reservation_item_lots
+      for select to authenticated
+      using (
+        exists (
+          select 1
+          from public.reservations r
+          where r.id=reservation_item_lots.reservation_id
+            and (
+              r.client_id=(select auth.uid())
+              or public.is_admin()
+              or public.naxa_scope_allows((select auth.uid()),r.pharmacie_id,'PHARMACIE')
+            )
+        )
+      )
+    $create$;
+  end if;
+end;
+$policy$;
 revoke all on public.reservation_item_lots from public,anon,authenticated;
 grant select on public.reservation_item_lots to authenticated;
 
