@@ -133,6 +133,7 @@ export function SuiviConnecte() {
   const [measurementSheetOpen, setMeasurementSheetOpen] = useState(false);
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
   const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number }>());
+  const measurementRefreshTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
@@ -198,6 +199,7 @@ export function SuiviConnecte() {
   }, [allowed, devices, consents, sb]);
 
   useEffect(() => () => {
+    if(measurementRefreshTimer.current) window.clearTimeout(measurementRefreshTimer.current);
     for(const session of bluetoothSessions.current.values()) {
       if(session.retryTimer) window.clearTimeout(session.retryTimer);
       try { if(session.device?.gatt?.connected) session.device.gatt.disconnect(); } catch { /* ignore teardown */ }
@@ -547,7 +549,6 @@ export function SuiviConnecte() {
   }
 
   async function startBluetoothSession(device: any, deviceKey: string, shouldRegister = true) {
-    const bluetooth = (navigator as any).bluetooth;
     const { data: authData } = await sb.auth.getUser();
     if (!authData.user || !device?.gatt) throw new Error("Compte ou service Bluetooth indisponible");
     if (bluetoothSessions.current.has(String(device.id))) return;
@@ -637,7 +638,8 @@ export function SuiviConnecte() {
         connection_state:"connected",last_error:null,updated_at:receivedAt
       }).eq("id",deviceRow!.id).eq("user_id",authData.user.id);
       setNotice("Mesure synchronisée automatiquement depuis "+String(connected.name ?? item.name)+".");
-      await load();
+      if(measurementRefreshTimer.current) window.clearTimeout(measurementRefreshTimer.current);
+      measurementRefreshTimer.current=window.setTimeout(()=>{measurementRefreshTimer.current=null;void load();},1500);
     };
     for (const entry of discovered) {
       const {service,characteristic}=entry;
@@ -684,7 +686,11 @@ export function SuiviConnecte() {
         } catch {
           current.retries++;
           if(current.retries<=6) current.retryTimer=window.setTimeout(()=>void retry(),Math.min(30000,1000*Math.pow(2,current.retries)));
-          else setNotice("Reconnexion automatique suspendue après plusieurs échecs. Réactivez l'appareil depuis NAXA.");
+          else {
+            bluetoothSessions.current.delete(String(connected.id));
+            await sb.from("suivi_user_devices").update({connection_state:"error",last_error:"Reconnexion automatique impossible après plusieurs tentatives",updated_at:new Date().toISOString()}).eq("id",deviceRow!.id).eq("user_id",authData.user.id);
+            setNotice("Reconnexion automatique suspendue après plusieurs échecs. Réactivez l'appareil depuis NAXA.");
+          }
         }
       };
       current.retryTimer=window.setTimeout(()=>void retry(),1000);
