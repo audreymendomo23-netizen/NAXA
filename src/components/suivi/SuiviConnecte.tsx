@@ -682,6 +682,24 @@ export function SuiviConnecte() {
     setBusy(false);
   }
 
+  async function removeDeviceInstance(instance:UserDevice) {
+    const {data:userData}=await sb.auth.getUser();
+    if(!userData.user){setNotice("Session expirée.");return;}
+    if(!window.confirm("Retirer cet appareil de votre espace NAXA ? Les mesures déjà enregistrées seront conservées.")) return;
+    const session=instance.platform_device_id?bluetoothSessions.current.get(instance.platform_device_id):undefined;
+    if(session){
+      if(session.retryTimer)window.clearTimeout(session.retryTimer);
+      bluetoothSessions.current.delete(instance.platform_device_id!);
+      try{if(session.device?.gatt?.connected)session.device.gatt.disconnect();}catch{/* Déjà déconnecté. */}
+    }
+    setBusy(true);setNotice("");
+    const {error}=await sb.from("suivi_user_devices").delete()
+      .eq("id",instance.id).eq("user_id",userData.user.id);
+    if(error)setNotice("Cet appareil n'a pas pu être retiré. Vos données historiques sont conservées.");
+    else{setNotice("Appareil retiré. Les mesures déjà enregistrées restent dans votre historique.");await load();}
+    setBusy(false);
+  }
+
   async function connectHeartRate() {
     await connectDeviceBluetooth("capteur_cardiaque_bluetooth");
   }
@@ -1001,7 +1019,7 @@ export function SuiviConnecte() {
           <p className="mt-2 text-sm"><span className={"inline-flex rounded-full px-3 py-1 font-bold "+(selectedSavedDevice?.active?"bg-[#E5F4E9] text-[#064B2A]":"bg-slate-100 text-slate-600")}>{selectedSavedDevice?.active?"Actif":"Inactif"}</span></p>
           <button type="button" disabled={busy} onClick={async()=>{await toggleDevice(selectedDevice);}} className={"mt-4 min-h-11 w-full rounded-xl px-4 font-bold text-white disabled:opacity-40 "+(selectedSavedDevice?.active?"bg-slate-700":"bg-[#0A6B3A]")}>{selectedSavedDevice?.active?"Désactiver":"Activer ce dispositif"}</button>
           {selectedSavedDevice?.active&&<button type="button" disabled={busy||!consents[selectedDevice.family]} onClick={()=>void connectDeviceBluetooth(selectedDevice.key)} className="mt-2 min-h-11 w-full rounded-xl border border-[#0A6B3A] px-4 font-bold text-[#0A6B3A] disabled:opacity-40">{selectedDeviceInstances.length>0?"Connecter / ajouter un autre appareil Bluetooth":"Connecter un appareil Bluetooth"}</button>}
-          {selectedDeviceInstances.length>0&&<div className="mt-3 space-y-2"><p className="text-sm font-bold">Appareils associés ({selectedDeviceInstances.length})</p>{selectedDeviceInstances.map(instance=><article key={instance.id} className="rounded-xl border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{instance.device_model||instance.device_name}</b><span className={"rounded-full px-2 py-1 text-xs font-bold "+(instance.connection_state==="connected"?"bg-emerald-100 text-emerald-800":"bg-slate-200 text-slate-700")}>{instance.connection_state==="connected"?"Connecté":instance.connection_state==="error"?"Erreur":instance.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-500">{instance.protocol||"Protocole non identifié"} · Reconnexion auto : {instance.auto_reconnect?"activée":"désactivée"}</p><p className="mt-1 text-xs text-slate-500">Dernière mesure : {instance.last_measurement_at?new Date(instance.last_measurement_at).toLocaleString("fr-FR"):"aucune mesure reçue"}</p></article>)}</div>}
+          {selectedDeviceInstances.length>0&&<div className="mt-3 space-y-2"><p className="text-sm font-bold">Appareils associés ({selectedDeviceInstances.length})</p>{selectedDeviceInstances.map(instance=><article key={instance.id} className="rounded-xl border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{instance.device_model||instance.device_name}</b><span className={"rounded-full px-2 py-1 text-xs font-bold "+(instance.connection_state==="connected"?"bg-emerald-100 text-emerald-800":"bg-slate-200 text-slate-700")}>{instance.connection_state==="connected"?"Connecté":instance.connection_state==="error"?"Erreur":instance.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-500">{instance.protocol||"Protocole non identifié"} · Reconnexion auto : {instance.auto_reconnect?"activée":"désactivée"}</p><p className="mt-1 text-xs text-slate-500">Dernière mesure : {instance.last_measurement_at?new Date(instance.last_measurement_at).toLocaleString("fr-FR"):"aucune mesure reçue"}</p><button type="button" disabled={busy} onClick={()=>void removeDeviceInstance(instance)} className="mt-2 min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Retirer cet appareil</button></article>)}</div>}
           <button type="button" onClick={()=>{setSelectedType(types.find(type=>type.family===selectedDevice.family)?.key??selectedType);setSelectedDeviceKey(null);setActiveTab("Configurations");setConfigurationPage("mesures");setMeasurementSheetOpen(true);}} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-4 font-bold">Ajouter une mesure</button>
         </section>
       </div>}
