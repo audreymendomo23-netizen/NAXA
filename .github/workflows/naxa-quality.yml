@@ -17,6 +17,10 @@ jobs:
   quality:
     name: Tests, TypeScript et lint
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: build-test-service-role-key
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -27,5 +31,5 @@ jobs:
           node-version: 22
       - name: Installer les dépendances
         run: npm install --no-audit --no-fund --no-progress
-      - name: Tests + TypeScript + lint (Node 22, JSX corrigé)
-        run: npm run quality
+      - name: Qualité complète + build Next.js (Node 22)
+        run: npm run quality && npm run build
