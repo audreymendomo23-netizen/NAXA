@@ -193,7 +193,11 @@ class NaxaBleForegroundService : Service() {
 
     @Suppress("MissingPermission")
     private fun connect(address: String, key: String, ownerId: String) {
-        val current = sessions[address]
+        var current = sessions[address]
+        if (current != null && current.ownerId != ownerId) {
+            disconnectDevice(address)
+            current = null
+        }
         if (current?.gatt != null) return
         val required = if (Build.VERSION.SDK_INT >= 31) android.Manifest.permission.BLUETOOTH_CONNECT
             else android.Manifest.permission.ACCESS_FINE_LOCATION
