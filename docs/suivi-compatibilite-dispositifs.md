@@ -50,6 +50,13 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - L'image n'est pas téléversée par cette fonction OCR.
 - Le scan d'un code d'identification n'est pas considéré comme une mesure clinique.
 
+## Synchronisation hors connexion
+
+- Les mesures Bluetooth reçues mais non envoyées sont conservées dans une file IndexedDB locale, limitée à 500 événements par navigateur.
+- La reprise se déclenche au retour du réseau et lorsque l’espace redevient visible; les envois sont regroupés par lots.
+- La file est propre à l’utilisateur authentifié. Les mesures dont le consentement familial n’est plus actif sont supprimées avant toute reprise.
+- Une mesure n’est retirée de la file qu’après confirmation de l’insertion serveur. Les actions qui exigent le serveur restent indisponibles hors connexion.
+
 ## Rappels et sécurité
 
 - Les rappels sont vérifiés par le service planifié Push toutes les cinq minutes.
