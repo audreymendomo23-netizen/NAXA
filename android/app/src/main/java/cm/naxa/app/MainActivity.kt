@@ -158,6 +158,27 @@ class MainActivity : Activity() {
         @JavascriptInterface fun updateMeasurementFreshness(measurementType: String, timestampMillis: Long, deviceId: String) {
             NaxaReminderScheduler.updateFreshness(this@MainActivity, measurementType.take(100), timestampMillis, deviceId.take(120))
         }
+        @JavascriptInterface fun showLocalNotification(title: String, body: String, path: String, tag: String) {
+            runOnUiThread {
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) return@runOnUiThread
+                NaxaReminderScheduler.ensureChannel(this@MainActivity)
+                val safePath=if(path.startsWith("/")&&!path.startsWith("//")&&!path.contains("://"))path else "/suivi"
+                val open=Intent(this@MainActivity,MainActivity::class.java).apply {
+                    flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("openPath",safePath)
+                }
+                val notification=android.app.Notification.Builder(this@MainActivity,"naxa_suivi_measurements")
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setContentTitle(title.take(80))
+                    .setContentText(body.take(180))
+                    .setContentIntent(PendingIntent.getActivity(this@MainActivity,tag.hashCode(),open,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                    .setAutoCancel(true).build()
+                getSystemService(android.app.NotificationManager::class.java).notify(tag.hashCode(),notification)
+            }
+        }
     }
 
     private fun ensureBluetoothPermissionsAndScan() {
