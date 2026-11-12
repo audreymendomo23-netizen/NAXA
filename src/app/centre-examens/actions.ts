@@ -77,7 +77,7 @@ async function findAuthUserByEmail(admin:ReturnType<typeof supabaseAdmin>,email:
 async function sendExamStaffActivationEmail(email:string,token:string){
   const endpoint=process.env.GOOGLE_APPS_SCRIPT_URL;
   const secret=process.env.GOOGLE_APPS_SCRIPT_SECRET;
-  const siteUrl=(process.env.NEXT_PUBLIC_SITE_URL||"https://naxa-naxa3.vercel.app").replace(/\\/$/,"");
+  const siteUrl=process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/,"");
   if(!endpoint||!secret) throw new Error("Passerelle e-mail non configurée");
   const base=new URL(siteUrl);
   if(base.protocol!=="https:") throw new Error("URL publique HTTPS requise");
@@ -102,7 +102,10 @@ export async function createExamStaffAccount(form:FormData){
   const roleKey=textValue(form,"role_key",80);
   const path=BASE+"/personnel";
   const {sb}=await requireActor(centerId,["staff_manage"],path);
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||!ROLE_KEYS.includes(roleKey as typeof ROLE_KEYS[number])) fail(path,centerId);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!ROLE_KEYS.includes(roleKey as typeof ROLE_KEYS[number])) fail(path,centerId);
+  if(!process.env.GOOGLE_APPS_SCRIPT_URL||!process.env.GOOGLE_APPS_SCRIPT_SECRET||!process.env.NEXT_PUBLIC_SITE_URL){
+    redirect(path+"?centre="+encodeURIComponent(centerId)+"&erreur=configuration-email");
+  }
 
   const admin=supabaseAdmin();
   let existing:Awaited<ReturnType<typeof findAuthUserByEmail>>;
