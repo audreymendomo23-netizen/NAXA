@@ -60,6 +60,18 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Test positif ajouté : `supabase/tests/202611121_assurance_compta_worker_positive.sql`. Résultat Replay : `202611121_assurance_compta_worker_positive PASS`.
 - Le test transactionnel a traité une prise en charge synthétique de 10 000 FCFA, puis deux remboursements synthétiques de 4 000 et 6 000 FCFA. Il a vérifié trois écritures équilibrées, le débit de trésorerie de 10 000 FCFA, le rapprochement de la créance (débit 10 000 / crédits cumulés 10 000) et l'idempotence de l'outbox. Le `ROLLBACK` final a supprimé toutes les fixtures : aucune donnée comptable n'a été conservée.
 - Contrôle du parcours de paramétrage : `/pharmacie/comptable/referentiels` est strictement en lecture seule (assureurs, fournisseurs, commandes). Le tableau Promoteur affiche les périodes, événements et écritures en lecture seule. Aucune interface ni RPC de gestion du plan comptable, des mappings débit/crédit ou des journaux n'a été trouvée dans le dépôt/base.
-- Le cahier Comptable maintient le poste Comptable en lecture seule. Le rôle autorisé à proposer puis valider le plan/mappings au nom de la pharmacie reste à formaliser avant d'ouvrir des RPC d'écriture ; aucun droit n'a été ajouté et aucun compte SYSCOHADA n'a été prérempli.
+- Le cahier Comptable a été actualisé : le Promoteur conserve le droit permanent de configuration/validation du plan et des mappings ; il peut déléguer ce droit au Comptable par pharmacie, puis le retirer sans supprimer la lecture. Cette délégation n'ouvre aucun droit sur les ventes, la caisse, les dépenses ou la trésorerie.
 - État après test Replay : 0 compte, 0 mapping, 0 paramètre, 0 période, 0 événement en file et 0 écriture persistante. Le test valide le moteur sur fixtures, pas la comptabilité réelle d'une pharmacie.
 
+
+
+## Gouvernance des droits comptables — 12 novembre 2026
+
+- Migration Replay : `20261112162608 / compta_droits_ecriture_promoteur_comptable`. Fichier versionné : `supabase/migrations/20261112162608_compta_droits_ecriture_promoteur_comptable.sql`.
+- Table `compta_droits_ecriture` : droit individuel par Comptable et pharmacie, refusé par défaut ; RLS activée et aucun accès direct accordé à `anon` ou `authenticated`.
+- Le RBAC reconnaît `MANAGE_ACCOUNTING` au Promoteur dans les quatre architectures ; ce droit est permanent dans le périmètre du réseau validé.
+- RPC Promoteur : `compta_promoteur_lister_comptables` et `compta_promoteur_configurer_ecriture`. Le partage/retrait vérifie le Promoteur actif, son périmètre, l'affectation active du Comptable et écrit une entrée dans le journal d'audit.
+- Le retrait fait passer le Comptable en lecture seule : `compta_scope_autorise` ne dépend plus du droit d'écriture. Le contrôle d'écriture est séparé dans `compta_ecriture_autorisee` et dans `private.naxa_has_privilege`.
+- UI ajoutée : `/pharmacie/promoteur/comptabilite/droits`, accessible depuis le contrôle comptable réseau. Elle expose le partage et le retrait individuels.
+- Test SQL : `supabase/tests/202611121_compta_droits_ecriture_contract.sql` — résultat Replay : `PASS`.
+- Limite : Replay ne contient actuellement aucun compte Promoteur ni Comptable (seul un profil Admin est présent). Le parcours RPC authentifié partage/retrait n'a donc pas encore été exercé avec deux comptes réels. L'interface de création/validation du plan et des mappings reste à construire ; le présent changement pose le contrôle d'accès et sa délégation, pas les écrans de saisie comptable.
