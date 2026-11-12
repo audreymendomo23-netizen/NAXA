@@ -165,6 +165,13 @@ export function SuiviConnecte() {
     ]);
     if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error || links.error || shares.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
     const native=(window as any).NaxaAndroid;
+    if(native?.isAvailable?.()&&!r.error){
+      const localReminders=(r.data??[]).filter((reminder:any)=>reminder.enabled).map((reminder:any)=>({
+        id:reminder.id,enabled:true,title:reminder.title,dueAt:reminder.due_at,
+        repeatRule:reminder.repeat_rule,measurementType:reminder.measurement_type,timezone:"Africa/Douala"
+      }));
+      native.syncPersonalReminders?.(JSON.stringify(localReminders));
+    }
     if(native?.isAvailable?.()&&!d.error&&!schedules.error&&!m.error){
       const localDeviceIds=new Set((d.data??[]).filter((device:any)=>device.active&&device.platform_device_id).map((device:any)=>device.id));
       const localSchedules=(schedules.data??[]).filter((schedule:any)=>schedule.enabled&&schedule.device_id&&localDeviceIds.has(schedule.device_id)).map((schedule:any)=>({
