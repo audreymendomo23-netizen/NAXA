@@ -174,8 +174,12 @@ test("interface : source/licence visibles et image cassée remplacée sans garde
 test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont intégrées avec garde-fous", () => {
   assert.ok(photoResolver.includes("https://cima.aemps.es/cima/rest"));
   assert.match(photoResolver, /allowedCimaImageRights/);
-  assert.match(photoResolver, /if \(!licence\) return null/);
-  assert.match(photoResolver, /derechos reservados/);
+  assert.match(photoResolver, /function cimaPhotoUpdateDate/);
+  assert.match(photoResolver, /photo\.fecha/);
+  assert.match(photoResolver, /Données ouvertes AEMPS\/CIMA/);
+  assert.match(photoResolver, /derechos\\s\+reservados/);
+  assert.match(photoResolver, /for \(const record of matching\)/);
+  assert.match(photoResolver, /if \(!updatedAt\) return null/);
   assert.match(recherche, /AEMPS \/ CIMA \(Espagne\)/);
   assert.match(recherche, /non preuve d’AMM ou de présentation camerounaise/);
   assert.ok(photoResolver.includes("if (!url || !rights) return null"));

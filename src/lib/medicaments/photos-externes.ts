@@ -165,6 +165,7 @@ const CIMA_NAME_ALIASES: Record<string, string> = {
 type CimaPhotoEntry = {
   tipo?: string;
   url?: string;
+  fecha?: string | number;
   licence?: string;
   license?: string;
   licencia?: string;
@@ -230,6 +231,16 @@ function cimaIngredients(medicine: CimaMedicine): string {
   }).filter(Boolean).join(" + ");
 }
 
+function cimaPhotoUpdateDate(value: string | number | undefined): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  const numeric = typeof value === "number" ? value : /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) : Number.NaN;
+  const date = Number.isFinite(numeric)
+    ? new Date(numeric > 1_000_000_000_000 ? numeric : numeric * 1000)
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
 function allowedCimaImageRights(
   photo: CimaPhotoEntry,
   medicine: CimaMedicine
@@ -237,24 +248,41 @@ function allowedCimaImageRights(
   const licence = (photo.licence ?? photo.license ?? photo.licencia ?? "").trim();
   const licenceUrl = (photo.licenceUrl ?? photo.licenseUrl ?? photo.licenciaUrl ?? "").trim();
   const attribution = (photo.attribution ?? photo.auteur ?? photo.author ?? "").trim();
+  const updatedAt = cimaPhotoUpdateDate(photo.fecha);
 
-  // L'ouverture des données CIMA ne vaut pas preuve automatique de droits
-  // sur chaque photographie : les images sont fournies par les titulaires d'AMM.
-  // Sans licence explicite et vérifiable au niveau du média, ne pas afficher.
-  if (!licence) return null;
-  if (/\\b(?:NC|ND)\\b|non.?commercial|no.?derivatives|todos los derechos reservados|derechos reservados/i.test(licence)) return null;
+  // L'AEMPS publie CIMA dans son catalogue officiel de données ouvertes.
+  // La date de mise à jour de chaque photo est fournie par fotos[].fecha.
+  // Sans cette date, NAXA ne peut pas appliquer correctement les conditions
+  // de réutilisation et n'affiche donc pas l'image.
+  if (!updatedAt) return null;
 
-  const permitted = /^(?:CC0(?:\\s|$)|Public Domain(?:\\s|$)|CC BY(?:-SA)?(?:\\s|$))/i.test(licence);
-  if (!permitted) return null;
-  if (/^CC BY/i.test(licence) && !attribution && !medicine.labtitular) return null;
-  if (!licenceUrl && !/^CC0(?:\\s|$)|^Public Domain(?:\\s|$)/i.test(licence)) return null;
+  // Les restrictions explicites au niveau du média priment toujours sur la
+  // réutilisation générale des données ouvertes.
+  if (/\b(?:NC|ND)\b|non[\s-]?commercial|no[\s-]?derivatives|sin\s+obras\s+derivadas|todos\s+los\s+derechos\s+reservados|derechos\s+reservados/i.test(licence)) return null;
+
+  const hasExplicitLicence = Boolean(licence);
+  if (hasExplicitLicence) {
+    const permitted = /^(?:CC0(?:\s|$)|Public Domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(licence);
+    if (!permitted) return null;
+    if (/^CC BY/i.test(licence) && !attribution && !medicine.labtitular) return null;
+    if (!licenceUrl && !/^CC0(?:\s|$)|^Public Domain(?:\s|$)/i.test(licence)) return null;
+  }
 
   const titular = (medicine.labtitular ?? "").trim();
+  const policy = "Données ouvertes AEMPS/CIMA — réutilisation avec attribution : https://sede.aemps.gob.es/datos-abiertos/";
   return {
-    licence: [licence, licenceUrl].filter(Boolean).join(" — "),
-    attribution: attribution || ["AEMPS / CIMA", titular ? "titulaire AMM : " + titular : ""].filter(Boolean).join(" — ")
+    licence: [
+      hasExplicitLicence ? [licence, licenceUrl].filter(Boolean).join(" — ") : policy,
+      "photo mise à jour le " + updatedAt
+    ].filter(Boolean).join(" — "),
+    attribution: [
+      attribution || "AEMPS / CIMA",
+      titular ? "titulaire AMM : " + titular : "",
+      "photo mise à jour le " + updatedAt
+    ].filter(Boolean).join(" — ")
   };
 }
+
 function safeCimaImageUrl(raw: string | undefined): string | null {
   if (!raw) return null;
   try {
@@ -333,19 +361,28 @@ async function searchCima(query: string): Promise<PhotosMedicament> {
     .slice(0, 4);
   if (!matching.length) return { boite: null, comprime: null };
 
-  let selected = matching.find((record) => Array.isArray(record.fotos) && record.fotos.length > 0) ?? matching[0];
-  if ((!selected.fotos || selected.fotos.length === 0) && selected.nregistro) {
-    const detailParams = new URLSearchParams({ nregistro: selected.nregistro });
-    const detail = await fetchCimaJson(CIMA_BASE + "/medicamento?" + detailParams.toString());
-    if (detail && typeof detail.nombre === "string" && cimaNameMatches(query, detail.nombre)) {
-      selected = detail as CimaMedicine;
+  // Ne pas s'arrêter au premier candidat : il peut avoir des médias absents,
+  // sans date de mise à jour ou assortis d'une restriction explicite.
+  for (const record of matching) {
+    let candidate = record;
+    if ((!candidate.fotos || candidate.fotos.length === 0) && candidate.nregistro) {
+      const detailParams = new URLSearchParams({ nregistro: candidate.nregistro });
+      const detail = await fetchCimaJson(CIMA_BASE + "/medicamento?" + detailParams.toString());
+      if (detail && typeof detail.nombre === "string" && cimaNameMatches(query, detail.nombre)) {
+        candidate = detail as CimaMedicine;
+      }
     }
+
+    const photos = {
+      boite: cimaPhoto(query, candidate, "boite"),
+      comprime: cimaPhoto(query, candidate, "comprime")
+    };
+    // Garder les deux vues d'un même médicament uniquement : ne jamais assembler
+    // une boîte d'une marque et une forme pharmaceutique provenant d'une autre.
+    if (photos.boite || photos.comprime) return photos;
   }
 
-  return {
-    boite: cimaPhoto(query, selected, "boite"),
-    comprime: cimaPhoto(query, selected, "comprime")
-  };
+  return { boite: null, comprime: null };
 }
 
 /**
