@@ -66,6 +66,8 @@ test("Notifications : distance et prix sont calculés uniquement depuis les phar
   assert.match(page, /totalPrix\(meilleureOffre\)/);
   assert.match(page, /basketMode\|\|bulkTerms\.length\?/);
   assert.match(page, /notifierNAXA\(messages\.join\(" "\)\)/);
+  assert.match(page, /meilleureOffre\?totalPrix\(meilleureOffre\):""/);
+  assert.match(page, /nearest\?Math\.round\(Number\(nearest\.distance_km\)\*1000\):""/);
 });
 
 test("Panier multi-médicaments : les pharmacies partielles ne peuvent pas gagner le classement prix", () => {
