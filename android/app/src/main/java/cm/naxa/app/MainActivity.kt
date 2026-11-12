@@ -34,6 +34,7 @@ class MainActivity : Activity() {
     private val gatts = linkedMapOf<String, BluetoothGatt>()
     private val deviceKeys = linkedMapOf<String, String>()
     private val retryCounts = linkedMapOf<String, Int>()
+    private val pendingReads = linkedMapOf<String, ArrayDeque<BluetoothGattCharacteristic>>()
     private var scanning = false
     private var pendingDeviceKey = "montre_connectee"
     private var pendingReconnectAddress: String? = null
@@ -211,6 +212,7 @@ class MainActivity : Activity() {
                 emit("error", deviceId = gatt.device.address, message = "Lecture des profils Bluetooth impossible."); return
             }
             var subscribed = 0
+            val readQueue = ArrayDeque<BluetoothGattCharacteristic>()
             for ((serviceShort, characteristicShort) in servicePairs) {
                 val service = gatt.getService(uuid(serviceShort)) ?: continue
                 val characteristic = service.getCharacteristic(uuid(characteristicShort)) ?: continue
@@ -235,8 +237,24 @@ class MainActivity : Activity() {
                     }
                 }
                 if (properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
-                    try { gatt.readCharacteristic(characteristic) } catch (_: SecurityException) { }
+                    readQueue.addLast(characteristic)
                 }
+            }
+            val infoService = gatt.getService(uuid("180A"))
+            listOf("2A29", "2A24", "2A26").forEach { short ->
+                val characteristic = infoService?.getCharacteristic(uuid(short))
+                if (characteristic != null && characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+                    readQueue.addLast(characteristic)
+                }
+            }
+            val batteryService = gatt.getService(uuid("180F"))
+            val battery = batteryService?.getCharacteristic(uuid("2A19"))
+            if (battery != null && battery.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+                readQueue.addLast(battery)
+            }
+            pendingReads[gatt.device.address] = readQueue
+            if (readQueue.isNotEmpty()) {
+                try { gatt.readCharacteristic(readQueue.removeFirst()) } catch (_: SecurityException) { }
             }
             emit("profiles", deviceId = gatt.device.address, profileCount = subscribed)
         }
@@ -249,7 +267,21 @@ class MainActivity : Activity() {
             emitMeasurement(gatt, characteristic, value)
         }
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            if (status == BluetoothGatt.GATT_SUCCESS) emitMeasurement(gatt, characteristic, characteristic.value ?: byteArrayOf())
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                val bytes = characteristic.value ?: byteArrayOf()
+                val short = characteristic.uuid.toString().substring(4, 8).uppercase()
+                when (short) {
+                    "2A29" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "manufacturer", metadataValue = String(bytes, Charsets.UTF_8).trim())
+                    "2A24" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "model", metadataValue = String(bytes, Charsets.UTF_8).trim())
+                    "2A26" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "firmware", metadataValue = String(bytes, Charsets.UTF_8).trim())
+                    "2A19" -> if (bytes.isNotEmpty()) emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "battery_level", metadataValue = (bytes[0].toInt() and 0xff).toString())
+                    else -> emitMeasurement(gatt, characteristic, bytes)
+                }
+            }
+            val queue = pendingReads[gatt.device.address]
+            if (queue != null && queue.isNotEmpty()) {
+                try { gatt.readCharacteristic(queue.removeFirst()) } catch (_: SecurityException) { }
+            } else pendingReads.remove(gatt.device.address)
         }
     }
 
@@ -265,7 +297,8 @@ class MainActivity : Activity() {
     private fun emit(type: String, message: String? = null, deviceId: String? = null,
                      deviceName: String? = null, deviceKey: String? = null,
                      serviceUuid: String? = null, characteristicUuid: String? = null,
-                     payloadHex: String? = null, profileCount: Int? = null) {
+                     payloadHex: String? = null, profileCount: Int? = null,
+                     metadataKey: String? = null, metadataValue: String? = null) {
         val data = JSONObject().put("type", type)
         message?.let { data.put("message", it) }
         deviceId?.let { data.put("deviceId", it) }
@@ -275,6 +308,8 @@ class MainActivity : Activity() {
         characteristicUuid?.let { data.put("characteristicUuid", it) }
         payloadHex?.let { data.put("payloadHex", it) }
         profileCount?.let { data.put("profileCount", it) }
+        metadataKey?.let { data.put("metadataKey", it) }
+        metadataValue?.let { data.put("metadataValue", it) }
         val script = "window.dispatchEvent(new CustomEvent('naxa-android-ble',{detail:" + data.toString() + "}))"
         runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(script, null) }
     }
