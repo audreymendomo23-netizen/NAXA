@@ -136,6 +136,35 @@ export function SuiviConnecte() {
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!allowed || !devices.some(device=>device.active && device.auto_reconnect && device.platform_device_id)) return;
+    const bluetooth=(navigator as any).bluetooth;
+    if (!bluetooth?.getDevices) return;
+    let cancelled=false;
+    void (async()=>{
+      try {
+        const permitted = await bluetooth.getDevices();
+        if(cancelled) return;
+        for(const saved of devices.filter(device=>device.active && device.auto_reconnect && device.platform_device_id && consents[deviceCatalogFamily(device.device_key)])) {
+          const device=permitted.find((entry:any)=>String(entry.id)===saved.platform_device_id);
+          if(device && !bluetoothSessions.current.has(String(device.id))) {
+            try { await startBluetoothSession(device,saved.device_key,false); }
+            catch { await sb.from("suivi_user_devices").update({connection_state:"error",last_error:"Reconnexion automatique indisponible",updated_at:new Date().toISOString()}).eq("id",saved.id); }
+          }
+        }
+      } catch { /* Certains navigateurs ne proposent pas le registre des appareils déjà autorisés. */ }
+    })();
+    return ()=>{cancelled=true;};
+  }, [allowed, devices, consents, sb]);
+
+  useEffect(() => () => {
+    for(const session of bluetoothSessions.current.values()) {
+      if(session.retryTimer) window.clearTimeout(session.retryTimer);
+      try { if(session.device?.gatt?.connected) session.device.gatt.disconnect(); } catch { /* ignore teardown */ }
+    }
+    bluetoothSessions.current.clear();
+  }, []);
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("naxa-suivi-accent");
@@ -223,6 +252,10 @@ export function SuiviConnecte() {
   }
 
   const typeInfo = types.find(t=>t.key===selectedType)!;
+  const deviceCatalogFamily = (key:string): Family => {
+    const map:Record<string,Family>={tensiometre:"constantes",thermometre:"constantes",oxymetre:"constantes",glucometre:"metabolisme",balance:"metabolisme",capteur_cardiaque_bluetooth:"constantes",podometre:"activite",ecg:"constantes",spirometre:"constantes",peak_flow:"constantes",balance_impedance:"metabolisme",cholesterolometre:"metabolisme",cetonemetre:"metabolisme",uricometre:"metabolisme",montre_connectee:"activite",bracelet_activite:"activite",tracker_sommeil:"sommeil",thermometre_infrarouge:"constantes",capteur_respiration:"constantes",pilulier_connecte:"traitements",bouteille_hydratation:"activite"};
+    return map[key] ?? "constantes";
+  };
   const selectedConsent = !!consents[typeInfo.family];
   const grantedFamilies = families.filter(f=>consents[f.key]).length;
   const accentPalette = {
@@ -256,7 +289,7 @@ export function SuiviConnecte() {
   ];
 
   const selectedDevice = deviceCatalog.find(device => device.key === selectedDeviceKey) ?? null;
-  const selectedSavedDevice = selectedDevice ? devices.find(device => device.device_key === selectedDevice.key) : undefined;
+  const selectedSavedDevice = selectedDevice ? devices.find(device => device.device_key === selectedDevice.key && device.active) : undefined;
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
     const existing = devices.find(d => d.device_key === device.key);
@@ -683,8 +716,8 @@ export function SuiviConnecte() {
           {deviceCatalog.filter(device=>deviceFilter==="Tous"||(deviceFilter==="Constantes"&&["tensiometre","thermometre","oxymetre","capteur_cardiaque_bluetooth","ecg","spirometre","peak_flow","thermometre_infrarouge","capteur_respiration"].includes(device.key))||(deviceFilter==="Métabolisme"&&["glucometre","balance","balance_impedance","cholesterolometre","cetonemetre","uricometre"].includes(device.key))||(deviceFilter==="Activité & hydratation"&&["podometre","montre_connectee","bracelet_activite","bouteille_hydratation"].includes(device.key))||(deviceFilter==="Sommeil"&&device.key==="tracker_sommeil")||(deviceFilter==="Traitements"&&device.key==="pilulier_connecte")).map(device=>{
             const saved=devices.find(d=>d.device_key===device.key);
             return <button key={device.key} type="button" onClick={()=>setSelectedDeviceKey(device.key)} aria-label={"Afficher la fiche "+device.name} className={"group overflow-hidden rounded-[24px] border bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 "+(saved?.active?"border-blue-300 ring-1 ring-blue-100":"border-slate-200")}>
-              <div className="relative grid h-40 place-items-center overflow-hidden bg-gradient-to-b from-[#F8FBFF] to-[#EAF2FA] sm:h-48"><DeviceIllustration deviceKey={device.key} label={"Illustration : "+device.name} className="transition-transform duration-300 group-hover:scale-[1.04]" />{saved?.active&&<span className="absolute left-3 top-3 rounded-full bg-blue-700 px-3 py-1 text-[11px] font-extrabold text-white shadow">Dans mon suivi</span>}<span className="absolute bottom-3 right-3 rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[10px] font-bold text-slate-600">Visuel illustratif</span></div>
-              <div className="p-4"><div className="flex min-h-12 items-start justify-between gap-2"><h3 className="font-extrabold leading-5 text-slate-900">{device.name}</h3><span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{saved?.active?"Activé":"À ajouter"}</span></div><p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-slate-600">{device.description}</p><div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-[11px] font-semibold text-slate-500">{families.find(f=>f.key===device.family)?.label??"Suivi"}</span><span className="text-sm font-extrabold text-blue-700">Voir la fiche →</span></div>{saved?.last_sync_at&&<p className="mt-2 text-[11px] text-slate-500">Dernière lecture : {new Date(saved.last_sync_at).toLocaleString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</p>}</div>
+              <div className="relative grid h-40 place-items-center overflow-hidden bg-gradient-to-b from-[#F8FBFF] to-[#EAF2FA] sm:h-48"><DeviceIllustration deviceKey={device.key} label={"Illustration : "+device.name} className="transition-transform duration-300 group-hover:scale-[1.04]" />{saved&&<span className="absolute left-3 top-3 rounded-full bg-blue-700 px-3 py-1 text-[11px] font-extrabold text-white shadow">Dans mon suivi</span>}<span className="absolute bottom-3 right-3 rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[10px] font-bold text-slate-600">Visuel illustratif</span></div>
+              <div className="p-4"><div className="flex min-h-12 items-start justify-between gap-2"><h3 className="font-extrabold leading-5 text-slate-900">{device.name}</h3><span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{saved?"Activé":"À ajouter"}</span></div><p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-slate-600">{device.description}</p><div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-[11px] font-semibold text-slate-500">{families.find(f=>f.key===device.family)?.label??"Suivi"}</span><span className="text-sm font-extrabold text-blue-700">Voir la fiche →</span></div>{devices.find(d=>d.device_key===device.key && d.last_sync_at)?.last_sync_at&&<p className="mt-2 text-[11px] text-slate-500">Dernière lecture : {new Date(devices.filter(d=>d.device_key===device.key && d.last_sync_at).sort((a,b)=>String(b.last_sync_at).localeCompare(String(a.last_sync_at)))[0].last_sync_at!).toLocaleString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</p>}</div>
             </button>;
           })}
         </div>
