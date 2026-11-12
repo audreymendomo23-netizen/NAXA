@@ -104,10 +104,6 @@ export async function createExamStaffAccount(form:FormData){
   const path=BASE+"/personnel";
   const {sb}=await requireActor(centerId,["staff_manage"],path);
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!ROLE_KEYS.includes(roleKey as typeof ROLE_KEYS[number])) fail(path,centerId);
-  if(!process.env.GOOGLE_APPS_SCRIPT_URL||!process.env.GOOGLE_APPS_SCRIPT_SECRET||!process.env.NEXT_PUBLIC_SITE_URL){
-    redirect(path+"?centre="+encodeURIComponent(centerId)+"&erreur=configuration-email");
-  }
-
   const admin=supabaseAdmin();
   let existing:Awaited<ReturnType<typeof findAuthUserByEmail>>;
   try{existing=await findAuthUserByEmail(admin,email)}catch{fail(path,centerId)}
