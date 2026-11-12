@@ -11,14 +11,14 @@
 
 Le compte Comptable permet de consulter, contrôler, rapprocher, préparer et exporter les informations financières autorisées d’une pharmacie : ventes, TVA enregistrée par le système, clôtures de caisse, créances, bordereaux d’assureurs, rejets, dépenses et mouvements de trésorerie, documents justificatifs autorisés, fournisseurs et commandes en lecture, reçus d’abonnement NAXA et journal d’audit en lecture.
 
-Le Comptable est un **poste de consultation, de rapprochement et d’export**, pas un poste d’encaissement ni d’approbation finale. Les écritures opérationnelles restent produites par les parcours métier autorisés. Les actions de soumission ou de suivi d’un bordereau ne donnent pas au Comptable le pouvoir de modifier une vente source, d’annuler un encaissement ou de valider sa propre exception.
+Le Comptable est un **poste de consultation, de rapprochement et d’export**, pas un poste d’encaissement. Il peut également configurer et valider le plan comptable et les mappings débit/crédit lorsque le Promoteur lui a partagé le droit d’écriture pour la pharmacie concernée. Le Promoteur conserve en permanence ce droit et peut le retirer à tout moment ; le Comptable conserve alors l’accès en lecture. Cette délégation ne donne jamais au Comptable le droit de modifier une vente source, d’annuler un encaissement, de modifier la trésorerie ou de valider sa propre exception métier.
 
 ## 2. Principes non négociables
 
 1. **Moindre privilège et séparation des tâches.** Le Comptable ne vend pas, n’encaisse pas, ne clôture pas une caisse et ne modifie pas les ventes sources.
 2. **Aucune donnée de santé nominative.** Aucune ordonnance, image d’ordonnance, historique patient, donnée clinique nominative ou accès au coffre d’ordonnances. Les exports doivent appliquer la même exclusion que les écrans.
 3. **Périmètre limité.** Le compte est rattaché à une seule pharmacie, sauf décision d’architecture et autorisation explicite documentée. Aucune consultation d’une pharmacie hors périmètre.
-4. **Lecture seule par défaut.** Les fiches assureurs, fournisseurs, commandes, clôtures, journal d’audit, reçus d’abonnement et paramètres sont consultés sans modification.
+4. **Lecture seule par défaut, avec délégation comptable ciblée.** Les fiches assureurs, fournisseurs, commandes, clôtures, journal d’audit, reçus d’abonnement et paramètres restent en lecture. Le plan comptable et les mappings sont modifiables/validables par le Promoteur et par le Comptable uniquement lorsque le droit d’écriture a été partagé pour cette pharmacie.
 5. **Actions métier encadrées.** La préparation/soumission des bordereaux, le suivi des créances, la création d’une tâche de correction et les exports sont les actions principales. Elles ne doivent pas altérer les ventes d’origine.
 6. **Traçabilité.** Toute génération ou export de données, création/soumission de bordereau, relance, création de tâche et consultation du journal d’audit est journalisée avec l’utilisateur, l’heure, le périmètre, l’action, le résultat et, lorsque pertinent, le motif.
 7. **Source unique.** Les données affichées proviennent des enregistrements NAXA existants ; aucune valeur de vente, taxe, marge, paiement ou créance ne doit être inventée côté interface.
@@ -224,10 +224,10 @@ La matrice du cahier v3.7 et les privilèges serveur font foi. L’existence d�
 La migration `supabase/migration_072_fonctions_validation_distance.sql` du dépôt attribue un privilège atomique `MANAGE_ACCOUNTING` au rôle interne `comptable`. Le cahier v3.7 décrit cependant le Comptable comme **lecture seule et exports**, avec actions limitées sur les créances/bordereaux et tâches de suivi.
 
 En conséquence :
-- ne pas interpréter `MANAGE_ACCOUNTING` comme une autorisation générale d’écrire dans les ventes, la trésorerie, les dépenses ou les clôtures ;
-- toute écriture métier doit avoir un privilège atomique, une action précise, une validation conforme à la matrice et une piste d’audit ;
-- avant d’étendre ce privilège, vérifier les usages réels dans les RPC, RLS, contrôles TypeScript et tests SQL ;
-- documenter séparément la préparation/soumission des bordereaux et la validation finale du Promoteur ;
+- interpréter `MANAGE_ACCOUNTING` comme un droit limité à la configuration et à la validation du plan comptable et des mappings, jamais comme une autorisation d’écrire dans les ventes, la trésorerie, les dépenses ou les clôtures ;
+- le Promoteur dispose de ce droit en permanence dans son réseau ; il peut le partager au Comptable pharmacie par pharmacie, puis le retirer sans supprimer son accès en lecture ;
+- toute écriture comptable de configuration doit être bornée à la pharmacie, validée par un Promoteur ou un Comptable auquel le droit a été partagé, et journalisée ;
+- documenter séparément la préparation/soumission des bordereaux et la validation des comptes/mappings ;
 - si le code actuel contredit ces limites, le cahier v3.7 et la séparation des tâches priment jusqu’à arbitrage explicite.
 
 ## 8. Plan de tests et critères d’acceptation
@@ -285,3 +285,15 @@ Le compte Comptable n’est pas complet parce que les pages existent ou parce qu
 - les parcours de bout en bout et les tests négatifs passent ;
 - lint, typecheck, build et tests SQL pertinents sont exécutés sur le commit vérifié ;
 - les limites non résolues sont explicitement listées, sans revendiquer une conformité non prouvée.
+
+
+## 9. Délégation du plan comptable et des mappings — décision du 12 novembre 2026
+
+- Le Promoteur conserve en permanence le droit de créer/configurer et valider les comptes du plan comptable ainsi que les mappings débit/crédit de chaque pharmacie de son réseau.
+- Le Promoteur peut partager le droit d'écriture au Comptable affecté à une pharmacie. Ce droit autorise uniquement la configuration et la validation du plan comptable et des mappings dans cette pharmacie.
+- Le Promoteur peut retirer ce droit à tout moment. Après retrait, le Comptable reste autorisé à consulter le tableau comptable, les comptes, les mappings, les écritures et les journaux en lecture seule.
+- L'interface Promoteur doit proposer explicitement : « Partager le droit en écriture », « Valider plan comptable » et « Lecture seulement ».
+- Le retrait de droit est individuel, par Comptable et par pharmacie, tracé dans le journal d'audit et sans suppression d'aucune donnée historique.
+- Cette délégation n'ouvre aucun droit sur les ventes sources, encaissements, dépenses, trésorerie, clôtures de caisse ou dossiers de santé.
+- L'Admin NAXA n'intervient pas dans cette délégation opérationnelle.
+- Le droit d'écriture est refusé par défaut ; aucune délégation automatique n'est créée lors de l'affectation d'un Comptable.
