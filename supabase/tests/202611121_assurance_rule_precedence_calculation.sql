@@ -160,3 +160,29 @@ begin
 end $$;
 
 select 'ASSURANCE_EXCLUSION_DOES_NOT_CONSUME_CEILING PASS' as result;
+
+
+-- Accounting boundary: a quote is not a receivable; only pharmacy confirmation
+-- creates the insurer receivable, and only an actual reimbursement creates cash receipt.
+do $$
+declare v_calc text; v_confirm text; v_reimburse text;
+begin
+  select pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure) into v_calc;
+  select pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure) into v_confirm;
+  select pg_get_functiondef('public.assurance_enregistrer_remboursement(uuid,bigint,date,text,text)'::regprocedure) into v_reimburse;
+
+  if position('insert into public.compta_evenement' in v_calc)>0 then
+    raise exception 'QUOTE_MUST_NOT_CREATE_ACCOUNTING_ENTRY';
+  end if;
+  if position('insert into public.compta_evenement' in v_confirm)=0
+     or position('assurance_prise_en_charge' in v_confirm)=0
+     or position('on conflict (cle_idempotence) do nothing' in v_confirm)=0 then
+    raise exception 'ACCEPTED_CLAIM_RECEIVABLE_EVENT_MISSING_OR_NOT_IDEMPOTENT';
+  end if;
+  if position('insert into public.compta_evenement' in v_reimburse)=0
+     or position('assurance_remboursement_recu' in v_reimburse)=0 then
+    raise exception 'ACTUAL_REIMBURSEMENT_CASH_EVENT_MISSING';
+  end if;
+end $$;
+
+select 'ASSURANCE_ACCOUNTING_EVENT_BOUNDARIES PASS' as result;
