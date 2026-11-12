@@ -88,3 +88,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Test structurel Replay : `supabase/tests/202611121_compta_plan_mappings_contract.sql` — résultat : `202611121_compta_plan_mappings_contract PASS`.
 - Limite de preuve : Replay n'a pas de comptes Promoteur/Comptable authentifiés affectés à une pharmacie. Les actions métier via JWT réels, le cycle complet création → validation → worker, et le rendu navigateur/build TypeScript restent à valider. Aucun compte, mapping ou journal métier n'a été ajouté comme fixture persistante.
 - Le module ne prétend pas fournir une balance ou des états financiers complets. La validation de compte/mapping est un prérequis au worker, pas une preuve de clôture comptable ni de conformité réglementaire.
+
+- Migration complémentaire Replay : `20261112170000_compta_plan_validation_globale.sql`, RPC `compta_plan_valider_plan` pour valider en une action tous les comptes encore en attente ; elle renvoie le nombre validé et journalise l'action.
+- Les comptes et mappings ont RLS activée, politiques de lecture dédiées et aucun droit direct API d'écriture. Les RPC d'écriture/validation restent le seul chemin de mutation.
+- Contrôle Replay complémentaire : la RPC de validation globale est présente, exécutable par `authenticated`, non exécutable par `anon`, et son garde d'autorisation/audit est vérifié. Aucun compte/mapping n'a été créé pendant ce contrôle.
