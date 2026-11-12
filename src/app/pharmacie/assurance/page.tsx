@@ -6,7 +6,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Dossier = { id:string; pharmacie_id:string; reservation_id:string|null; couverture_id:string; statut:string; montant_total:number; montant_prise_en_charge:number; montant_client:number; montant_rembourse:number; statut_remboursement:string; created_at:string };
 type Evenement = { id:string; pharmacie_id:string; reservation_id:string|null; dossier_id:string|null; assureur_id:string|null; type:string; montant_fcfa:number|null; reference:string|null; created_at:string };
-type Assureur = { id:string; nom:string };\ntype PharmacyOption={id:string;nom:string};
+type Assureur = { id:string; nom:string };
+type PharmacyOption={id:string;nom:string};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR").format(Math.round(v||0))+" FCFA";
 const labels:Record<string,string>={devis_calcule:"Devis calculé",reservation_assurance_validee:"Devis accepté par le client",documents_controles:"Justificatifs contrôlés",prise_en_charge_confirmee:"Prise en charge confirmée",prise_en_charge_refusee:"Prise en charge refusée",montant_modifie:"Montant modifié",accord_client_obtenu:"Accord client obtenu",vente_assurance_enregistree:"Vente enregistrée",remboursement_recu:"Remboursement reçu",remboursement_partiel:"Remboursement partiel",dossier_solde:"Dossier soldé"};
 
