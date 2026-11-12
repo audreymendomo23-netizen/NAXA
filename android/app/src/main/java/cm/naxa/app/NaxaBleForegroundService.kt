@@ -20,9 +20,15 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.spec.GCMParameterSpec
 
 class NaxaBleForegroundService : Service() {
     companion object {
@@ -48,27 +54,61 @@ class NaxaBleForegroundService : Service() {
         fun enqueueEvent(context: android.content.Context, event: JSONObject) {
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             synchronized(NaxaBleForegroundService::class.java) {
-                val queue = try { JSONArray(prefs.getString(QUEUE_KEY, "[]")) } catch (_: Exception) { JSONArray() }
+                val queue = decryptQueue(prefs.getString(QUEUE_KEY, null))
                 event.put("eventId", UUID.randomUUID().toString())
                 queue.put(event)
                 val bounded = JSONArray()
                 for (index in maxOf(0, queue.length() - 300)..queue.length() - 1) bounded.put(queue.getJSONObject(index))
-                prefs.edit().putString(QUEUE_KEY, bounded.toString()).apply()
+                prefs.edit().putString(QUEUE_KEY, encryptQueue(bounded.toString())).apply()
             }
         }
         fun pendingEvents(context: android.content.Context): String =
-            context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, "[]") ?: "[]"
+            try { decryptQueue(context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, null)).toString() } catch (_: Exception) { "[]" }
+        private const val KEY_ALIAS = "naxa_ble_measurement_queue_v1"
+
+        private fun queueKey(): java.security.Key {
+            val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            (store.getKey(KEY_ALIAS, null) as? java.security.Key)?.let { return it }
+            val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+            generator.init(KeyGenParameterSpec.Builder(
+                KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true).build())
+            return generator.generateKey()
+        }
+
+        private fun encryptQueue(plain: String): String {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, queueKey())
+            val encrypted = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
+            val combined = cipher.iv + encrypted
+            return Base64.encodeToString(combined, Base64.NO_WRAP)
+        }
+
+        private fun decryptQueue(raw: String?): JSONArray {
+            if (raw.isNullOrBlank()) return JSONArray()
+            if (raw.trimStart().startsWith("[")) return JSONArray(raw)
+            val combined = Base64.decode(raw, Base64.NO_WRAP)
+            if (combined.size <= 12) return JSONArray()
+            val iv = combined.copyOfRange(0, 12)
+            val encrypted = combined.copyOfRange(12, combined.size)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, queueKey(), GCMParameterSpec(128, iv))
+            return JSONArray(String(cipher.doFinal(encrypted), Charsets.UTF_8))
+        }
+
         fun acknowledgeEvents(context: android.content.Context, ids: Set<String>) {
             if (ids.isEmpty()) return
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             synchronized(NaxaBleForegroundService::class.java) {
-                val old = try { JSONArray(prefs.getString(QUEUE_KEY, "[]")) } catch (_: Exception) { JSONArray() }
+                val old = decryptQueue(prefs.getString(QUEUE_KEY, null))
                 val next = JSONArray()
                 for (index in 0 until old.length()) {
                     val item = old.optJSONObject(index) ?: continue
                     if (!ids.contains(item.optString("eventId"))) next.put(item)
                 }
-                prefs.edit().putString(QUEUE_KEY, next.toString()).apply()
+                prefs.edit().putString(QUEUE_KEY, encryptQueue(next.toString())).apply()
             }
         }
     }
@@ -199,7 +239,7 @@ class NaxaBleForegroundService : Service() {
                 session.gatt = null
                 session.reads.clear()
                 enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "disconnected")
-                    .put("deviceId", address).put("deviceKey", session.key)
+                    .put("deviceId", address).put("deviceKey", session.key).put("ownerUserId", session.ownerId)
                     .put("deviceName", safeName(session.device)))
                 scheduleReconnect(session)
             }
