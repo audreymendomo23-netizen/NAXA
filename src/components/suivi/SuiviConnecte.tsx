@@ -375,7 +375,7 @@ export function SuiviConnecte() {
           }
           if(!row)throw new Error("L'appareil Android n'est pas encore associé au compte.");
           const item=deviceCatalog.find(entry=>entry.key===row!.deviceKey);
-          if(!item||!consents[item.family])throw new Error("Consentement retiré : mesure Bluetooth ignorée.");
+          if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);throw new Error("Consentement retiré : liaison Bluetooth arrêtée et mesure ignorée.");}
           const hex=String(detail.payloadHex??"");
           if(!hex||hex.length%2!==0)throw new Error("Trame Bluetooth invalide.");
           const bytes=Uint8Array.from(hex.match(/.{2}/g)??[],part=>parseInt(part,16));
