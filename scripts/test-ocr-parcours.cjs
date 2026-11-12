@@ -34,6 +34,12 @@ test("Recherche : les termes OCR et quantités utilisent le RPC serveur dédié"
   assert.match(results, /item\.quantite_demandee/);
 });
 
+test("SQL : les quantités OCR ne sont jamais plafonnées silencieusement", () => {
+  assert.doesNotMatch(migration, /least\(10, coalesce\(p_quantities/);
+  assert.match(migration, /coalesce\(p_quantities\[t\.n\], 1\) qte/);
+  assert.match(migration, /not invalid\.has_invalid/);
+});
+
 test("SQL : stock suffisant et date de péremption vérifiés avant d'afficher une offre", () => {
   assert.match(migration, /s\.quantite >= b\.qte_demandee/);
   assert.match(migration, /s\.date_peremption is null or s\.date_peremption >= current_date/);
