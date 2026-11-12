@@ -20,6 +20,7 @@ const families: { key: Family; label: string; description: string }[] = [
 const types: TrackType[] = [
   {key:"tension_systolique",label:"Tension systolique",unit:"mmHg",family:"constantes",numeric:true},
   {key:"tension_diastolique",label:"Tension diastolique",unit:"mmHg",family:"constantes",numeric:true},
+  {key:"tension_arterielle_moyenne",label:"Pression artérielle moyenne",unit:"mmHg",family:"constantes",numeric:true},
   {key:"frequence_cardiaque",label:"Fréquence cardiaque",unit:"bpm",family:"constantes",numeric:true},
   {key:"temperature",label:"Température",unit:"°C",family:"constantes",numeric:true},
   {key:"saturation_oxygene",label:"Saturation en oxygène",unit:"%",family:"constantes",numeric:true},
@@ -48,10 +49,19 @@ const types: TrackType[] = [
   {key:"cholesterol_hdl",label:"Cholestérol HDL",unit:"unité du résultat",family:"metabolisme",numeric:true},
   {key:"cholesterol_ldl",label:"Cholestérol LDL",unit:"unité du résultat",family:"metabolisme",numeric:true},
   {key:"capacite_vitale",label:"Capacité vitale",unit:"L",family:"constantes",numeric:true},
+  {key:"vitesse_course",label:"Vitesse de course",unit:"m/s",family:"activite",numeric:true},
+  {key:"cadence_course",label:"Cadence de course",unit:"pas/min",family:"activite",numeric:true},
+  {key:"longueur_foulee",label:"Longueur de foulée",unit:"cm",family:"activite",numeric:true},
+  {key:"pourcentage_musculaire",label:"Pourcentage musculaire",unit:"%",family:"metabolisme",numeric:true},
+  {key:"masse_maigre",label:"Masse maigre",unit:"kg",family:"metabolisme",numeric:true},
+  {key:"masse_maigre_molle",label:"Masse maigre molle",unit:"kg",family:"metabolisme",numeric:true},
+  {key:"masse_eau_corporelle",label:"Eau corporelle",unit:"kg",family:"metabolisme",numeric:true},
+  {key:"metabolisme_basal",label:"Métabolisme basal",unit:"kJ",family:"metabolisme",numeric:true},
 ];
 type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"|"scan"|"hybrid"; active:boolean; device_brand:string|null; device_model:string|null; protocol:string|null; last_sync_at:string|null; last_error:string|null; capabilities:string[]; platform_device_id?:string|null; auto_reconnect?:boolean; connection_state?:string; last_measurement_at?:string|null };
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
 type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
+type MeasurementSchedule = { id:string; measurement_type:string; device_id:string|null; local_time:string; timezone:string; days_of_week:number[]; lead_minutes:number; freshness_window_minutes:number; enabled:boolean };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
 type TrackingAlert = { id:string; measurement_type:string; observed_value:number; alert_kind:string; created_at:string; read_at:string|null };
 
@@ -85,6 +95,10 @@ export function SuiviConnecte() {
   const [history, setHistory] = useState<Measurement[]>([]);
   const [devices, setDevices] = useState<UserDevice[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [measurementSchedules, setMeasurementSchedules] = useState<MeasurementSchedule[]>([]);
+  const [scheduleTime, setScheduleTime] = useState("07:00");
+  const [scheduleDays, setScheduleDays] = useState<number[]>([0,1,2,3,4,5,6]);
+  const [scheduleDeviceId, setScheduleDeviceId] = useState("");
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [alerts, setAlerts] = useState<TrackingAlert[]>([]);
   const [minThreshold, setMinThreshold] = useState("");
@@ -115,7 +129,7 @@ export function SuiviConnecte() {
     const { data: userData } = await sb.auth.getUser();
     if (!userData.user) { setAllowed(false); return; }
     setAllowed(true);
-    const [p, c, m, r, ar, al, d] = await Promise.all([
+    const [p, c, m, r, ar, al, d, schedules] = await Promise.all([
       sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
       sb.from("suivi_consents").select("family_key,granted").eq("user_id",userData.user.id),
       sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(1000),
@@ -123,8 +137,9 @@ export function SuiviConnecte() {
       sb.from("suivi_alert_rules").select("id,measurement_type,min_value,max_value,enabled").eq("user_id",userData.user.id),
       sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
       sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at").eq("user_id",userData.user.id).order("created_at",{ascending:true}),
+      sb.from("suivi_measurement_schedules").select("id,measurement_type,device_id,local_time,timezone,days_of_week,lead_minutes,freshness_window_minutes,enabled").eq("user_id",userData.user.id).order("local_time",{ascending:true}),
     ]);
-    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
+    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
     setPreferredName(p.data?.preferred_name ?? "");
     setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");
     setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
@@ -133,6 +148,7 @@ export function SuiviConnecte() {
     setAlertRules((ar.data??[]) as AlertRule[]);
     setAlerts((al.data??[]) as TrackingAlert[]);
     setDevices((d.data??[]) as UserDevice[]);
+    setMeasurementSchedules((schedules.data??[]) as MeasurementSchedule[]);
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
@@ -292,7 +308,7 @@ export function SuiviConnecte() {
   const selectedSavedDevice = selectedDevice ? devices.find(device => device.device_key === selectedDevice.key && device.active) : undefined;
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
-    const existing = devices.find(d => d.device_key === device.key);
+    const existing = devices.find(d => d.device_key === device.key && d.active) ?? devices.find(d => d.device_key === device.key);
     if ((!existing || !existing.active) && !consents[device.family]) {
       setNotice(`Acceptez d’abord le consentement « ${families.find(f=>f.key===device.family)?.label} » pour activer ce dispositif.`);
       return;
@@ -404,6 +420,30 @@ export function SuiviConnecte() {
     if(error)setNotice("Rappel non enregistré. Vérifiez le consentement.");
     else {setReminderTitle("");setNotice("Rappel enregistré. Les notifications dépendent des capacités actives de votre appareil.");await load();}
     setBusy(false);
+  }
+
+  async function saveMeasurementSchedule() {
+    if (!selectedConsent) { setNotice("Consentement requis pour programmer cette mesure."); return; }
+    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(scheduleTime) || scheduleDays.length===0) {
+      setNotice("Choisissez une heure et au moins un jour de prise."); return;
+    }
+    setBusy(true); setNotice("");
+    const {data:userData}=await sb.auth.getUser();
+    if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
+    const {error}=await sb.from("suivi_measurement_schedules").insert({
+      user_id:userData.user.id,measurement_type:selectedType,
+      device_id:scheduleDeviceId||null,local_time:scheduleTime,timezone:"Africa/Douala",
+      days_of_week:scheduleDays,lead_minutes:5,freshness_window_minutes:5,enabled:true
+    });
+    if(error) setNotice("Programmation non enregistrée. Vérifiez la migration du calendrier de suivi et le consentement.");
+    else {setScheduleDeviceId("");setNotice("Prise programmée. NAXA contrôlera la fraîcheur des données à H-5.");await load();}
+    setBusy(false);
+  }
+
+  async function disableMeasurementSchedule(id:string) {
+    const {error}=await sb.from("suivi_measurement_schedules").update({enabled:false,updated_at:new Date().toISOString()}).eq("id",id);
+    setNotice(error?"Impossible de désactiver cette programmation.":"Programmation désactivée.");
+    if(!error) await load();
   }
 
   async function shareSelectedType() {
@@ -754,6 +794,18 @@ export function SuiviConnecte() {
           {ocrText && <div className="mt-3 rounded-xl border bg-slate-50 p-3"><p className="text-sm font-bold">{scanKind==="barcode"?"Code détecté localement":"Texte OCR local à vérifier"}</p><pre className="mt-2 whitespace-pre-wrap text-sm">{ocrText}</pre><p className="mt-2 text-sm text-slate-600">Aucune donnée n’est enregistrée sans confirmation explicite.</p>{scanKind==="ocr"&&typeInfo.numeric&&<button type="button" onClick={applyScannedValue} className="mt-3 min-h-10 rounded-lg border border-emerald-200 px-3 text-sm font-bold text-emerald-800">Préremplir si une seule valeur est détectée</button>}</div>}
         </div></div>
         <div className={(configurationPage==="rappels"?"":"hidden ")+"naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] transition duration-300 hover:-translate-y-0.5"}><button type="button" onClick={()=>setConfigurationPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Configurations</button><h2 className="text-xl font-extrabold">Rappels personnels</h2><p className="mt-1 text-sm text-slate-600">Les prises programmées sont contrôlées par le service NAXA. Le rappel de fraîcheur est déclenché cinq minutes avant l’heure prévue lorsque le service planifié et les notifications du téléphone sont disponibles.</p>
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <h3 className="font-extrabold text-emerald-950">Programmation des prises de mesure</h3>
+            <p className="mt-1 text-sm text-emerald-900">Le contrôle serveur s'exécute à H-5. Si aucune mesure fraîche n'a été reçue dans la fenêtre définie, NAXA envoie un rappel sur le téléphone.</p>
+            <label className="mt-3 block text-sm font-semibold">Mesure concernée<select value={selectedType} onChange={e=>setSelectedType(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">{types.map(t=><option key={t.key} value={t.key}>{t.label}</option>)}</select></label>
+            <label className="mt-3 block text-sm font-semibold">Heure prévue<input type="time" value={scheduleTime} onChange={e=>setScheduleTime(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
+            <div className="mt-3"><p className="text-sm font-semibold">Jours de prise</p><div className="mt-2 flex flex-wrap gap-2">{[{d:1,l:"Lun"},{d:2,l:"Mar"},{d:3,l:"Mer"},{d:4,l:"Jeu"},{d:5,l:"Ven"},{d:6,l:"Sam"},{d:0,l:"Dim"}].map(item=><button key={item.d} type="button" aria-pressed={scheduleDays.includes(item.d)} onClick={()=>setScheduleDays(prev=>prev.includes(item.d)?prev.filter(d=>d!==item.d):[...prev,item.d].sort())} className={"min-h-10 rounded-lg border px-3 text-sm font-bold "+(scheduleDays.includes(item.d)?"border-emerald-700 bg-emerald-700 text-white":"border-slate-300 bg-white text-slate-700")}>{item.l}</button>)}</div></div>
+            <label className="mt-3 block text-sm font-semibold">Appareil associé (facultatif)<select value={scheduleDeviceId} onChange={e=>setScheduleDeviceId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="">Toutes les sources de cette mesure</option>{devices.filter(d=>d.active).map(d=><option key={d.id} value={d.id}>{d.device_name}</option>)}</select></label>
+            <p className="mt-2 text-xs text-emerald-900">Fuseau : Africa/Douala · Rappel : 5 min avant · Fraîcheur exigée : 5 min. Modifiez vos heures selon votre programme de suivi.</p>
+            <button type="button" disabled={busy||!selectedConsent} onClick={()=>void saveMeasurementSchedule()} className="mt-3 min-h-11 w-full rounded-xl bg-emerald-800 px-4 font-bold text-white disabled:opacity-40">Enregistrer cette programmation</button>
+            {measurementSchedules.length>0&&<div className="mt-4 space-y-2">{measurementSchedules.map(schedule=><article key={schedule.id} className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><strong>{types.find(t=>t.key===schedule.measurement_type)?.label??schedule.measurement_type} · {String(schedule.local_time).slice(0,5)}</strong><p className="text-xs text-slate-600">{(schedule.days_of_week??[]).map(d=>["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d]).join(", ")} · H-5 · {schedule.timezone}</p></div>{schedule.enabled&&<button type="button" onClick={()=>void disableMeasurementSchedule(schedule.id)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Désactiver</button>}</div></article>)}</div>}
+          </div>
+          <div className="mt-4 border-t border-slate-200 pt-4"><h3 className="font-bold">Rappels personnels supplémentaires</h3>
           <label className="mt-3 block text-sm font-semibold">Titre<input value={reminderTitle} onChange={e=>setReminderTitle(e.target.value)} maxLength={160} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder={"Ex. Relever ma mesure"}/></label>
           <label className="mt-3 block text-sm font-semibold">Échéance<input type="datetime-local" value={reminderAt} onChange={e=>setReminderAt(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
           <label className="mt-3 block text-sm font-semibold">Répétition<select value={repeatRule} onChange={e=>setRepeatRule(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="none">Une fois</option><option value="daily">Chaque jour</option><option value="weekly">Chaque semaine</option></select></label>
