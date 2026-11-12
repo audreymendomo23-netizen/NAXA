@@ -613,6 +613,8 @@ export function SuiviConnecte() {
     else{
       if(!shouldActivate&&instances.length){
         const instanceIds=instances.map(instance=>instance.id);
+        const linkedSchedules=measurementSchedules.filter(schedule=>!!schedule.device_id&&instanceIds.includes(schedule.device_id));
+        for(const schedule of linkedSchedules)(window as any).NaxaAndroid?.cancelMeasurementReminder?.(schedule.id);
         const {error:scheduleError}=await sb.from("suivi_measurement_schedules")
           .update({enabled:false,updated_at:new Date().toISOString()})
           .eq("user_id",userData.user.id).in("device_id",instanceIds);
@@ -865,11 +867,15 @@ export function SuiviConnecte() {
     else {
       const native=(window as any).NaxaAndroid;
       if(native?.isAvailable?.()){
-        native.requestNotifications?.();
-        native.scheduleMeasurementReminder?.(JSON.stringify({
-          id:savedSchedule.id,enabled:true,measurementType:selectedType,deviceId:scheduleDeviceId||"",
-          localTime:scheduleTime,timezone:"Africa/Douala",daysOfWeek:scheduleDays,leadMinutes:5,freshnessWindowMinutes:5
-        }));
+        if(scheduleEditingId)native.cancelMeasurementReminder?.(scheduleEditingId);
+        const localDevice=scheduleDeviceId?devices.find(device=>device.id===scheduleDeviceId&&device.active&&device.platform_device_id):null;
+        if(localDevice?.platform_device_id){
+          native.requestNotifications?.();
+          native.scheduleMeasurementReminder?.(JSON.stringify({
+            id:savedSchedule.id,enabled:true,measurementType:selectedType,deviceId:scheduleDeviceId,
+            localTime:scheduleTime,timezone:"Africa/Douala",daysOfWeek:scheduleDays,leadMinutes:5,freshnessWindowMinutes:5
+          }));
+        }
       }
       setScheduleDeviceId("");setScheduleEditingId(null);
       setNotice(scheduleEditingId?"Programmation modifiée. Le contrôle H-5 est actualisé sur ce téléphone.":"Prise programmée. NAXA contrôlera la fraîcheur des données à H-5.");
@@ -893,12 +899,15 @@ export function SuiviConnecte() {
       if(native?.isAvailable?.()){
         if(schedule.enabled)native.cancelMeasurementReminder?.(schedule.id);
         else{
-          native.requestNotifications?.();
-          native.scheduleMeasurementReminder?.(JSON.stringify({
-            id:schedule.id,enabled:true,measurementType:schedule.measurement_type,deviceId:schedule.device_id||"",
-            localTime:schedule.local_time,timezone:schedule.timezone,daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
-            freshnessWindowMinutes:schedule.freshness_window_minutes
-          }));
+          const localDevice=schedule.device_id?devices.find(device=>device.id===schedule.device_id&&device.active&&device.platform_device_id):null;
+          if(localDevice?.platform_device_id){
+            native.requestNotifications?.();
+            native.scheduleMeasurementReminder?.(JSON.stringify({
+              id:schedule.id,enabled:true,measurementType:schedule.measurement_type,deviceId:schedule.device_id,
+              localTime:schedule.local_time,timezone:schedule.timezone,daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
+              freshnessWindowMinutes:schedule.freshness_window_minutes
+            }));
+          }
         }
       }
       await load();
