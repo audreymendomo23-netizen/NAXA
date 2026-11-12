@@ -837,8 +837,15 @@ export function SuiviConnecte() {
     const session = { device:connected, retries:0 as number, retryTimer:undefined as ReturnType<typeof setTimeout>|undefined };
     bluetoothSessions.current.set(String(connected.id),session);
     const persist = async (service:any, characteristic:any, data:DataView) => {
-      const measurements = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data);
-      if (!measurements.length) return;
+      const decoded = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data);
+      const measurements=decoded.filter(measurement=>
+        deviceCatalogFamily(deviceKey)===types.find(type=>type.key===measurement.measurement_type)?.family
+        && !!consents[deviceCatalogFamily(deviceKey)]
+      );
+      if (!measurements.length) {
+        setNotice("Mesure ignorée : son type ne correspond pas à la famille autorisée pour cet appareil.");
+        return;
+      }
       const receivedAt = new Date().toISOString();
       const payloadId = Array.from(new Uint8Array(data.buffer,data.byteOffset,data.byteLength)).map(v=>v.toString(16).padStart(2,"0")).join("");
       const rows = measurements.map((measurement,index)=>({
