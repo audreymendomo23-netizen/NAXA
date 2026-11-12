@@ -1186,7 +1186,8 @@ export function SuiviConnecte() {
       ["glucose","glucose_measurement"],
       ["weight_scale","weight_measurement"],
       ["body_composition","body_composition_measurement"],
-      ["running_speed_cadence","rsc_measurement"]
+      ["running_speed_cadence","rsc_measurement"],
+      ["fitness_machine","indoor_bike_data"]
     ];
     for (const [serviceName, characteristicName] of pairs) {
       try {
