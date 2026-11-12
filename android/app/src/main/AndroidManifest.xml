@@ -11,7 +11,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <application android:allowBackup="false" android:label="NAXA" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <application android:name=".NaxaApplication" android:allowBackup="false" android:label="NAXA" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <service android:name=".NaxaFirebaseMessagingService" android:enabled="true" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <service android:name=".NaxaBleForegroundService" android:enabled="true" android:exported="false" android:stopWithTask="false" android:foregroundServiceType="connectedDevice" />
         <receiver android:name=".NaxaReminderReceiver" android:exported="false" />
         <receiver android:name=".NaxaBootReceiver" android:enabled="true" android:exported="false">
