@@ -5,7 +5,7 @@ import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorks
 import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Share = { id: string; owner_user_id: string; measurement_type: string; granted_at: string; active: boolean; revoked_at: string | null };
+type Share = { id: string; owner_user_id: string; measurement_type: string; granted_at: string; active: boolean; revoked_at: string | null; allow_history:boolean; allow_realtime:boolean; allow_alerts:boolean; realtime_from_at:string|null };
 type Measurement = { id: string; user_id: string; measurement_type: string; value_numeric: number | null; value_text: string | null; unit: string | null; measured_at: string; source: string; note: string | null };
 type SharedAlert = { id: string; user_id: string; measurement_id: string; measurement_type: string; observed_value: number; alert_kind: "below_user_range" | "above_user_range"; created_at: string; read_at: string | null };
 type ViewTab = "patients" | "mesures" | "alertes" | "partages";
@@ -48,7 +48,7 @@ export default function PharmacienSuiviPatientsPage() {
     setBusy(true);
     setError("");
     const { data, error: shareError } = await sb.from("suivi_shares")
-      .select("id,owner_user_id,measurement_type,granted_at,active,revoked_at")
+      .select("id,owner_user_id,measurement_type,granted_at,active,revoked_at,allow_history,allow_realtime,allow_alerts,realtime_from_at")
       .eq("recipient_user_id", userId).eq("active", true).is("revoked_at", null)
       .order("granted_at", { ascending: false }).limit(500);
     if (shareError) {
@@ -79,7 +79,7 @@ export default function PharmacienSuiviPatientsPage() {
     const {data:alertRows,error:alertQueryError}=await sb.from("suivi_alerts").select("id,user_id,measurement_id,measurement_type,observed_value,alert_kind,created_at,read_at").in("user_id",owners).in("measurement_type",types).order("created_at",{ascending:false}).limit(200);
     if(alertQueryError){setAlerts([]);setAlertError("Les alertes partagées attendent la migration 192 ou les droits RLS correspondants.");}
     else{setAlerts(((alertRows??[]) as SharedAlert[]).filter(alert=>allowed.has(`${alert.user_id}:${alert.measurement_type}`)));setAlertError("");}
-    setNotice("Données affichées uniquement pour les types de mesure explicitement partagés et encore actifs.");
+    setNotice("Données limitées aux autorisations en cours : historique, mesures futures et alertes selon les droits explicites du patient.");
     setLastUpdated(new Date().toISOString());
     setBusy(false);
   }, [sb]);
@@ -88,15 +88,23 @@ export default function PharmacienSuiviPatientsPage() {
     setLoading(true); setError(""); setNotice("");
     const { data: auth, error: authError } = await sb.auth.getUser();
     if (authError || !auth.user) { setError("Connexion requise."); setLoading(false); return; }
-    const { data: profile, error: profileError } = await sb.from("profiles")
-      .select("actif,fonction_interne,pharmacie_id").eq("id", auth.user.id).maybeSingle();
-    if (profileError || !profile || profile.actif !== true || profile.fonction_interne !== "pharmacien" || !profile.pharmacie_id) {
-      setError("Accès réservé à un compte Pharmacien actif rattaché à une pharmacie."); setLoading(false); return;
+    const { data: professional, error: professionalError } = await sb.from("suivi_professionals")
+      .select("professional_role,verified,verification_status,verification_expires_at,display_name")
+      .eq("user_id", auth.user.id).maybeSingle();
+    const expired=!!professional?.verification_expires_at && new Date(professional.verification_expires_at).getTime()<=Date.now();
+    if(professionalError||!professional||professional.verified!==true||professional.verification_status!=="verified"||expired) {
+      setError("Accès refusé : votre accréditation professionnelle n'est pas validée ou n'est plus valide par NAXA.");setLoading(false);return;
     }
-    const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
-      .select("id,actif").eq("id", profile.pharmacie_id).maybeSingle();
-    if (pharmacyError || !pharmacy || pharmacy.actif !== true) {
-      setError("La pharmacie est inactive ; l’accès au suivi patient est bloqué."); setLoading(false); return;
+    if(professional.professional_role==="pharmacien") {
+      const {data:profile,error:profileError}=await sb.from("profiles")
+        .select("actif,fonction_interne,pharmacie_id").eq("id",auth.user.id).maybeSingle();
+      if(profileError||!profile||profile.actif!==true||profile.fonction_interne!=="pharmacien"||!profile.pharmacie_id) {
+        setError("Accès pharmacien indisponible : compte ou rattachement pharmacie inactif.");setLoading(false);return;
+      }
+      const {data:pharmacy,error:pharmacyError}=await sb.from("pharmacies").select("id,actif").eq("id",profile.pharmacie_id).maybeSingle();
+      if(pharmacyError||!pharmacy||pharmacy.actif!==true) {
+        setError("La pharmacie est inactive ; l'accès au suivi patient est bloqué.");setLoading(false);return;
+      }
     }
     setRecipientId(auth.user.id);
     await loadSharedData(auth.user.id);
@@ -162,7 +170,7 @@ export default function PharmacienSuiviPatientsPage() {
       <div className="flex flex-col items-end gap-1"><button type="button" onClick={() => void refresh()} disabled={loading || busy} className="min-h-10 rounded-xl border border-white/30 px-4 py-2 text-sm font-bold disabled:opacity-50">Actualiser</button><span className="text-xs text-emerald-100">{lastUpdated ? `Mis à jour ${new Date(lastUpdated).toLocaleTimeString("fr-FR")}` : "Mise à jour en attente"}</span></div>
     </header>
     <section className="carte space-y-3"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Patients partageant des mesures</p><p className="text-2xl font-black">{owners.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Types partagés</p><p className="text-2xl font-black">{types.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Mesures visibles</p><p className="text-2xl font-black">{measurements.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Alertes partagées</p><p className="text-2xl font-black">{alerts.length}</p></div></div>
-      <p className="text-sm text-slate-600">Les identités sont masquées par défaut. NAXA affiche les mesures partagées sans poser de diagnostic ni recommander de posologie.</p>
+      <p className="text-sm text-slate-600">Les identités sont masquées par défaut. NAXA affiche uniquement les données autorisées. Le professionnel reste responsable de ses appréciations cliniques.</p>
     </section>
     {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
     {error && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b>Accès ou chargement limité</b><p className="mt-1">{error}</p></div>}
