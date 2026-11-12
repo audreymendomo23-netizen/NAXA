@@ -31,7 +31,9 @@ export function SuiviProfessionalApplication(){
     const {data:row}=await sb.from("suivi_professionals").select("user_id,professional_role,display_name,registration_number,issuing_authority,specialty,credential_storage_path,verification_status,verification_expires_at,verified").eq("user_id",data.user.id).maybeSingle();
     if(row){
       const value=row as Application;
-      setExisting(value);setRole(value.professional_role);setDisplayName(value.display_name);
+      const expired=!!value.verification_expires_at&&new Date(value.verification_expires_at).getTime()<=Date.now();
+      const displayValue=expired?{...value,verified:false,verification_status:"expired" as const}:value;
+      setExisting(displayValue);setRole(value.professional_role);setDisplayName(value.display_name);
       setRegistration(value.registration_number??"");setAuthority(value.issuing_authority??"");
       setSpecialty(value.specialty??"");setExpiry(value.verification_expires_at?.slice(0,10)??"");
     }
