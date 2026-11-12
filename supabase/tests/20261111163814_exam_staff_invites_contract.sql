@@ -280,6 +280,8 @@ begin
   end if;
 
   -- A completed account must still be refused when the invitation has expired.
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
   v_expired_token:=public.exam_create_staff_invite(
     f.center_id,'expired-'||left(f.owner_id::text,8)||'@example.invalid','accueil'
   );
