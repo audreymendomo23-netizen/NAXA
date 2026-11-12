@@ -27,20 +27,24 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
+          DATABASE_PASSWORD: ${{ secrets.NAXA_DATABASE_PASSWORD }}
           ENCRYPTION_KEY: ${{ secrets.NAXA_BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
-          test -n "$DATABASE_URL" || { echo "::error::Missing NAXA_DATABASE_URL repository secret"; exit 1; }
+          test -n "$DATABASE_PASSWORD" || test -n "$DATABASE_URL" || { echo "::error::Missing database credentials: set NAXA_DATABASE_PASSWORD or NAXA_DATABASE_URL"; exit 1; }
           test -n "$ENCRYPTION_KEY" || { echo "::error::Missing NAXA_BACKUP_ENCRYPTION_KEY repository secret"; exit 1; }
-          case "$DATABASE_URL" in
-            postgres://*|postgresql://*) ;;
-            *) echo "::error::NAXA_DATABASE_URL must be a PostgreSQL connection URI"; exit 1 ;;
-          esac
+          if [ -n "$DATABASE_URL" ]; then
+            case "$DATABASE_URL" in
+              postgres://*|postgresql://*) ;;
+              *) echo "::error::NAXA_DATABASE_URL must be a PostgreSQL connection URI"; exit 1 ;;
+            esac
+          fi
 
       - name: Validate PostgreSQL URI without exposing credentials
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
+          DATABASE_PASSWORD: ${{ secrets.NAXA_DATABASE_PASSWORD }}
           PROJECT_REF: eouwtuusnsuxaejsxknf
         run: |
           set -euo pipefail
@@ -50,6 +54,7 @@ jobs:
           from urllib.parse import quote, unquote, urlsplit
 
           raw = os.environ.get("DATABASE_URL", "")
+          password_override = os.environ.get("DATABASE_PASSWORD", "")
           project_ref = os.environ["PROJECT_REF"]
           production_host = f"db.{project_ref}.supabase.co"
 
@@ -57,35 +62,35 @@ jobs:
               print(f"::error::{message} No credential or raw URI was printed.")
               sys.exit(1)
 
-          if not raw:
-              fail("NAXA_DATABASE_URL is empty.")
           if raw != raw.strip() or any(ch in raw for ch in "\r\n\t"):
               fail("NAXA_DATABASE_URL contains whitespace or line breaks.")
 
-          # Parse only the supplied credentials. The hostname in this secret
-          # is deliberately NOT trusted: use the canonical database host
-          # returned by Supabase project metadata for the production project.
-          try:
-              parsed = urlsplit(raw)
-              supplied_username = unquote(parsed.username or "")
-              supplied_password = unquote(parsed.password or "")
-              supplied_port = parsed.port
-          except ValueError:
-              fail("NAXA_DATABASE_URL is not a valid PostgreSQL URI.")
+          embedded_password = ""
+          if raw:
+              try:
+                  parsed = urlsplit(raw)
+                  supplied_username = unquote(parsed.username or "")
+                  embedded_password = unquote(parsed.password or "")
+                  supplied_port = parsed.port
+              except ValueError:
+                  fail("NAXA_DATABASE_URL is not a valid PostgreSQL URI.")
 
-          if parsed.scheme not in ("postgres", "postgresql"):
-              fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
-          if not supplied_password or supplied_password == "[YOUR-PASSWORD]":
-              fail("NAXA_DATABASE_URL has no actual database password.")
-          if supplied_username not in ("postgres", f"postgres.{project_ref}"):
-              fail("Database username must be postgres or postgres.<production-project-ref>. Verify the production Connect string.")
-          if supplied_port not in (None, 5432, 6543):
-              fail("The supplied URI has an unsupported PostgreSQL port.")
+              if parsed.scheme not in ("postgres", "postgresql"):
+                  fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
+              if supplied_username and supplied_username not in ("postgres", f"postgres.{project_ref}"):
+                  fail("Database username must be postgres or postgres.<production-project-ref>.")
+              if supplied_port not in (None, 5432, 6543):
+                  fail("The supplied URI has an unsupported PostgreSQL port.")
 
-          # Rebuild an explicit production connection target. This prevents a
-          # stale Replay host or malformed pooler hostname from redirecting a
-          # production backup to another project.
-          encoded_password = quote(supplied_password, safe="")
+          # Prefer a dedicated secret. Fall back to a password embedded in the
+          # legacy URI so the migration can be completed without exposing it.
+          database_password = password_override or embedded_password
+          if not database_password:
+              fail("No real database password is configured. Add the NAXA_DATABASE_PASSWORD repository secret; never use a Supabase publishable/secret API key here.")
+          if database_password == "[YOUR-PASSWORD]":
+              fail("The database password is still the URI placeholder [YOUR-PASSWORD].")
+
+          encoded_password = quote(database_password, safe="")
           target_url = (
               f"postgresql://postgres:{encoded_password}"
               f"@{production_host}:5432/postgres?sslmode=require"
@@ -95,8 +100,7 @@ jobs:
 
           print(
               "Credential preflight passed. "
-              f"Target fixed to production project {project_ref} using its canonical database endpoint; "
-              "source hostname ignored."
+              f"Target fixed to production project {project_ref} using its canonical database endpoint."
           )
           PY
 
