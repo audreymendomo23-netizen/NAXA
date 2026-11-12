@@ -46,12 +46,12 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import os
-          import re
           import sys
-          from urllib.parse import unquote
+          from urllib.parse import quote, unquote, urlsplit
 
           raw = os.environ.get("DATABASE_URL", "")
           project_ref = os.environ["PROJECT_REF"]
+          production_host = f"db.{project_ref}.supabase.co"
 
           def fail(message):
               print(f"::error::{message} No credential or raw URI was printed.")
@@ -59,78 +59,47 @@ jobs:
 
           if not raw:
               fail("NAXA_DATABASE_URL is empty.")
-          if raw != raw.strip():
-              fail("NAXA_DATABASE_URL contains leading or trailing whitespace. Store only the connection URI, without spaces or line breaks.")
+          if raw != raw.strip() or any(ch in raw for ch in "\\r\\n\\t"):
+              fail("NAXA_DATABASE_URL contains whitespace or line breaks.")
 
-          # A URI fragment starts at the first literal '#' after the host separator.
-          # Fragments are not part of PostgreSQL connection parameters, so discard
-          # only that suffix and pass the normalized URI to pg_dump.
-          fragment_removed = False
-          hash_index = raw.find("#")
-          at_index = raw.rfind("@")
-          if hash_index >= 0:
-              if at_index >= 0 and hash_index < at_index:
-                  # Preserve a literal '#' that occurs in the password field by
-                  # percent-encoding it. Never print or otherwise expose credentials.
-                  scheme_end = raw.find("://")
-                  userinfo_start = scheme_end + 3 if scheme_end >= 0 else -1
-                  password_separator = raw.find(":", userinfo_start) if userinfo_start >= 0 else -1
-                  if password_separator < 0 or hash_index < password_separator:
-                      fail("NAXA_DATABASE_URL contains a literal # outside the password field. Verify the URI structure; the database password has not been tested.")
-                  credentials = raw[password_separator + 1:at_index].replace("#", "%23")
-                  raw = raw[:password_separator + 1] + credentials + raw[at_index:]
-                  fragment_removed = True
-              else:
-                  # A '#' after the final @ begins a URI fragment, not a
-                  # PostgreSQL connection parameter; discard only that suffix.
-                  raw = raw[:hash_index]
-                  fragment_removed = True
-              if not raw:
-                  fail("NAXA_DATABASE_URL is empty after URI normalization.")
+          # Parse only the supplied credentials. The hostname in this secret
+          # is deliberately NOT trusted: use the canonical database host
+          # returned by Supabase project metadata for the production project.
+          try:
+              parsed = urlsplit(raw)
+              supplied_username = unquote(parsed.username or "")
+              supplied_password = unquote(parsed.password or "")
+              supplied_port = parsed.port
+          except ValueError:
+              fail("NAXA_DATABASE_URL is not a valid PostgreSQL URI.")
 
-          # Parse the expected Supabase PostgreSQL URI shape explicitly. Reserved
-          # delimiters inside credentials must be percent-encoded in a URI.
-          match = re.fullmatch(
-              r"(?P<scheme>postgres(?:ql)?)://(?P<userinfo>[^/@?#]+)@(?P<host>[^/:?#]+):(?P<port>[0-9]+)(?P<path>/[^?#]*)?(?:\?(?P<query>[^#]*))?",
-              raw,
-          )
-          if not match:
-              fail("NAXA_DATABASE_URL does not match the expected PostgreSQL URI structure. Verify the user:password@host:port separators; do not change a valid password merely because this check fails.")
-
-          userinfo = match.group("userinfo")
-          if userinfo.count(":") != 1:
-              fail("NAXA_DATABASE_URL must contain one user/password separator before the @host section.")
-          encoded_username, encoded_password = userinfo.split(":", 1)
-          username = unquote(encoded_username)
-          password = unquote(encoded_password)
-          scheme = match.group("scheme")
-          host = match.group("host").lower().rstrip(".")
-          port = int(match.group("port"))
-
-          if scheme not in ("postgres", "postgresql"):
+          if parsed.scheme not in ("postgres", "postgresql"):
               fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
-          # Supabase shared Session pooler hostnames vary by region and cluster.
-          # Validate the DNS suffix and labels rather than one AWS-only pattern.
-          pooler_suffix = ".pooler.supabase.com"
-          pooler_prefix = host[:-len(pooler_suffix)] if host.endswith(pooler_suffix) else ""
-          is_pooler = bool(pooler_prefix) and all(
-              label and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
-              for label in pooler_prefix.split(".")
-          )
-          is_direct = host == f"db.{project_ref}.supabase.co"
-          if not (is_pooler or is_direct):
-              fail("NAXA_DATABASE_URL host is not a recognized Supabase database endpoint. Expected db.<project>.supabase.co or any regional *.pooler.supabase.com hostname; no credential or host value was printed.")
-          if is_pooler and not username.endswith("." + project_ref):
-              fail("Shared-pooler username must end with the project reference shown in Supabase Connect.")
-          if is_direct and username != "postgres":
-              fail("Direct-connection username must be postgres.")
-          if not password or password == "[YOUR-PASSWORD]":
+          if not parsed.hostname:
+              fail("NAXA_DATABASE_URL does not contain a source hostname.")
+          if not supplied_password or supplied_password == "[YOUR-PASSWORD]":
               fail("NAXA_DATABASE_URL has no actual database password.")
-          if port != 5432:
-              fail("Use a Supabase direct connection or shared Session pooler on port 5432 for pg_dump; do not use the Transaction pooler on port 6543.")
+          if supplied_username not in ("postgres", f"postgres.{project_ref}"):
+              fail("Database username must be postgres or postgres.<production-project-ref>. Verify the production Connect string.")
+          if supplied_port not in (None, 5432, 6543):
+              fail("The supplied URI has an unsupported PostgreSQL port.")
+
+          # Rebuild an explicit production connection target. This prevents a
+          # stale Replay host or malformed pooler hostname from redirecting a
+          # production backup to another project.
+          encoded_password = quote(supplied_password, safe="")
+          target_url = (
+              f"postgresql://postgres:{encoded_password}"
+              f"@{production_host}:5432/postgres?sslmode=require"
+          )
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
-              github_env.write(f"SUPABASE_DATABASE_URL={raw}\n")
-          print(f"PostgreSQL URI preflight passed: host={host}, port={port}, mode={'Session pooler' if is_pooler else 'Direct'}, fragment_suffix_removed={'yes' if fragment_removed else 'no'}")
+              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\\n")
+
+          print(
+              "Credential preflight passed. "
+              f"Target fixed to production project {project_ref} using its canonical database endpoint; "
+              "source hostname ignored."
+          )
           PY
 
       - name: Dump PostgreSQL 17 database
