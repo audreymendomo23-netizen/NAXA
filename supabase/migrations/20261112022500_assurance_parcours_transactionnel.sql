@@ -1,7 +1,7 @@
 -- Parcours transactionnel Assurance : devis serveur, accord client et validation pharmacie.
 
 create or replace function public.assurance_enregistrer_convention(
-  p_assureur uuid,p_reference text,p_debut date,p_fin date default null
+  p_pharmacie uuid,p_assureur uuid,p_reference text,p_debut date,p_fin date default null
 ) returns uuid language plpgsql security definer set search_path = ''
 as $$
 declare v_uid uuid:=auth.uid(); v_pharmacie uuid; v_id uuid;
@@ -10,7 +10,7 @@ begin
      or p_debut is null or (p_fin is not null and p_fin<p_debut) then
     raise exception 'Données ou poste non autorisés';
   end if;
-  select pharmacie_id into v_pharmacie from public.profiles where id=v_uid;
+  v_pharmacie:=p_pharmacie;
   if v_pharmacie is null or not private.naxa_scope_allows(v_uid,v_pharmacie,'PHARMACIE') then
     raise exception 'Pharmacie hors périmètre';
   end if;
@@ -26,7 +26,7 @@ begin
   return v_id;
 end
 $$;
-revoke all on function public.assurance_enregistrer_convention(uuid,text,date,date) from public,anon;
+revoke all on function public.assurance_enregistrer_convention(uuid,uuid,text,date,date) from public,anon;
 grant execute on function public.assurance_enregistrer_convention(uuid,text,date,date) to authenticated;
 
 create or replace function public.assurance_enregistrer_regle(
@@ -102,6 +102,7 @@ begin
   where pharmacie_id=v_r.pharmacie_id and assureur_id=v_c.assureur_id
     and statut='active' and date_debut<=current_date and (date_fin is null or date_fin>=current_date);
   if not found then raise exception 'Cette pharmacie n’a pas de convention active avec cet assureur'; end if;
+  v_remaining:=case when v_c.plafond is null then 9223372036854775807 else greatest(0,round(v_c.plafond)::bigint) end;
 
   for v_item in
     select ri.produit_id,ri.quantite,ri.prix_unitaire,p.nom,p.categorie
@@ -121,12 +122,14 @@ begin
     order by case r.portee when 'produit' then 1 when 'categorie' then 2 else 3 end,
       r.valide_du desc,r.version desc limit 1;
     if not found then
-      v_line_cover:=0; v_rate:=0;
+      raise exception 'Aucune règle de prise en charge ne couvre le produit %',v_item.nom;
     else
       v_rate:=least(v_c.taux_prise_en_charge,v_rule.taux);
       v_line_cover:=round(v_line_brut*v_rate/100)::bigint;
       if v_rule.plafond_fcfa is not null then v_line_cover:=least(v_line_cover,v_rule.plafond_fcfa); end if;
       v_line_cover:=greatest(0,v_line_cover-coalesce(v_rule.franchise_fcfa,0));
+      v_line_cover:=least(v_line_cover,v_remaining);
+      v_remaining:=v_remaining-v_line_cover;
       if coalesce(v_rule.exclusions,'[]'::jsonb) ? v_item.produit_id::text
          or coalesce(v_rule.exclusions,'[]'::jsonb) ? coalesce(v_item.categorie,'__none__') then
         v_line_cover:=0;
@@ -146,8 +149,6 @@ begin
     ));
   end loop;
   v_brut:=coalesce(v_brut,0);
-  v_remaining:=case when v_c.plafond is null then v_assureur else greatest(0,round(v_c.plafond)::bigint) end;
-  v_assureur:=least(v_assureur,v_remaining);
   v_client:=v_brut-v_assureur;
   insert into public.assurance_reservation_snapshots(
     reservation_id,pharmacie_id,client_id,couverture_id,assureur_id,
