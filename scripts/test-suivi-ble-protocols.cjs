@@ -1,0 +1,24 @@
+const assert = require("node:assert/strict");
+const { decodeSfloat, decodeStandardGattMeasurement, supportsNotifications } = require("../src/lib/suivi/ble-protocols.js");
+const sf = (value, exponent=0) => { let m=Math.round(value/Math.pow(10,exponent)); if(m<0)m=(1<<12)+m; return ((exponent&15)<<12)|(m&0x0fff); };
+const view = bytes => new DataView(Uint8Array.from(bytes).buffer);
+assert.equal(decodeSfloat(sf(72)),72);
+assert.equal(decodeSfloat(sf(-1)), -1);
+assert.throws(()=>decodeSfloat(0x07ff));
+let result=decodeStandardGattMeasurement("heart_rate","heart_rate_measurement",view([0,72]));
+assert.equal(result[0].measurement_type,"frequence_cardiaque");
+assert.equal(result[0].value_numeric,72);
+const bp=decodeStandardGattMeasurement("blood_pressure","blood_pressure_measurement",view([0,sf(120)&255,sf(120)>>8,sf(80)&255,sf(80)>>8,sf(93)&255,sf(93)>>8]));
+assert.deepEqual(bp.map(x=>x.measurement_type),["tension_systolique","tension_diastolique","tension_arterielle_moyenne"]);
+assert.deepEqual(bp.map(x=>x.value_numeric),[120,80,93]);
+const tempRaw = 37000000; // 37.0 in IEEE-11073 FLOAT: mantissa 3700000, exponent -5
+const tempPacked = ((-5&255)<<24)|(3700000&0xffffff);
+const temp=decodeStandardGattMeasurement("health_thermometer","temperature_measurement",view([0,tempPacked&255,(tempPacked>>>8)&255,(tempPacked>>>16)&255,(tempPacked>>>24)&255]));
+assert.equal(temp[0].value_numeric,37);
+const spo=decodeStandardGattMeasurement("pulse_oximeter","plx_spot_check_measurement",view([0,sf(98)&255,sf(98)>>8,sf(72)&255,sf(72)>>8]));
+assert.equal(spo[0].value_numeric,98);
+assert.equal(spo[1].value_numeric,72);
+assert.throws(()=>decodeStandardGattMeasurement("vendor","unknown",view([0,0])));
+assert.equal(supportsNotifications({properties:{notify:true}}),true);
+assert.equal(supportsNotifications({properties:{read:true}}),false);
+console.log("PASS — decodeurs GATT standards, multi-mesures et capacité notification");
