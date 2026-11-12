@@ -98,7 +98,7 @@ export function SuiviProfessionalPatientsWorkspace() {
       .in("user_id", owners).in("measurement_type", types)
       .order("measured_at", { ascending: false }).limit(2000);
     if (measurementError) {
-      setMeasurements([]);
+      setMeasurements([]);setSharedDevices([]);setAlerts([]);setAlertError("");
       setError("Les partages sont visibles mais les mesures restent bloquées par les droits serveur. Vérifiez les droits RLS et le consentement actif.");
       setBusy(false); return;
     }
