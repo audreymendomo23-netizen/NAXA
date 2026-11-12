@@ -538,6 +538,8 @@ export function SuiviConnecte() {
     if(!userData.user){setNotice("Session expirée. Reconnectez-vous.");setBusy(false);return;}
     if(!shouldActivate){
       for(const instance of instances.filter(item=>item.active&&item.platform_device_id)){
+        (window as any).NaxaAndroid?.disconnect(instance.platform_device_id!);
+        nativeDeviceRows.current.delete(instance.platform_device_id!);
         const session=bluetoothSessions.current.get(instance.platform_device_id!);
         if(!session)continue;
         if(session.retryTimer)window.clearTimeout(session.retryTimer);
@@ -617,6 +619,10 @@ export function SuiviConnecte() {
     if (!grant) {
       const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
       const familyMeasurementTypes=types.filter(type=>type.family===family).map(type=>type.key);
+      for(const device of devices.filter(entry=>keys.includes(entry.device_key)&&entry.platform_device_id)){
+        (window as any).NaxaAndroid?.disconnect(device.platform_device_id);
+        nativeDeviceRows.current.delete(device.platform_device_id!);
+      }
       for(const [deviceId,session] of bluetoothSessions.current.entries()){
         const saved=devices.find(device=>device.platform_device_id===deviceId);
         if(!saved||!keys.includes(saved.device_key)) continue;
@@ -914,6 +920,10 @@ export function SuiviConnecte() {
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");return;}
     if(!window.confirm("Retirer cet appareil de votre espace NAXA ? Les mesures déjà enregistrées seront conservées.")) return;
+    if(instance.platform_device_id){
+      (window as any).NaxaAndroid?.disconnect(instance.platform_device_id);
+      nativeDeviceRows.current.delete(instance.platform_device_id);
+    }
     const session=instance.platform_device_id?bluetoothSessions.current.get(instance.platform_device_id):undefined;
     if(session){
       if(session.retryTimer)window.clearTimeout(session.retryTimer);
