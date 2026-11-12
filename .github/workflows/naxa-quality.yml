@@ -26,6 +26,6 @@ jobs:
         with:
           node-version: 20
       - name: Installer les dépendances
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --no-progress
       - name: Tests + TypeScript + lint
         run: npm run quality
