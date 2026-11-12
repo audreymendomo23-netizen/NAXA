@@ -5,6 +5,7 @@ import { lireOrdonnance, type LectureOrdonnance } from "@/lib/ocr";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { BulleErreur } from "@/components/BulleErreur";
 import { textes } from "@/lib/accueil-textes";
+import { AlerteDisponibilite } from "@/components/AlerteDisponibilite";
 
 type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; barcode?: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; safetyInformation?: { warnings: string | null; adverseReactions: string | null; contraindications: string | null; precautions: string | null; source: string | null; sourceUrl: string; updatedAt: string | null } | null; sourceDetails?: { name: string; role: string; url: string; updatedAt?: string | null }[]; imageVariants?: { boite: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null; comprime: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null }; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
@@ -431,6 +432,9 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 </div>
                 <p className="mt-2 text-xs text-slate-600">Sources des informations : {medicament.source.join(", ") || "source de données non confirmée"}. Les données médicales sont informatives et ne remplacent pas l’avis d’un pharmacien.</p>
                 <div className="mt-1 rounded-md bg-slate-50 p-2 text-xs text-slate-600"><p className="font-semibold">Provenance et vérification</p><ul className="mt-1 list-disc space-y-1 pl-4">{(medicament.sourceDetails && medicament.sourceDetails.length > 0 ? medicament.sourceDetails : [{ name: "DPML Cameroun", role: "référence à consulter pour vérifier l’autorisation locale", url: "https://dpml.cm/repertoireDesAmm/index.php" }]).map((source) => <li key={source.name}><a href={source.url} target="_blank" rel="noreferrer" className="underline">{source.name}</a> — {source.role}{source.updatedAt ? " · date du jeu : " + source.updatedAt : ""}</li>)}</ul></div>
+                {medicament.availability === "indisponible" && medicament.localProductId && (
+                  <AlerteDisponibilite produitId={medicament.localProductId} langue={langue} />
+                )}
                 <button type="button" className="btn btn-vert mt-3 w-full" onClick={() => aller([medicament.name])}>
                   Vérifier le stock des pharmacies partenaires
                 </button>
