@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const assert = require("node:assert/strict");
 
 const component = fs.readFileSync("src/components/suivi/SuiviConnecte.tsx", "utf8");
+const deviceIllustrations = fs.readFileSync("src/components/suivi/DeviceIllustration.tsx", "utf8");
 const universe = fs.readFileSync("src/components/universes/UniverseLanding.tsx", "utf8");
 const cron = fs.readFileSync("src/app/api/cron/posologie/route.ts", "utf8");
 const migration = fs.readFileSync("supabase/migration_148_suivi_21_dispositifs_interoperabilite.sql", "utf8");
@@ -43,7 +44,13 @@ assert.match(measurementTest, /naxa_150_extended_measurement_types_pass/, "test 
 assert.ok(cron.includes('"cholesterol_ldl"].includes(type)') && cron.includes('"ecg_note","capacite_vitale"].includes(type)'), "le moteur de rappels doit mapper les nouvelles familles");
 assert.match(component, /Mon suivi santé/, "le nouvel accueil doit être présent");
 assert.match(component, /grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/, "les appareils doivent apparaître en grandes cartes responsives");
-assert.match(component, /Image src=\{sb\.storage\.from\("dispositifs"\)\.getPublicUrl\(device\.image\)/, "les cartes doivent utiliser les visuels du stockage dispositifs");
+assert.match(component, /import \{ DeviceIllustration \} from "@\/components\/suivi\/DeviceIllustration"/, "le catalogue doit utiliser le composant d’illustration des dispositifs");
+assert.match(component, /<DeviceIllustration deviceKey=\{item\.deviceKey\} label=\{item\.name\}/, "chaque carte de dispositif doit afficher son illustration sémantique");
+assert.match(deviceIllustrations, /role="img" aria-label=\{label \|\| deviceNames\[deviceKey\]/, "les illustrations doivent être accessibles au lecteur d’écran");
+assert.match(deviceIllustrations, /<svg viewBox="0 0 300 300"/, "chaque illustration doit être un visuel SVG autonome");
+const illustratedKeys = [...deviceIllustrations.matchAll(/^  ([a-z0-9_]+): "/gm)].map(match => match[1]);
+assert.equal(illustratedKeys.length, 21, "21 illustrations dédiées doivent être disponibles");
+assert.equal(new Set(illustratedKeys).size, 21, "les illustrations doivent avoir des clés uniques");
 assert.ok(!component.includes("auto-cols-[76px]"), "l’ancien ruban de miniatures ne doit plus être affiché");
 assert.match(universe, /Mon suivi santé connecté/, "l’univers ne doit plus présenter le suivi comme en préparation");
 assert.match(deviceSchemaMigration, /create table if not exists public\.suivi_user_devices/, "la table personnelle doit être créée par une migration standard");
