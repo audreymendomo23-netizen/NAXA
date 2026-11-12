@@ -327,6 +327,7 @@ export async function GET(request:Request) {
     });
     fcmSent+=alertFcm.sent;fcmFailed+=alertFcm.failed;
     if(alertFcm.sent>0)pushed=true;
+    else if(alertFcm.configured&&alertFcm.failed>0)pushError="Échec d'envoi FCM";
 
     const {error:finishError}=await db.from("suivi_push_outbox").update({
       processed_at:pushError?null:now.toISOString(),
