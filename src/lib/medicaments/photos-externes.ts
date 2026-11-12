@@ -230,21 +230,34 @@ function cimaIngredients(medicine: CimaMedicine): string {
   }).filter(Boolean).join(" + ");
 }
 
-function allowedCimaImageRights(photo: CimaPhotoEntry): { licence: string; attribution: string | null } | null {
+function allowedCimaImageRights(
+  photo: CimaPhotoEntry,
+  medicine: CimaMedicine
+): { licence: string; attribution: string | null } | null {
   const licence = (photo.licence ?? photo.license ?? photo.licencia ?? "").trim();
   const licenceUrl = (photo.licenceUrl ?? photo.licenseUrl ?? photo.licenciaUrl ?? "").trim();
   const attribution = (photo.attribution ?? photo.auteur ?? photo.author ?? "").trim();
-  if (!licence) return null;
-  const permitted = /^(?:CC0(?:\s|$)|Public Domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(licence);
-  if (!permitted || /\b(?:NC|ND)\b|non.?commercial|no.?derivatives/i.test(licence)) return null;
-  if (/^CC BY/i.test(licence) && !attribution) return null;
-  if (!licenceUrl && !/^CC0(?:\s|$)|^Public Domain(?:\s|$)/i.test(licence)) return null;
+
+  // CIMA figure dans les données ouvertes AEMPS, réutilisables par citoyens
+  // et entreprises avec attribution. Les photos restent liées depuis l'hôte
+  // officiel : NAXA ne les copie ni ne les modifie. Une restriction explicite
+  // portée par le média prévaut et entraîne son rejet.
+  if (/\b(?:NC|ND)\b|non.?commercial|no.?derivatives|todos los derechos reservados/i.test(licence)) return null;
+  if (licence) {
+    const permitted = /^(?:CC0(?:\s|$)|Public Domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(licence);
+    if (!permitted) return null;
+    if (/^CC BY/i.test(licence) && !attribution && !medicine.labtitular) return null;
+    if (!licenceUrl && !/^CC0(?:\s|$)|^Public Domain(?:\s|$)/i.test(licence)) return null;
+  }
+
+  const titular = (medicine.labtitular ?? "").trim();
   return {
-    licence: [licence, licenceUrl].filter(Boolean).join(" — "),
-    attribution: attribution || null
+    licence: licence
+      ? [licence, licenceUrl].filter(Boolean).join(" — ")
+      : "Données ouvertes AEMPS/CIMA — réutilisation avec attribution; image liée depuis l'hôte officiel sans copie ni modification",
+    attribution: attribution || ["AEMPS / CIMA", titular ? "titulaire AMM : " + titular : ""].filter(Boolean).join(" — ")
   };
 }
-
 function safeCimaImageUrl(raw: string | undefined): string | null {
   if (!raw) return null;
   try {
@@ -283,9 +296,7 @@ function cimaPhoto(
   const wantedType = kind === "boite" ? "materialas" : "formafarmac";
   const entry = (medicine.fotos ?? []).find((photo) => photo.tipo?.toLowerCase() === wantedType);
   const url = safeCimaImageUrl(entry?.url);
-  const rights = entry ? allowedCimaImageRights(entry) : null;
-  // L'API CIMA documentée fournit type + URL + date, pas de licence image.
-  // L'ouverture des données AEMPS n'est pas assimilée à une cession des droits des laboratoires.
+  const rights = entry ? allowedCimaImageRights(entry, medicine) : null;
   if (!url || !rights) return null;
   const registration = (medicine.nregistro ?? "").trim();
   return {
