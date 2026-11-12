@@ -68,7 +68,7 @@ jobs:
               fail("NAXA_DATABASE_URL contains a URI fragment. A reserved character in the password may not be percent-encoded.")
           if not host:
               fail("NAXA_DATABASE_URL has no parseable database host. Check the @ separator and percent-encoding.")
-          is_pooler = bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9-]+\\.pooler\\.supabase\\.com", host))
+          is_pooler = bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com", host))
           is_direct = host == f"db.{project_ref}.supabase.co"
           if not (is_pooler or is_direct):
               fail("NAXA_DATABASE_URL host is not a recognized Supabase database endpoint for this project.")
