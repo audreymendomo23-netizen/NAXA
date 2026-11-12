@@ -71,6 +71,11 @@ begin
       ) then null else v_now end
   where l.patient_user_id=new.user_id;
 
+  update public.suivi_user_devices
+  set active=false,auto_reconnect=false,connection_state='disconnected',updated_at=v_now
+  where user_id=new.user_id
+    and public.suivi_device_family(device_key)=new.family_key;
+
   update public.suivi_measurement_schedules
   set enabled=false,updated_at=v_now
   where user_id=new.user_id
