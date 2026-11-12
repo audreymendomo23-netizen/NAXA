@@ -88,30 +88,100 @@ export async function GET(request:Request) {
   }
 
   const {data:outbox,error:outboxError}=await db.from("suivi_push_outbox")
-    .select("id,recipient_user_id,attempt_count").is("processed_at",null).lt("attempt_count",8)
+    .select("id,patient_user_id,recipient_user_id,measurement_type,attempt_count,in_app_created_at")
+    .is("processed_at",null).lt("attempt_count",8)
     .order("created_at",{ascending:true}).limit(300);
   if(outboxError) failed++;
   else for(const item of outbox??[]) {
     const {data:claimed}=await db.from("suivi_push_outbox")
       .update({attempt_count:(item.attempt_count??0)+1,locked_until:new Date(now.getTime()+60000).toISOString()})
-      .eq("id",item.id).is("processed_at",null).or("locked_until.is.null,locked_until.lt."+now.toISOString()).select("id").maybeSingle();
+      .eq("id",item.id).is("processed_at",null)
+      .or("locked_until.is.null,locked_until.lt."+now.toISOString()).select("id").maybeSingle();
     if(!claimed) continue;
-    const {data:subs,error:subError}=await db.from("naxa_push_subscriptions").select("endpoint,subscription").eq("user_id",item.recipient_user_id);
+
+    // Réévaluer les droits au moment de l'envoi : un consentement révoqué
+    // après la mise en file ne doit jamais déclencher une notification tardive.
+    const {data:consent}=await db.from("suivi_consents")
+      .select("granted,revoked_at").eq("user_id",item.patient_user_id)
+      .eq("family_key",family(item.measurement_type)??"").maybeSingle();
+    const {data:patientAccount}=await db.from("profiles").select("actif")
+      .eq("id",item.patient_user_id).maybeSingle();
+    let authorized=!!consent?.granted&&!consent?.revoked_at&&patientAccount?.actif===true;
+    if(authorized&&item.recipient_user_id!==item.patient_user_id){
+      const [shareResult,linkResult,professionalResult,recipientAccount]=await Promise.all([
+        db.from("suivi_shares").select("id").eq("owner_user_id",item.patient_user_id)
+          .eq("recipient_user_id",item.recipient_user_id).eq("measurement_type",item.measurement_type)
+          .eq("active",true).eq("allow_alerts",true).is("revoked_at",null).maybeSingle(),
+        db.from("suivi_care_links").select("id").eq("patient_user_id",item.patient_user_id)
+          .eq("professional_user_id",item.recipient_user_id).eq("active",true)
+          .eq("alerts_access",true).is("revoked_at",null).maybeSingle(),
+        db.rpc("suivi_is_verified_professional",{p_user_id:item.recipient_user_id}),
+        db.from("profiles").select("actif").eq("id",item.recipient_user_id).maybeSingle()
+      ]);
+      authorized=professionalResult.data===true&&recipientAccount.data?.actif===true
+        &&(!shareResult.error&&!!shareResult.data||!linkResult.error&&!!linkResult.data);
+    }
+    if(!authorized){
+      await db.from("suivi_push_outbox").update({
+        processed_at:now.toISOString(),locked_until:null,
+        last_error:"Envoi annulé : compte, consentement ou autorisation révoqué(e)"
+      }).eq("id",item.id);
+      continue;
+    }
+
+    const {data:subs,error:subError}=await db.from("naxa_push_subscriptions")
+      .select("endpoint,subscription").eq("user_id",item.recipient_user_id);
+    if(subError){
+      failed++;
+      await db.from("suivi_push_outbox").update({
+        locked_until:null,last_error:"Lecture des abonnements Push impossible"
+      }).eq("id",item.id);
+      continue;
+    }
+
+    let inAppDone=!!item.in_app_created_at;
+    if(!inAppDone){
+      const {error:inAppError}=await db.from("notifications").insert({
+        user_id:item.recipient_user_id,type:"suivi_alerte",
+        titre:"Nouvelle alerte de suivi",
+        corps:"Une alerte issue d'un suivi autorisé nécessite votre consultation."
+      });
+      if(inAppError){
+        failed++;
+        await db.from("suivi_push_outbox").update({
+          locked_until:null,last_error:"Création de la notification interne impossible"
+        }).eq("id",item.id);
+        continue;
+      }
+      inAppDone=true;inApp++;
+      await db.from("suivi_push_outbox").update({in_app_created_at:now.toISOString()}).eq("id",item.id);
+    }
+
     let pushed=false;
-    if(!subError) for(const sub of subs??[]) try {
-      await webpush.sendNotification(sub.subscription,JSON.stringify({title:"NAXA · Alerte de suivi",body:"Une nouvelle alerte liée à un suivi autorisé est disponible dans NAXA.",url:"/suivi/professionnel",tag:"suivi-alert-"+item.id}),{TTL:300,urgency:"high"});
+    let pushError:string|null=null;
+    for(const sub of subs??[]) try {
+      await webpush.sendNotification(sub.subscription,JSON.stringify({
+        title:"NAXA · Alerte de suivi",
+        body:"Une nouvelle alerte liée à un suivi autorisé est disponible dans NAXA.",
+        url:item.recipient_user_id===item.patient_user_id?"/suivi":"/suivi/professionnel",
+        tag:"suivi-alert-"+item.id
+      }),{TTL:300,urgency:"high"});
       pushed=true;pushSent++;
     } catch(e) {
       failed++;
       const status=(e as {statusCode?:number}).statusCode;
-      if(status===404||status===410) await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",item.recipient_user_id);
+      if(status===404||status===410) {
+        await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",item.recipient_user_id);
+      } else {
+        pushError="Échec d'envoi Push";
+      }
     }
-    const {data:current}=await db.from("suivi_push_outbox").select("in_app_created_at").eq("id",item.id).maybeSingle();
-    if(!current?.in_app_created_at) {
-      const {error:inAppError}=await db.from("notifications").insert({user_id:item.recipient_user_id,type:"suivi_alerte",titre:"Nouvelle alerte de suivi",corps:"Une alerte issue d'un suivi autorisé nécessite votre consultation."});
-      if(!inAppError) inApp++; else failed++;
-    }
-    await db.from("suivi_push_outbox").update({processed_at:now.toISOString(),in_app_created_at:now.toISOString(),locked_until:null,last_error:subError?"Abonnements Push indisponibles":pushed?null:"Aucun abonnement Push actif"}).eq("id",item.id);
+    const {error:finishError}=await db.from("suivi_push_outbox").update({
+      processed_at:inAppDone?now.toISOString():null,
+      locked_until:null,
+      last_error:pushError??(pushed?null:"Aucun abonnement Push actif")
+    }).eq("id",item.id);
+    if(finishError) failed++;
   }
   return NextResponse.json({ok:true,checked,stale,inApp,pushSent,failed,at:now.toISOString()});
 }
