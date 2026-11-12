@@ -7,7 +7,7 @@ const root = path.join(__dirname, "..");
 const scanner = fs.readFileSync(path.join(root, "src/components/ScannerShell.tsx"), "utf8");
 const ocr = fs.readFileSync(path.join(root, "src/lib/ocr.ts"), "utf8");
 const results = fs.readFileSync(path.join(root, "src/app/resultats/page.tsx"), "utf8");
-const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261112050000_search_pharmacies_bulk_quantity.sql"), "utf8");
+const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261112013738_search_pharmacies_bulk_quantity.sql"), "utf8");
 const checkout = fs.readFileSync(path.join(root, "src/app/commande/nouvelle/page.tsx"), "utf8");
 
 test("OCR : les lignes sont analysées séparément et les instructions de posologie ne deviennent pas des médicaments", () => {
