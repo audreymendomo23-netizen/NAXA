@@ -74,27 +74,27 @@ function DeviceShape({ deviceKey }: { deviceKey: string }) {
 
 
 const DEVICE_PHOTOS: Record<string, string[]> = {
-  tensiometre: ["/images/suivi-dispositifs/tensiometre/01.jpg"],
-  thermometre: ["/images/suivi-dispositifs/thermometre/01.jpg"],
-  oxymetre: ["/images/suivi-dispositifs/oxymetre/01.jpg"],
-  glucometre: ["/images/suivi-dispositifs/glucometre/01.jpg"],
-  balance: ["/images/suivi-dispositifs/balance/01.jpg"],
-  capteur_cardiaque_bluetooth: ["/images/suivi-dispositifs/capteur_cardiaque_bluetooth/01.jpg"],
+  tensiometre: ["/images/suivi-dispositifs/tensiometre/01.jpg", "/images/suivi-dispositifs/tensiometre/02.jpg", "/images/suivi-dispositifs/tensiometre/03.jpg"],
+  thermometre: ["/images/suivi-dispositifs/thermometre/01.jpg", "/images/suivi-dispositifs/thermometre/02.jpg"],
+  oxymetre: ["/images/suivi-dispositifs/oxymetre/01.jpg", "/images/suivi-dispositifs/oxymetre/02.jpg", "/images/suivi-dispositifs/oxymetre/03.jpg", "/images/suivi-dispositifs/oxymetre/04.jpg"],
+  glucometre: ["/images/suivi-dispositifs/glucometre/01.jpg", "/images/suivi-dispositifs/glucometre/02.jpg", "/images/suivi-dispositifs/glucometre/03.jpg"],
+  balance: ["/images/suivi-dispositifs/balance/01.jpg", "/images/suivi-dispositifs/balance/02.jpg", "/images/suivi-dispositifs/balance/03.jpg"],
+  capteur_cardiaque_bluetooth: ["/images/suivi-dispositifs/capteur_cardiaque_bluetooth/01.jpg", "/images/suivi-dispositifs/capteur_cardiaque_bluetooth/02.jpg", "/images/suivi-dispositifs/capteur_cardiaque_bluetooth/03.jpg"],
   podometre: ["/images/suivi-dispositifs/podometre/01.jpg"],
-  ecg: ["/images/suivi-dispositifs/ecg/01.jpg"],
-  spirometre: ["/images/suivi-dispositifs/spirometre/01.jpg"],
+  ecg: ["/images/suivi-dispositifs/ecg/01.jpg", "/images/suivi-dispositifs/ecg/02.jpg"],
+  spirometre: ["/images/suivi-dispositifs/spirometre/01.jpg", "/images/suivi-dispositifs/spirometre/02.jpg", "/images/suivi-dispositifs/spirometre/03.jpg"],
   peak_flow: ["/images/suivi-dispositifs/peak_flow/01.jpg"],
-  balance_impedance: ["/images/suivi-dispositifs/balance_impedance/01.jpg"],
-  cholesterolometre: ["/images/suivi-dispositifs/cholesterolometre/01.jpg"],
+  balance_impedance: ["/images/suivi-dispositifs/balance_impedance/01.jpg", "/images/suivi-dispositifs/balance_impedance/02.jpg"],
+  cholesterolometre: ["/images/suivi-dispositifs/cholesterolometre/01.jpg", "/images/suivi-dispositifs/cholesterolometre/02.jpg"],
   cetonemetre: ["/images/suivi-dispositifs/cetonemetre/01.jpg"],
   uricometre: ["/images/suivi-dispositifs/uricometre/01.jpg"],
   montre_connectee: ["/images/suivi-dispositifs/montre_connectee/01.jpg"],
-  bracelet_activite: ["/images/suivi-dispositifs/bracelet_activite/01.jpg"],
+  bracelet_activite: ["/images/suivi-dispositifs/bracelet_activite/01.jpg", "/images/suivi-dispositifs/bracelet_activite/02.jpg", "/images/suivi-dispositifs/bracelet_activite/03.jpg"],
   tracker_sommeil: ["/images/suivi-dispositifs/tracker_sommeil/01.jpg"],
-  thermometre_infrarouge: ["/images/suivi-dispositifs/thermometre_infrarouge/01.jpg"],
-  capteur_respiration: ["/images/suivi-dispositifs/capteur_respiration/01.jpg"],
+  thermometre_infrarouge: ["/images/suivi-dispositifs/thermometre_infrarouge/01.jpg", "/images/suivi-dispositifs/thermometre_infrarouge/02.jpg", "/images/suivi-dispositifs/thermometre_infrarouge/03.jpg"],
+  capteur_respiration: ["/images/suivi-dispositifs/capteur_respiration/01.jpg", "/images/suivi-dispositifs/capteur_respiration/02.jpg", "/images/suivi-dispositifs/capteur_respiration/03.jpg"],
   pilulier_connecte: ["/images/suivi-dispositifs/pilulier_connecte/01.jpg"],
-  bouteille_hydratation: ["/images/suivi-dispositifs/bouteille_hydratation/01.jpg"]
+  bouteille_hydratation: ["/images/suivi-dispositifs/bouteille_hydratation/01.jpg", "/images/suivi-dispositifs/bouteille_hydratation/02.jpg", "/images/suivi-dispositifs/bouteille_hydratation/03.jpg"]
 };
 
 function getGalleryPhase(instanceId: string): number {

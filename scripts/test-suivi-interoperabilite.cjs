@@ -60,11 +60,30 @@ assert.match(measurementMigration, /capacite_vitale/, "types de mesure étendus 
 assert.match(measurementTest, /naxa_150_extended_measurement_types_pass/, "test SQL des mesures étendues manquant");
 assert.ok(cron.includes('"cholesterol_ldl"].includes(type)') && cron.includes('"ecg_note","capacite_vitale"].includes(type)'), "le moteur de rappels doit mapper les nouvelles familles");
 assert.match(component, /Mon suivi santé/, "le nouvel accueil doit être présent");
-assert.match(component, /grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/, "les appareils doivent apparaître en grandes cartes responsives");
+assert.match(component, /grid gap-5 sm:grid-cols-2 lg:grid-cols-3/, "les appareils doivent apparaître en grandes cartes photographiques responsives");
 assert.match(component, /import \{ DeviceIllustration \} from "@\/components\/suivi\/DeviceIllustration"/, "le catalogue doit utiliser le composant d’illustration des dispositifs");
-assert.match(component, /<DeviceIllustration deviceKey=\{item\.deviceKey\} label=\{item\.name\}/, "chaque carte de dispositif doit afficher son illustration sémantique");
+assert.match(component, /<DeviceIllustration deviceKey=\{device\.key\} label=\{"Illustration : "\+device\.name\}/, "chaque carte de dispositif doit afficher son image sémantique");
 assert.match(deviceIllustrations, /role="img" aria-label=\{label \|\| deviceNames\[deviceKey\]/, "les illustrations doivent être accessibles au lecteur d’écran");
 assert.match(deviceIllustrations, /<svg viewBox="0 0 300 300"/, "chaque illustration doit être un visuel SVG autonome");
+const photoMapMatch = deviceIllustrations.match(/const DEVICE_PHOTOS: Record<string, string\\[]> = \\{([\\s\\S]*?)\\n\\};/);
+assert.ok(photoMapMatch, "le catalogue photographique des dispositifs doit exister");
+const photoEntries = [...photoMapMatch[1].matchAll(/^  ([a-z0-9_]+): \\[(.*?)\\]/gm)];
+assert.equal(photoEntries.length, 21, "les 21 catégories doivent avoir une galerie");
+assert.deepEqual(photoEntries.map(match => match[1]).sort(), [...catalogKeys].sort(), "les galeries doivent correspondre exactement aux catégories du catalogue");
+for (const entry of photoEntries) {
+  const category = entry[1];
+  const sources = [...entry[2].matchAll(/"(\\/images\\/suivi-dispositifs\\/[^"]+\\.jpg)"/g)].map(match => match[1]);
+  assert.ok(sources.length >= 1, "photo manquante pour " + category);
+  for (const source of sources) {
+    assert.ok(source.startsWith("/images/suivi-dispositifs/" + category + "/"), "une galerie ne doit jamais mélanger deux catégories : " + category + " / " + source);
+    assert.ok(fs.existsSync("public" + source), "fichier photo introuvable : " + source);
+  }
+}
+assert.match(deviceIllustrations, /setInterval\\(advance, 4000\\)/, "les modèles d'une même catégorie alternent toutes les 4 secondes");
+assert.match(deviceIllustrations, /getGalleryPhase\\(instanceId\\)/, "chaque galerie possède son propre décalage");
+assert.match(deviceIllustrations, /prefers-reduced-motion/, "la réduction des animations doit être respectée");
+assert.ok(!deviceIllustrations.includes("<button") && !deviceIllustrations.includes("onClick"), "aucune flèche ni vignette de navigation");
+
 const illustratedKeys = [...deviceIllustrations.matchAll(/^  ([a-z0-9_]+): "/gm)].map(match => match[1]);
 assert.equal(illustratedKeys.length, 21, "21 illustrations dédiées doivent être disponibles");
 assert.equal(new Set(illustratedKeys).size, 21, "les illustrations doivent avoir des clés uniques");
