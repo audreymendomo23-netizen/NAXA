@@ -398,7 +398,7 @@ export function ScannerShell() {
         if (raw) sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...(JSON.parse(raw) as BrouillonPosologie), rappels: true, rappelsConsentement: true }));
       } else sessionStorage.removeItem(CLE_POSOLOGIE);
     } catch {}
-    const rechercherParNom = () => router.push("/resultats?bulk=1&" + selection.map(item => "q=" + encodeURIComponent(item.nom.trim())).join("&"));
+    const rechercherParNom = () => router.push("/resultats?bulk=1&" + selection.map(item => "q=" + encodeURIComponent(item.nom.trim()) + "&n=" + item.quantite).join("&"));
     try {
       const sb = supabaseBrowser();
       const correspondances = await Promise.all(selection.map(async item => {
