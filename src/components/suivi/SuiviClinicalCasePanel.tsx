@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type CaseRow={id:string;patient_user_id:string;professional_user_id:string;initial_diagnosis:string;monitoring_reason:string|null;status:"active"|"paused"|"closed";created_at:string;updated_at:string};
-type Entry={id:string;entry_type:"diagnosis"|"observation"|"follow_up";content:string;created_at:string;professional_user_id:string};
+type Entry={id:string;entry_type:"diagnosis"|"observation"|"follow_up"|"measurement";content:string;created_at:string;professional_user_id:string;measurement_id?:string|null};
 type LinkRow={id:string;active:boolean;clinical_notes_access:boolean;revoked_at:string|null};
 export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:string;professionalId:string}){
   const sb=useMemo(()=>supabaseBrowser(),[]);
@@ -47,28 +47,23 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
   async function createCase(){
     if(diagnosis.trim().length<3){setNotice("Le diagnostic ou motif initial doit contenir au moins 3 caractères.");return;}
     setBusy(true);setNotice("");
-    const {data,error}=await sb.from("suivi_patient_cases").insert({
-      patient_user_id:patientId,professional_user_id:professionalId,
-      initial_diagnosis:diagnosis.trim(),monitoring_reason:reason.trim()||null,status:"active"
-    }).select("id,patient_user_id,professional_user_id,initial_diagnosis,monitoring_reason,status,created_at,updated_at").single();
+    const {error}=await sb.rpc("suivi_create_patient_case",{
+      p_patient_user_id:patientId,
+      p_initial_diagnosis:diagnosis.trim(),
+      p_monitoring_reason:reason.trim()||null
+    });
     if(error){setNotice("Création refusée. Vérifiez que le patient a autorisé le dossier clinique et que votre agrément est valide.");setBusy(false);return;}
-    const row=data as CaseRow;
-    await sb.from("suivi_clinical_entries").insert({case_id:row.id,professional_user_id:professionalId,entry_type:"diagnosis",content:diagnosis.trim()});
-    setCaseRow(row);setNotice("Dossier initial créé et diagnostic historisé.");await load();setBusy(false);
+    setNotice("Dossier initial créé et diagnostic historisé.");await load();setBusy(false);
   }
 
   async function addEntry(){
     if(!caseRow){setNotice("Créez d'abord le dossier initial.");return;}
     if(note.trim().length<3){setNotice("L'entrée clinique doit contenir au moins 3 caractères.");return;}
     setBusy(true);setNotice("");
-    const content=note.trim();
-    const {error}=await sb.from("suivi_clinical_entries").insert({case_id:caseRow.id,professional_user_id:professionalId,entry_type:kind,content});
+    const {error}=await sb.rpc("suivi_add_clinical_entry",{
+      p_case_id:caseRow.id,p_entry_type:kind,p_content:note.trim()
+    });
     if(error){setNotice("Enregistrement clinique refusé. Vérifiez vos droits et le consentement actif.");setBusy(false);return;}
-    if(kind==="diagnosis"){
-      const {error:updateError}=await sb.from("suivi_patient_cases").update({initial_diagnosis:content,updated_at:new Date().toISOString()}).eq("id",caseRow.id);
-      if(updateError){setNotice("La nouvelle entrée est historisée, mais le résumé du diagnostic n'a pas été mis à jour.");setBusy(false);await load();return;}
-      setDiagnosis(content);
-    }
     setNote("");setNotice(kind==="diagnosis"?"Diagnostic mis à jour et version précédente conservée dans l'historique.":"Observation enregistrée dans le dossier.");
     await load();setBusy(false);
   }
@@ -76,7 +71,7 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
   if(loading)return <p className="rounded-xl bg-slate-50 p-3 text-sm">Chargement du dossier clinique autorisé…</p>;
   if(!allowed)return <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">Le patient n'a pas autorisé l'ouverture de son dossier clinique. Vous pouvez consulter uniquement les mesures et graphiques qu'il vous a partagés.</p>;
   return <section className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
-    <div><h3 className="font-extrabold text-indigo-950">Dossier clinique de suivi</h3><p className="text-xs text-indigo-900">Les mesures alimentent la chronologie. Le diagnostic reste rédigé et validé par le professionnel.</p></div>
+    <div><h3 className="font-extrabold text-indigo-950">Dossier clinique de suivi</h3><p className="text-xs text-indigo-900">Les mesures autorisées en temps réel s’ajoutent automatiquement à la chronologie. Le diagnostic reste rédigé et validé par le professionnel.</p></div>
     {notice&&<p role="status" className="rounded-lg border bg-white p-2 text-sm">{notice}</p>}
     {!caseRow?<div className="space-y-2 rounded-xl border bg-white p-3">
       <p className="font-bold">Diagnostic ou motif initial requis avant le suivi clinique</p>
@@ -96,7 +91,7 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
         <textarea rows={3} maxLength={6000} value={note} onChange={e=>setNote(e.target.value)} className="champ w-full" placeholder={kind==="diagnosis"?"Nouveau diagnostic / appréciation clinique…":"Observation professionnelle…"} />
         <button disabled={busy} onClick={()=>void addEntry()} className="min-h-10 rounded-lg bg-indigo-800 px-4 text-sm font-bold text-white disabled:opacity-40">Enregistrer dans l'historique clinique</button>
       </div>
-      <div className="space-y-2"><b className="text-sm">Historique clinique</b>{entries.length?entries.map(entry=><article key={entry.id} className="rounded-xl border bg-white p-3"><div className="flex flex-wrap justify-between gap-2"><b className="text-sm">{entry.entry_type==="diagnosis"?"Diagnostic":entry.entry_type==="follow_up"?"Suivi":"Observation"}</b><time className="text-xs text-slate-500">{new Date(entry.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-2 whitespace-pre-wrap text-sm">{entry.content}</p></article>):<p className="text-sm text-slate-500">Aucune mise à jour supplémentaire.</p>}</div>
+      <div className="space-y-2"><b className="text-sm">Historique clinique</b>{entries.length?entries.map(entry=><article key={entry.id} className="rounded-xl border bg-white p-3"><div className="flex flex-wrap justify-between gap-2"><b className="text-sm">{entry.entry_type==="diagnosis"?"Diagnostic":entry.entry_type==="follow_up"?"Suivi":entry.entry_type==="measurement"?"Mesure reçue automatiquement":"Observation"}</b><time className="text-xs text-slate-500">{new Date(entry.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-2 whitespace-pre-wrap text-sm">{entry.content}</p></article>):<p className="text-sm text-slate-500">Aucune mise à jour supplémentaire.</p>}</div>
     </>}
   </section>;
 }
