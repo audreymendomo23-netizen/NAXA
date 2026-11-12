@@ -140,7 +140,6 @@ export function SuiviConnecte() {
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
   const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
   const measurementRefreshTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const bluetoothRestoreAttempted = useRef(false);
 
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
@@ -234,35 +233,6 @@ export function SuiviConnecte() {
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
-  useEffect(() => {
-    if(allowed!==true||bluetoothRestoreAttempted.current||!devices.length) return;
-    const pending=devices.filter(device=>device.active&&device.auto_reconnect&&device.platform_device_id&&consents[deviceCatalog.find(item=>item.key===device.device_key)?.family??""]);
-    if(!pending.length) return;
-    const bluetooth=(navigator as any).bluetooth;
-    if(typeof bluetooth?.getDevices!=="function") return;
-    bluetoothRestoreAttempted.current=true;
-    void (async()=>{
-      try{
-        const permitted:any[]=await bluetooth.getDevices();
-        for(const saved of pending){
-          const device=permitted.find(item=>String(item.id)===saved.platform_device_id);
-          if(!device) continue;
-          try{
-            await startBluetoothSession(device,saved.device_key,false);
-          }catch{
-            await sb.from("suivi_user_devices").update({
-              connection_state:"error",
-              last_error:"Reconnexion automatique impossible; intervention utilisateur requise",
-              updated_at:new Date().toISOString()
-            }).eq("id",saved.id);
-          }
-        }
-      }catch{
-        // Le navigateur peut refuser la découverte hors geste utilisateur.
-        // La reconnexion manuelle reste disponible sans réautorisation implicite.
-      }
-    })();
-  },[allowed,devices,consents,sb]);
 
   useEffect(() => {
     const resumeBluetooth = () => {
