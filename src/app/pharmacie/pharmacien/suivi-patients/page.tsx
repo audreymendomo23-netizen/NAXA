@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
+import { SuiviProfessionalWorkspaceShell } from "@/components/suivi/SuiviProfessionalWorkspaceShell";
 import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
 import { SuiviClinicalCasePanel } from "@/components/suivi/SuiviClinicalCasePanel";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -161,19 +161,15 @@ export default function PharmacienSuiviPatientsPage() {
     latest: measurements.filter(item => item.user_id === owner).sort((a, b) => b.measured_at.localeCompare(a.measured_at))[0] ?? null,
   })).filter(row => !search.trim() || patientLabel(row.owner).toLowerCase().includes(search.trim().toLowerCase()) || row.owner.toLowerCase().includes(search.trim().toLowerCase()));
 
-  return <PharmacienWorkspaceShell activeTab="dispositifs" onNavigate={section => {
-    if (section === "dashboard") window.location.href = "/pharmacie/pharmacien";
-    else if (section === "dispositifs") window.location.href = "/pharmacie/pharmacien/suivi-patients";
-    else window.location.href = `/pharmacie/pharmacien/${section}`;
-  }}>
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0B3D26] px-4 py-4 text-white">
-      <div><a href="/pharmacie/pharmacien" className="text-sm text-emerald-100 hover:text-white">← Espace Pharmacien</a><h1 className="mt-1 text-2xl font-black">Suivi des patients</h1><p className="mt-1 text-sm text-emerald-100">Mesures partagées, consentement et traçabilité des accès.</p></div>
+  return <SuiviProfessionalWorkspaceShell>
+    <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#123D68] px-4 py-4 text-white">
+      <div><a href="/pharmacie/pharmacien" className="text-sm text-blue-100 hover:text-white">← Espace Pharmacien</a><h1 className="mt-1 text-2xl font-black">Suivi des patients</h1><p className="mt-1 text-sm text-emerald-100">Mesures partagées, consentement et traçabilité des accès.</p></div>
       <div className="flex flex-col items-end gap-1"><button type="button" onClick={() => void refresh()} disabled={loading || busy} className="min-h-10 rounded-xl border border-white/30 px-4 py-2 text-sm font-bold disabled:opacity-50">Actualiser</button><span className="text-xs text-emerald-100">{lastUpdated ? `Mis à jour ${new Date(lastUpdated).toLocaleTimeString("fr-FR")}` : "Mise à jour en attente"}</span></div>
     </header>
     <section className="carte space-y-3"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Patients partageant des mesures</p><p className="text-2xl font-black">{owners.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Types partagés</p><p className="text-2xl font-black">{types.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Mesures visibles</p><p className="text-2xl font-black">{measurements.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-sm text-slate-600">Alertes partagées</p><p className="text-2xl font-black">{alerts.length}</p></div></div>
       <p className="text-sm text-slate-600">Les identités sont masquées par défaut. NAXA affiche uniquement les données autorisées. Le professionnel reste responsable de ses appréciations cliniques.</p>
     </section>
-    {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+    {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-blue-900">{notice}</p>}
     {error && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b>Accès ou chargement limité</b><p className="mt-1">{error}</p></div>}
     <section className="carte space-y-4">
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Onglets du suivi patient">
@@ -207,5 +203,5 @@ export default function PharmacienSuiviPatientsPage() {
       </>}
     </section>
     <p className="px-1 text-xs text-slate-500">Le module reste soumis à la vérification professionnelle et à l’autorisation expérimentale existante du suivi connecté. Les données se rafraîchissent via Realtime lorsque disponible et par vérification périodique toutes les 30 secondes. Les alertes affichées sont uniquement celles qui sont liées à des mesures partagées et restent soumises à la migration 192. Le suivi des prescriptions patient exige encore un consentement distinct et un raccordement dédié.</p>
-  </PharmacienWorkspaceShell>;
+  </SuiviProfessionalWorkspaceShell>;
 }
