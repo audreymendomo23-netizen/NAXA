@@ -348,13 +348,18 @@ export default function CaissePage() {
       const { data, error } = await sb.rpc("vente_ticket", { p_vente: venteId });
       if (error || !data?.length) return setMsg("Ticket indisponible ou vente hors périmètre.");
       const { data: payments } = await sb.from("vente_paiements")
-        .select("mode,montant,montant_percu,monnaie_rendue")
+        .select("mode,montant,montant_percu,monnaie_rendue,reference")
         .eq("vente_id", venteId)
         .order("created_at", { ascending: true });
-      const cash = (payments ?? []).filter((row) => row.mode === "especes");
-      const tendered = cash.reduce((sum, row) => sum + (Number(row.montant_percu) || Number(row.montant) || 0), 0);
-      const change = cash.reduce((sum, row) => sum + (Number(row.monnaie_rendue) || 0), 0);
-      setPaiementTicket(cash.length ? { mode: "especes", montant: cash.reduce((sum, row) => sum + Number(row.montant || 0), 0), montant_percu: tendered, monnaie_rendue: change } : null);
+      const clientPayments = (payments ?? []).filter((row) => !String(row.reference ?? "").startsWith("ASSURANCE:"));
+      const tendered = clientPayments.reduce((sum, row) => sum + (Number(row.montant_percu) || Number(row.montant) || 0), 0);
+      const change = clientPayments.reduce((sum, row) => sum + (Number(row.monnaie_rendue) || 0), 0);
+      setPaiementTicket(clientPayments.length ? {
+        mode: String(clientPayments[0].mode),
+        montant: clientPayments.reduce((sum, row) => sum + Number(row.montant || 0), 0),
+        montant_percu: tendered,
+        monnaie_rendue: change,
+      } : null);
       setTicket((data ?? []) as TicketLigne[]);
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     } catch {
@@ -719,7 +724,7 @@ export default function CaissePage() {
           <div className="my-3 border-t border-dashed" />
           <div className="flex justify-between text-sm"><span>Sous-total</span><span>{fcfa(ticket[0].total_brut)}</span></div>
           {ticket[0].remise > 0 && <div className="flex justify-between text-sm"><span>Remise</span><span>-{fcfa(ticket[0].remise)}</span></div>}
-          <div className="mt-2 flex justify-between text-lg font-extrabold"><span>Total payé</span><span>{fcfa(ticket[0].total_net)}</span></div>
+          <div className="mt-2 flex justify-between text-lg font-extrabold"><span>Total vente</span><span>{fcfa(ticket[0].total_net)}</span></div>
           {assuranceTicket && <div className="mt-3 space-y-1 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
             <p className="font-extrabold">Prise en charge · {assuranceTicket.assureur}</p>
             <div className="flex justify-between"><span>Montant brut assuré</span><strong>{fcfa(assuranceTicket.montant_total)}</strong></div>
@@ -729,7 +734,7 @@ export default function CaissePage() {
             <div className="flex justify-between font-extrabold"><span>Créance restante</span><strong>{fcfa(Math.max(0,assuranceTicket.montant_prise_en_charge-assuranceTicket.montant_rembourse))}</strong></div>
             <p className="text-xs text-slate-600">La part assureur n’est pas comptée comme encaissée avant réception effective.</p>
           </div>}
-          <div className="mt-3 space-y-1 text-sm"><div className="flex justify-between"><span>Mode de paiement</span><span>{paiementTicket?.mode === "especes" ? "Espèces" : ticket[0].mode_paiement ?? "—"}</span></div>{paiementTicket?.montant_percu != null && <div className="flex justify-between"><span>Montant reçu</span><span>{fcfa(paiementTicket.montant_percu)}</span></div>}{paiementTicket?.monnaie_rendue != null && <div className="flex justify-between font-bold"><span>Monnaie rendue</span><span>{fcfa(paiementTicket.monnaie_rendue)}</span></div>}</div><p className="mt-3 text-center text-xs">Merci de votre confiance.</p>
+          <div className="mt-3 space-y-1 text-sm"><div className="flex justify-between"><span>Mode de paiement</span><span>{paiementTicket?.mode === "especes" ? "Espèces" : paiementTicket?.mode === "orange_money" ? "Orange Money" : paiementTicket?.mode === "mtn_momo" ? "MTN MoMo" : paiementTicket?.mode === "carte" ? "Carte" : paiementTicket?.mode === "mobile_money" ? "Mobile Money" : paiementTicket?.mode ?? ticket[0].mode_paiement ?? "—"}</span></div>{paiementTicket?.montant_percu != null && <div className="flex justify-between"><span>Montant reçu</span><span>{fcfa(paiementTicket.montant_percu)}</span></div>}{paiementTicket?.monnaie_rendue != null && <div className="flex justify-between font-bold"><span>Monnaie rendue</span><span>{fcfa(paiementTicket.monnaie_rendue)}</span></div>}</div><p className="mt-3 text-center text-xs">Merci de votre confiance.</p>
           <div className="mt-4 flex justify-center gap-2 print:hidden"><button className="btn btn-vert" onClick={() => void printAfterImagesLoaded(document.querySelector(".ticket-print") ?? document)}>Imprimer le ticket</button><button className="btn btn-clair" onClick={() => { setTicket(null); setPaiementTicket(null); }}>Fermer</button></div>
         </section>
       )}
