@@ -976,7 +976,6 @@ export function SuiviConnecte() {
         if(scheduleEditingId)native.cancelMeasurementReminder?.(scheduleEditingId);
         const localDevice=scheduleDeviceId?devices.find(device=>device.id===scheduleDeviceId&&device.active&&device.platform_device_id):null;
         if(localDevice?.platform_device_id){
-          native.requestNotifications?.();
           native.scheduleMeasurementReminder?.(JSON.stringify({
             id:savedSchedule.id,enabled:true,measurementType:selectedType,deviceId:scheduleDeviceId,
             localTime:scheduleTime,timezone:"Africa/Douala",daysOfWeek:scheduleDays,leadMinutes:5,freshnessWindowMinutes:5
@@ -1007,7 +1006,6 @@ export function SuiviConnecte() {
         else{
           const localDevice=schedule.device_id?devices.find(device=>device.id===schedule.device_id&&device.active&&device.platform_device_id):null;
           if(localDevice?.platform_device_id){
-            native.requestNotifications?.();
             native.scheduleMeasurementReminder?.(JSON.stringify({
               id:schedule.id,enabled:true,measurementType:schedule.measurement_type,deviceId:schedule.device_id,
               localTime:schedule.local_time,timezone:schedule.timezone,daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
