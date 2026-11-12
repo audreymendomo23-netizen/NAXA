@@ -65,12 +65,24 @@ jobs:
           hash_index = raw.find("#")
           at_index = raw.rfind("@")
           if hash_index >= 0:
-              if at_index < 0 or hash_index < at_index:
-                  fail("NAXA_DATABASE_URL contains a literal # in the credentials section. Check the URI separators and percent-encoding; the database password has not been tested.")
-              raw = raw[:hash_index]
-              fragment_removed = True
+              if at_index >= 0 and hash_index < at_index:
+                  # Preserve a literal '#' that occurs in the password field by
+                  # percent-encoding it. Never print or otherwise expose credentials.
+                  scheme_end = raw.find("://")
+                  userinfo_start = scheme_end + 3 if scheme_end >= 0 else -1
+                  password_separator = raw.find(":", userinfo_start) if userinfo_start >= 0 else -1
+                  if password_separator < 0 or hash_index < password_separator:
+                      fail("NAXA_DATABASE_URL contains a literal # outside the password field. Verify the URI structure; the database password has not been tested.")
+                  credentials = raw[password_separator + 1:at_index].replace("#", "%23")
+                  raw = raw[:password_separator + 1] + credentials + raw[at_index:]
+                  fragment_removed = True
+              else:
+                  # A '#' after the final @ begins a URI fragment, not a
+                  # PostgreSQL connection parameter; discard only that suffix.
+                  raw = raw[:hash_index]
+                  fragment_removed = True
               if not raw:
-                  fail("NAXA_DATABASE_URL is empty after removing its URI fragment.")
+                  fail("NAXA_DATABASE_URL is empty after URI normalization.")
 
           # Parse the expected Supabase PostgreSQL URI shape explicitly. Reserved
           # delimiters inside credentials must be percent-encoded in a URI.
