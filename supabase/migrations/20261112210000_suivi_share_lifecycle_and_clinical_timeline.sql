@@ -236,8 +236,7 @@ begin
       revoked_at=case when (v_history or v_realtime or v_alerts) then null else v_now end
   where patient_user_id=v_patient and professional_user_id=p_professional_user_id;
 end;
-$;
-
+$$;
 -- Création du dossier et première entrée diagnostique dans une seule transaction.
 create or replace function public.suivi_create_patient_case(
   p_patient_user_id uuid,
