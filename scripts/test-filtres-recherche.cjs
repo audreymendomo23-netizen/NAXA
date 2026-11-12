@@ -57,6 +57,13 @@ test("Notifications : distance et prix sont calculés uniquement depuis les phar
   assert.match(page, /notifierNAXA\(messages\.join\(" "\)\)/);
 });
 
+test("Panier multi-médicaments : les pharmacies partielles ne peuvent pas gagner le classement prix", () => {
+  assert.match(page, /filtered\.filter\(r=>r\.trouves>=r\.demandes\)/);
+  assert.match(page, /completeA=a\.trouves>=a\.demandes,completeB=b\.trouves>=b\.demandes/);
+  assert.match(page, /Aucune pharmacie ne propose tous les médicaments demandés et leurs quantités/);
+  assert.match(page, /Le panier complet demandé est le moins cher chez/);
+});
+
 test("Parcours panier et recherche groupée : le retour sans résultat est aussi explicite", () => {
   assert.match(page, /query\.trim\(\)\|\|basketMode\|\|bulkTerms\.length>0/);
   assert.match(page, /Aucune pharmacie partenaire ne correspond à tous les filtres sélectionnés/);
