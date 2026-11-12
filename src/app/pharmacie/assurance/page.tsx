@@ -51,16 +51,13 @@ export default function AssuranceDashboardPage(){
   const rate=Number(ruleRate),cap=ruleCap.trim()?Number(ruleCap):null,franchise=Number(ruleFranchise);
   if(savingConvention||!selectedPharmacy||!selectedInsurer||!Number.isFinite(rate)||rate<0||rate>100||!Number.isSafeInteger(franchise)||franchise<0||(cap!==null&&(!Number.isSafeInteger(cap)||cap<0)))return;
   setSavingConvention(true);setNotice("");setError("");
-  const sb=supabaseBrowser();
-  const {data:conventionId,error:ce}=await sb.rpc("assurance_enregistrer_convention",{p_pharmacie:selectedPharmacy,p_assureur:selectedInsurer,p_reference:null,p_debut:new Date().toISOString().slice(0,10),p_fin:null});
-  if(ce||typeof conventionId!=="string"){setError("Impossible d’enregistrer la convention pour cette pharmacie.");setSavingConvention(false);return;}
-  const {error:re}=await sb.rpc("assurance_enregistrer_regle",{
-   p_convention:conventionId,p_portee:"tout",p_categorie:null,p_produit:null,p_taux:rate,
-   p_plafond:cap,p_franchise:franchise,p_exclusions:[],p_justificatifs:[],
-   p_debut:new Date().toISOString().slice(0,10),p_fin:null
+  const {data:conventionId,error:ce}=await supabaseBrowser().rpc("assurance_configurer_convention",{
+   p_pharmacie:selectedPharmacy,p_assureur:selectedInsurer,p_reference:null,
+   p_debut:new Date().toISOString().slice(0,10),p_fin:null,
+   p_taux:rate,p_plafond:cap,p_franchise:franchise
   });
-  if(re)setError("Convention créée, mais la règle tarifaire n’a pas été enregistrée. Corrigez-la avant d’activer le devis.");
-  else setNotice("Convention et règle générale enregistrées. Les règles par catégorie ou produit pourront affiner ce taux.");
+  if(ce||typeof conventionId!=="string")setError("Convention et règle non enregistrées. Aucune activation partielle n’a été conservée.");
+  else {setNotice("Convention et règle générale enregistrées ensemble. Les règles par catégorie ou produit pourront ensuite affiner ce taux.");setRuleRate("");setRuleCap("");setRuleFranchise("0");}
   setSavingConvention(false);void load();
  };
  const accepted=dossiers.filter(x=>x.statut==="accepte");
