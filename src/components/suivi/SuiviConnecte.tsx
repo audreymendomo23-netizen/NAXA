@@ -792,7 +792,10 @@ export function SuiviConnecte() {
         discovered.push({service,characteristic});
       } catch { /* Service ou caractéristique absent sur ce modèle. */ }
     }
-    if (!discovered.length) throw new Error("Aucun profil GATT standard décodable n'a été trouvé sur cet appareil.");
+    if (!discovered.length) {
+      try { if(connected.gatt.connected) connected.gatt.disconnect(); } catch { /* Libération best effort du périphérique non pris en charge. */ }
+      throw new Error("Appareil appairé, mais aucun profil Bluetooth standard décodable par NAXA n'a été trouvé. Utilisez la saisie manuelle ou le scan, ou un appareil exposant un profil GATT pris en charge.");
+    }
 
     // Identification du fabricant, du modèle, du firmware et de la batterie
     // lorsque le périphérique expose les services Bluetooth standards.
@@ -972,10 +975,14 @@ export function SuiviConnecte() {
     const bluetooth=(navigator as any).bluetooth;
     if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez la saisie manuelle ou le scan sur cet appareil."); return; }
     setBusy(true); setNotice("Recherche d'un appareil Bluetooth…");
+    let selectedDevice:any=null;
     try {
-      const device=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:OPTIONAL_GATT_SERVICES});
-      await startBluetoothSession(device,deviceKey,true);
+      selectedDevice=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:OPTIONAL_GATT_SERVICES});
+      await startBluetoothSession(selectedDevice,deviceKey,true);
     } catch(error) {
+      if(selectedDevice?.gatt?.connected&&!bluetoothSessions.current.has(String(selectedDevice.id))){
+        try { selectedDevice.gatt.disconnect(); } catch { /* Libération best effort après échec d'initialisation. */ }
+      }
       const message=error instanceof Error ? error.message : "Connexion Bluetooth impossible";
       setNotice(message);
     } finally { setBusy(false); }
@@ -1116,6 +1123,7 @@ export function SuiviConnecte() {
           <p className="mt-2 text-sm"><span className={"inline-flex rounded-full px-3 py-1 font-bold "+(selectedSavedDevice?.active?"bg-[#E5F4E9] text-[#064B2A]":"bg-slate-100 text-slate-600")}>{selectedSavedDevice?.active?"Actif":"Inactif"}</span></p>
           <button type="button" disabled={busy} onClick={async()=>{await toggleDevice(selectedDevice);}} className={"mt-4 min-h-11 w-full rounded-xl px-4 font-bold text-white disabled:opacity-40 "+(selectedSavedDevice?.active?"bg-slate-700":"bg-[#0A6B3A]")}>{selectedSavedDevice?.active?"Désactiver":"Activer ce dispositif"}</button>
           {selectedSavedDevice?.active&&<button type="button" disabled={busy||!consents[selectedDevice.family]} onClick={()=>void connectDeviceBluetooth(selectedDevice.key)} className="mt-2 min-h-11 w-full rounded-xl border border-[#0A6B3A] px-4 font-bold text-[#0A6B3A] disabled:opacity-40">{selectedDeviceInstances.length>0?"Connecter / ajouter un autre appareil Bluetooth":"Connecter un appareil Bluetooth"}</button>}
+          <p className="mt-2 rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">La reconnexion automatique dépend du navigateur et de l’autorisation Bluetooth déjà accordée. Sur le Web, NAXA ne maintient pas une connexion Bluetooth en arrière-plan lorsque l’espace est fermé ou suspendu par le système. Les profils GATT propriétaires non décodés restent accessibles par saisie manuelle ou scan.</p>
           {selectedDeviceInstances.length>0&&<div className="mt-3 space-y-2"><p className="text-sm font-bold">Appareils associés ({selectedDeviceInstances.length})</p>{selectedDeviceInstances.map(instance=><article key={instance.id} className="rounded-xl border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{instance.device_model||instance.device_name}</b><span className={"rounded-full px-2 py-1 text-xs font-bold "+(instance.connection_state==="connected"?"bg-emerald-100 text-emerald-800":"bg-slate-200 text-slate-700")}>{instance.connection_state==="connected"?"Connecté":instance.connection_state==="error"?"Erreur":instance.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-500">{instance.protocol||"Protocole non identifié"} · Reconnexion auto : {instance.auto_reconnect?"activée":"désactivée"}</p><p className="mt-1 text-xs text-slate-500">{instance.firmware_version?"Firmware : "+instance.firmware_version+" · ":""}{typeof instance.metadata?.battery_level==="number"?"Batterie : "+instance.metadata.battery_level+"%":"Niveau de batterie non communiqué"}</p><p className="mt-1 text-xs text-slate-500">Dernière mesure : {instance.last_measurement_at?new Date(instance.last_measurement_at).toLocaleString("fr-FR"):"aucune mesure reçue"}</p><div className="mt-2 flex flex-wrap gap-2">{instance.connection_state!=="connected"&&instance.active&&<button type="button" disabled={busy} onClick={()=>void reconnectDeviceInstance(instance)} className="min-h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold text-emerald-800 disabled:opacity-40">Reconnecter</button>}<button type="button" disabled={busy} onClick={()=>void removeDeviceInstance(instance)} className="min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Retirer cet appareil</button></div></article>)}</div>}
           <button type="button" onClick={()=>{setSelectedType(types.find(type=>type.family===selectedDevice.family)?.key??selectedType);setSelectedDeviceKey(null);setActiveTab("Configurations");setConfigurationPage("mesures");setMeasurementSheetOpen(true);}} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-4 font-bold">Ajouter une mesure</button>
         </section>
