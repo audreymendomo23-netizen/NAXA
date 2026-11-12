@@ -1,0 +1,130 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase/client";
+
+type Pharmacy = { pharmacie_id: string; pharmacie_nom: string };
+type Account = { id: string; code: string; libelle: string; classe: number | null; statut: string; source_validation: string | null; valide_le: string | null };
+type Mapping = { id: string; evenement_type: string; sens: "debit" | "credit"; compte_id: string | null; compte_code: string | null; compte_libelle: string | null; statut: string; valide_du: string | null; valide_jusquau: string | null };
+type PlanData = { comptes: Account[]; mappings: Mapping[]; ecriture_autorisee: boolean; pharmacie_id: string };
+
+export function ComptaPlanManager({ pharmacies, initialPharmacy, initialData, role }: {
+  pharmacies: Pharmacy[]; initialPharmacy: string; initialData: PlanData | null; role: "promoteur" | "comptable";
+}) {
+  const router = useRouter();
+  const [pharmacyId, setPharmacyId] = useState(initialPharmacy);
+  const [data, setData] = useState<PlanData | null>(initialData);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [code, setCode] = useState("");
+  const [libelle, setLibelle] = useState("");
+  const [classe, setClasse] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [sens, setSens] = useState<"debit" | "credit">("debit");
+  const [compteId, setCompteId] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [validUntil, setValidUntil] = useState("");
+
+  const validatedAccounts = useMemo(() => (data?.comptes ?? []).filter(a => a.statut === "valide"), [data]);
+
+  async function reload(id = pharmacyId) {
+    if (!id) { setData(null); return; }
+    const { data: result, error: rpcError } = await supabaseBrowser().rpc("compta_plan_lire", { p_pharmacie: id });
+    if (rpcError) throw rpcError;
+    setData(result as PlanData);
+  }
+
+  useEffect(() => {
+    if (!pharmacyId) return;
+    void reload(pharmacyId).catch(e => setError(e instanceof Error ? e.message : "Chargement impossible."));
+    // pharmacy selection is the only trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pharmacyId]);
+
+  async function run(action: () => Promise<void>, success: string) {
+    setBusy(true); setError(""); setNotice("");
+    try { await action(); await reload(); setNotice(success); router.refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Opération comptable impossible."); }
+    finally { setBusy(false); }
+  }
+
+  async function saveAccount(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    await run(async () => {
+      const { error: rpcError } = await supabaseBrowser().rpc("compta_plan_enregistrer_compte", {
+        p_pharmacie: pharmacyId, p_id: null, p_code: code.trim(), p_libelle: libelle.trim(),
+        p_classe: classe ? Number(classe) : null,
+      });
+      if (rpcError) throw rpcError;
+      setCode(""); setLibelle(""); setClasse("");
+    }, "Compte enregistré en attente de validation.");
+  }
+
+  async function validateAccount(id: string) {
+    await run(async () => {
+      const { error: rpcError } = await supabaseBrowser().rpc("compta_plan_valider_compte", { p_pharmacie: pharmacyId, p_compte: id });
+      if (rpcError) throw rpcError;
+    }, "Compte validé.");
+  }
+
+  async function saveMapping(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    await run(async () => {
+      const { error: rpcError } = await supabaseBrowser().rpc("compta_plan_enregistrer_mapping", {
+        p_pharmacie: pharmacyId, p_id: null, p_evenement_type: eventType.trim(), p_sens: sens,
+        p_compte: compteId, p_valide_du: validFrom || null, p_valide_jusquau: validUntil || null,
+      });
+      if (rpcError) throw rpcError;
+      setEventType(""); setCompteId(""); setValidFrom(""); setValidUntil("");
+    }, "Mapping enregistré en attente de validation.");
+  }
+
+  async function validateMapping(id: string) {
+    await run(async () => {
+      const { error: rpcError } = await supabaseBrowser().rpc("compta_plan_valider_mapping", { p_pharmacie: pharmacyId, p_mapping: id });
+      if (rpcError) throw rpcError;
+    }, "Mapping validé.");
+  }
+
+  const canWrite = data?.ecriture_autorisee === true;
+  return <div className="space-y-5">
+    {role === "promoteur" && pharmacies.length > 1 ? <label className="block rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold">Pharmacie du réseau
+      <select className="mt-2 w-full rounded-lg border border-slate-300 p-3" value={pharmacyId} onChange={e => setPharmacyId(e.target.value)}>
+        {pharmacies.map(p => <option key={p.pharmacie_id} value={p.pharmacie_id}>{p.pharmacie_nom}</option>)}
+      </select>
+    </label> : pharmacies.length === 1 ? <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm">Pharmacie : <strong>{pharmacies[0].pharmacie_nom}</strong></p> : null}
+
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-extrabold">Plan comptable</h2><span className={canWrite ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800" : "rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"}>{canWrite ? "Écriture & validation autorisées" : "Lecture seulement"}</span></div>
+      {canWrite && <form onSubmit={saveAccount} className="mt-4 grid gap-3 sm:grid-cols-4">
+        <input required maxLength={32} className="rounded-lg border p-3" placeholder="Code du compte" value={code} onChange={e => setCode(e.target.value)} />
+        <input required maxLength={180} className="rounded-lg border p-3 sm:col-span-2" placeholder="Libellé" value={libelle} onChange={e => setLibelle(e.target.value)} />
+        <select className="rounded-lg border p-3" value={classe} onChange={e => setClasse(e.target.value)}><option value="">Classe (facultatif)</option>{[1,2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>Classe {n}</option>)}</select>
+        <button disabled={busy} className="rounded-lg bg-naxa-green-900 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:col-span-4">Ajouter un compte</button>
+      </form>}
+      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead><tr className="border-b text-xs uppercase text-slate-500"><th className="p-2">Code</th><th className="p-2">Libellé</th><th className="p-2">Classe</th><th className="p-2">État</th><th className="p-2">Action</th></tr></thead><tbody>
+        {(data?.comptes ?? []).map(a => <tr key={a.id} className="border-b last:border-0"><td className="p-2 font-semibold">{a.code}</td><td className="p-2">{a.libelle}</td><td className="p-2">{a.classe ?? "—"}</td><td className="p-2">{a.statut === "valide" ? "Validé" : a.statut === "a_valider" ? "À valider" : a.statut}</td><td className="p-2">{canWrite && a.statut === "a_valider" ? <button disabled={busy} onClick={() => void validateAccount(a.id)} className="rounded-lg border border-emerald-700 px-3 py-2 text-xs font-bold text-emerald-900 disabled:opacity-50">Valider</button> : "—"}</td></tr>)}
+        {(!data?.comptes?.length) && <tr><td colSpan={5} className="p-4 text-slate-500">Aucun compte enregistré.</td></tr>}
+      </tbody></table></div>
+    </section>
+
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <h2 className="text-lg font-extrabold">Mappings débit / crédit</h2>
+      {canWrite && <form onSubmit={saveMapping} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <input required maxLength={100} className="rounded-lg border p-3" placeholder="Type d’événement (ex. vente_payee)" value={eventType} onChange={e => setEventType(e.target.value)} />
+        <select className="rounded-lg border p-3" value={sens} onChange={e => setSens(e.target.value as "debit" | "credit")}><option value="debit">Débit</option><option value="credit">Crédit</option></select>
+        <select required className="rounded-lg border p-3 sm:col-span-2" value={compteId} onChange={e => setCompteId(e.target.value)}><option value="">Choisir un compte validé</option>{validatedAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.libelle}</option>)}</select>
+        <label className="text-sm">Valide à partir du<input type="date" className="mt-1 w-full rounded-lg border p-3" value={validFrom} onChange={e => setValidFrom(e.target.value)} /></label>
+        <label className="text-sm">Valide jusqu’au<input type="date" className="mt-1 w-full rounded-lg border p-3" value={validUntil} onChange={e => setValidUntil(e.target.value)} /></label>
+        <button disabled={busy || !validatedAccounts.length} className="rounded-lg bg-naxa-green-900 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:col-span-2">Ajouter le mapping</button>
+      </form>}
+      <div className="mt-4 space-y-2">{(data?.mappings ?? []).map(m => <article key={m.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><p className="font-semibold">{m.evenement_type} · {m.sens === "debit" ? "Débit" : "Crédit"}</p><p className="text-slate-600">{m.compte_code ?? "Compte absent"} — {m.compte_libelle ?? ""}</p><p className="text-xs text-slate-500">{m.statut === "valide" ? "Validé" : m.statut === "a_valider" ? "À valider" : m.statut} · {m.valide_du ?? "sans début"} → {m.valide_jusquau ?? "sans fin"}</p></div>{canWrite && m.statut === "a_valider" ? <button disabled={busy} onClick={() => void validateMapping(m.id)} className="rounded-lg border border-emerald-700 px-3 py-2 text-xs font-bold text-emerald-900 disabled:opacity-50">Valider mapping</button> : null}</article>)}
+        {!data?.mappings?.length && <p className="text-sm text-slate-500">Aucun mapping enregistré.</p>}</div>
+    </section>
+    {!canWrite && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Votre accès est en lecture seule. Le Promoteur peut partager le droit d’écriture depuis « Droits comptables » ; ce retrait n’efface aucune donnée.</p>}
+    {notice && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+    {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+  </div>;
+}
