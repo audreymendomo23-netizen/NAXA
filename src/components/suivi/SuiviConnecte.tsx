@@ -414,8 +414,8 @@ export function SuiviConnecte() {
     const result=instances.length
       ? await sb.from("suivi_user_devices").update({
           active:shouldActivate,
-          auto_reconnect:shouldActivate,
-          connection_state:shouldActivate?"disconnected":"disconnected",
+          auto_reconnect:false,
+          connection_state:"disconnected",
           updated_at:new Date().toISOString()
         }).eq("user_id",userData.user.id).eq("device_key",device.key)
       : await sb.from("suivi_user_devices").insert({
@@ -425,6 +425,17 @@ export function SuiviConnecte() {
         });
     if(result.error)setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
     else{
+      if(shouldActivate){
+        for(const instance of instances){
+          if(instance.platform_device_id){
+            await sb.from("suivi_user_devices").update({auto_reconnect:true,connection_state:"disconnected"})
+              .eq("id",instance.id).eq("user_id",userData.user.id);
+          }else{
+            await sb.from("suivi_user_devices").update({connection_state:"unpaired"})
+              .eq("id",instance.id).eq("user_id",userData.user.id);
+          }
+        }
+      }
       const {data}=await sb.from("suivi_user_devices")
         .select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at")
         .eq("user_id",userData.user.id).order("created_at",{ascending:true});
