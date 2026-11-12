@@ -108,6 +108,7 @@ export function SuiviConnecte() {
   const [scheduleTime, setScheduleTime] = useState("07:00");
   const [scheduleDays, setScheduleDays] = useState<number[]>([0,1,2,3,4,5,6]);
   const [scheduleDeviceId, setScheduleDeviceId] = useState("");
+  const [scheduleEditingId,setScheduleEditingId]=useState<string|null>(null);
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [alerts, setAlerts] = useState<TrackingAlert[]>([]);
   const [minThreshold, setMinThreshold] = useState("");
@@ -416,15 +417,27 @@ export function SuiviConnecte() {
     setConsents(p=>({...p,[family]:grant}));
     if (!grant) {
       const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
+      const familyDeviceIds=devices.filter(device=>keys.includes(device.device_key)).map(device=>device.id);
+      for(const [deviceId,session] of bluetoothSessions.current.entries()){
+        const saved=devices.find(device=>device.platform_device_id===deviceId);
+        if(!saved||!keys.includes(saved.device_key)) continue;
+        if(session.retryTimer) window.clearTimeout(session.retryTimer);
+        bluetoothSessions.current.delete(deviceId);
+        try { if(session.device?.gatt?.connected) session.device.gatt.disconnect(); } catch { /* Appareil déjà déconnecté. */ }
+      }
       const { error: deviceError } = await sb
         .from("suivi_user_devices")
-        .update({ active:false, updated_at:new Date().toISOString() })
+        .update({active:false,auto_reconnect:false,connection_state:"disconnected",updated_at:new Date().toISOString()})
         .eq("user_id", userData.user.id)
         .in("device_key", keys);
+      await sb.from("suivi_measurement_schedules")
+        .update({enabled:false,updated_at:new Date().toISOString()})
+        .eq("user_id",userData.user.id)
+        .in("device_id",familyDeviceIds);
       await load();
       setNotice(deviceError
-        ? "Consentement retiré et nouvelles saisies bloquées. Certains dispositifs n’ont pas pu être désactivés; réessayez de les désactiver depuis le catalogue."
-        : "Consentement retiré. Les dispositifs de cette famille sont désactivés et les nouvelles saisies sont bloquées.");
+        ? "Consentement retiré, sessions locales arrêtées et nouvelles saisies bloquées. Certains enregistrements d’appareils restent à désactiver."
+        : "Consentement retiré. Les sessions Bluetooth sont arrêtées, les reconnexions coupées et les programmations liées aux appareils désactivées.");
     }
     setBusy(false);
   }
@@ -490,20 +503,42 @@ export function SuiviConnecte() {
     setBusy(true); setNotice("");
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
-    const {error}=await sb.from("suivi_measurement_schedules").insert({
+    const payload={
       user_id:userData.user.id,measurement_type:selectedType,
       device_id:scheduleDeviceId||null,local_time:scheduleTime,timezone:"Africa/Douala",
-      days_of_week:scheduleDays,lead_minutes:5,freshness_window_minutes:5,enabled:true
-    });
+      days_of_week:scheduleDays,lead_minutes:5,freshness_window_minutes:5,
+      enabled:true,updated_at:new Date().toISOString()
+    };
+    const {error}=scheduleEditingId
+      ? await sb.from("suivi_measurement_schedules").update(payload).eq("id",scheduleEditingId).eq("user_id",userData.user.id)
+      : await sb.from("suivi_measurement_schedules").insert(payload);
     if(error) setNotice("Programmation non enregistrée. Vérifiez la migration du calendrier de suivi et le consentement.");
-    else {setScheduleDeviceId("");setNotice("Prise programmée. NAXA contrôlera la fraîcheur des données à H-5.");await load();}
+    else {setScheduleDeviceId("");setScheduleEditingId(null);setNotice(scheduleEditingId?"Programmation modifiée. Le contrôle H-5 conserve son échéance.":"Prise programmée. NAXA contrôlera la fraîcheur des données à H-5.");await load();}
     setBusy(false);
   }
 
-  async function disableMeasurementSchedule(id:string) {
-    const {error}=await sb.from("suivi_measurement_schedules").update({enabled:false,updated_at:new Date().toISOString()}).eq("id",id);
-    setNotice(error?"Impossible de désactiver cette programmation.":"Programmation désactivée.");
+  async function toggleMeasurementSchedule(schedule:MeasurementSchedule) {
+    const {error}=await sb.from("suivi_measurement_schedules")
+      .update({enabled:!schedule.enabled,updated_at:new Date().toISOString()})
+      .eq("id",schedule.id);
+    setNotice(error?"Impossible de modifier cette programmation.":schedule.enabled?"Programmation désactivée.":"Programmation réactivée.");
     if(!error) await load();
+  }
+
+  function editMeasurementSchedule(schedule:MeasurementSchedule){
+    setSelectedType(schedule.measurement_type);
+    setScheduleTime(String(schedule.local_time).slice(0,5));
+    setScheduleDays(schedule.days_of_week??[0,1,2,3,4,5,6]);
+    setScheduleDeviceId(schedule.device_id??"");
+    setScheduleEditingId(schedule.id);
+    setActiveTab("Configurations");
+    setConfigurationPage("rappels");
+    setNotice("Programmation chargée dans le formulaire. Enregistrez pour appliquer vos changements.");
+  }
+
+  function cancelScheduleEdit(){
+    setScheduleEditingId(null);setScheduleDeviceId("");
+    setScheduleTime("07:00");setScheduleDays([0,1,2,3,4,5,6]);
   }
 
   async function shareSelectedType() {
@@ -892,8 +927,8 @@ export function SuiviConnecte() {
             <div className="mt-3"><p className="text-sm font-semibold">Jours de prise</p><div className="mt-2 flex flex-wrap gap-2">{[{d:1,l:"Lun"},{d:2,l:"Mar"},{d:3,l:"Mer"},{d:4,l:"Jeu"},{d:5,l:"Ven"},{d:6,l:"Sam"},{d:0,l:"Dim"}].map(item=><button key={item.d} type="button" aria-pressed={scheduleDays.includes(item.d)} onClick={()=>setScheduleDays(prev=>prev.includes(item.d)?prev.filter(d=>d!==item.d):[...prev,item.d].sort())} className={"min-h-10 rounded-lg border px-3 text-sm font-bold "+(scheduleDays.includes(item.d)?"border-emerald-700 bg-emerald-700 text-white":"border-slate-300 bg-white text-slate-700")}>{item.l}</button>)}</div></div>
             <label className="mt-3 block text-sm font-semibold">Appareil associé (facultatif)<select value={scheduleDeviceId} onChange={e=>setScheduleDeviceId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="">Toutes les sources de cette mesure</option>{devices.filter(d=>d.active).map(d=><option key={d.id} value={d.id}>{d.device_name}</option>)}</select></label>
             <p className="mt-2 text-xs text-emerald-900">Fuseau : Africa/Douala · Rappel : 5 min avant · Fraîcheur exigée : 5 min. Modifiez vos heures selon votre programme de suivi.</p>
-            <button type="button" disabled={busy||!selectedConsent} onClick={()=>void saveMeasurementSchedule()} className="mt-3 min-h-11 w-full rounded-xl bg-emerald-800 px-4 font-bold text-white disabled:opacity-40">Enregistrer cette programmation</button>
-            {measurementSchedules.length>0&&<div className="mt-4 space-y-2">{measurementSchedules.map(schedule=><article key={schedule.id} className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><strong>{types.find(t=>t.key===schedule.measurement_type)?.label??schedule.measurement_type} · {String(schedule.local_time).slice(0,5)}</strong><p className="text-xs text-slate-600">{(schedule.days_of_week??[]).map(d=>["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d]).join(", ")} · H-5 · {schedule.timezone}</p></div>{schedule.enabled&&<button type="button" onClick={()=>void disableMeasurementSchedule(schedule.id)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Désactiver</button>}</div></article>)}</div>}
+            <button type="button" disabled={busy||!selectedConsent} onClick={()=>void saveMeasurementSchedule()} className="mt-3 min-h-11 w-full rounded-xl bg-emerald-800 px-4 font-bold text-white disabled:opacity-40">{scheduleEditingId?"Enregistrer les modifications":"Enregistrer cette programmation"}</button>{scheduleEditingId&&<button type="button" onClick={cancelScheduleEdit} className="mt-2 min-h-10 w-full rounded-xl border px-4 text-sm font-bold">Annuler la modification</button>}
+            {measurementSchedules.length>0&&<div className="mt-4 space-y-2">{measurementSchedules.map(schedule=><article key={schedule.id} className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><strong>{types.find(t=>t.key===schedule.measurement_type)?.label??schedule.measurement_type} · {String(schedule.local_time).slice(0,5)}</strong><p className="text-xs text-slate-600">{(schedule.days_of_week??[]).map(d=>["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d]).join(", ")} · H-5 · {schedule.timezone}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>editMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{schedule.enabled?"Désactiver":"Réactiver"}</button></div></div></article>)}</div>}
           </div>
           <div className="mt-4 border-t border-slate-200 pt-4"><h3 className="font-bold">Rappels personnels supplémentaires</h3>
           <label className="mt-3 block text-sm font-semibold">Titre<input value={reminderTitle} onChange={e=>setReminderTitle(e.target.value)} maxLength={160} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder={"Ex. Relever ma mesure"}/></label>
