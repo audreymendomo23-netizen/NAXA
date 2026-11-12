@@ -417,6 +417,7 @@ export function SuiviConnecte() {
     setConsents(p=>({...p,[family]:grant}));
     if (!grant) {
       const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
+      const familyMeasurementTypes=types.filter(type=>type.family===family).map(type=>type.key);
       const familyDeviceIds=devices.filter(device=>keys.includes(device.device_key)).map(device=>device.id);
       for(const [deviceId,session] of bluetoothSessions.current.entries()){
         const saved=devices.find(device=>device.platform_device_id===deviceId);
@@ -430,10 +431,11 @@ export function SuiviConnecte() {
         .update({active:false,auto_reconnect:false,connection_state:"disconnected",updated_at:new Date().toISOString()})
         .eq("user_id", userData.user.id)
         .in("device_key", keys);
-      await sb.from("suivi_measurement_schedules")
+      let scheduleQuery=sb.from("suivi_measurement_schedules")
         .update({enabled:false,updated_at:new Date().toISOString()})
-        .eq("user_id",userData.user.id)
-        .in("device_id",familyDeviceIds);
+        .eq("user_id",userData.user.id);
+      if(familyMeasurementTypes.length) scheduleQuery=scheduleQuery.in("measurement_type",familyMeasurementTypes);
+      await scheduleQuery;
       await load();
       setNotice(deviceError
         ? "Consentement retiré, sessions locales arrêtées et nouvelles saisies bloquées. Certains enregistrements d’appareils restent à désactiver."
@@ -726,6 +728,10 @@ export function SuiviConnecte() {
           for(const entry of discovered) {
             if((entry.characteristic as any).properties?.notify || (entry.characteristic as any).properties?.indicate) {
               await entry.characteristic.startNotifications();
+            }
+            if((entry.characteristic as any).properties?.read) {
+              try { const latest=await entry.characteristic.readValue(); await persist(entry.service,entry.characteristic,latest); }
+              catch { /* Le flux notifié reste disponible même si la lecture ponctuelle échoue. */ }
             }
           }
         } catch {
