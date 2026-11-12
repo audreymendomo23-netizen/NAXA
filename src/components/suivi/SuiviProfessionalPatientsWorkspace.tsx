@@ -36,6 +36,7 @@ export function SuiviProfessionalPatientsWorkspace() {
   const [shares, setShares] = useState<Share[]>([]);
   const [clinicalCasePatientIds,setClinicalCasePatientIds]=useState<string[]>([]);
   const [activeClinicalCasePatientIds,setActiveClinicalCasePatientIds]=useState<string[]>([]);
+  const [carePatientIds,setCarePatientIds]=useState<string[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [sharedDevices,setSharedDevices]=useState<SharedDevice[]>([]);
   const [alerts, setAlerts] = useState<SharedAlert[]>([]);
@@ -61,26 +62,37 @@ export function SuiviProfessionalPatientsWorkspace() {
       .eq("recipient_user_id", userId).eq("active", true).is("revoked_at", null)
       .order("granted_at", { ascending: false }).limit(500);
     if (shareError) {
-      setShares([]); setMeasurements([]); setSharedDevices([]); setAlerts([]);setClinicalCasePatientIds([]);setLastUpdated(new Date().toISOString());
+      setShares([]); setMeasurements([]); setSharedDevices([]); setAlerts([]);setClinicalCasePatientIds([]);setActiveClinicalCasePatientIds([]);setCarePatientIds([]);setLastUpdated(new Date().toISOString());
       setError("Les partages ne sont pas accessibles. Vérifiez les migrations du suivi, le statut du professionnel et le consentement du patient.");
       setBusy(false); return;
     }
     const activeShares = (data ?? []) as Share[];
     setShares(activeShares);
-    const owners = [...new Set(activeShares.map(item => item.owner_user_id))];
-    const types = [...new Set(activeShares.map(item => item.measurement_type))];
-    if (!owners.length || !types.length) {
-      setMeasurements([]);setSharedDevices([]);setAlerts([]);setClinicalCasePatientIds([]);setActiveClinicalCasePatientIds([]);setAlertError("");setLastUpdated(new Date().toISOString());
-      setNotice("Aucun patient ne partage actuellement de mesure avec ce compte.");
-      setBusy(false); return;
+    const {data:caseStates,error:caseStateError}=await sb.rpc("suivi_list_professional_case_states");
+    if(caseStateError){
+      setMeasurements([]);setSharedDevices([]);setAlerts([]);setClinicalCasePatientIds([]);setActiveClinicalCasePatientIds([]);setCarePatientIds([]);
+      setError("Les liens de suivi clinique ne sont pas accessibles. Vérifiez la migration de séparation des droits.");
+      setBusy(false);return;
     }
-    const {data:caseRows,error:caseError}=await sb.from("suivi_patient_cases")
-      .select("patient_user_id,status").in("patient_user_id",owners)
-      .eq("professional_user_id",userId);
-    const existingCaseOwners=caseError?[]:[...new Set((caseRows??[]).map(row=>row.patient_user_id))];
-    const activeCaseOwners=caseError?[]:[...new Set((caseRows??[]).filter(row=>row.status==="active").map(row=>row.patient_user_id))];
+    const stateRows=(caseStates??[]) as {patient_user_id:string;case_status:string|null;clinical_notes_access:boolean}[];
+    const careIds=[...new Set(stateRows.map(row=>row.patient_user_id))];
+    setCarePatientIds(careIds);
+    const owners=[...new Set([...activeShares.map(item=>item.owner_user_id),...careIds])];
+    const types=[...new Set(activeShares.map(item=>item.measurement_type))];
+    const existingCaseOwners=[...new Set(stateRows.filter(row=>row.case_status!==null).map(row=>row.patient_user_id))];
+    const activeCaseOwners=[...new Set(stateRows.filter(row=>row.case_status==="active").map(row=>row.patient_user_id))];
     setClinicalCasePatientIds(existingCaseOwners);
     setActiveClinicalCasePatientIds(activeCaseOwners);
+    if(!owners.length){
+      setMeasurements([]);setSharedDevices([]);setAlerts([]);setClinicalCasePatientIds([]);setActiveClinicalCasePatientIds([]);setCarePatientIds([]);setAlertError("");setLastUpdated(new Date().toISOString());
+      setNotice("Aucun patient ne partage actuellement de mesure ou de dossier clinique avec ce compte.");
+      setBusy(false);return;
+    }
+    if(!types.length){
+      setMeasurements([]);setSharedDevices([]);setAlerts([]);setAlertError("");setLastUpdated(new Date().toISOString());
+      setNotice("Aucun type de mesure actif. Les dossiers cliniques autorisés restent consultables.");
+      setBusy(false);return;
+    }
     const { data: rows, error: measurementError } = await sb.from("suivi_measurements")
       .select("id,user_id,measurement_type,value_numeric,value_text,unit,measured_at,source,note")
       .in("user_id", owners).in("measurement_type", types)
@@ -145,7 +157,7 @@ export function SuiviProfessionalPatientsWorkspace() {
     const poll=window.setInterval(()=>{void loadSharedData(recipientId);},30000);
     return ()=>{window.clearInterval(poll);void sb.removeChannel(channel);};
   },[sb,recipientId,loadSharedData]);
-  const owners = [...new Set(shares.map(item => item.owner_user_id))];
+  const owners = [...new Set([...shares.map(item => item.owner_user_id),...carePatientIds])];
   const types = [...new Set(shares.map(item => item.measurement_type))].sort();
   const selectedPatient = selectedPatientId && owners.includes(selectedPatientId) ? selectedPatientId : null;
   const periodNow=new Date();
