@@ -133,3 +133,16 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Contrôle Replay : `assurance_enregistrer_regle` est exécutable par `authenticated`, non exécutable par `anon`; RLS est active sur `assurance_regles_convention`, avec lecture filtrée par le périmètre pharmacie. Les mutations directes restent interdites et passent par la RPC qui vérifie le poste actif et le périmètre.
 - Le test structurel Assurance est complété pour vérifier ces garde-fous. La validation par JWT réel reste à faire : Replay ne dispose toujours pas de comptes Promoteur/Pharmacien affectés permettant de tester l'enregistrement des règles dans l'interface.
 - Aucun changement de schéma ni migration supplémentaire n'a été nécessaire : les tables et RPC de règles existaient déjà sur Replay. Aucun changement Production ni déploiement.
+
+
+## Contrôle ciblé des règles et des événements comptables — 12 novembre 2026
+
+- Priorité du calcul : règle produit, puis catégorie (comparaison insensible à la casse), puis règle globale.
+- Calcul par ligne : taux conventionnel, plafond par ligne, franchise, puis plafond restant de la couverture.
+- Une exclusion produit/catégorie met la ligne à zéro avant toute consommation du plafond global ; les exclusions de catégorie sont comparées sans tenir compte de la casse.
+- Le devis crée un snapshot et un dossier brouillon, mais aucun événement comptable.
+- La confirmation pharmacie, après accord client et contrôle documentaire conforme, crée l'événement idempotent `assurance_prise_en_charge` (créance assureur).
+- Seul l'enregistrement d'un remboursement réellement reçu crée `assurance_remboursement_recu`; le remboursement partiel ne solde pas la créance.
+- Migration Replay : `20261112191000_assurance_exclusion_consumption_guard` et `20261112192000_assurance_confirmation_creance_comptable`.
+- Test ciblé : `supabase/tests/202611121_assurance_rule_precedence_calculation.sql` — contrat de priorité, calcul, exclusions/plafond et frontières comptables. Exécuté sur Replay avec succès.
+- Limite : ce test est un contrat SQL/structurel et un calcul de cas synthétiques ; il ne remplace pas un parcours E2E authentifié avec un vrai client, une pharmacie, une convention et un règlement.
