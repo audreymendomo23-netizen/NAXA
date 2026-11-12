@@ -63,30 +63,15 @@ export async function assignExamStaff(form:FormData){
   const identifier=textValue(form,"identifier",120);
   const roleKey=textValue(form,"role_key",80);
   const path=BASE+"/personnel";
-  const {sb,user}=await requireActor(centerId,["staff_manage"],path);
+  const {sb}=await requireActor(centerId,["staff_manage"],path);
   if(identifier.length<3||!ROLE_KEYS.includes(roleKey as typeof ROLE_KEYS[number])) fail(path,centerId);
-  let profile:any=null;
-  try{
-    const admin=supabaseAdmin();
-    const byUsername=await admin.from("profiles").select("id,username,first_name,last_name,phone,actif").eq("username",identifier).maybeSingle();
-    profile=byUsername.data;
-    if(!profile){
-      const byPhone=await admin.from("profiles").select("id,username,first_name,last_name,phone,actif").eq("phone",identifier).maybeSingle();
-      profile=byPhone.data;
-    }
-  }catch{
-    fail(path,centerId);
-  }
-  if(!profile?.id||profile.actif!==true||profile.id===user.id) fail(path,centerId);
-  const {data:existing}=await sb.from("exam_staff_assignments").select("id,role_key,active_role")
-    .eq("center_id",centerId).eq("user_id",profile.id).eq("is_active",true).is("revoked_at",null);
-  if((existing??[]).some((row:any)=>row.role_key===roleKey)) fail(path,centerId);
-  const makeActive=!(existing??[]).some((row:any)=>row.active_role);
-  const {error}=await sb.from("exam_staff_assignments").insert({
-    center_id:centerId,user_id:profile.id,role_key:roleKey,is_active:true,
-    active_role:makeActive,assigned_by:user.id,note:null
+
+  const {data,error}=await sb.rpc("exam_assign_existing_staff",{
+    p_center_id:centerId,
+    p_identifier:identifier,
+    p_role_key:roleKey
   });
-  if(error) fail(path,centerId);
+  if(error||!data?.assigned||data.center_id!==centerId) fail(path,centerId);
   finish(path,centerId,"affectation");
 }
 
