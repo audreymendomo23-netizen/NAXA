@@ -138,6 +138,7 @@ class NaxaReminderReceiver : AndroidBroadcastReceiver() {
         val id = intent.getStringExtra("scheduleId") ?: return
         val prefs = context.getSharedPreferences("naxa_suivi_reminders", Context.MODE_PRIVATE)
         val raw = prefs.getString("schedule_" + id, null) ?: return
+        if(!NaxaReminderScheduler.notificationsEnabled(context))return
         try {
             val json = JSONObject(raw)
             if (!json.optBoolean("enabled", true)) return
