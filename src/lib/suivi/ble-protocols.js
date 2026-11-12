@@ -13,7 +13,7 @@ const MEASUREMENTS = {
 export const OPTIONAL_GATT_SERVICES = [
   "heart_rate", "blood_pressure", "health_thermometer", "pulse_oximeter",
   "glucose", "weight_scale", "body_composition", "respiratory_rate",
-  "running_speed_cadence", "cycling_speed_cadence", "device_information",
+  "running_speed_cadence", "cycling_speed_cadence", "fitness_machine", "device_information",
   "battery_service"
 ];
 
@@ -97,6 +97,8 @@ function parseBloodPressure(data) {
   let measuredAt = null;
   if (flags & 2) { measuredAt = readDateTime(data, offset); offset += 7; }
   if (flags & 4) { requireBytes(data, offset + 2, "Blood Pressure pulse rate"); offset += 2; }
+  if (flags & 8) { requireBytes(data, offset + 1, "Blood Pressure user id"); offset += 1; }
+  if (flags & 16) { requireBytes(data, offset + 2, "Blood Pressure measurement status"); offset += 2; }
   if (![systolic, diastolic, mean].every(v => Number.isFinite(v) && v > 0 && v < 400)) throw new Error("Invalid blood pressure values");
   return [
     ...result("tension_systolique", systolic, "mmHg", measuredAt),
@@ -144,13 +146,14 @@ function parseGlucose(data) {
   offset += 7;
   if (flags & 1) offset += 2; // optional time offset
   if (!(flags & 2)) throw new Error("Glucose concentration missing from packet");
-  requireBytes(data, offset + 5, "Glucose concentration/type");
+  requireBytes(data, offset + 3, "Glucose concentration/type");
+  const unit = flags & 4 ? "mol/L" : "kg/L";
   const concentration = decodeSfloat(data.getUint16(offset, true));
   offset += 2;
   offset += 1; // type and sample location
-  if (flags & 4) offset += 2; // sensor status annunciation
+  if (flags & 8) offset += 2; // sensor status annunciation
   if (!Number.isFinite(concentration) || concentration <= 0) throw new Error("Invalid glucose concentration");
-  const unit = flags & 2 ? ((data.getUint8(0) & 0x02) ? "mol/L" : "kg/L") : "unité fabricant";
+  const unit = flags & 4 ? "mol/L" : "kg/L";
   return result("glycemie", concentration, unit, measuredAt);
 }
 
@@ -176,27 +179,45 @@ function parseWeight(data) {
 }
 
 function parseBodyComposition(data) {
-  requireBytes(data, 3, "Body Composition");
+  requireBytes(data, 4, "Body Composition");
   const flags = data.getUint16(0, true);
-  let offset = 2;
-  const values = [];
+  if (flags & 0x1000) throw new Error("Fragmented Body Composition packets require a complete multi-packet decoder");
   const imperial = !!(flags & 1);
-  const add = (type, val, unit, min, max) => { if (Number.isFinite(val) && val >= min && val <= max) values.push({ measurement_type:type, value_numeric:Number(val.toFixed(4)), unit, measured_at:null }); };
-  const readS = () => { requireBytes(data, offset + 2, "Body Composition field"); const v = decodeSfloat(data.getUint16(offset, true)); offset += 2; return v; };
-  if (flags & 2) { readDateTime(data, offset); offset += 7; }
+  let offset = 2;
+  let measuredAt = null;
+  if (flags & 2) { measuredAt = readDateTime(data, offset); offset += 7; }
   if (flags & 4) offset += 1;
-  if (flags & 8) { const v=readS(); add("masse_grasse",v,"%",0,100); }
-  if (flags & 16) { const v=readS(); add("masse_musculaire",imperial?v*0.45359237:v,"kg",0,300); }
-  if (flags & 32) { const v=readS(); add("masse_musculaire",imperial?v*0.45359237:v,"kg",0,300); }
-  if (flags & 64) { const v=readS(); add("masse_musculaire",imperial?v*0.45359237:v,"kg",0,300); }
-  if (flags & 128) { const v=readS(); add("masse_musculaire",imperial?v*0.45359237:v,"kg",0,300); }
-  if (flags & 256) { const v=readS(); add("masse_musculaire",imperial?v*0.45359237:v,"kg",0,300); }
-  if (flags & 512) readS(); // impedance (ohms): not part of current measurement catalogue
-  if (flags & 1024) { const v=readS(); add("poids",imperial?v*0.45359237:v,"kg",0,500); }
-  if (flags & 2048) { const v=readS(); add("taille",imperial?v*2.54:v*100,"cm",0,300); }
+  if (flags & 8) offset += 2; // basal metabolism: not currently in the client catalogue
+  const values = [];
+  const add = (type, value, unit, min, max) => {
+    if (Number.isFinite(value) && value >= min && value <= max) {
+      values.push({ measurement_type: type, value_numeric: Number(value.toFixed(4)), unit, measured_at: measuredAt });
+    }
+  };
+  const readU16 = (label) => {
+    requireBytes(data, offset + 2, label);
+    const raw = data.getUint16(offset, true);
+    offset += 2;
+    return raw;
+  };
+  if (flags & 16) add("pourcentage_musculaire", readU16("Muscle percentage") / 10, "%", 0, 100);
+  const mass = () => {
+    const raw = readU16("Body mass");
+    return imperial ? raw * 0.01 * 0.45359237 : raw * 0.005;
+  };
+  if (flags & 32) add("masse_musculaire", mass(), "kg", 0, 300);
+  if (flags & 64) add("masse_maigre", mass(), "kg", 0, 300);
+  if (flags & 128) add("masse_maigre_molle", mass(), "kg", 0, 300);
+  if (flags & 256) add("masse_eau_corporelle", mass(), "kg", 0, 300);
+  if (flags & 512) readU16("Impedance"); // ohms: retained in raw device diagnostics, not a patient measure.
+  if (flags & 1024) add("poids", mass(), "kg", 0, 500);
+  if (flags & 2048) {
+    const raw = readU16("Height");
+    const heightCm = imperial ? raw * 0.1 * 2.54 : raw * 0.001 * 100;
+    add("taille", heightCm, "cm", 0, 300);
+  }
   return values;
 }
-
 function parseRespiratoryRate(data) {
   requireBytes(data, 2, "Respiratory Rate");
   const value = decodeSfloat(data.getUint16(0, true));
@@ -230,7 +251,7 @@ export function decodeStandardGattMeasurement(serviceId, characteristicId, data)
   if (service === "1809" || service === "health_thermometer") if (characteristic === "2a1c" || characteristic === "temperature_measurement") return parseTemperature(data);
   if (service === "1822" || service === "pulse_oximeter") if (characteristic === "2a5e" || characteristic === "plx_spot_check_measurement" || characteristic === "2a5f" || characteristic === "plx_continuous_measurement") return parsePulseOximeter(data);
   if (service === "1808" || service === "glucose") if (characteristic === "2a18" || characteristic === "glucose_measurement") return parseGlucose(data);
-  if (service === "181d" || service === "respiratory_rate") if (characteristic === "2aab" || characteristic === "respiration_rate_measurement") return parseRespiratoryRate(data);
+  if ((service === "1826" || service === "fitness_machine" || service === "181d" || service === "respiratory_rate") && (characteristic === "2aab" || characteristic === "respiration_rate_measurement")) return parseRespiratoryRate(data);
   if (service === "1814" || service === "running_speed_cadence") if (characteristic === "2a53" || characteristic === "rsc_measurement") return parseRunningSpeedCadence(data);
   if (service === "181b" || service === "body_composition") if (characteristic === "2a9c" || characteristic === "body_composition_measurement") return parseBodyComposition(data);
   if (service === "181d" || service === "weight_scale") if (characteristic === "2a9d" || characteristic === "weight_measurement") return parseWeight(data);
