@@ -141,7 +141,7 @@ create or replace function private.reserve_stock(p_pharmacie uuid, p_items jsonb
 returns uuid
 language plpgsql
 security definer
-set search_path = 'public'
+set search_path = ''
 as $function$
 declare
   v_id uuid;
