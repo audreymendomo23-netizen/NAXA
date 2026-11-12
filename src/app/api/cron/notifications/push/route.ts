@@ -69,7 +69,25 @@ export async function GET(request: Request) {
       failed++;
     } else {
       hasDevice = Boolean((subscriptions?.length ?? 0) + (tokens?.length ?? 0));
-      if (webPushReady) {
+      let fcmDelivered = false;
+      if ((tokens?.length ?? 0) > 0) {
+        const result = await sendFcmToUser(db, item.user_id, {
+          title: "NAXA · " + item.title,
+          body: item.body,
+          url: "/notifications",
+          tag: "naxa-notification-" + item.notification_id,
+        });
+        fcmSent += result.sent;
+        if (result.sent > 0) {
+          delivered = true;
+          fcmDelivered = true;
+        }
+        if (result.failed > 0 && result.sent === 0) retry = true;
+      }
+
+      // FCM est prioritaire sur un téléphone Android enregistré. Le Web Push
+      // ne sert de repli que si aucun envoi FCM n'a abouti, pour éviter le doublon.
+      if (!fcmDelivered && webPushReady) {
         for (const sub of subscriptions ?? []) {
           try {
             await webpush.sendNotification(
@@ -94,21 +112,10 @@ export async function GET(request: Request) {
             }
           }
         }
-      } else if ((subscriptions?.length ?? 0) > 0) {
+      } else if (!fcmDelivered && (subscriptions?.length ?? 0) > 0 && !webPushReady) {
         retry = true;
       }
 
-      if ((tokens?.length ?? 0) > 0) {
-        const result = await sendFcmToUser(db, item.user_id, {
-          title: "NAXA · " + item.title,
-          body: item.body,
-          url: "/notifications",
-          tag: "naxa-notification-" + item.notification_id,
-        });
-        fcmSent += result.sent;
-        if (result.sent > 0) delivered = true;
-        if (result.failed > 0 || !result.configured) retry = true;
-      }
     }
 
     const outcome = delivered ? "sent" : hasDevice && retry ? "retry" : hasDevice ? "retry" : "no_device";
