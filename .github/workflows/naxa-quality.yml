@@ -27,5 +27,5 @@ jobs:
           node-version: 22
       - name: Installer les dépendances
         run: npm install --no-audit --no-fund --no-progress
-      - name: Tests + TypeScript + lint (Node 22)
+      - name: Tests + TypeScript + lint (Node 22, validation finale)
         run: npm run quality
