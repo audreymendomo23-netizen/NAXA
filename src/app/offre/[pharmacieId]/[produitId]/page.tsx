@@ -145,7 +145,7 @@ export default function OffrePage() {
   const quantiteMax = Math.max(1, Math.min(10, stock?.quantite ?? 1));
 
   function ajouterAuPanier() {
-    if (!produit || !stock || stock.quantite < 1) {
+    if (!produit || !pharmacie || !stock || stock.quantite < 1) {
       setErreur("Ce médicament n'est pas disponible dans le stock communiqué par cette pharmacie.");
       return;
     }
