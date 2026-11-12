@@ -6,7 +6,7 @@ create or replace function public.suivi_measurement_family(p_type text)
 returns text
 language sql immutable
 set search_path=''
-as $
+as $$
   select case
     when p_type in (
       'tension_systolique','tension_diastolique','tension_arterielle_moyenne',
@@ -38,7 +38,7 @@ create or replace function public.suivi_device_family(p_device_key text)
 returns text
 language sql immutable
 set search_path=''
-as $
+as $$
   select case p_device_key
     when 'tensiometre' then 'constantes'
     when 'thermometre' then 'constantes'
