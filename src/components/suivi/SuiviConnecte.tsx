@@ -311,6 +311,7 @@ export function SuiviConnecte() {
         const task=(async()=>{
           const {data:authData}=await sb.auth.getUser();
           if(!authData.user)throw new Error("Session expirée.");
+          if(String(detail.ownerUserId??"")!==authData.user.id){(window as any).NaxaAndroid?.disconnect(deviceId);throw new Error("Cette liaison Bluetooth appartient à une autre session NAXA.");}
           const name=String(detail.deviceName??item.name).slice(0,120);
           const existing=await sb.from("suivi_user_devices").select("id")
             .eq("user_id",authData.user.id).eq("platform_device_id",deviceId).maybeSingle();
@@ -382,6 +383,7 @@ export function SuiviConnecte() {
           if(!allowed.length)return;
           const {data:authData}=await sb.auth.getUser();
           if(!authData.user)throw new Error("Session expirée.");
+          if(String(detail.ownerUserId??"")!==authData.user.id)throw new Error("Mesure Bluetooth écartée : compte propriétaire différent.");
           const receivedAt=new Date().toISOString();
           const rows=allowed.map(measurement=>({
             user_id:authData.user!.id,device_id:row!.id,measurement_type:measurement.measurement_type,
@@ -1488,7 +1490,7 @@ export function SuiviConnecte() {
     if(!item || !consents[item.family]) { setNotice("Consentement requis avant la connexion Bluetooth."); return; }
     if(!window.isSecureContext) { setNotice("Le Bluetooth Web exige HTTPS."); return; }
     const native=(window as any).NaxaAndroid;
-    if(native?.isAvailable?.()){setBusy(true);setNotice("Recherche Bluetooth Android…");native.startScan(deviceKey);return;}
+    if(native?.isAvailable?.()){const {data:userData}=await sb.auth.getUser();if(!userData.user){setNotice("Session expirée. Reconnectez-vous.");return;}setBusy(true);setNotice("Recherche Bluetooth Android…");native.startScan(deviceKey,userData.user.id);return;}
     const bluetooth=(navigator as any).bluetooth;
     if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez l’application Android NAXA, la saisie manuelle ou le scan sur cet appareil."); return; }
     setBusy(true); setNotice("Recherche d'un appareil Bluetooth…");
