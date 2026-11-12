@@ -27,7 +27,7 @@ begin
 end
 $$;
 revoke all on function public.assurance_enregistrer_convention(uuid,uuid,text,date,date) from public,anon;
-grant execute on function public.assurance_enregistrer_convention(uuid,text,date,date) to authenticated;
+grant execute on function public.assurance_enregistrer_convention(uuid,uuid,text,date,date) to authenticated;
 
 create or replace function public.assurance_enregistrer_regle(
   p_convention uuid,p_portee text,p_categorie text,p_produit uuid,p_taux numeric,
