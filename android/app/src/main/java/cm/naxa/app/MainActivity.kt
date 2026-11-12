@@ -32,6 +32,7 @@ class MainActivity : Activity() {
     private val discovered = linkedMapOf<String, BluetoothDevice>()
     private val gatts = linkedMapOf<String, BluetoothGatt>()
     private val deviceKeys = linkedMapOf<String, String>()
+    private val retryCounts = linkedMapOf<String, Int>()
     private var scanning = false
     private var pendingDeviceKey = "montre_connectee"
     private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
@@ -71,8 +72,9 @@ class MainActivity : Activity() {
         }
         @JavascriptInterface fun disconnect(address: String) {
             runOnUiThread {
-                gatts.remove(address)?.disconnect()
                 deviceKeys.remove(address)
+                retryCounts.remove(address)
+                gatts.remove(address)?.disconnect()
             }
         }
         @JavascriptInterface fun stopScan() { runOnUiThread { stopBleScan() } }
@@ -153,15 +155,27 @@ class MainActivity : Activity() {
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             val address = gatt.device.address
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                emit("error", deviceId = address, message = "Connexion interrompue (code $status).")
-                gatt.close(); gatts.remove(address)
-            } else if (newState == BluetoothProfile.STATE_CONNECTED) {
+            if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
+                retryCounts[address] = 0
                 emit("connected", deviceId = address, deviceName = safeName(gatt.device), deviceKey = deviceKeys[address])
                 gatt.discoverServices()
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                emit("disconnected", deviceId = address, deviceName = safeName(gatt.device))
-                gatt.close(); gatts.remove(address)
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
+                gatt.close()
+                gatts.remove(address)
+                val retry = retryCounts[address] ?: 0
+                if (deviceKeys.containsKey(address) && retry < 5) {
+                    retryCounts[address] = retry + 1
+                    val delay = (1000L shl retry).coerceAtMost(30000L)
+                    emit("reconnecting", deviceId = address, deviceName = safeName(gatt.device), message = "Reconnexion automatique dans quelques instants…")
+                    handler.postDelayed({
+                        if (deviceKeys.containsKey(address) && !gatts.containsKey(address)) connect(gatt.device)
+                    }, delay)
+                } else {
+                    emit("disconnected", deviceId = address, deviceName = safeName(gatt.device),
+                        message = if (deviceKeys.containsKey(address)) "Reconnexion automatique suspendue après plusieurs échecs." else "Appareil déconnecté.")
+                    retryCounts.remove(address)
+                    deviceKeys.remove(address)
+                }
             }
         }
 
