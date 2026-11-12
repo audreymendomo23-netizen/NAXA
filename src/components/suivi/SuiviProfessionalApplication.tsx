@@ -36,11 +36,15 @@ export function SuiviProfessionalApplication(){
       setSpecialty(value.specialty??"");setExpiry(value.verification_expires_at?.slice(0,10)??"");
     }
   })();},[sb]);
+  const accreditationIsExpired=!!existing?.verification_expires_at
+    && new Date(existing.verification_expires_at).getTime()<=Date.now();
+  const accreditationIsCurrent=!!existing?.verified
+    && existing.verification_status==="verified" && !accreditationIsExpired;
   async function submit(){
     if(!userId){setNotice("Connexion requise.");return;}
-    if(existing?.verified&&existing.verification_status==="verified"){setNotice("Votre agrément est déjà validé. Contactez l'administration pour toute modification.");return;}
+    if(accreditationIsCurrent){setNotice("Votre agrément est toujours valide. Contactez l'administration pour toute modification.");return;}
     if(displayName.trim().length<2||registration.trim().length<3||authority.trim().length<2){setNotice("Renseignez le nom, le numéro d'inscription et l'autorité émettrice.");return;}
-    if(!file&&!existing?.credential_storage_path){setNotice("Joignez le justificatif officiel d'agrément (PDF, JPG ou PNG).");return;}
+    if(!file&&(!existing?.credential_storage_path||accreditationIsExpired)){setNotice(accreditationIsExpired?"Votre agrément est expiré : joignez un justificatif officiel renouvelé.":"Joignez le justificatif officiel d'agrément (PDF, JPG ou PNG).");return;}
     if(file&&(file.size>10*1024*1024||!["application/pdf","image/jpeg","image/png"].includes(file.type))){setNotice("Le justificatif doit être un PDF, JPG ou PNG de 10 Mo maximum.");return;}
     setBusy(true);setNotice("");
     let credentialPath=existing?.credential_storage_path??null;
@@ -72,8 +76,8 @@ export function SuiviProfessionalApplication(){
   return <main className="mx-auto max-w-2xl space-y-4 px-4 py-8">
     <header><p className="text-xs font-bold uppercase tracking-widest text-emerald-700">NAXA · Vérification professionnelle</p><h1 className="mt-1 text-2xl font-black">Demande d'agrément</h1><p className="mt-2 text-sm text-slate-600">NAXA contrôle les informations et le justificatif avant d'autoriser l'accès à l'annuaire et aux dossiers patients.</p></header>
     {notice&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">{notice}</p>}
-    {existing&&<div className="rounded-xl border p-3 text-sm"><b>État actuel :</b> {existing.verification_status==="verified"?"Agrément validé":existing.verification_status==="rejected"?"Demande rejetée":existing.verification_status==="expired"?"Agrément expiré":"En attente de vérification"}</div>}
-    {existing?.verified&&existing.verification_status==="verified"?<p className="rounded-xl bg-emerald-50 p-4 text-sm">Votre accréditation est validée par NAXA. Elle est soumise à sa date d'expiration et aux contrôles de validité continus.</p>:<>
+    {existing&&<div className="rounded-xl border p-3 text-sm"><b>État actuel :</b> {accreditationIsExpired?"Agrément expiré":existing.verification_status==="verified"?"Agrément validé":existing.verification_status==="rejected"?"Demande rejetée":existing.verification_status==="expired"?"Agrément expiré":"En attente de vérification"}</div>}
+    {accreditationIsCurrent?<p className="rounded-xl bg-emerald-50 p-4 text-sm">Votre accréditation est validée par NAXA. Elle est soumise à sa date d'expiration et aux contrôles de validité continus.</p>:<>
       <div className="space-y-3 rounded-2xl border bg-white p-4">
         <label className="block text-sm font-semibold">Profession<select className="champ mt-1 w-full" value={role} onChange={e=>setRole(e.target.value as Role)}>{Object.entries(roleLabels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
         <label className="block text-sm font-semibold">Nom professionnel<input className="champ mt-1 w-full" value={displayName} onChange={e=>setDisplayName(e.target.value)} maxLength={160}/></label>
