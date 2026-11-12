@@ -83,6 +83,7 @@ function ResultsContent(){
    const quantity=basketMode?(requestedById.get(item.produit_id)??1):(bulkQuantities[termIndex>=0?termIndex:index]??1);
    return {item,quantity};
   });
+  if(planned.some(({item})=>rxIds.has(item.produit_id))){setError("Cette sélection contient un médicament soumis à ordonnance. La pharmacie doit valider la prescription avant sa mise au panier ; aucune validation médicale automatique n’est effectuée par le scan.");return;}
   const ids=new Set(lignes.map(line=>line.produit_id));
   planned.forEach(({item})=>ids.add(item.produit_id));
   if(ids.size>10){setError("Votre panier peut contenir au maximum 10 médicaments. Réduisez la sélection avant de continuer.");return;}
