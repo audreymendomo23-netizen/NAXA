@@ -308,6 +308,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
         </header>
         <div className="promoteur-bento-grid min-w-0">
         <AvisRappelsLotsPromoteur />
+        <div className="flex flex-wrap gap-2"><Link href="/pharmacie/assurance" className="btn btn-vert">Tableau de bord Assurance</Link></div>
         <RapportsALaDemande variant="default" />
 
         {alert && <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Certaines données ne sont pas disponibles. Les indicateurs indisponibles sont affichés sans inventer de valeurs.</p>}
