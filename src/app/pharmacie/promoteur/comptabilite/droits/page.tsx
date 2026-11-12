@@ -32,6 +32,7 @@ export default async function PromoteurComptaDroitsPage() {
       username:string|null; compte_actif:boolean; ecriture_autorisee:boolean;
     }>}/>
     <footer className="flex flex-wrap gap-2">
+      <Link href="/pharmacie/comptabilite/plan" className="rounded-full border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-900">Plan comptable & mappings</Link>
       <Link href="/pharmacie/promoteur/comptabilite" className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold">Tableau comptable réseau</Link>
       <Link href="/pharmacie/promoteur" className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold">Espace Promoteur</Link>
     </footer>
