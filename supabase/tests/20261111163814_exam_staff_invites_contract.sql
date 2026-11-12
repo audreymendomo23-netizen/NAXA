@@ -85,6 +85,20 @@ begin
     and is_active and active_role and revoked_at is null;
   if v_count<>1 then raise exception 'Partner/center director synchronization failed'; end if;
 
+  perform set_config('request.jwt.claim.sub',f.wrong_user_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.wrong_user_id,'role','authenticated')::text,true);
+  v_rejected:=false;
+  begin
+    perform public.exam_assign_existing_staff(
+      f.center_id,'invitee_'||replace(f.invitee_id::text,'-',''),'accueil'
+    );
+  exception when insufficient_privilege then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Unauthorised direct assignment was not rejected'; end if;
+
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
+
   v_direct:=public.exam_assign_existing_staff(
     f.center_id,'invitee_'||replace(f.invitee_id::text,'-',''),'accueil'
   );
