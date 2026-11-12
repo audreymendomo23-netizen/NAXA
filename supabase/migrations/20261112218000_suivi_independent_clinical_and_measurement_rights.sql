@@ -39,7 +39,16 @@ language sql stable security definer set search_path='' as $$
     and l.active=true and l.revoked_at is null
     and public.suivi_is_enabled_user((select auth.uid()))
     and public.suivi_is_verified_professional((select auth.uid()))
-    and exists(select 1 from public.profiles patient where patient.id=l.patient_user_id and patient.actif=true);
+    and exists(select 1 from public.profiles patient where patient.id=l.patient_user_id and patient.actif=true)
+    and (
+      l.clinical_notes_access=true
+      or exists(
+        select 1 from public.suivi_shares s
+        where s.owner_user_id=l.patient_user_id
+          and s.recipient_user_id=l.professional_user_id
+          and s.active=true and s.revoked_at is null
+      )
+    );
 $$;
 revoke all on function public.suivi_list_professional_case_states() from public,anon;
 grant execute on function public.suivi_list_professional_case_states() to authenticated;
