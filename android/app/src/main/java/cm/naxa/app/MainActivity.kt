@@ -138,6 +138,9 @@ class MainActivity : Activity() {
         @JavascriptInterface fun cancelMeasurementReminder(id: String) {
             runOnUiThread { NaxaReminderScheduler.remove(this@MainActivity, id.take(120)) }
         }
+        @JavascriptInterface fun clearMeasurementReminders() {
+            runOnUiThread { NaxaReminderScheduler.clearAll(this@MainActivity) }
+        }
         @JavascriptInterface fun updateMeasurementFreshness(measurementType: String, timestampMillis: Long, deviceId: String) {
             NaxaReminderScheduler.updateFreshness(this@MainActivity, measurementType.take(100), timestampMillis, deviceId.take(120))
         }
