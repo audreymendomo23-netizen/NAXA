@@ -27,7 +27,8 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 ## Rôles et écrans concernés
 
 - **Client** : `/resultats`, `/panier`, `/commande/nouvelle`. Affichage de la date d'actualisation, sélection de quantité, sous-total dynamique.
-- **Gestionnaire de stock / Magasinier** : leurs opérations existantes de comptage et de mouvement alimentent le journal ; l'écran Stock & logistique affiche maintenant le statut Marketplace et l'horodatage de chaque référence.
+- **Gestionnaire de stock / Magasinier** : leurs opérations existantes de comptage et de mouvement alimentent le journal ; le tableau de bord affiche le nombre de références à actualiser et l'écran Stock & logistique affiche le statut Marketplace et l'horodatage de chaque référence.
+- **Pharmacien assistant** : accès au poste stock aligné avec le parcours Inventaires existant ; les RPC serveur conservent les contrôles de privilèges et d'affectation.
 - **Pharmacien / Promoteur / responsables autorisés** : les droits existants de gestion ERP sont conservés ; aucune nouvelle permission de modifier le stock n'est accordée par ce chantier.
 - **Caisse** : le débit physique existant à la consommation de la réservation reste inchangé ; le hold n'est pas débité deux fois.
 
