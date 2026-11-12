@@ -13,8 +13,37 @@ type OutboxItem = {
   user_id: string;
   title: string;
   body: string;
+  notification_type: string;
   attempt_count: number;
 };
+
+function pushTitle(item: OutboxItem): string {
+  if (item.notification_type === "message") return "NAXA · Nouveau message";
+  if (item.notification_type.startsWith("delivery_")) return "NAXA · Livraison";
+  return "NAXA · " + item.title;
+}
+
+function pushBody(item: OutboxItem): string {
+  switch (item.notification_type) {
+    case "product_availability":
+      return item.body.slice(0, 180);
+    case "message":
+      return "Vous avez reçu un nouveau message. Ouvrez NAXA pour le consulter.";
+    case "delivery_mission":
+      return "Une commande préparée attend un livreur. Ouvrez NAXA pour voir la mission.";
+    case "delivery_status":
+    case "delivery_update":
+    case "delivery_arrived":
+    case "delivery_issue":
+      return "Le suivi d'une livraison a été mis à jour. Ouvrez NAXA pour consulter les détails.";
+    case "reservation":
+    case "reservation_status":
+    case "reservation_expiry_30m":
+      return "Le statut de votre réservation a changé. Ouvrez NAXA pour consulter les détails.";
+    default:
+      return "Une opération NAXA nécessite votre attention. Ouvrez l'application pour consulter les détails.";
+  }
+}
 
 export async function GET(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
@@ -72,10 +101,11 @@ export async function GET(request: Request) {
       let fcmDelivered = false;
       if ((tokens?.length ?? 0) > 0) {
         const result = await sendFcmToUser(db, item.user_id, {
-          title: "NAXA · " + item.title,
-          body: item.body,
+          title: pushTitle(item),
+          body: pushBody(item),
           url: "/notifications",
           tag: "naxa-notification-" + item.notification_id,
+          type: item.notification_type,
         });
         fcmSent += result.sent;
         if (result.sent > 0) {
@@ -93,10 +123,11 @@ export async function GET(request: Request) {
             await webpush.sendNotification(
               sub.subscription,
               JSON.stringify({
-                title: "NAXA · " + item.title,
-                body: item.body,
+                title: pushTitle(item),
+                body: pushBody(item),
                 url: "/notifications",
                 tag: "naxa-notification-" + item.notification_id,
+                type: item.notification_type,
               }),
               { TTL: 300, urgency: "high" },
             );
