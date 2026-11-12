@@ -75,7 +75,7 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
   const key=entry.pharmacie_id+":"+entry.produit_id;
   const current=freshnessByKey.get(key)??{hasJournal:false,lastQuantityAt:null};
   current.hasJournal=true;
-  if(["stocks","stocks_lots"].includes(entry.source_table)&&["creation","quantite","suppression"].includes(entry.event_type)&&(!current.lastQuantityAt||new Date(entry.occurred_at)>new Date(current.lastQuantityAt))) current.lastQuantityAt=entry.occurred_at;
+  if(["stocks","stocks_lots"].includes(entry.source_table)&&["creation","quantite","suppression"].includes(entry.event_type)&&(!current.lastQuantityAt||new Date(entry.occurred_at).getTime()>new Date(current.lastQuantityAt).getTime())) current.lastQuantityAt=entry.occurred_at;
   freshnessByKey.set(key,current);
  }
  const stocks=rawStocks.map(row=>({...row,marketplace_stock_updated_at:freshnessJournalResult.error?null:(freshnessByKey.get(row.pharmacie_id+":"+row.produit_id)?.hasJournal?freshnessByKey.get(row.pharmacie_id+":"+row.produit_id)?.lastQuantityAt??null:row.updated_at),marketplace_freshness_unknown:Boolean(freshnessJournalResult.error)}));
