@@ -294,9 +294,11 @@ begin
   perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
   v_expired_token:=public.exam_create_staff_invite(
-    f.center_id,'expired-'||left(f.owner_id::text,8)||'@example.invalid','accueil'
+    f.center_id,v_email,'caissier'
   );
   perform pg_temp.exam_staff_expire_invite(v_expired_token);
+  perform set_config('request.jwt.claim.sub',f.invitee_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.invitee_id,'role','authenticated')::text,true);
   v_rejected:=false;
   begin
     perform public.exam_accept_staff_invite(v_expired_token);
