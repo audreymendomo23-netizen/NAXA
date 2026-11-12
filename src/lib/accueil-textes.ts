@@ -45,7 +45,7 @@ export const textes = {
     positionEnregistree: "Position enregistrée",
     yaoundeDefaut: "Yaoundé par défaut",
     gardes: "Pharmacies de garde",
-    builtWith: "Built with ❤️ by NAXA",
+    builtWith: "Built with",
   },
   en: {
     menu: "Menu",
@@ -91,7 +91,7 @@ export const textes = {
     positionEnregistree: "Location saved",
     yaoundeDefaut: "Yaoundé by default",
     gardes: "On-duty pharmacies",
-    builtWith: "Built with ❤️ by NAXA",
+    builtWith: "Built with",
   },
 } satisfies Record<Langue, Record<string, string | string[]>>;
 
