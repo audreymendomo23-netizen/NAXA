@@ -1,61 +1,58 @@
-# Illustrations et photographies des 21 dispositifs — « Mon suivi connecté »
+# Photos des 21 dispositifs — « Mon suivi connecté »
 
-**État : photos de référence intégrées à la bibliothèque privée de suivi.** Les fichiers originaux restent conservés dans `docs/references/dispositifs-medicaux-connectes/`. Les photos sélectionnées sont servies depuis `public/images/suivi-dispositifs/`.
+**État : une photo de référence par catégorie est intégrée dans la bibliothèque privée.** Les 62 images originales restent conservées dans `docs/references/dispositifs-medicaux-connectes/`. Une seule photo retenue par catégorie est publiée dans `public/images/suivi-dispositifs/` pour éviter de faire alterner des modèles différents comme s'il s'agissait du même appareil.
 
 ## Règles d’affichage
 
-- Un seul grand emplacement photo par catégorie.
-- Les images d’une même catégorie alternent automatiquement toutes les 4 secondes lorsqu’au moins deux photos sont disponibles.
-- Chaque instance de galerie possède un décalage de départ indépendant : les appareils ne changent pas tous d’image au même instant.
-- Fondu de 380 ms, sans flèches, sans petites vignettes et sans superposition d’images.
-- Les photos utilisent `object-fit: contain` pour éviter le rognage et la déformation.
-- Les utilisateurs ayant activé la préférence système « réduire les animations » voient une image fixe.
-- Les catégories sans photo suffisamment fiable conservent leur illustration vectorielle de secours.
+- Un seul grand emplacement photo par dispositif.
+- Aucune flèche et aucune petite vignette.
+- `object-fit: contain` préserve le cadrage et les proportions.
+- Les cartes restent grandes et s'adaptent aux écrans mobiles et ordinateurs.
+- **Alternance conditionnelle :** le composant sait faire alterner les photos toutes les 4 secondes avec un fondu indépendant par galerie, uniquement lorsqu'au moins deux photos sont confirmées comme appartenant au même modèle exact. Le lot actuellement reçu montre des modèles différents par catégorie ; aucune alternance multi-photo n'est donc activée à tort.
+- Les photos d'un même type mais de modèles différents ne sont jamais regroupées dans une même animation.
+- Les SVG demeurent le repli pour une catégorie sans photo retenue.
+- Les préférences système de réduction des animations sont respectées.
 
-## Correspondance des photos vers les catégories
+## Correspondance des photos retenues
 
-Les images sont des exemples visuels de familles d’appareils. Elles ne sont pas présentées comme plusieurs vues d’un même SKU, ni comme une preuve de compatibilité fabricant.
+| Catégorie | Source retenue |
+|---|---|
+| Tensiomètre | `téléchargement.jfif` |
+| Thermomètre numérique | `téléchargement (3).jfif` |
+| Oxymètre de doigt | `téléchargement (7).jfif` |
+| Glucomètre | `téléchargement (32).jfif` |
+| Balance | `téléchargement (11).jfif` |
+| Capteur cardiaque / cardiofréquencemètre | `téléchargement (14).jfif` |
+| Podomètre | `téléchargement (17).jfif` |
+| Électrocardiographe portable | `téléchargement (19).jfif` |
+| Spiromètre | `téléchargement (23).jfif` |
+| Débitmètre de pointe | `téléchargement (27).jfif` |
+| Balance impédancemètre | `téléchargement (28).jfif` |
+| Lecteur de cholestérol | `téléchargement (31).jfif` |
+| Lecteur de cétones | `téléchargement (34).jfif` |
+| Lecteur d’acide urique | `téléchargement (36).jfif` |
+| Montre connectée | `téléchargement (37).jfif` |
+| Bracelet d’activité | `téléchargement (42).jfif` |
+| Suivi du sommeil | `téléchargement (44).jfif` |
+| Thermomètre infrarouge | `téléchargement (50).jfif` |
+| Capteur respiratoire | `téléchargement (46).jfif` |
+| Pilulier connecté | `téléchargement (57).jfif` |
+| Bouteille connectée / hydratation | `téléchargement (59).jfif` |
 
-| Catégorie | Nombre de photos | Sources |
-|---|---:|---|
-| Tensiomètre | 3 | `téléchargement.jfif`, `téléchargement (1).jfif`, `téléchargement (2).jfif` |
-| Thermomètre numérique | 2 | `téléchargement (3).jfif`, `téléchargement (5).jfif` |
-| Oxymètre | 4 | `téléchargement (6).jfif`, `téléchargement (7).jfif`, `téléchargement (8).jfif`, `téléchargement (48).jfif` |
-| Glucomètre | 3 | `téléchargement (10).jfif`, `téléchargement (32).jfif`, `téléchargement (35).jfif` |
-| Balance | 3 | `téléchargement (11).jfif`, `téléchargement (12).jfif`, `téléchargement (13).jfif` |
-| Capteur cardiaque | 3 | `téléchargement (15).jfif`, `téléchargement (16).jfif`, `téléchargement (53).jfif` |
-| Podomètre | 1 | `téléchargement (17).jfif` |
-| ECG portable | 2 | `téléchargement (19).jfif`, `téléchargement (21).jfif` |
-| Spiromètre | 3 | `téléchargement (22).jfif`, `téléchargement (23).jfif`, `téléchargement (24).jfif` |
-| Débitmètre de pointe | 1 | `téléchargement (27).jfif` |
-| Balance impédancemètre | 2 | `téléchargement (28).jfif`, `téléchargement (29).jfif` |
-| Lecteur de cholestérol | 2 | `téléchargement (30).jfif`, `téléchargement (31).jfif` |
-| Lecteur de cétones | 1 | `téléchargement (34).jfif` |
-| Lecteur d’acide urique | 1 | `téléchargement (36).jfif` |
-| Montre connectée | 1 | `téléchargement (40).jfif` |
-| Bracelet d’activité | 3 | `téléchargement (41).jfif`, `téléchargement (42).jfif`, `téléchargement (45).jfif` |
-| Suivi du sommeil | 1 | `téléchargement (44).jfif` |
-| Thermomètre infrarouge | 3 | `téléchargement (49).jfif`, `téléchargement (50).jfif`, `téléchargement (51).jfif` |
-| Capteur respiratoire | 3 | `téléchargement (46).jfif`, `téléchargement (52).jfif`, `téléchargement (54).jfif` |
-| Pilulier connecté | 1 | `téléchargement (57).jfif` |
-| Bouteille connectée / hydratation | 3 | `téléchargement (58).jfif`, `téléchargement (59).jfif`, `téléchargement (60).jfif` |
+## Images non publiées
 
-## Images volontairement non publiées dans les galeries
-
-Les originaux restent dans le dossier de référence, mais ne sont pas copiés dans `public` lorsqu’une correspondance est insuffisante, lorsqu’un filigrane ou un arrière-plan de damier est visible, ou lorsqu’aucune des 21 clés du catalogue ne convient. Cela concerne notamment le nébuliseur, l’inhalateur suivi, quelques objets ambigus et les images portant des filigranes de banques d’images.
+Les autres originaux sont conservés comme références et ne sont pas servis depuis `public` tant qu'ils représentent un autre modèle, une famille ambiguë, un accessoire isolé, un résultat de banque d'images filigrané ou une résolution/coupe insuffisante.
 
 ## Limites et conformité
 
-- Une photo de catégorie n’identifie pas forcément la marque ou le modèle exact.
-- Le nombre de photos ne représente pas le nombre de modèles vérifiés.
-- La compatibilité Bluetooth n’est confirmée que par la découverte d’un profil/protocole pris en charge et la lecture d’une mesure décodée et validée. Voir `docs/suivi-compatibilite-dispositifs.md`.
-- Les visuels ne sont pas des photos d’identité réglementaire ni des certificats médicaux.
-- Les droits d’utilisation/publication des images d’origine doivent être vérifiés avant leur diffusion commerciale publique.
-- L’univers commercial « Dispositifs médicaux » reste distinct de l’espace personnel privé `/suivi`. Cette intégration concerne uniquement les visuels de la bibliothèque privée de suivi et n’active pas l’univers commercial verrouillé en phase 1.
+- Une photo illustrative ne confirme ni la marque, ni la référence commerciale exacte, ni une compatibilité Bluetooth.
+- Les 21 catégories existantes ne sont pas modifiées par cette sélection.
+- La compatibilité reste confirmée uniquement après découverte d'un profil/protocole pris en charge et lecture d'une mesure décodée et validée : voir `docs/suivi-compatibilite-dispositifs.md`.
+- Les droits d'utilisation des fichiers d'origine doivent être vérifiés avant diffusion commerciale publique.
+- L’espace privé `/suivi` reste distinct de l’univers commercial « Dispositifs médicaux », toujours verrouillé séparément.
 
-## Composant
+## Composants
 
-- Galerie : `src/components/suivi/DeviceIllustration.tsx`
+- Galerie et image de secours : `src/components/suivi/DeviceIllustration.tsx`
 - Emplacements et dimensions : `src/components/suivi/SuiviConnecte.tsx`
-- Médias servis : `public/images/suivi-dispositifs/<clé>/`
-- Les SVG restent le repli pour une catégorie sans photo retenue.
+- Images publiées : `public/images/suivi-dispositifs/<clé>/01.jpg`
