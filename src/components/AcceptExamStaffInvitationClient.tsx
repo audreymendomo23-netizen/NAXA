@@ -64,8 +64,8 @@ export default function AcceptExamStaffInvitationClient({ token }: { token: stri
 
     if (rpcError) {
       const message = rpcError.message || "L’invitation n’a pas pu être acceptée.";
-      setError(/autre adresse|destinée à une autre adresse/i.test(message)
-        ? "Ce lien est destiné à une autre adresse e-mail. Utilisez « Changer de compte » pour vous connecter au compte invité."
+      setError(/invitation invalide, expirée, déjà utilisée ou destinée à une autre adresse/i.test(message)
+        ? "NAXA n’a pas accepté ce lien : il peut être expiré, révoqué, déjà utilisé ou destiné à une autre adresse. Vérifiez le compte connecté ou changez de compte."
         : message);
       setAccepting(false);
       return;
