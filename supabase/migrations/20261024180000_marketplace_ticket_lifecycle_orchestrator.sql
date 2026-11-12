@@ -363,6 +363,38 @@ $scope$;
 revoke all on function public.naxa_scope_allows(uuid,uuid,text) from public, anon, authenticated;
 grant execute on function public.naxa_scope_allows(uuid,uuid,text) to authenticated;
 
+-- The legacy lot-allocation migration can be replayed before or after this canonical
+-- migration. Install its participant-read policy here when the table already exists.
+do $reservation_policy$
+begin
+  if to_regclass('public.reservation_item_lots') is not null
+     and not exists (
+       select 1 from pg_catalog.pg_policies
+       where schemaname='public'
+         and tablename='reservation_item_lots'
+         and policyname='reservation_item_lots_participant_read'
+     ) then
+    execute $create$
+      create policy reservation_item_lots_participant_read
+      on public.reservation_item_lots
+      for select to authenticated
+      using (
+        exists (
+          select 1
+          from public.reservations r
+          where r.id=reservation_item_lots.reservation_id
+            and (
+              r.client_id=(select auth.uid())
+              or public.is_admin()
+              or public.naxa_scope_allows((select auth.uid()),r.pharmacie_id,'PHARMACIE')
+            )
+        )
+      )
+    $create$;
+  end if;
+end;
+$reservation_policy$;
+
 -- Le client peut relire le ticket exact de sa vente Marketplace, mais jamais un ticket
 -- obtenu uniquement à partir d'un identifiant fourni sans contrôle de propriété.
 create or replace function public.get_client_reservation_ticket(p_reservation_id uuid)
