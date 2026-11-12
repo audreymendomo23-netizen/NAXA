@@ -38,7 +38,10 @@ const files = {
 
 test("le Livreur reste un poste exclusif, mais peut être attribué à plusieurs pharmacies", () => {
   assert.match(files.schema, /new\.role_code='livreur'/);
-  assert.match(files.schema, /new\.role_code<>'livreur'/);
+  assert.match(files.schema, /a\.role_code<>'livreur'/);
+  assert.match(files.schema, /a\.role_code='livreur'/);
+  assert.match(files.schema, /a\.commence_at<coalesce\(new\.expire_at,'infinity'::timestamptz\)/);
+  assert.match(files.schema, /a\.expire_at is null or a\.expire_at>new\.commence_at/);
   assert.match(files.schema, /v_profile_role<>'client'/);
   assert.match(files.schema, /naxa_grant_livreur_assignment/);
   assert.match(files.schema, /pg_advisory_xact_lock/);
