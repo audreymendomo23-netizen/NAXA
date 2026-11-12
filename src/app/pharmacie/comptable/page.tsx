@@ -180,6 +180,7 @@ export default async function ComptableDashboardPage() {
             </article>
           </section>
 
+          <Link href="/pharmacie/assurance" className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-900">Suivi Assurance, créances et remboursements</Link>
           <RapportsALaDemande variant="comptable" />
 
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
