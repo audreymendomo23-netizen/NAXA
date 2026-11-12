@@ -9,6 +9,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Share = { id: string; owner_user_id: string; measurement_type: string; granted_at: string; active: boolean; revoked_at: string | null; allow_history:boolean; allow_realtime:boolean; allow_alerts:boolean; realtime_from_at:string|null };
 type Measurement = { id: string; user_id: string; measurement_type: string; value_numeric: number | null; value_text: string | null; unit: string | null; measured_at: string; source: string; note: string | null };
 type SharedAlert = { id: string; user_id: string; measurement_id: string; measurement_type: string; observed_value: number; alert_kind: "below_user_range" | "above_user_range"; created_at: string; read_at: string | null };
+type SharedDevice = { id:string; user_id:string; device_key:string; device_name:string; device_model:string|null; device_brand:string|null; connection_state:string; auto_reconnect:boolean; last_measurement_at:string|null; protocol:string|null; active:boolean };
 type ViewTab = "patients" | "mesures" | "alertes" | "partages";
 type ReportPeriod = "day" | "month" | "year" | "custom";
 type TrendPoint = { id: string; measured_at: string; value_numeric: number; unit: string | null };
@@ -34,6 +35,7 @@ export function SuiviProfessionalPatientsWorkspace() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [shares, setShares] = useState<Share[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [sharedDevices,setSharedDevices]=useState<SharedDevice[]>([]);
   const [alerts, setAlerts] = useState<SharedAlert[]>([]);
   const [alertError, setAlertError] = useState("");
   const [tab, setTab] = useState<ViewTab>("patients");
@@ -57,7 +59,7 @@ export function SuiviProfessionalPatientsWorkspace() {
       .eq("recipient_user_id", userId).eq("active", true).is("revoked_at", null)
       .order("granted_at", { ascending: false }).limit(500);
     if (shareError) {
-      setShares([]); setMeasurements([]); setAlerts([]);setLastUpdated(new Date().toISOString());
+      setShares([]); setMeasurements([]); setSharedDevices([]); setAlerts([]);setLastUpdated(new Date().toISOString());
       setError("Les partages ne sont pas accessibles. Vérifiez les migrations du suivi, le statut du professionnel et le consentement du patient.");
       setBusy(false); return;
     }
@@ -66,7 +68,7 @@ export function SuiviProfessionalPatientsWorkspace() {
     const owners = [...new Set(activeShares.map(item => item.owner_user_id))];
     const types = [...new Set(activeShares.map(item => item.measurement_type))];
     if (!owners.length || !types.length) {
-      setMeasurements([]);setAlerts([]);setAlertError("");setLastUpdated(new Date().toISOString());
+      setMeasurements([]);setSharedDevices([]);setAlerts([]);setAlertError("");setLastUpdated(new Date().toISOString());
       setNotice("Aucun patient ne partage actuellement de mesure avec ce compte.");
       setBusy(false); return;
     }
@@ -79,6 +81,10 @@ export function SuiviProfessionalPatientsWorkspace() {
       setError("Les partages sont visibles mais les mesures restent bloquées par les droits serveur. Vérifiez les droits RLS et le consentement actif.");
       setBusy(false); return;
     }
+    const {data:deviceRows,error:deviceError}=await sb.from("suivi_user_devices")
+      .select("id,user_id,device_key,device_name,device_model,device_brand,connection_state,auto_reconnect,last_measurement_at,protocol,active")
+      .in("user_id",owners).eq("active",true).order("created_at",{ascending:true});
+    setSharedDevices(deviceError?[]:(deviceRows??[]) as SharedDevice[]);
     const allowed = new Set(activeShares.map(item => `${item.owner_user_id}:${item.measurement_type}`));
     setMeasurements(((rows ?? []) as Measurement[]).filter(row => allowed.has(`${row.user_id}:${row.measurement_type}`)));
     const {data:alertRows,error:alertQueryError}=await sb.from("suivi_alerts").select("id,user_id,measurement_id,measurement_type,observed_value,alert_kind,created_at,read_at").in("user_id",owners).in("measurement_type",types).order("created_at",{ascending:false}).limit(200);
@@ -151,6 +157,7 @@ export function SuiviProfessionalPatientsWorkspace() {
     const date=new Date(value);
     return (!periodStart||date>=periodStart)&&(!periodEnd||date<=periodEnd);
   };
+  const patientDevices=selectedPatient?sharedDevices.filter(device=>device.user_id===selectedPatient):[];
   const patientPeriodMeasurements=selectedPatient
     ? measurements.filter(row=>row.user_id===selectedPatient&&inReportPeriod(row.measured_at))
     : [];
@@ -212,6 +219,7 @@ export function SuiviProfessionalPatientsWorkspace() {
           {selectedPatient && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold text-emerald-950">Dossier partagé · {patientLabel(selectedPatient)}</h2><p className="text-sm text-emerald-900">Évolution des valeurs numériques partagées, triées par date. Les graphiques décrivent les données reçues et ne constituent pas une interprétation médicale.</p></div><button type="button" className="btn btn-clair" onClick={() => setSelectedPatientId(null)}>Fermer le dossier</button></div>
             <SuiviClinicalCasePanel patientId={selectedPatient} professionalId={recipientId}/>
+            <section className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">Appareils associés autorisés</b><span className="text-xs text-slate-500">{patientDevices.length} appareil(s) actif(s)</span></div>{patientDevices.length?<ul className="mt-2 grid gap-2 sm:grid-cols-2">{patientDevices.map(device=><li key={device.id} className="rounded-lg border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{device.device_brand?device.device_brand+" · ":""}{device.device_model||device.device_name}</b><span className="text-xs font-semibold">{device.connection_state==="connected"?"Connecté":device.connection_state==="error"?"Erreur":device.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-600">Reconnexion auto : {device.auto_reconnect?"activée":"désactivée"} · Dernière mesure : {device.last_measurement_at?dateLabel(device.last_measurement_at):"aucune"}</p><p className="mt-1 break-words text-xs text-slate-500">{device.protocol||"Protocole non renseigné"}</p></li>)}</ul>:<p className="mt-2 text-sm text-slate-500">Aucun appareil n'est visible avec les droits de partage actuellement accordés.</p>}</section>
             <div className="grid gap-3 rounded-xl border border-emerald-100 bg-white p-3 sm:grid-cols-2"><label className="text-sm font-semibold">Période à consulter<select className="champ mt-1 w-full" value={reportPeriod} onChange={event=>setReportPeriod(event.target.value as ReportPeriod)}><option value="day">Jour en cours</option><option value="month">Mois en cours</option><option value="year">Année en cours</option><option value="custom">Période personnalisée</option></select></label>{reportPeriod==="custom"&&<div className="grid grid-cols-2 gap-2"><label className="text-sm font-semibold">Du<input type="date" className="champ mt-1 w-full" value={customFrom} onChange={event=>setCustomFrom(event.target.value)}/></label><label className="text-sm font-semibold">Au<input type="date" className="champ mt-1 w-full" value={customTo} onChange={event=>setCustomTo(event.target.value)}/></label></div>}<p className="text-xs text-slate-500 sm:col-span-2">Graphiques et mesures du dossier limités à la période choisie. Le filtre utilise le fuseau horaire du navigateur.</p></div><SuiviHistoryChart measurements={patientPeriodMeasurements} title={"Historique de "+patientLabel(selectedPatient)}/>{trendTypes.length > 0 ? <>
               <label className="block text-sm font-semibold">Mesure à visualiser<select className="champ mt-1 w-full sm:max-w-sm" value={activeTrendType} onChange={event => setTrendType(event.target.value)}>{trendTypes.map(type => <option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>
               {trendPoints.length > 1 ? <div className="rounded-xl border border-emerald-100 bg-white p-3">
