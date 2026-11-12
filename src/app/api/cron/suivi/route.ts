@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import webpush from "web-push";
-import { sendFcmToUser } from "@/lib/firebase/fcm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,18 +37,12 @@ export async function GET(request:Request) {
     .eq("flag_key","suivi_connecte").maybeSingle();
   if(!feature?.enabled) return NextResponse.json({ok:true,disabled:true,reason:"suivi_connecte_disabled"});
 
-  const pub=process.env.NAXA_VAPID_PUBLIC_KEY,priv=process.env.NAXA_VAPID_PRIVATE_KEY;
-  const pushConfigured=!!pub&&!!priv;
-  if(pushConfigured) webpush.setVapidDetails(
-    process.env.NAXA_VAPID_SUBJECT||"mailto:naxa.home@gmail.com",pub!,priv!
-  );
-
   const now=new Date();
   const {data:schedules,error}=await db.from("suivi_measurement_schedules")
     .select("id,user_id,measurement_type,device_id,local_time,timezone,days_of_week,lead_minutes,freshness_window_minutes,last_prealert_key")
     .eq("enabled",true).limit(5000);
   if(error) return NextResponse.json({error:"Lecture des programmations impossible"},{status:500});
-  let checked=0,stale=0,inApp=0,pushSent=0,fcmSent=0,fcmFailed=0,failed=0;
+  let checked=0,stale=0,inApp=0,failed=0;
   for(const s of schedules??[]) {
     checked++;
     const group=family(s.measurement_type);
@@ -101,29 +93,6 @@ export async function GET(request:Request) {
         .eq("id",s.id).eq("last_prealert_key",key);
       continue;
     }
-    if(pushConfigured){
-      const {data:subs,error:subsError}=await db.from("naxa_push_subscriptions")
-        .select("endpoint,subscription").eq("user_id",s.user_id);
-      if(subsError){failed++;continue;}
-      for(const sub of subs??[]) try {
-        await webpush.sendNotification(sub.subscription,JSON.stringify({
-          title:"NAXA · Rappel de mesure",
-          body:"Vos données ne sont pas actualisées avant l'heure programmée. Vérifiez votre appareil.",
-          url:"/suivi",tag:`suivi-h5-${s.id}-${key}`
-        }),{TTL:300,urgency:"high"});
-        pushSent++;
-      } catch(e) {
-        failed++;
-        const status=(e as {statusCode?:number}).statusCode;
-        if(status===404||status===410) await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",s.user_id);
-      }
-    }
-    const h5Fcm=await sendFcmToUser(db,s.user_id,{
-      title:"NAXA · Rappel de mesure",
-      body:"Vos données ne sont pas actualisées avant l'heure programmée. Vérifiez votre appareil.",
-      url:"/suivi",tag:`suivi-h5-${s.id}-${key}`
-    });
-    fcmSent+=h5Fcm.sent;fcmFailed+=h5Fcm.failed;
   }
 
   let remindersChecked=0,remindersSent=0;
@@ -169,31 +138,6 @@ export async function GET(request:Request) {
     }
     remindersSent++;inApp++;
 
-    if(pushConfigured){
-      const {data:subscriptions,error:subscriptionError}=await db.from("naxa_push_subscriptions")
-        .select("endpoint,subscription").eq("user_id",reminder.user_id);
-      if(subscriptionError) failed++;
-      else for(const sub of subscriptions??[]) try {
-        await webpush.sendNotification(sub.subscription,JSON.stringify({
-          title:"NAXA · Rappel personnel",
-          body:reminder.title,
-          url:"/suivi",
-          tag:"suivi-reminder-"+reminder.id+"-"+dueAt
-        }),{TTL:300,urgency:"normal"});
-        pushSent++;
-      } catch(e) {
-        failed++;
-        const status=(e as {statusCode?:number}).statusCode;
-        if(status===404||status===410) {
-          await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",reminder.user_id);
-        }
-      }
-    }
-    const reminderFcm=await sendFcmToUser(db,reminder.user_id,{
-      title:"NAXA · Rappel personnel",body:reminder.title,url:"/suivi",
-      tag:"suivi-reminder-"+reminder.id+"-"+dueAt
-    });
-    fcmSent+=reminderFcm.sent;fcmFailed+=reminderFcm.failed;
 
     if(reminder.repeat_rule==="daily"||reminder.repeat_rule==="weekly"){
       const intervalMs=(reminder.repeat_rule==="daily"?1:7)*24*60*60*1000;
@@ -289,52 +233,14 @@ export async function GET(request:Request) {
       inAppDone=true;inApp++;
     }
 
-    const {data:subs,error:subError}=pushConfigured
-      ? await db.from("naxa_push_subscriptions").select("endpoint,subscription").eq("user_id",item.recipient_user_id)
-      : {data:[],error:null};
-    if(subError){
-      failed++;
-      await db.from("suivi_push_outbox").update({
-        locked_until:null,last_error:"Lecture des abonnements Push impossible"
-      }).eq("id",item.id);
-      continue;
-    }
-
-    let pushed=false;
-    let pushError:string|null=null;
-    for(const sub of subs??[]) try {
-      await webpush.sendNotification(sub.subscription,JSON.stringify({
-        title:"NAXA · Alerte de suivi",
-        body:"Une nouvelle alerte liée à un suivi autorisé est disponible dans NAXA.",
-        url:item.recipient_user_id===item.patient_user_id?"/suivi":"/suivi/professionnel",
-        tag:"suivi-alert-"+item.id
-      }),{TTL:300,urgency:"high"});
-      pushed=true;pushSent++;
-    } catch(e) {
-      failed++;
-      const status=(e as {statusCode?:number}).statusCode;
-      if(status===404||status===410) {
-        await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",item.recipient_user_id);
-      } else {
-        pushError="Échec d'envoi Push";
-      }
-    }
-    const alertFcm=await sendFcmToUser(db,item.recipient_user_id,{
-      title:"NAXA · Alerte de suivi",
-      body:"Une nouvelle alerte liée à un suivi autorisé est disponible dans NAXA.",
-      url:item.recipient_user_id===item.patient_user_id?"/suivi":"/suivi/professionnel",
-      tag:"suivi-alert-"+item.id
-    });
-    fcmSent+=alertFcm.sent;fcmFailed+=alertFcm.failed;
-    if(alertFcm.sent>0)pushed=true;
-    else if(alertFcm.configured&&alertFcm.failed>0)pushError="Échec d'envoi FCM";
-
+    // La notification interne vient de déclencher trg_enqueue_notification_phone_push.
+    // La file centrale est désormais l'unique canal Web Push / FCM pour cet événement.
     const {error:finishError}=await db.from("suivi_push_outbox").update({
-      processed_at:pushError?null:now.toISOString(),
+      processed_at:now.toISOString(),
       locked_until:null,
-      last_error:pushError??(pushed?null:(pushConfigured||alertFcm.configured)?"Aucun abonnement Push actif":"Canaux Push désactivés : configuration VAPID et Firebase absente")
+      last_error:null
     }).eq("id",item.id);
     if(finishError) failed++;
   }
-  return NextResponse.json({ok:true,checked,stale,remindersChecked,remindersSent,inApp,pushSent,fcmSent,fcmFailed,failed,at:now.toISOString()});
+  return NextResponse.json({ok:true,checked,stale,remindersChecked,remindersSent,inApp,failed,at:now.toISOString(),push:"central_outbox"});
 }
