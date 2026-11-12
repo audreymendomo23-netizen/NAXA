@@ -53,7 +53,8 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 ## Connexion Bluetooth native Android
 
 - Les appareils sélectionnés depuis l’APK sont confiés à un service Android de premier plan de type `connectedDevice`.
-- Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native.
+- Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native chiffrée avec AES-GCM et une clé Android Keystore.
+- Chaque liaison est associée au compte qui l’a autorisée; une session appartenant à un autre compte est arrêtée plutôt que réattribuée.
 - L’interface reprend les événements persistés à son retour et les transmet au même parcours de consentement et d’enregistrement que les mesures reçues pendant que l’application est ouverte.
 - Android affiche une notification persistante pendant le maintien des connexions. Le retrait d’un appareil arrête sa session de fond.
 - La continuité Bluetooth en arrière-plan n’est pas disponible dans une PWA de navigateur; elle dépend du cycle de vie du navigateur et de ses autorisations.
