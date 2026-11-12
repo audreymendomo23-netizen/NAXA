@@ -108,3 +108,29 @@ begin
 end $$;
 
 select 'ASSURANCE_RULE_PRECEDENCE_AND_CALCULATION PASS' as result;
+
+
+-- Regression: exclusions are category-case-insensitive and must not consume the
+-- client coverage ceiling before the line is zeroed.
+do $$
+declare
+  v_def text;
+  v_exclusion_pos integer;
+  v_ceiling_debit_pos integer;
+begin
+  select pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure)
+    into v_def;
+
+  if position('jsonb_array_elements_text' in v_def)=0
+     or position('lower(e.value)=lower(coalesce(v_item.categorie' in v_def)=0 then
+    raise exception 'ASSURANCE_CATEGORY_EXCLUSION_CASE_INSENSITIVE_MISSING';
+  end if;
+
+  v_exclusion_pos:=position('if v_excluded then' in v_def);
+  v_ceiling_debit_pos:=position('v_remaining:=v_remaining-v_line_cover' in v_def);
+  if v_exclusion_pos=0 or v_ceiling_debit_pos=0 or v_exclusion_pos>v_ceiling_debit_pos then
+    raise exception 'ASSURANCE_EXCLUDED_LINE_CONSUMES_COVERAGE_CEILING';
+  end if;
+end $$;
+
+select 'ASSURANCE_EXCLUSION_AND_CEILING_GUARD PASS' as result;
