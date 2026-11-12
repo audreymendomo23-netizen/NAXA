@@ -39,8 +39,9 @@ Le détecteur explore les services GATT médicaux standards et conserve le nom d
 - Glycémie : `glucose / glucose_measurement`
 - Poids : `weight_scale / weight_measurement`
 - Composition corporelle : `body_composition / body_composition_measurement`
+- Vélo d’intérieur / ergomètre : `fitness_machine / indoor_bike_data` (vitesse instantanée, cadence et fréquence cardiaque lorsque les champs sont présents dans la trame).
 
-Les montres et bracelets qui exposent le profil cardiaque standard peuvent alimenter la fréquence cardiaque. Les autres appareils restent détectables, mais leur mesure n'est pas décodée tant qu'un adaptateur de protocole vérifié n'existe pas. Les protocoles propriétaires ne doivent jamais être interprétés comme des valeurs standard par simple heuristique.
+Les montres et bracelets qui exposent le profil cardiaque standard peuvent alimenter la fréquence cardiaque. Les vélos d’intérieur exposant le profil Fitness Machine standard peuvent fournir la vitesse, la cadence et la fréquence cardiaque. Les champs absents, incomplets ou hors plage sont ignorés; les protocoles propriétaires ne sont jamais assimilés à ce profil. Les autres appareils restent détectables, mais leur mesure n'est pas décodée tant qu'un adaptateur de protocole vérifié n'existe pas. Les protocoles propriétaires ne doivent jamais être interprétés comme des valeurs standard par simple heuristique.
 
 ## Scan et saisie
 
