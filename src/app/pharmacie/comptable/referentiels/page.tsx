@@ -10,18 +10,22 @@ export default async function ReferentielsComptablePage() {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/referentiels");
-  const { data: profile, error: profileError } = await sb.from("profiles")
-    .select("id,actif,pharmacie_id").eq("id", auth.user.id).single();
-  if (profileError || !profile || profile.actif !== true || !profile.pharmacie_id) redirect("/pharmacie");
-  const { data: allowed, error: permissionError } = await sb.rpc("naxa_can", {
-    p_privilege: "MANAGE_ACCOUNTING", p_pharmacie: profile.pharmacie_id, p_target: null,
+  const [{ data: profile, error: profileError }, { data: activeRole, error: roleError }, { data: pharmacieId, error: pharmacyRoleError }] = await Promise.all([
+    sb.from("profiles").select("id,actif").eq("id", auth.user.id).single(),
+    sb.rpc("naxa_business_function"),
+    sb.rpc("naxa_active_role_pharmacy"),
+  ]);
+  if (profileError || roleError || pharmacyRoleError || !profile || profile.actif !== true
+    || activeRole !== "comptable" || typeof pharmacieId !== "string") redirect("/pharmacie");
+  const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", {
+    p_pharmacie: pharmacieId,
   });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
   const [ordersResult, suppliersResult, insurersResult] = await Promise.all([
     sb.from("commandes_fournisseurs")
       .select("id,reference,statut,date_commande,date_reception,fournisseur_id")
-      .eq("pharmacie_id", profile.pharmacie_id).order("date_commande", { ascending: false }).limit(100),
+      .eq("pharmacie_id", pharmacieId).order("date_commande", { ascending: false }).limit(100),
     sb.from("fournisseurs").select("id,nom,actif,created_at").order("nom", { ascending: true }).limit(100),
     sb.from("assureurs").select("id,nom,code,actif").eq("actif", true).order("nom", { ascending: true }).limit(100),
   ]);
