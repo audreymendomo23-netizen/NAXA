@@ -1,12 +1,28 @@
 {
-  "name": "NAXA — Gestion pharmacie",
+  "name": "NAXA — Santé et services connectés",
   "short_name": "NAXA",
-  "description": "Gestion sécurisée des pharmacies, avec fondation hors ligne.",
-  "start_url": "/connexion?espace=pharmacie",
+  "description": "Plateforme NAXA responsive pour les clients, les professionnels de santé et les services partenaires.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#054A29",
+  "categories": ["health", "medical", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Mon suivi santé",
+      "short_name": "Suivi santé",
+      "description": "Ouvrir les appareils et mesures personnelles",
+      "url": "/suivi"
+    },
+    {
+      "name": "Espace professionnel",
+      "short_name": "Professionnel",
+      "description": "Ouvrir les patients suivis",
+      "url": "/suivi/professionnel"
+    }
+  ],
   "icons": [
     { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
   ]
