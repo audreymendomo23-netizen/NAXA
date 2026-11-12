@@ -80,10 +80,11 @@ export async function middleware(req: NextRequest) {
   // L'accréditation et l'espace professionnel du suivi privé ne sont pas
   // l'univers commercial public. Ils restent protégés par l'authentification,
   // le flag suivi_connecte, l'agrément et les politiques RLS.
-  const suiviProfessionalWorkflow =
+  const suiviPrivateRoute =
+    path === "/suivi" ||
     path === "/suivi/professionnel" ||
     path.startsWith("/suivi/professionnel/");
-  let universVerrouillable = suiviProfessionalWorkflow ? undefined : universParcours.find(
+  let universVerrouillable = suiviPrivateRoute ? undefined : universParcours.find(
     (item) => path === item.prefix || path.startsWith(item.prefix + "/")
   );
   if (path === "/partenaire/catalogue" || path.startsWith("/partenaire/catalogue/")) {
