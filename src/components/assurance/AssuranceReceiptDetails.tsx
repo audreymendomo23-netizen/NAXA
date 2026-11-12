@@ -12,7 +12,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
  const [data,setData]=useState<Snapshot|null>(null),[name,setName]=useState("Assureur");
  const [coverages,setCoverages]=useState<Coverage[]>([]),[insurers,setInsurers]=useState<Insurer[]>([]);
  const [selected,setSelected]=useState(""),[newInsurer,setNewInsurer]=useState(""),[member,setMember]=useState(""),[policy,setPolicy]=useState("");
- const [start,setStart]=useState(new Date().toISOString().slice(0,10)),[end,setEnd]=useState(""),[limit,setLimit]=useState(""),[rate,setRate]=useState("80");
+ const [start,setStart]=useState(new Date().toISOString().slice(0,10)),[end,setEnd]=useState(""),[limit,setLimit]=useState(""),[rate,setRate]=useState("");
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
 
  const load=useCallback(async()=>{
@@ -47,7 +47,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
 
  const saveCoverage=async()=>{
   if(busy||!newInsurer||member.trim().length<2)return;
-  const parsedRate=Number(rate),parsedLimit=limit.trim()?Number(limit):null;
+  const parsedRate=rate.trim()?Number(rate):NaN,parsedLimit=limit.trim()?Number(limit):null;
   if(!Number.isFinite(parsedRate)||parsedRate<0||parsedRate>100||(parsedLimit!==null&&(!Number.isSafeInteger(parsedLimit)||parsedLimit<0))){setError("Taux ou plafond invalide.");return;}
   setBusy(true);setError("");
   const {error:e}=await sb.rpc("assurance_enregistrer_couverture",{
