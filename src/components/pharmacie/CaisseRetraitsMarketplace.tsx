@@ -79,7 +79,8 @@ export function CaisseRetraitsMarketplace({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const chargerAssurances = useCallback(async (ids:string[]) => {
-    if(!ids.length){setAssuranceByReservation({});setAssuranceVerificationError(false);return;}\n    setAssuranceVerificationError(false);
+    if(!ids.length){setAssuranceByReservation({});setAssuranceVerificationError(false);return;}
+    setAssuranceVerificationError(false);
     const sb=supabaseBrowser();
     const [{data:snapshots,error:se},{data:dossiers,error:de}]=await Promise.all([
       sb.from("assurance_reservation_snapshots").select("reservation_id,assureur_id,montant_brut_fcfa,montant_assureur_fcfa,montant_client_fcfa,valide_client,controle_documents_statut").in("reservation_id",ids),
