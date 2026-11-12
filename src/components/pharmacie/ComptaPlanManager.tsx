@@ -64,7 +64,15 @@ export function ComptaPlanManager({ pharmacies, initialPharmacy, initialData, ro
     }, "Compte enregistré en attente de validation.");
   }
 
-  async function validatePlan() {\n    await run(async () => {\n      const { data: count, error: rpcError } = await supabaseBrowser().rpc("compta_plan_valider_plan", { p_pharmacie: pharmacyId });\n      if (rpcError) throw rpcError;\n      setNotice(`Plan comptable validé : ${count} compte(s).`);\n    }, "Plan comptable validé.");\n  }\n\n  async function validateAccount(id: string) {
+  async function validatePlan() {
+    await run(async () => {
+      const { data: count, error: rpcError } = await supabaseBrowser().rpc("compta_plan_valider_plan", { p_pharmacie: pharmacyId });
+      if (rpcError) throw rpcError;
+      setNotice(`Plan comptable validé : ${count} compte(s).`);
+    }, "Plan comptable validé.");
+  }
+
+  async function validateAccount(id: string) {
     await run(async () => {
       const { error: rpcError } = await supabaseBrowser().rpc("compta_plan_valider_compte", { p_pharmacie: pharmacyId, p_compte: id });
       if (rpcError) throw rpcError;
