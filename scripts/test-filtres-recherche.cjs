@@ -22,6 +22,13 @@ test("GPS : la position réelle détermine la ville et les coordonnées de reche
   assert.match(page, /Number\(r\.distance_km\)>Number\(rayonKm\)/);
 });
 
+test("Ville éloignée : le rayon RPC ne coupe pas Douala quand le GPS est à Yaoundé", () => {
+  assert.match(page, /const pointRecherche=locationStatus==="gps"\?coords:villeFiltre==="Douala"\?DOUALA:villeFiltre==="Yaoundé"\?YAOUNDE:coords/);
+  assert.match(page, /const rayonRecherche=rayonKm&&locationStatus==="gps"\?Number\(rayonKm\):villeFiltre\?\(locationStatus==="gps"\?1000:35\):20/);
+  assert.match(page, /p_lat:pointRecherche\.lat,p_lng:pointRecherche\.lng,p_rayon_km:rayonRecherche/);
+  assert.match(page, /locationStatus,villeFiltre,rayonKm\]\)/);
+});
+
 test("Filtres : ville, rayon et assurances sont combinés sur les résultats réels", () => {
   assert.match(page, /normaliserTermeRecherche\(r\.ville\)!==normaliserTermeRecherche\(villeFiltre\)/);
   assert.match(page, /Number\(r\.distance_km\)>Number\(rayonKm\)/);
