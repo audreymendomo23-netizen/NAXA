@@ -35,6 +35,7 @@ export function SuiviProfessionalPatientsWorkspace() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [shares, setShares] = useState<Share[]>([]);
   const [clinicalCasePatientIds,setClinicalCasePatientIds]=useState<string[]>([]);
+  const [activeClinicalCasePatientIds,setActiveClinicalCasePatientIds]=useState<string[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [sharedDevices,setSharedDevices]=useState<SharedDevice[]>([]);
   const [alerts, setAlerts] = useState<SharedAlert[]>([]);
@@ -69,15 +70,17 @@ export function SuiviProfessionalPatientsWorkspace() {
     const owners = [...new Set(activeShares.map(item => item.owner_user_id))];
     const types = [...new Set(activeShares.map(item => item.measurement_type))];
     if (!owners.length || !types.length) {
-      setMeasurements([]);setSharedDevices([]);setAlerts([]);setClinicalCasePatientIds([]);setAlertError("");setLastUpdated(new Date().toISOString());
+      setMeasurements([]);setSharedDevices([]);setAlerts([]);setClinicalCasePatientIds([]);setActiveClinicalCasePatientIds([]);setAlertError("");setLastUpdated(new Date().toISOString());
       setNotice("Aucun patient ne partage actuellement de mesure avec ce compte.");
       setBusy(false); return;
     }
     const {data:caseRows,error:caseError}=await sb.from("suivi_patient_cases")
-      .select("patient_user_id").in("patient_user_id",owners)
-      .eq("professional_user_id",userId).eq("status","active");
-    const initialDiagnosisOwners=caseError?[]:[...new Set((caseRows??[]).map(row=>row.patient_user_id))];
-    setClinicalCasePatientIds(initialDiagnosisOwners);
+      .select("patient_user_id,status").in("patient_user_id",owners)
+      .eq("professional_user_id",userId);
+    const existingCaseOwners=caseError?[]:[...new Set((caseRows??[]).map(row=>row.patient_user_id))];
+    const activeCaseOwners=caseError?[]:[...new Set((caseRows??[]).filter(row=>row.status==="active").map(row=>row.patient_user_id))];
+    setClinicalCasePatientIds(existingCaseOwners);
+    setActiveClinicalCasePatientIds(activeCaseOwners);
     const { data: rows, error: measurementError } = await sb.from("suivi_measurements")
       .select("id,user_id,measurement_type,value_numeric,value_text,unit,measured_at,source,note")
       .in("user_id", owners).in("measurement_type", types)
@@ -166,10 +169,11 @@ export function SuiviProfessionalPatientsWorkspace() {
     return (!periodStart||date>=periodStart)&&(!periodEnd||date<=periodEnd);
   };
   const patientHasInitialDiagnosis=!!selectedPatient&&clinicalCasePatientIds.includes(selectedPatient);
-  const caseReadyMeasurements=measurements.filter(row=>clinicalCasePatientIds.includes(row.user_id));
-  const caseReadyAlerts=alerts.filter(alert=>clinicalCasePatientIds.includes(alert.user_id));
-  const patientDevices=selectedPatient&&patientHasInitialDiagnosis?sharedDevices.filter(device=>device.user_id===selectedPatient):[];
-  const patientPeriodMeasurements=selectedPatient&&patientHasInitialDiagnosis
+  const patientCaseIsActive=!!selectedPatient&&activeClinicalCasePatientIds.includes(selectedPatient);
+  const caseReadyMeasurements=measurements.filter(row=>activeClinicalCasePatientIds.includes(row.user_id));
+  const caseReadyAlerts=alerts.filter(alert=>activeClinicalCasePatientIds.includes(alert.user_id));
+  const patientDevices=selectedPatient&&patientCaseIsActive?sharedDevices.filter(device=>device.user_id===selectedPatient):[];
+  const patientPeriodMeasurements=selectedPatient&&patientCaseIsActive
     ? caseReadyMeasurements.filter(row=>row.user_id===selectedPatient&&inReportPeriod(row.measured_at))
     : [];
   const filteredAlerts=caseReadyAlerts.filter(alert=>{
@@ -230,7 +234,7 @@ export function SuiviProfessionalPatientsWorkspace() {
           {selectedPatient && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold text-emerald-950">Dossier partagé · {patientLabel(selectedPatient)}</h2><p className="text-sm text-emerald-900">Évolution des valeurs numériques partagées, triées par date. Les graphiques décrivent les données reçues et ne constituent pas une interprétation médicale.</p></div><button type="button" className="btn btn-clair" onClick={() => setSelectedPatientId(null)}>Fermer le dossier</button></div>
             <SuiviClinicalCasePanel patientId={selectedPatient} professionalId={recipientId}/>
-            {patientHasInitialDiagnosis?<>
+            {patientCaseIsActive?<>
             <section className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">Appareils associés autorisés</b><span className="text-xs text-slate-500">{patientDevices.length} appareil(s) actif(s)</span></div>{patientDevices.length?<ul className="mt-2 grid gap-2 sm:grid-cols-2">{patientDevices.map(device=><li key={device.id} className="rounded-lg border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{device.device_brand?device.device_brand+" · ":""}{device.device_model||device.device_name}</b><span className="text-xs font-semibold">{device.connection_state==="connected"?"Connecté":device.connection_state==="error"?"Erreur":device.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-600">Reconnexion auto : {device.auto_reconnect?"activée":"désactivée"} · Dernière mesure : {device.last_measurement_at?dateLabel(device.last_measurement_at):"aucune"}</p><p className="mt-1 break-words text-xs text-slate-500">{device.protocol||"Protocole non renseigné"}</p><p className="mt-1 text-xs text-slate-500">{device.firmware_version?"Firmware : "+device.firmware_version+" · ":""}{typeof device.metadata?.battery_level==="number"?"Batterie : "+device.metadata.battery_level+"%":"Niveau de batterie non communiqué"}</p></li>)}</ul>:<p className="mt-2 text-sm text-slate-500">Aucun appareil n'est visible avec les droits de partage actuellement accordés.</p>}</section>
             <div className="grid gap-3 rounded-xl border border-emerald-100 bg-white p-3 sm:grid-cols-2"><label className="text-sm font-semibold">Période à consulter<select className="champ mt-1 w-full" value={reportPeriod} onChange={event=>setReportPeriod(event.target.value as ReportPeriod)}><option value="day">Jour en cours</option><option value="month">Mois en cours</option><option value="year">Année en cours</option><option value="custom">Période personnalisée</option></select></label>{reportPeriod==="custom"&&<div className="grid grid-cols-2 gap-2"><label className="text-sm font-semibold">Du<input type="date" className="champ mt-1 w-full" value={customFrom} onChange={event=>setCustomFrom(event.target.value)}/></label><label className="text-sm font-semibold">Au<input type="date" className="champ mt-1 w-full" value={customTo} onChange={event=>setCustomTo(event.target.value)}/></label></div>}<p className="text-xs text-slate-500 sm:col-span-2">Graphiques et mesures du dossier limités à la période choisie. Le filtre utilise le fuseau horaire du navigateur.</p></div><SuiviHistoryChart measurements={patientPeriodMeasurements} title={"Historique de "+patientLabel(selectedPatient)}/>{trendTypes.length > 0 ? <>
               <label className="block text-sm font-semibold">Mesure à visualiser<select className="champ mt-1 w-full sm:max-w-sm" value={activeTrendType} onChange={event => setTrendType(event.target.value)}>{trendTypes.map(type => <option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>
@@ -245,7 +249,7 @@ export function SuiviProfessionalPatientsWorkspace() {
                 <div className="flex justify-between gap-2 text-xs text-slate-500"><span>{dateLabel(trendPoints[0].measured_at)}</span><span>{dateLabel(trendPoints[trendPoints.length - 1].measured_at)}</span></div>
               </div> : <p className="rounded-lg bg-white p-3 text-sm text-slate-700">Il faut au moins deux mesures numériques partagées pour tracer une évolution. Une seule valeur ne permet pas de conclure à une tendance.</p>}
             </> : <p className="rounded-lg bg-white p-3 text-sm text-slate-700">Aucune mesure numérique partagée n’est disponible pour tracer une courbe. Les mesures textuelles restent consultables dans la liste.</p>}
-            </>:<section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b>Diagnostic initial requis avant le suivi</b><p className="mt-1">Les mesures, appareils et alertes de ce patient restent masqués. Le patient doit autoriser l'accès à son dossier clinique ; vous pourrez ensuite saisir le diagnostic initial pour ouvrir le suivi.</p></section>}
+            </>:{patientHasInitialDiagnosis?<section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b>Suivi suspendu ou clôturé</b><p className="mt-1">Le dossier clinique existe. Les mesures, appareils et alertes sont masqués tant que le suivi n'est pas actif. Consultez son état dans le panneau du dossier clinique.</p></section>:<section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b>Diagnostic initial requis avant le suivi</b><p className="mt-1">Le patient doit autoriser l'accès à son dossier clinique ; vous pourrez ensuite saisir le diagnostic initial pour ouvrir le suivi.</p></section>}}
           </section>}
           {filteredMeasurements.length ? <div className="space-y-3">{filteredMeasurements.map(row=><article key={row.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><b>{labels[row.measurement_type] ?? row.measurement_type}</b><p className="text-sm text-slate-600">{patientLabel(row.user_id)} · {dateLabel(row.measured_at)}</p></div><span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold">{row.value_numeric !== null ? `${row.value_numeric}${row.unit ? " " + row.unit : ""}` : row.value_text || "Valeur non renseignée"}</span></div>{row.note && <p className="mt-3 text-sm text-slate-600">Note partagée : {row.note}</p>}<p className="mt-2 text-xs text-slate-500">Source enregistrée : {row.source}</p><button type="button" className="mt-3 text-sm font-bold underline" onClick={() => {setSelectedPatientId(row.user_id);setTrendType(row.measurement_type);}}>Afficher l’évolution de ce patient</button></article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucune mesure ne correspond aux filtres. Les mesures restent visibles seulement tant que le partage et le consentement sont actifs.</p>}
         </>}
