@@ -20,6 +20,18 @@ type Halo = { x: number; y: number; vie: number };
 
 const d = (n: number) => ({ "--i": n } as React.CSSProperties);
 
+function safeInternalPath(value: string | null) {
+  if (!value || !value.startsWith("/")) return "/";
+  try {
+    const target = new URL(value, "https://naxa.invalid");
+    return target.origin === "https://naxa.invalid"
+      ? target.pathname + target.search + target.hash
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
 function BullesConnexion() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -205,7 +217,7 @@ function GoogleIcon() {
 
 function TitreEspace() {
   const search = useSearchParams();
-  const retour = search.get("retour") || "/";
+  const retour = safeInternalPath(search.get("retour"));
   const queryEcosysteme = search.get("ecosysteme");
   const ecosysteme = estEcosystemeId(queryEcosysteme) ? queryEcosysteme : ecosystemeDepuisChemin(retour);
   const titre = search.get("professionnel") === "1"
@@ -229,7 +241,7 @@ function TitreEspace() {
 
 function AccesProfessionnel() {
   const search = useSearchParams();
-  const retour = search.get("retour") || "/";
+  const retour = safeInternalPath(search.get("retour"));
   const queryEcosysteme = search.get("ecosysteme");
   const ecosysteme = estEcosystemeId(queryEcosysteme) ? queryEcosysteme : ecosystemeDepuisChemin(retour);
   if (search.get("espace") === "pharmacie" || search.get("professionnel") === "1") return null;
@@ -257,7 +269,7 @@ function AccesProfessionnel() {
 function Formulaire() {
   const router = useRouter();
   const search = useSearchParams();
-  const retour = search.get("retour") || "/";
+  const retour = safeInternalPath(search.get("retour"));
   const professionnel = search.get("professionnel") === "1";
   const [username, setUsername] = useState("");
   const [usernameRecognition, setUsernameRecognition] = useState<"idle" | "checking" | "recognized">("idle");
