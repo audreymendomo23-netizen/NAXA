@@ -40,7 +40,8 @@ export function ActiverPushNaxa(){
         const detail=(event as CustomEvent).detail??{};
         if(detail.type==="notificationPermissionGranted"){
           setState("ready");setMessage("Notifications locales activées. Activation du canal distant NAXA…");
-          native.refreshFcmToken?.();
+          if(native.isFcmAvailable?.()===true)native.refreshFcmToken?.();
+          else setMessage("Notifications locales activées. Les notifications distantes attendent la configuration Firebase de cette version Android.");
         }else if(detail.type==="error"&&String(detail.message??"").toLowerCase().includes("notification")){
           setState("error");setMessage(String(detail.message));
         }
@@ -48,9 +49,11 @@ export function ActiverPushNaxa(){
       window.addEventListener("naxa-fcm-token",receiveToken);
       window.addEventListener("naxa-android-ble",receive);
       if(native.hasNotificationPermission?.()===true){
-        const saved=String(native.getFcmToken?.()??"");
-        if(saved.length>=100)void registerToken(saved);
-        native.refreshFcmToken?.();
+        if(native.isFcmAvailable?.()===true){
+          const saved=String(native.getFcmToken?.()??"");
+          if(saved.length>=100)void registerToken(saved);
+          native.refreshFcmToken?.();
+        }else setMessage("Notifications locales activées. FCM attend les identifiants Firebase de compilation Android.");
       }
       if(native.areLocalRemindersEnabled?.()===true&&native.hasNotificationPermission?.()===true){
         setState("ready");setMessage("Notifications locales Android activées. Vérification du canal distant NAXA…");
@@ -71,7 +74,7 @@ export function ActiverPushNaxa(){
     const native=(window as any).NaxaAndroid;
     if(native?.isAvailable?.()){
       native.requestNotifications?.();
-      native.refreshFcmToken?.();
+      if(native.isFcmAvailable?.()===true)native.refreshFcmToken?.();
       if(native.areLocalRemindersEnabled?.()===true&&native.hasNotificationPermission?.()===true){
         setState("ready");setMessage("Notifications locales Android activées. Les rappels et alertes peuvent apparaître sur ce téléphone.");
       }else{
