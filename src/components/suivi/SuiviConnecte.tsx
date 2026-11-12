@@ -722,8 +722,12 @@ export function SuiviConnecte() {
       try{if(session.device?.gatt?.connected)session.device.gatt.disconnect();}catch{/* Déjà déconnecté. */}
     }
     setBusy(true);setNotice("");
-    const {error}=await sb.from("suivi_user_devices").delete()
-      .eq("id",instance.id).eq("user_id",userData.user.id);
+    const scheduleCleanup=await sb.from("suivi_measurement_schedules")
+      .update({enabled:false,device_id:null,updated_at:new Date().toISOString()})
+      .eq("user_id",userData.user.id).eq("device_id",instance.id);
+    const {error}=scheduleCleanup.error
+      ? {error:scheduleCleanup.error}
+      : await sb.from("suivi_user_devices").delete().eq("id",instance.id).eq("user_id",userData.user.id);
     if(error)setNotice("Cet appareil n'a pas pu être retiré. Vos données historiques sont conservées.");
     else{setNotice("Appareil retiré. Les mesures déjà enregistrées restent dans votre historique.");await load();}
     setBusy(false);
