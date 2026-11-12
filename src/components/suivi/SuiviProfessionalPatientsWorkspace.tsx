@@ -60,7 +60,7 @@ export function SuiviProfessionalPatientsWorkspace() {
       .eq("recipient_user_id", userId).eq("active", true).is("revoked_at", null)
       .order("granted_at", { ascending: false }).limit(500);
     if (shareError) {
-      setShares([]); setMeasurements([]); setSharedDevices([]); setAlerts([]);setLastUpdated(new Date().toISOString());
+      setShares([]); setMeasurements([]); setSharedDevices([]); setAlerts([]);setClinicalCasePatientIds([]);setLastUpdated(new Date().toISOString());
       setError("Les partages ne sont pas accessibles. Vérifiez les migrations du suivi, le statut du professionnel et le consentement du patient.");
       setBusy(false); return;
     }
