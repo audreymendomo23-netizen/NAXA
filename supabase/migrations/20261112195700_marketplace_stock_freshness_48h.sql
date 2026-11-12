@@ -3,6 +3,38 @@
 -- La réservation revalide la fraîcheur sous verrou, même si l'offre a été mise en cache.
 begin;
 
+do $preflight$
+begin
+  if to_regclass('public.stock_manager_movement_journal') is null
+     or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='stock_manager_movement_journal' and column_name='occurred_at')
+     or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='stock_manager_movement_journal' and column_name='event_type') then
+    raise exception 'Marketplace freshness requires stock movement journal migration 268';
+  end if;
+end;
+$preflight$;
+
+-- Date de fraîcheur issue uniquement des mouvements physiques de quantité.
+-- Une modification de prix, photo, libellé ou autre métadonnée ne renouvelle pas le stock.
+create or replace function private.marketplace_stock_last_quantity_update(
+  p_pharmacie uuid,
+  p_produit uuid
+)
+returns timestamptz
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select max(j.occurred_at)
+  from public.stock_manager_movement_journal j
+  where j.pharmacie_id = p_pharmacie
+    and j.produit_id = p_produit
+    and j.source_table in ('stocks', 'stocks_lots')
+    and j.event_type in ('creation', 'quantite', 'suppression')
+$function$;
+
+revoke all on function private.marketplace_stock_last_quantity_update(uuid, uuid) from public, anon, authenticated;
+
 create or replace function public.marketplace_offre_stock_disponible(
   p_pharmacie uuid,
   p_produit uuid
@@ -18,6 +50,7 @@ declare
   v_has_lots boolean;
   v_disponible integer;
   v_reserve integer;
+  v_last_stock_update timestamptz;
 begin
   if p_pharmacie is null or p_produit is null then
     return;
@@ -36,9 +69,11 @@ begin
     return;
   end if;
 
-  -- Exactement 48 h reste admissible ; NULL ou plus ancien est exclu.
-  if v_stock.updated_at is null
-     or v_stock.updated_at < clock_timestamp() - interval '48 hours' then
+  -- Exactement 48 h reste admissible ; sans mouvement de quantité traçable,
+  -- le stock est considéré non vérifié et n'est jamais publié.
+  v_last_stock_update := private.marketplace_stock_last_quantity_update(p_pharmacie, p_produit);
+  if v_last_stock_update is null
+     or v_last_stock_update < clock_timestamp() - interval '48 hours' then
     return;
   end if;
 
@@ -134,13 +169,14 @@ begin
     v_q := coalesce((it->>'quantite')::integer, 1);
     if v_q < 1 or v_q > 10 then raise exception 'Quantité invalide'; end if;
 
-    select s.quantite, s.prix, s.updated_at
-      into v_stock, v_prix, v_stock_updated_at
+    select s.quantite, s.prix
+      into v_stock, v_prix
     from public.stocks s
     where s.pharmacie_id=p_pharmacie and s.produit_id=v_produit
       and (s.date_peremption is null or s.date_peremption >= current_date)
     for update;
     if not found then raise exception 'Produit absent ou périmé'; end if;
+    v_stock_updated_at := private.marketplace_stock_last_quantity_update(p_pharmacie, v_produit);
     if v_stock_updated_at is null
        or v_stock_updated_at < clock_timestamp() - interval '48 hours' then
       raise exception 'Stock non actualisé depuis plus de 48 heures : produit indisponible sur le Marketplace';
