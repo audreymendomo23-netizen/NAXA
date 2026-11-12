@@ -11,6 +11,12 @@ Alimenter le catalogue public NAXA avec des images réellement rattachées à un
 3. **Wikimedia Commons** : recherche complémentaire uniquement pour les types encore absents. Seules les licences CC0, domaine public, CC BY et CC BY-SA sont acceptées ; les licences NC/ND sont rejetées. L'URL de la page du fichier, la licence et l'attribution sont conservées. Les recherches sont mises en cache 7 jours et les appels simultanés limités à deux par médicament.
 4. **Open Products Facts** : utilisé uniquement lorsqu'un GTIN/EAN exact est fourni à l'endpoint photo. La fiche doit renvoyer le même code-barres et une catégorie médicament/pharmaceutique. La photo est affichée depuis la source, sans copie locale, sous CC BY-SA ; l'attribution et la fiche source sont conservées. Ne pas fusionner les données de cette base dans le référentiel maître NAXA sans traiter les obligations ODbL et share-alike.
 
+## Raccordement des correspondances CIMA déjà calculées
+
+La table de travail CIMA `private.medicamentos_cima_bdpm_jobs` n'est jamais lue directement par les rôles publics ni par le navigateur. La migration `310_cima_photo_public_projection.sql` crée une vue de lecture seule à colonnes limitées. Elle ne retient que les lignes `correspondance_forte`, avec `dose_concordante = true`, score d'au moins 0,78, URL officielle CIMA validée et correspondance de l'URL avec le média `fotos[].url` ainsi que sa date `fotos[].fecha`.
+
+L'API de recherche rapproche cette projection par CIS BDPM exact. Les boîtes CIMA sont explicitement présentées comme références visuelles étrangères indicatives ; elles ne garantissent ni la marque, ni le conditionnement camerounais. Les images de forme pharmaceutique restent également indicatives et ne certifient pas l'aspect exact du produit local. Si la date de la photo ou la correspondance technique manque, l'image est écartée et le catalogue conserve son fallback actuel.
+
 ## Sources volontairement exclues
 
 - **MEDIPIM** : service professionnel/payant ; hors périmètre gratuit.
@@ -37,9 +43,9 @@ Alimenter le catalogue public NAXA avec des images réellement rattachées à un
 
 ## Vérifications à effectuer après intégration
 
-- La saisie d'un EAN/GTIN exact dans les deux interfaces de recherche déclenche une lecture OPF uniquement lorsque la recherche catalogue ne renvoie aucun résultat ; un code sans fiche médicament revient sans image et ne déclenche aucune recherche textuelle de secours.
+- La saisie d'un EAN/GTIN exact dans les deux interfaces de recherche déclenche une lecture OPF uniquement lorsque la recherche catalogue ne renvoie aucun résultat ; un code sans fiche médicament revient sans image et ne déclenche aucune recherche textuelle de secours.\n- Une recherche BDPM utilise le CIS exact pour récupérer les photos pré-calculées via la projection publique CIMA ; aucun accès public direct à la table privée n'est autorisé.\n- Les photos CIMA nécessitent un champ `fotos[].fecha` valide et une URL exacte rattachée au numéro d'enregistrement CIMA.
 
-- npm run test:catalogue-medicaments
+- Migration requise : `supabase/migration_310_cima_photo_public_projection.sql` (ne pas appliquer à Production sans ordre explicite).\n- npm run test:catalogue-medicaments
 - npx tsc --noEmit
 - Recette visuelle sur plusieurs marques et DCI, avec vérification séparée des images de boîte et de forme pharmaceutique.
 - Vérification de disponibilité des sources depuis le runtime de l'application. Une source gratuite peut être indisponible temporairement ; le fallback placeholder doit rester opérationnel.

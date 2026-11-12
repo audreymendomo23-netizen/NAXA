@@ -203,6 +203,28 @@ test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont int
   assert.ok(photoRoute.includes("selected?.provider"));
 });
 
+
+const cimaPhotoProjection = fs.readFileSync(path.join(root, "supabase/migration_310_cima_photo_public_projection.sql"), "utf8");
+
+test("CIMA pré-calculé : projection publique strictement filtrée et reliée au CIS exact", () => {
+  assert.match(cimaPhotoProjection, /create or replace view public\.medicaments_cima_photos_public/);
+  assert.match(cimaPhotoProjection, /security_barrier = true/);
+  assert.match(cimaPhotoProjection, /j\.statut = 'correspondance_forte'/);
+  assert.match(cimaPhotoProjection, /j\.dose_concordante is true/);
+  assert.match(cimaPhotoProjection, /j\.score >= 0\.78/);
+  assert.match(cimaPhotoProjection, /fotos/);
+  assert.match(cimaPhotoProjection, /fecha/);
+  assert.match(cimaPhotoProjection, /cima\[\.]aemps\[\.]es/);
+  assert.match(cimaPhotoProjection, /revoke all on public\.medicamentos_cima_photos_public from public/);
+  assert.match(cimaPhotoProjection, /grant select on public\.medicamentos_cima_photos_public to anon, authenticated, service_role/);
+  assert.doesNotMatch(cimaPhotoProjection, /select\s+j\.donnees_cima\s*,/i);
+  assert.match(route, /from\("medicaments_cima_photos_public"\)/);
+  assert.match(route, /\.in\("cis", cisList\)/);
+  assert.match(route, /function construirePhotoCima/);
+  assert.match(route, /photo mise à jour le/);
+  assert.match(route, /marque et présentation pouvant différer/);
+});
+
 test("photos : le chargement client borne la concurrence et conserve la provenance réelle", () => {
   assert.ok(recherche.includes("Math.min(2, ciblesPhoto.length)"));
   assert.ok(!recherche.includes("Promise.all(ciblesPhoto.map"));
