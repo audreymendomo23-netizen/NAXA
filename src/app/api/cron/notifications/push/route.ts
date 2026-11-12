@@ -82,7 +82,7 @@ export async function GET(request: Request) {
           delivered = true;
           fcmDelivered = true;
         }
-        if (result.failed > 0 && result.sent === 0) retry = true;
+        if (!result.configured || (result.failed > 0 && result.sent === 0)) retry = true;
       }
 
       // FCM est prioritaire sur un téléphone Android enregistré. Le Web Push
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
 
     }
 
-    const outcome = delivered ? "sent" : hasDevice && retry ? "retry" : hasDevice ? "retry" : "no_device";
+    const outcome = delivered ? "sent" : retry || hasDevice ? "retry" : "no_device";
     const { data: finished, error: finishError } = await db.rpc("finish_notification_push_outbox", {
       p_outbox_id: item.outbox_id,
       p_result: outcome,
