@@ -24,11 +24,11 @@ const expectedMeasurementKeys = [
   "debit_expiratoire", "ecg_note", "masse_grasse", "masse_musculaire",
   "masse_osseuse", "cetonemie", "acide_urique", "cholesterol_hdl",
   "cholesterol_ldl", "capacite_vitale", "vitesse_course", "cadence_course",
-  "longueur_foulee", "pourcentage_musculaire", "masse_maigre",
+  "longueur_foulee", "vitesse_cyclisme", "pourcentage_musculaire", "masse_maigre",
   "masse_maigre_molle", "masse_eau_corporelle", "metabolisme_basal"
 ];
 assert.equal(measurementKeys.length, expectedMeasurementKeys.length,
-  "le catalogue doit exposer les 39 types de mesure attendus");
+  "le catalogue doit exposer les 40 types de mesure attendus");
 assert.equal(new Set(measurementKeys).size, expectedMeasurementKeys.length,
   "les types de mesure doivent être uniques");
 assert.deepEqual(measurementKeys, expectedMeasurementKeys,
