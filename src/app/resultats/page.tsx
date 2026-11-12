@@ -73,7 +73,22 @@ function ResultsContent(){
  const activeFilterCount=0;
  const toggleQuickFilter=(key:"stock"|"open"|"prescription")=>{const next={...activeFilters,[key]:!activeFilters[key]};setActiveFilters(next);setFilters(v=>({...v,[key]:next[key]}))};
  const cycleDistance=()=>{const next=activeFilters.distance===""?"5":activeFilters.distance==="5"?"10":"";setActiveFilters(v=>({...v,distance:next}));setFilters(v=>({...v,distance:next}))};
- const add=(r:Row)=>{const item=r.items[0];if(!item)return;if(rxIds.has(item.produit_id)){router.push("/scanner");return}ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},1);setAdded(r.pharmacie_id);notifierNAXA(item.nom+" ajouté au panier.");window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)};
+ const add=(r:Row)=>{
+  const items=bulkTerms.length?r.items:[r.items[0]].filter(Boolean);
+  if(!items.length)return;
+  if(items.some(item=>rxIds.has(item.produit_id))){setError("Cette sélection contient un médicament soumis à ordonnance. La pharmacie doit valider la prescription avant sa mise au panier.");return;}
+  const ids=new Set(lignes.map(line=>line.produit_id));
+  items.forEach(item=>ids.add(item.produit_id));
+  if(ids.size>10){setError("Votre panier peut contenir au maximum 10 médicaments. Réduisez la sélection.");return;}
+  for(const [index,item] of items.entries()){
+   const termIndex=bulkTerms.findIndex(term=>{const a=term.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const b=item.nom.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();return a===b||a.includes(b)||b.includes(a)});
+   const quantity=bulkTerms.length?(bulkQuantities[termIndex>=0?termIndex:index]??1):1;
+   if(lignes.some(line=>line.produit_id===item.produit_id))changerQuantite(item.produit_id,quantity);
+   else ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},quantity);
+  }
+  setAdded(r.pharmacie_id);notifierNAXA(items.length>1?items.length+" médicaments ajoutés au panier.":items[0].nom+" ajouté au panier.");
+  window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)
+};
  const continuerAvecPharmacie=(r:Row)=>{
   const items=r.items??[];
   if(!items.length){setError("Aucun médicament confirmé pour cette pharmacie.");return;}
