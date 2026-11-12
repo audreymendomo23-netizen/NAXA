@@ -58,18 +58,18 @@ function extrairePosologie(lecture: LectureOrdonnance): BrouillonPosologie {
 
 async function convertirPdfEnImages(file: File): Promise<File[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const document = await pdfjs.getDocument({
+  const pdfDocument = await pdfjs.getDocument({
     data: new Uint8Array(await file.arrayBuffer()),
     disableWorker: true,
     isEvalSupported: false,
   }).promise;
   try {
-    if (document.numPages < 1 || document.numPages > 5) {
+    if (pdfDocument.numPages < 1 || pdfDocument.numPages > 5) {
       throw new Error("Une ordonnance PDF doit contenir entre 1 et 5 pages.");
     }
     const pages: File[] = [];
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+      const page = await pdfDocument.getPage(pageNumber);
       const baseViewport = page.getViewport({ scale: 1 });
       const viewport = page.getViewport({ scale: Math.min(2, 1800 / baseViewport.width) });
       const canvas = document.createElement("canvas");
@@ -86,7 +86,7 @@ async function convertirPdfEnImages(file: File): Promise<File[]> {
     }
     return pages;
   } finally {
-    await document.destroy();
+    await pdfDocument.destroy();
   }
 }
 
