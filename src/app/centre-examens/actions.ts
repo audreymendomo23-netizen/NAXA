@@ -114,7 +114,7 @@ export async function createExamStaffAccount(form:FormData){
       .eq("id",existing.id).maybeSingle();
     if(profileError) fail(path,centerId);
     if(profile&&(profile.role!=="client"||profile.actif!==true)) fail(path,centerId);
-    const complete=Boolean(profile?.username&&profile.age_verified===true&&profile.consent_accepted_at
+    const complete=Boolean(existing.email_confirmed_at&&profile?.username&&profile.age_verified===true&&profile.consent_accepted_at
       &&profile.date_of_birth&&profile.first_name&&profile.last_name&&profile.phone);
     if(complete){
       const {data,error}=await sb.rpc("exam_assign_existing_staff",{
