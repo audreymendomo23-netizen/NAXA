@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
 import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
+import { SuiviClinicalCasePanel } from "@/components/suivi/SuiviClinicalCasePanel";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Share = { id: string; owner_user_id: string; measurement_type: string; granted_at: string; active: boolean; revoked_at: string | null; allow_history:boolean; allow_realtime:boolean; allow_alerts:boolean; realtime_from_at:string|null };
@@ -184,6 +185,7 @@ export default function PharmacienSuiviPatientsPage() {
         {tab==="mesures" && <>
           {selectedPatient && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold text-emerald-950">Dossier partagé · {patientLabel(selectedPatient)}</h2><p className="text-sm text-emerald-900">Évolution des valeurs numériques partagées, triées par date. Les graphiques décrivent les données reçues et ne constituent pas une interprétation médicale.</p></div><button type="button" className="btn btn-clair" onClick={() => setSelectedPatientId(null)}>Fermer le dossier</button></div>
+            <SuiviClinicalCasePanel patientId={selectedPatient} professionalId={recipientId}/>
             <SuiviHistoryChart measurements={measurements.filter(row=>row.user_id===selectedPatient)} title={"Historique de "+patientLabel(selectedPatient)}/>{trendTypes.length > 0 ? <>
               <label className="block text-sm font-semibold">Mesure à visualiser<select className="champ mt-1 w-full sm:max-w-sm" value={activeTrendType} onChange={event => setTrendType(event.target.value)}>{trendTypes.map(type => <option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>
               {trendPoints.length > 1 ? <div className="rounded-xl border border-emerald-100 bg-white p-3">
