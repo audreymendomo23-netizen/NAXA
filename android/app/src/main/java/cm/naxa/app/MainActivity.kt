@@ -152,6 +152,9 @@ class MainActivity : Activity() {
         @JavascriptInterface fun syncMeasurementReminders(raw: String) {
             runOnUiThread { NaxaReminderScheduler.sync(this@MainActivity, raw.take(30000)) }
         }
+        @JavascriptInterface fun syncPersonalReminders(raw: String) {
+            runOnUiThread { NaxaReminderScheduler.syncPersonal(this@MainActivity, raw.take(30000)) }
+        }
         @JavascriptInterface fun updateMeasurementFreshness(measurementType: String, timestampMillis: Long, deviceId: String) {
             NaxaReminderScheduler.updateFreshness(this@MainActivity, measurementType.take(100), timestampMillis, deviceId.take(120))
         }
