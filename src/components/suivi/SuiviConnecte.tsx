@@ -853,7 +853,7 @@ export function SuiviConnecte() {
         sync_origin:"pwa",
         device_id:deviceRow!.id,
         device_event_id:receivedAt+":"+bluetoothShortUuid(characteristic.uuid)+":"+index+":"+payloadId,
-        device_model_snapshot:String(connected.name ?? item.name).slice(0,120),
+        device_model_snapshot:String(deviceInfo.model??connected.name??item.name).slice(0,120),
         device_brand_snapshot:deviceRow!.device_brand,
         note:null
       }));
