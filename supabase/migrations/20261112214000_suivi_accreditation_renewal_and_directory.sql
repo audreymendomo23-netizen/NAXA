@@ -1,12 +1,32 @@
 -- NAXA — renouvellement d'un agrément expiré et exclusion des comptes inactifs.
 begin;
 
+-- Une demande/renouvellement d'agrément reste possible même lorsque l'univers
+-- de suivi est fermé : il ne donne aucun accès patient avant validation et activation.
+drop policy if exists suivi_professionals_owner_select on public.suivi_professionals;
+create policy suivi_professionals_owner_select on public.suivi_professionals
+for select to authenticated using(
+  user_id=(select auth.uid())
+  and exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.actif=true)
+);
+
+drop policy if exists suivi_professionals_self_insert_pending on public.suivi_professionals;
+create policy suivi_professionals_self_insert_pending on public.suivi_professionals
+for insert to authenticated with check(
+  user_id=(select auth.uid())
+  and exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.actif=true)
+  and verified=false
+  and verification_status='pending'
+  and verified_by is null
+  and verified_at is null
+);
+
 drop policy if exists suivi_professionals_self_update_pending on public.suivi_professionals;
 create policy suivi_professionals_self_update_pending on public.suivi_professionals
 for update to authenticated
 using(
   user_id=(select auth.uid())
-  and public.suivi_is_enabled_user((select auth.uid()))
+  and exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.actif=true)
   and (
     verification_status in ('pending','rejected','expired')
     or (verified=true and verification_status='verified'
