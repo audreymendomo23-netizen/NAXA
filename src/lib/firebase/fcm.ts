@@ -6,7 +6,7 @@ type ServiceAccount = { project_id?: string; client_email?: string; private_key?
 let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
 function base64url(value: string | Buffer) {
-  return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+  return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 function serviceAccount(): ServiceAccount | null {
