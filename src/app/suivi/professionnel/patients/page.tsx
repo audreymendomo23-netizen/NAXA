@@ -1,2 +1,7 @@
-// Espace patient partagé commun à tous les professionnels de santé agréés.
-export { default } from "@/app/pharmacie/pharmacien/suivi-patients/page";
+"use client";
+
+import { SuiviProfessionalPatientsWorkspace } from "@/components/suivi/SuiviProfessionalPatientsWorkspace";
+
+export default function SuiviProfessionnelPatientsPage(){
+  return <SuiviProfessionalPatientsWorkspace />;
+}
