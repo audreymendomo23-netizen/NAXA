@@ -37,12 +37,19 @@ begin
     or position('assurance_remboursement_recu' in pg_get_functiondef('public.compta_traiter_evenement(uuid,uuid)'::regprocedure))=0 then
     raise exception 'COMPTA_WORKER_ASSURANCE_UNSUPPORTED';
   end if;
-  if position('on conflict (pharmacie_id,cle_idempotence)' in pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure))=0
+  if position('on conflict(pharmacie_id,cle_idempotence)' in pg_get_functiondef('private.assurance_lier_vente_reservation()'::regprocedure))=0
     or position('on conflict (pharmacie_id,cle_idempotence)' in pg_get_functiondef('public.assurance_enregistrer_remboursement(uuid,bigint,date,text,text)'::regprocedure))=0 then
     raise exception 'ASSURANCE_COMPTA_IDEMPOTENCE_KEY_MISMATCH';
   end if;
-  if position('Vente Assurance bloquée' in pg_get_functiondef('private.assurance_lier_vente_reservation()'::regprocedure))=0 then
-    raise exception 'ASSURANCE_POS_AMOUNT_GUARD_MISSING';
+  if position('Répartition POS incohérente' in pg_get_functiondef('private.assurance_lier_vente_reservation()'::regprocedure))=0
+    or position('vente_payer_assurance' in pg_get_functiondef('public.vente_reservation_encaisser(uuid,uuid,integer,text,text)'::regprocedure))=0
+    or position('controle_documents_statut' in pg_get_functiondef('public.vente_reservation_encaisser(uuid,uuid,integer,text,text)'::regprocedure))=0
+    or position('ASSURANCE:%' in pg_get_functiondef('public.compta_emettre_evenement_metier()'::regprocedure))=0 then
+    raise exception 'ASSURANCE_POS_SPLIT_CONTRACT_MISSING';
+  end if;
+  if position('compta_evenement' in pg_get_functiondef('private.assurance_lier_vente_reservation()'::regprocedure))=0
+    or position('compta_evenement' in pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure))>0 then
+    raise exception 'ASSURANCE_RECEIVABLE_RECOGNITION_TIMING_INVALID';
   end if;
   if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='dossiers_assurance' and column_name='montant_rembourse')
     or not exists(select 1 from information_schema.columns where table_schema='public' and table_name='dossiers_assurance' and column_name='reservation_id') then
