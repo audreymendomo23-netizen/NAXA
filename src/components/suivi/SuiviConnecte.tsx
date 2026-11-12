@@ -132,7 +132,7 @@ export function SuiviConnecte() {
   const [selectedDeviceKey, setSelectedDeviceKey] = useState<string | null>(null);
   const [measurementSheetOpen, setMeasurementSheetOpen] = useState(false);
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
-  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number }>());
+  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
   const measurementRefreshTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const load = useCallback(async () => {
@@ -226,6 +226,22 @@ export function SuiviConnecte() {
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
+  useEffect(() => {
+    const resumeBluetooth = () => {
+      if(document.visibilityState!=="visible") return;
+      for(const session of bluetoothSessions.current.values()){
+        if(session.device?.gatt?.connected || !session.reconnect) continue;
+        if(session.retryTimer) window.clearTimeout(session.retryTimer);
+        session.retryTimer=window.setTimeout(()=>void session.reconnect?.(),250);
+      }
+    };
+    document.addEventListener("visibilitychange",resumeBluetooth);
+    window.addEventListener("pageshow",resumeBluetooth);
+    return ()=>{
+      document.removeEventListener("visibilitychange",resumeBluetooth);
+      window.removeEventListener("pageshow",resumeBluetooth);
+    };
   }, []);
 
   useEffect(() => {
@@ -347,8 +363,21 @@ export function SuiviConnecte() {
     setBusy(true); setNotice("");
     const { data:userData } = await sb.auth.getUser();
     if (!userData.user) { setNotice("Session expirée. Reconnectez-vous."); setBusy(false); return; }
+    if(existing?.active && existing.platform_device_id){
+      const session=bluetoothSessions.current.get(existing.platform_device_id);
+      if(session){
+        if(session.retryTimer) window.clearTimeout(session.retryTimer);
+        bluetoothSessions.current.delete(existing.platform_device_id);
+        try { if(session.device?.gatt?.connected) session.device.gatt.disconnect(); } catch { /* L'appareil est déjà fermé. */ }
+      }
+    }
     const { error } = existing
-      ? await sb.from("suivi_user_devices").update({active:!existing.active, updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",userData.user.id)
+      ? await sb.from("suivi_user_devices").update({
+          active:!existing.active,
+          auto_reconnect:existing.active?false:!!existing.platform_device_id,
+          connection_state:existing.active?"disconnected":(existing.connection_state??"disconnected"),
+          updated_at:new Date().toISOString()
+        }).eq("id",existing.id).eq("user_id",userData.user.id)
       : await sb.from("suivi_user_devices").insert({user_id:userData.user.id,device_key:device.key,device_name:device.name,connection_mode:device.mode,capabilities:["manual","bluetooth","scan"],active:true});
     if (error) setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
     else {
@@ -654,7 +683,8 @@ export function SuiviConnecte() {
       const retry=async()=>{
         if(!bluetoothSessions.current.has(String(connected.id))) return;
         try {
-          await connected.gatt.connect();
+          if(!connected.gatt.connected) await connected.gatt.connect();
+          current.retryTimer=undefined;
           current.retries=0;
           await sb.from("suivi_user_devices").update({connection_state:"connected",last_seen_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()}).eq("id",deviceRow!.id);
           setNotice("Connexion Bluetooth rétablie : "+String(connected.name ?? item.name)+".");
@@ -673,7 +703,8 @@ export function SuiviConnecte() {
           }
         }
       };
-      current.retryTimer=window.setTimeout(()=>void retry(),1000);
+      current.reconnect=retry;
+      if(!connected.gatt.connected) current.retryTimer=window.setTimeout(()=>void retry(),1000);
     };
     connected.addEventListener("gattserverdisconnected",onDisconnected);
     await load();
