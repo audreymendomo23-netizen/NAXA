@@ -109,6 +109,8 @@ declare
   v_new_token uuid;
   v_result jsonb;
   v_direct jsonb;
+  v_revoke_assignment uuid;
+  v_audit_count integer;
   v_count integer;
   v_rejected boolean;
 begin
@@ -124,6 +126,16 @@ begin
   where center_id=f.center_id and user_id=f.owner_id and role_key='directeur'
     and is_active and active_role and revoked_at is null;
   if v_count<>1 then raise exception 'Partner/center director synchronization failed'; end if;
+
+  select id into v_revoke_assignment from public.exam_staff_assignments
+  where center_id=f.center_id and user_id=f.owner_id and role_key='directeur'
+    and is_active and revoked_at is null;
+  v_rejected:=false;
+  begin
+    perform public.exam_revoke_staff_assignment(f.center_id,v_revoke_assignment);
+  exception when insufficient_privilege then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Partner-managed director assignment was revocable'; end if;
 
   perform set_config('request.jwt.claim.sub',f.wrong_user_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',f.wrong_user_id,'role','authenticated')::text,true);
@@ -152,6 +164,20 @@ begin
   where center_id=f.center_id and user_id=f.invitee_id
     and role_key='accueil' and is_active and revoked_at is null;
   if v_count<>1 then raise exception 'Direct assignment was not persisted'; end if;
+
+  select id into v_revoke_assignment from public.exam_staff_assignments
+  where center_id=f.center_id and user_id=f.invitee_id and role_key='accueil'
+    and is_active and revoked_at is null;
+  perform set_config('request.jwt.claim.sub',f.wrong_user_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.wrong_user_id,'role','authenticated')::text,true);
+  v_rejected:=false;
+  begin
+    perform public.exam_revoke_staff_assignment(f.center_id,v_revoke_assignment);
+  exception when insufficient_privilege then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Unauthorised assignment revocation was not rejected'; end if;
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
 
   v_rejected:=false;
   begin
@@ -231,11 +257,17 @@ begin
 
   perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
-  update public.exam_staff_assignments
-  set is_active=false,active_role=false,revoked_at=now()
+  select id into v_revoke_assignment from public.exam_staff_assignments
   where center_id=f.center_id and user_id=f.invitee_id
-    and role_key='technicien_laboratoire' and is_active;
-  if not found then raise exception 'Assignment revocation failed'; end if;
+    and role_key='technicien_laboratoire' and is_active and revoked_at is null;
+  if v_revoke_assignment is null
+    or public.exam_revoke_staff_assignment(f.center_id,v_revoke_assignment) is not true then
+    raise exception 'Assignment revocation failed';
+  end if;
+  select count(*) into v_audit_count from public.audit_log
+  where actor_id=f.owner_id and action='exam.staff.assignment_revoked'
+    and entity_type='exam_staff_assignment' and entity_id=v_revoke_assignment::text;
+  if v_audit_count<>1 then raise exception 'Assignment revocation audit event missing'; end if;
 
   if not pg_temp.exam_staff_account_survives(f.invitee_id) then
     raise exception 'Revoking an assignment must preserve the active NAXA profile and Auth account';
