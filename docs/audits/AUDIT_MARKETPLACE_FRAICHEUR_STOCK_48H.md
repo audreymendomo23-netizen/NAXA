@@ -21,7 +21,7 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 4. Les stocks lotisés utilisent les lots non bloqués et non périmés ; les holds actifs de réservation **et de commande** sont soustraits.
 5. Les recherches simple et multi-produits passent désormais par `marketplace_offre_stock_disponible`. La réservation recontrôle la fraîcheur sous verrou, puis relit cette même offre vendable. Les quantités concurrentes ne peuvent pas dépasser le stock restant.
 6. Le prix et le total de réservation sont recalculés côté serveur depuis `stocks.prix`. Les prix affichés dans le panier sont informatifs et ne sont jamais une autorité de facturation.
-7. Une quantité choisie dans le parcours d'une pharmacie est plafonnée à la disponibilité retournée par cette pharmacie (maximum UI actuel : 10). Le serveur reste l'arbitre final.
+7. Une quantité choisie dans le parcours d'une pharmacie est plafonnée à `min(stock disponible, 10)` : le plafond technique historique de 10 unités par ligne est conservé. Le serveur reste l'arbitre final.
 8. Les frais de livraison ne sont pas mélangés au sous-total médicaments ; ils suivent leur calcul séparé.
 
 ## Rôles et écrans concernés
