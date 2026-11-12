@@ -238,23 +238,20 @@ function allowedCimaImageRights(
   const licenceUrl = (photo.licenceUrl ?? photo.licenseUrl ?? photo.licenciaUrl ?? "").trim();
   const attribution = (photo.attribution ?? photo.auteur ?? photo.author ?? "").trim();
 
-  // CIMA figure dans les données ouvertes AEMPS, réutilisables par citoyens
-  // et entreprises avec attribution. Les photos restent liées depuis l'hôte
-  // officiel : NAXA ne les copie ni ne les modifie. Une restriction explicite
-  // portée par le média prévaut et entraîne son rejet.
-  if (/\b(?:NC|ND)\b|non.?commercial|no.?derivatives|todos los derechos reservados/i.test(licence)) return null;
-  if (licence) {
-    const permitted = /^(?:CC0(?:\s|$)|Public Domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(licence);
-    if (!permitted) return null;
-    if (/^CC BY/i.test(licence) && !attribution && !medicine.labtitular) return null;
-    if (!licenceUrl && !/^CC0(?:\s|$)|^Public Domain(?:\s|$)/i.test(licence)) return null;
-  }
+  // L'ouverture des données CIMA ne vaut pas preuve automatique de droits
+  // sur chaque photographie : les images sont fournies par les titulaires d'AMM.
+  // Sans licence explicite et vérifiable au niveau du média, ne pas afficher.
+  if (!licence) return null;
+  if (/\\b(?:NC|ND)\\b|non.?commercial|no.?derivatives|todos los derechos reservados|derechos reservados/i.test(licence)) return null;
+
+  const permitted = /^(?:CC0(?:\\s|$)|Public Domain(?:\\s|$)|CC BY(?:-SA)?(?:\\s|$))/i.test(licence);
+  if (!permitted) return null;
+  if (/^CC BY/i.test(licence) && !attribution && !medicine.labtitular) return null;
+  if (!licenceUrl && !/^CC0(?:\\s|$)|^Public Domain(?:\\s|$)/i.test(licence)) return null;
 
   const titular = (medicine.labtitular ?? "").trim();
   return {
-    licence: licence
-      ? [licence, licenceUrl].filter(Boolean).join(" — ")
-      : "Données ouvertes AEMPS/CIMA — réutilisation avec attribution; image liée depuis l'hôte officiel sans copie ni modification",
+    licence: [licence, licenceUrl].filter(Boolean).join(" — "),
     attribution: attribution || ["AEMPS / CIMA", titular ? "titulaire AMM : " + titular : ""].filter(Boolean).join(" — ")
   };
 }
