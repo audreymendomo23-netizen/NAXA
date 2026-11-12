@@ -4,6 +4,7 @@
 
 - Le référentiel des assureurs est partagé. Un Promoteur peut proposer un assureur ; le nom est normalisé pour empêcher les doublons actifs. La création d'un assureur ne crée jamais automatiquement une convention pharmacie.
 - Chaque pharmacie déclare sa convention et ses règles : taux, périmètre global/catégorie/produit, plafond, franchise, exclusions, justificatifs et dates.
+- Le client peut déclarer une couverture depuis le reçu de réservation. Cette déclaration reste non vérifiée jusqu'au contrôle de la carte et des justificatifs par la pharmacie.
 - Le devis est calculé côté PostgreSQL depuis le prix stocké dans la réservation, la couverture client active et les règles de la convention.
 - Un snapshot immuable fige les montants bruts, part assureur, part client et versions de règles. Une nouvelle négociation nécessite une nouvelle réservation ; un ancien devis n'est pas réécrit.
 - Le client doit accepter le devis avant soumission. La pharmacie doit contrôler les justificatifs avant confirmation de prise en charge.
@@ -35,7 +36,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 
 - Tableau de bord /pharmacie/assurance : dossiers, créances, remboursements réellement reçus et journal d'événements.
 - Accès depuis l'espace Promoteur, Caisse et Comptable.
-- Reçu client : montant brut, part assureur (créance, non encaissée), part client et état du contrôle des justificatifs.
+- Reçu client : déclaration/choix de couverture, calcul du devis, acceptation par le client, montant brut, part assureur (créance, non encaissée), part client et état du contrôle des justificatifs.
 - Ticket Caisse : montant brut, part assureur, part client, règlements reçus et solde de créance.
 
 ## Limites de validation à ne pas masquer
@@ -45,5 +46,6 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Aucun parcours E2E avec comptes client/pharmacie/Promoteur/Comptable n'a encore été exécuté.
 - Le plan comptable Replay consulté ne contient aucun compte validé ; la preuve d'une écriture débit/crédit Assurance réellement postée n'est donc pas disponible.
 - La recherche publique n'est pas encore raccordée au filtre Assurance.
+- Le taux et le plafond déclarés par le client sont des données déclaratives : la pharmacie doit confirmer les droits réels et toute différence doit passer par un mécanisme de modification/accord client avant la finalisation. Ce mécanisme de modification est encore à construire.
 - La recette UI/build TypeScript et les scénarios de remboursement partiel/total restent à exécuter.
 - Aucune migration ni écriture sur Supabase Production ; aucun déploiement Vercel.
