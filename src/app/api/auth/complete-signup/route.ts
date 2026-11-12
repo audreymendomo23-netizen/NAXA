@@ -166,6 +166,7 @@ export async function POST(request: Request) {
         date_of_birth: dateOfBirth,
         consent_accepted: true,
         naxa_signup_pending: false,
+        exam_staff_direct_pending: false,
         naxa_signup_completed: true,
       },
     });
