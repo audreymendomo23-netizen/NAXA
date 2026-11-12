@@ -1277,21 +1277,20 @@ small,
 }
 
 
-/* Exception ciblée au mode performance global : les ailes de la luciole doivent battre. */
-@media (prefers-reduced-motion: no-preference) {
-  .naxa-luciole .luciole-wing-left {
-    animation: luciole-wing-flap-left 105ms ease-in-out infinite alternate !important;
-  }
-  .naxa-luciole .luciole-wing-right {
-    animation: luciole-wing-flap-right 105ms ease-in-out infinite alternate !important;
-  }
-  .naxa-luciole .luciole-wing-vein {
-    animation: luciole-wing-vein 105ms ease-in-out infinite alternate !important;
-  }
-  .naxa-luciole .luciole-fairy-wings {
-    animation: luciole-companion-wing-shimmer 1.8s ease-in-out infinite alternate !important;
-  }
-  .naxa-luciole.luciole-fairy-fluttering .luciole-fairy-wings {
-    animation: luciole-companion-wing-flutter 105ms ease-in-out infinite alternate !important;
-  }
+/* Exception ciblée au mode performance global : les ailes restent animées,
+   indépendamment du réglage global de réduction des animations de l'interface. */
+.naxa-luciole .luciole-wing-left {
+  animation: luciole-wing-flap-left 105ms ease-in-out infinite alternate !important;
+}
+.naxa-luciole .luciole-wing-right {
+  animation: luciole-wing-flap-right 105ms ease-in-out infinite alternate !important;
+}
+.naxa-luciole .luciole-wing-vein {
+  animation: luciole-wing-vein 105ms ease-in-out infinite alternate !important;
+}
+.naxa-luciole .luciole-fairy-wings {
+  animation: luciole-companion-wing-shimmer 1.8s ease-in-out infinite alternate !important;
+}
+.naxa-luciole.luciole-fairy-fluttering .luciole-fairy-wings {
+  animation: luciole-companion-wing-flutter 105ms ease-in-out infinite alternate !important;
 }
