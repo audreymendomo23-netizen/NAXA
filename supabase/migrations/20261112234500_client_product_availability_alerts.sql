@@ -13,6 +13,7 @@ create table if not exists public.client_product_availability_alerts (
 alter table public.client_product_availability_alerts enable row level security;
 revoke all on public.client_product_availability_alerts from public,anon;
 grant select on public.client_product_availability_alerts to authenticated;
+grant all on public.client_product_availability_alerts to service_role;
 drop policy if exists client_product_availability_alerts_read_own on public.client_product_availability_alerts;
 create policy client_product_availability_alerts_read_own
   on public.client_product_availability_alerts for select to authenticated
