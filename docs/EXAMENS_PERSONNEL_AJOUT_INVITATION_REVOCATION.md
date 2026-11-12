@@ -14,9 +14,7 @@ Le responsable saisit l’adresse e-mail et le poste.
 - Dans les deux derniers cas, un e-mail d’activation est envoyé par la passerelle Google Apps Script. Le destinataire confirme lui-même son adresse par OTP, renseigne ses informations, vérifie sa majorité, accepte les conditions, puis accepte l’invitation à usage unique.
 - La création directe ne confère donc pas d’accès professionnel avant la validation du titulaire du compte.
 
-Le serveur doit disposer de `GOOGLE_APPS_SCRIPT_URL`, `GOOGLE_APPS_SCRIPT_SECRET` et `NEXT_PUBLIC_SITE_URL`. L’URL publique doit être HTTPS. Si la passerelle n’est pas configurée, la création directe est bloquée avant toute création d’identité ou d’invitation.
-
-Si Google ne confirme pas l’envoi après la création, l’identité en attente et l’invitation sont conservées ; le responsable peut récupérer le lien depuis la liste des invitations et le transmettre manuellement. L’interface ne prétend pas que l’e-mail a été envoyé.
+Lorsque `GOOGLE_APPS_SCRIPT_URL`, `GOOGLE_APPS_SCRIPT_SECRET` et `NEXT_PUBLIC_SITE_URL` sont configurés, le serveur envoie le lien via Google Apps Script ; l’URL publique doit être HTTPS. Si la passerelle est absente ou si Google ne confirme pas l’envoi, l’identité en attente et l’invitation sont conservées. Le responsable récupère alors le lien depuis la liste des invitations et le transmet manuellement. L’interface ne prétend jamais que l’e-mail a été envoyé.
 
 ## Mode 2 — Invitation par lien personnel
 
