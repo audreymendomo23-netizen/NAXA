@@ -75,3 +75,16 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - UI ajoutée : `/pharmacie/promoteur/comptabilite/droits`, accessible depuis le contrôle comptable réseau. Elle expose le partage et le retrait individuels.
 - Test SQL : `supabase/tests/202611121_compta_droits_ecriture_contract.sql` — résultat Replay : `PASS`.
 - Limite : Replay ne contient actuellement aucun compte Promoteur ni Comptable (seul un profil Admin est présent). Le parcours RPC authentifié partage/retrait n'a donc pas encore été exercé avec deux comptes réels. L'interface de création/validation du plan et des mappings reste à construire ; le présent changement pose le contrôle d'accès et sa délégation, pas les écrans de saisie comptable.
+
+
+## Plan comptable & mappings — module de configuration partagé (12 novembre 2026)
+
+- Migration Replay : `20261112180000_compta_plan_mappings_management`, versionnée dans `supabase/migrations/20261112180000_compta_plan_mappings_management.sql`.
+- Route partagée : `/pharmacie/comptabilite/plan`, accessible au Promoteur actif sur son réseau et au Comptable affecté à sa pharmacie.
+- Le plan permet de créer les comptes (code, libellé, classe 1 à 9) avec état initial `a_valider`, puis de valider chaque compte. Un compte déjà validé n'est pas modifiable par le formulaire de création.
+- Les mappings enregistrent type d'événement, sens débit/crédit, compte de destination et dates de validité. Un mapping ne peut être créé qu'avec un compte déjà validé. La validation refuse les périodes qui chevauchent un mapping déjà validé pour le même événement et le même sens.
+- Les RPC de lecture, écriture et validation sont isolées, avec `SECURITY DEFINER`, `search_path` vide, droits d'exécution réservés à `authenticated`, contrôle de périmètre et de `compta_ecriture_autorisee`. Chaque création et validation écrit dans le journal comptable d'audit.
+- La lecture du plan reste disponible après retrait de la délégation au Comptable ; la création et validation restent masquées dans l'interface et refusées par la base. Le Promoteur conserve son autorité permanente dans le réseau.
+- Test structurel Replay : `supabase/tests/202611121_compta_plan_mappings_contract.sql` — résultat : `202611121_compta_plan_mappings_contract PASS`.
+- Limite de preuve : Replay n'a pas de comptes Promoteur/Comptable authentifiés affectés à une pharmacie. Les actions métier via JWT réels, le cycle complet création → validation → worker, et le rendu navigateur/build TypeScript restent à valider. Aucun compte, mapping ou journal métier n'a été ajouté comme fixture persistante.
+- Le module ne prétend pas fournir une balance ou des états financiers complets. La validation de compte/mapping est un prérequis au worker, pas une preuve de clôture comptable ni de conformité réglementaire.
