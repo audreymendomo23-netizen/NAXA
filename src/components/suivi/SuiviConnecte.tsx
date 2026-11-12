@@ -277,7 +277,7 @@ export function SuiviConnecte() {
           const {error}=await sb.from("suivi_measurements").insert(rows);
           if(error)throw error;
           for(const measurement of allowed){
-            (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now());
+            (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now(),row!.id);
           }
           await sb.from("suivi_user_devices").update({last_measurement_at:receivedAt,last_seen_at:receivedAt,
             connection_state:"connected",last_error:null,updated_at:receivedAt}).eq("id",row!.id).eq("user_id",authData.user.id);
@@ -728,7 +728,7 @@ export function SuiviConnecte() {
     });
     if (error) setNotice("Enregistrement refusé. Vérifiez le consentement et les champs.");
     else {
-      (window as any).NaxaAndroid?.updateMeasurementFreshness?.(selectedType,Date.now());
+      (window as any).NaxaAndroid?.updateMeasurementFreshness?.(selectedType,Date.now(),"");
       setValue(""); setNote(""); setPendingMeasurementSource(null); setMeasurementSheetOpen(false);
       setNotice("Entrée enregistrée dans votre espace privé."); await load();
     }
@@ -867,8 +867,8 @@ export function SuiviConnecte() {
       if(native?.isAvailable?.()){
         native.requestNotifications?.();
         native.scheduleMeasurementReminder?.(JSON.stringify({
-          id:savedSchedule.id,enabled:true,measurementType:selectedType,localTime:scheduleTime,
-          timezone:"Africa/Douala",daysOfWeek:scheduleDays,leadMinutes:5,freshnessWindowMinutes:5
+          id:savedSchedule.id,enabled:true,measurementType:selectedType,deviceId:scheduleDeviceId||"",
+          localTime:scheduleTime,timezone:"Africa/Douala",daysOfWeek:scheduleDays,leadMinutes:5,freshnessWindowMinutes:5
         }));
       }
       setScheduleDeviceId("");setScheduleEditingId(null);
@@ -895,8 +895,8 @@ export function SuiviConnecte() {
         else{
           native.requestNotifications?.();
           native.scheduleMeasurementReminder?.(JSON.stringify({
-            id:schedule.id,enabled:true,measurementType:schedule.measurement_type,localTime:schedule.local_time,
-            timezone:schedule.timezone,daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
+            id:schedule.id,enabled:true,measurementType:schedule.measurement_type,deviceId:schedule.device_id||"",
+            localTime:schedule.local_time,timezone:schedule.timezone,daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
             freshnessWindowMinutes:schedule.freshness_window_minutes
           }));
         }
@@ -1169,7 +1169,7 @@ export function SuiviConnecte() {
         return;
       }
       for(const measurement of measurements){
-        (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now());
+        (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now(),deviceRow!.id);
       }
       await sb.from("suivi_user_devices").update({
         last_sync_at:receivedAt,last_measurement_at:receivedAt,last_seen_at:receivedAt,
