@@ -37,10 +37,10 @@ function I({name,size=20}:{name:"back"|"search"|"x"|"filter"|"check"|"sort"|"pin
  </svg>;
 }
 function ResultsContent(){
- const router=useRouter(),params=useSearchParams(),pValues=params.getAll("p"),basketMode=pValues.length>0;const bulkTerms=params.get("bulk")==="1"?params.getAll("q").map(value=>value.trim()).filter(Boolean):[];
+ const router=useRouter(),params=useSearchParams(),pValues=params.getAll("p"),basketMode=pValues.length>0;const bulkTerms=params.get("bulk")==="1"?params.getAll("q").map(value=>value.trim()).filter(Boolean):[];const bulkQuantities=params.getAll("n").map(value=>Math.max(1,Math.min(10,Number(value)||1)));
  const [query,setQuery]=useState(""),[debounced,setDebounced]=useState(""),[rows,setRows]=useState<Row[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(""),[filterOpen,setFilterOpen]=useState(false),[sort,setSort]=useState<"prix"|"distance"|"panier">("prix"),[ascending,setAscending]=useState(true),[added,setAdded]=useState<string|null>(null),[city,setCity]=useState("Yaoundé"),[coords,setCoords]=useState<{lat:number;lng:number}>(YAOUNDE),[cheapest,setCheapest]=useState<string|null>(null),[rxIds,setRxIds]=useState<Set<string>>(new Set()),[locationStatus,setLocationStatus]=useState<"pending"|"gps"|"fallback">("pending");
  const [filters,setFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""}),[activeFilters,setActiveFilters]=useState<Filters>({stock:true,open:false,delivery:false,prescription:false,price:"",distance:"",rating:""});
- const {ajouter,nombre}=usePanier();
+ const {ajouter,changerQuantite,lignes}=usePanier();
  const [catalogue,setCatalogue]=useState<CatalogItem[]>([]),[catalogueLoading,setCatalogueLoading]=useState(false);
  const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set()),[assurancesVisuelles,setAssurancesVisuelles]=useState<string[]>([]);
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
@@ -74,6 +74,26 @@ function ResultsContent(){
  const toggleQuickFilter=(key:"stock"|"open"|"prescription")=>{const next={...activeFilters,[key]:!activeFilters[key]};setActiveFilters(next);setFilters(v=>({...v,[key]:next[key]}))};
  const cycleDistance=()=>{const next=activeFilters.distance===""?"5":activeFilters.distance==="5"?"10":"";setActiveFilters(v=>({...v,distance:next}));setFilters(v=>({...v,distance:next}))};
  const add=(r:Row)=>{const item=r.items[0];if(!item)return;if(rxIds.has(item.produit_id)){router.push("/scanner");return}ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},1);setAdded(r.pharmacie_id);notifierNAXA(item.nom+" ajouté au panier.");window.setTimeout(()=>setAdded(v=>v===r.pharmacie_id?null:v),1200)};
+ const continuerAvecPharmacie=(r:Row)=>{
+  const items=r.items??[];
+  if(!items.length){setError("Aucun médicament confirmé pour cette pharmacie.");return;}
+  const requestedById=new Map(pValues.map(value=>{const [id,q]=value.split(":");return [id,Math.max(1,Math.min(10,Number(q)||1))] as const;}));
+  const planned=items.map((item,index)=>{
+   const termIndex=bulkTerms.findIndex(term=>{const a=term.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const b=item.nom.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();return a===b||a.includes(b)||b.includes(a)});
+   const quantity=basketMode?(requestedById.get(item.produit_id)??1):(bulkQuantities[termIndex>=0?termIndex:index]??1);
+   return {item,quantity};
+  });
+  const ids=new Set(lignes.map(line=>line.produit_id));
+  planned.forEach(({item})=>ids.add(item.produit_id));
+  if(ids.size>10){setError("Votre panier peut contenir au maximum 10 médicaments. Réduisez la sélection avant de continuer.");return;}
+  for(const {item,quantity} of planned){
+   if(lignes.some(line=>line.produit_id===item.produit_id))changerQuantite(item.produit_id,quantity);
+   else if(!ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},quantity)){
+    setError("Un médicament n’a pas pu être ajouté au panier. Vérifiez les quantités et réessayez.");return;
+   }
+  }
+  router.push("/commande/nouvelle?pharmacie="+r.pharmacie_id);
+ };
  const back=()=>{if(window.history.length>1)router.back();else router.push("/")};
  return <main className="min-h-dvh bg-[#F4F8F5] pb-[calc(100px+env(safe-area-inset-bottom,0px))] text-[#0B3D26]">
   <EnTeteClient />
@@ -103,7 +123,7 @@ function ResultsContent(){
      <div className="flex items-start gap-3"><Link href={href} aria-label={`Ouvrir la fiche de ${r.nom}`} className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] border ${r.de_garde ? "border-[#0F6B3F] ring-2 ring-[#DFF0E3]" : "border-[#E0EAE3]"} bg-white text-[#0F6B3F]`}>{photo?<img src={photo} alt={`Logo de ${r.nom}`} className="h-full w-full rounded-[14px] object-contain"/>:<span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0F6B3F] text-white"><I name={index===0?"pill":"building"} size={23}/></span>}</Link><div className="min-w-0 flex-1"><Link href={href} className="block text-[19px] font-extrabold leading-6 text-[#0B3D26]">{r.nom}</Link><p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-[#0F6B3F]"><span className="h-2 w-2 rounded-full bg-emerald-500 motion-safe:animate-pulse"/>{r.trouves>0?`En stock • ${item?.quantite??r.trouves} boîtes disponibles`:"Disponibilité à confirmer"}</p></div></div>
      <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><p className="text-[30px] font-black leading-tight tracking-tight text-[#0B3D26]">{fcfa(price)}</p>{isCheapest&&<span className="inline-flex items-center gap-1 rounded-xl bg-[#FFF3B0] px-2 py-1.5 text-xs font-extrabold text-[#0B3D26]"><I name="star" size={14}/>Le moins cher</span>}</div>
      <div className="mt-3 flex items-start justify-between gap-3"><div className="min-w-0 flex-1 text-sm text-[#64776B]"><p className="flex items-start gap-1.5"><span className="mt-0.5"><I name="pin" size={15}/></span><span>{Number(r.distance_km).toFixed(1)} km • {[r.quartier,r.ville||"Douala"].filter(Boolean).join(", ")}</span></p>{r.de_garde&&<p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#DFF0E3] px-2.5 py-1 text-xs font-bold text-[#0F6B3F]"><I name="clock" size={14}/>Ouvert / pharmacie de garde</p>}{item&&<p className="mt-2 text-xs text-[#53685C]">{item.nom}{item.dosage?" · "+item.dosage:""}</p>}</div><button type="button" onClick={()=>add(r)} disabled={!item||r.trouves===0||added===r.pharmacie_id} className="flex min-h-[50px] min-w-[106px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#FFE23D] px-3 text-sm font-extrabold text-[#0B3D26] shadow-sm transition-transform active:scale-[0.96] disabled:opacity-70">{added===r.pharmacie_id?"Ajouté ✓":<><I name="cart" size={17}/>Ajouter</>}</button></div>
-     {(basketMode || bulkTerms.length > 1) && r.trouves===r.demandes && <Link href={`/commande/nouvelle?pharmacie=${r.pharmacie_id}`} className="btn btn-vert mt-4 w-full">Continuer avec cette pharmacie</Link>}
+     {(basketMode || bulkTerms.length > 1) && r.trouves===r.demandes && <button type="button" onClick={()=>continuerAvecPharmacie(r)} className="btn btn-vert mt-4 w-full">Continuer avec cette pharmacie</button>}
     </article>})}</div>
   </section>
 
