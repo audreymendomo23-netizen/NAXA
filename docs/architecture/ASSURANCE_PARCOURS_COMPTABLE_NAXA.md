@@ -103,7 +103,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Les mappings sont désormais limités aux événements traités par le worker qui utilisent effectivement des mappings : ventes encaissées, dépenses validées, prise en charge Assurance et remboursement Assurance reçu. L'annulation de vente utilise une contrepassation de l'écriture d'origine et son journal ; aucun mapping débit/crédit n'est requis.
 - Les validations de mapping et de journal sont sérialisées par verrou transactionnel pour éviter deux validations concurrentes qui se chevauchent.
 - Contrat SQL Replay : `202611121_compta_journaux_periodes_contract.sql` — PASS structurel. Aucune période, aucun journal et aucun mapping de démonstration n'a été persisté.
-- Limites : aucun compte Promoteur/Comptable de test authentifié n'est disponible sur Replay pour exercer les RPC par JWT réel. Le worker Edge n'est pas déployé/planifié sur Replay ; le secret de déclenchement doit être configuré avant d'affirmer le traitement automatique. Build navigateur/TypeScript encore à exécuter.
+- Limites : aucun compte Promoteur/Comptable de test authentifié n'est disponible sur Replay pour exercer les RPC par JWT réel. Le traitement automatique est désormais planifié via pg_cron interne (voir section suivante) ; le premier cycle périodique reste à confirmer. Build navigateur/TypeScript encore à exécuter.
 
 
 ## Traitement automatique de la file comptable — 12 novembre 2026
@@ -114,3 +114,11 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Test de contrat `202611121_compta_worker_cron_contract.sql` : vérifie le job, sa fréquence, son propriétaire et les ACL. Test positif Assurance modifié pour passer par le worker planifié lui-même et traiter prise en charge 10 000 FCFA + remboursements 4 000 et 6 000 FCFA, avec rollback des fixtures.
 - Replay : appel manuel du worker à vide retournant `ok=true, reclames=0, traite=0, erreurs=0`. Le job est programmé ; l'exécution périodique réelle sera confirmée par les logs `cron.job_run_details` après son premier cycle.
 - Aucun compte, mapping, journal, période, événement ou écriture de démonstration n'est conservé.
+
+
+## Blocage qualité global au checkpoint ec817c5
+
+- Le workflow GitHub Actions échoue avant TypeScript et Next.js sur un test hors comptabilité : `scripts/test-suivi-interoperabilite.cjs` attend 30 types de mesure alors que le composant en expose 39 (`39 !== 30`). 161 tests passent et 1 échoue.
+- Le build TypeScript/Next.js n'a donc pas été exécuté ; aucune conclusion de compilation n'est revendiquée pour le module comptable.
+- Le statut CircleCI `ci/circleci: quality` reste `pending`.
+- Ce blocage Bluetooth/suivi est distinct du chantier comptable et n'a pas été modifié dans cette intervention.
