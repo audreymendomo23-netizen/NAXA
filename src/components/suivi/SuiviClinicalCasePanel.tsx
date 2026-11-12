@@ -43,6 +43,14 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
     setLoading(false);
   },[sb,patientId,professionalId]);
   useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    const channel=sb.channel("suivi-dossier-"+patientId+"-"+professionalId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_care_links"},()=>{void load();})
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_patient_cases"},()=>{void load();})
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_clinical_entries"},()=>{void load();})
+      .subscribe();
+    return ()=>{void sb.removeChannel(channel);};
+  },[sb,patientId,professionalId,load]);
 
   async function createCase(){
     if(diagnosis.trim().length<3){setNotice("Le diagnostic ou motif initial doit contenir au moins 3 caractères.");return;}
