@@ -80,6 +80,16 @@ begin
   if p_limit is null or p_limit<1 or p_limit>100 then
     raise exception 'Limite de traitement invalide';
   end if;
+  -- Les comptes suspendus ne doivent plus recevoir de push et ne doivent pas
+  -- rester éternellement bloqués dans la file.
+  update private.notification_push_outbox o
+  set status='dead',locked_at=null,last_error='Compte destinataire inactif'
+  where o.status in ('pending','processing')
+    and exists (
+      select 1 from public.profiles p
+      where p.id=o.recipient_user_id and p.actif is distinct from true
+    );
+
   return query
   with candidates as (
     select o.id
