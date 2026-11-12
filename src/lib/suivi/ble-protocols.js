@@ -1,19 +1,7 @@
-const MEASUREMENTS = {
-  heart_rate: "frequence_cardiaque",
-  blood_pressure: ["tension_systolique", "tension_diastolique", "tension_arterielle_moyenne"],
-  temperature: "temperature",
-  spo2: ["saturation_oxygene", "frequence_cardiaque"],
-  glucose: "glycemie",
-  weight: "poids",
-  body_fat: "masse_grasse",
-  respiratory_rate: "frequence_respiratoire",
-  running_speed: ["vitesse_course", "cadence_course", "longueur_foulee"],
-};
-
 export const OPTIONAL_GATT_SERVICES = [
   "heart_rate", "blood_pressure", "health_thermometer", "pulse_oximeter",
-  "glucose", "weight_scale", "body_composition", "respiratory_rate",
-  "running_speed_cadence", "cycling_speed_cadence", "fitness_machine", "device_information",
+  "glucose", "weight_scale", "body_composition", "running_speed_cadence",
+  "cycling_speed_cadence", "fitness_machine", "device_information",
   "battery_service"
 ];
 
@@ -25,7 +13,6 @@ export const STANDARD_GATT_CHARACTERISTICS = {
   glucose: { service: "glucose", characteristic: "glucose_measurement" },
   weight: { service: "weight_scale", characteristic: "weight_measurement" },
   body_composition: { service: "body_composition", characteristic: "body_composition_measurement" },
-  respiratory_rate: { service: "respiratory_rate", characteristic: "respiration_rate_measurement" },
   running_speed: { service: "running_speed_cadence", characteristic: "rsc_measurement" },
 };
 
@@ -88,7 +75,6 @@ function parseHeartRate(data) {
 function parseBloodPressure(data) {
   requireBytes(data, 7, "Blood Pressure");
   const flags = data.getUint8(0);
-  const unit = flags & 1 ? "kPa" : "mmHg";
   const multiplier = flags & 1 ? 7.50062 : 1;
   let offset = 1;
   const systolic = decodeSfloat(data.getUint16(offset, true)) * multiplier; offset += 2;
@@ -150,9 +136,14 @@ function parseGlucose(data) {
   requireBytes(data, 10, "Glucose");
   const flags = data.getUint8(0);
   let offset = 3; // flags + sequence number
-  const measuredAt = readDateTime(data, offset);
+  let measuredAt = readDateTime(data, offset);
   offset += 7;
-  if (flags & 1) offset += 2; // optional time offset
+  if (flags & 1) {
+    requireBytes(data, offset + 2, "Glucose time offset");
+    const offsetMinutes = data.getInt16(offset, true);
+    offset += 2;
+    if (measuredAt && Number.isFinite(offsetMinutes)) measuredAt = new Date(new Date(measuredAt).getTime() + offsetMinutes * 60_000).toISOString();
+  }
   if (!(flags & 2)) throw new Error("Glucose concentration missing from packet");
   requireBytes(data, offset + 3, "Glucose concentration/type");
   const concentration = decodeSfloat(data.getUint16(offset, true));
@@ -197,12 +188,12 @@ function parseBodyComposition(data) {
   let measuredAt = null;
   if (flags & 2) { measuredAt = readDateTime(data, offset); offset += 7; }
   if (flags & 4) offset += 1;
-  if (flags & 8) { const basal = data.getUint16(offset, true); offset += 2; add("metabolisme_basal", basal, "kJ", 0, 50000); }
   const add = (type, value, unit, min, max) => {
     if (Number.isFinite(value) && value >= min && value <= max) {
       values.push({ measurement_type: type, value_numeric: Number(value.toFixed(4)), unit, measured_at: measuredAt });
     }
   };
+  if (flags & 8) { const basal = data.getUint16(offset, true); offset += 2; add("metabolisme_basal", basal, "kJ", 0, 50000); }
   const readU16 = (label) => {
     requireBytes(data, offset + 2, label);
     const raw = data.getUint16(offset, true);
@@ -227,13 +218,6 @@ function parseBodyComposition(data) {
   }
   return values;
 }
-function parseRespiratoryRate(data) {
-  requireBytes(data, 2, "Respiratory Rate");
-  const value = decodeSfloat(data.getUint16(0, true));
-  if (value <= 0 || value > 100) throw new Error("Invalid respiratory rate");
-  return result("frequence_respiratoire", value, "/min");
-}
-
 function parseRunningSpeedCadence(data) {
   requireBytes(data, 4, "Running Speed and Cadence");
   const flags = data.getUint8(0);
