@@ -1,6 +1,22 @@
 -- NAXA — cycle de vie du dossier clinique : actif, pause, clôture.
 begin;
 
+-- Le patient conserve la lecture de son propre dossier et de sa chronologie,
+-- même après révocation ou déconnexion complète du professionnel.
+drop policy if exists suivi_patient_cases_patient_select on public.suivi_patient_cases;
+create policy suivi_patient_cases_patient_select on public.suivi_patient_cases
+for select to authenticated
+using(patient_user_id=(select auth.uid()));
+
+drop policy if exists suivi_clinical_entries_patient_select on public.suivi_clinical_entries;
+create policy suivi_clinical_entries_patient_select on public.suivi_clinical_entries
+for select to authenticated
+using(exists(
+  select 1 from public.suivi_patient_cases c
+  where c.id=suivi_clinical_entries.case_id
+    and c.patient_user_id=(select auth.uid())
+));
+
 create or replace function public.suivi_set_patient_case_status(
   p_case_id uuid,
   p_status text
