@@ -119,8 +119,11 @@ function ResultsContent(){
   planned.forEach(({item})=>ids.add(item.produit_id));
   if(ids.size>10){setError("Votre panier peut contenir au maximum 10 médicaments. Réduisez la sélection avant de continuer.");return;}
   for(const {item,quantity} of planned){
-   if(lignes.some(line=>line.produit_id===item.produit_id))changerQuantite(item.produit_id,quantity);
-   else if(!ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},quantity)){
+   const stockCap=Math.max(1,Math.min(10,Math.floor(Number(item.quantite)||0)));
+   const snapshot={prix_unitaire_fcfa:Number(item.prix)||0,quantite_max:stockCap,pharmacie_id:r.pharmacie_id,pharmacie_nom:r.nom};
+   if(quantity>stockCap){setError("La quantité demandée dépasse le stock actuellement disponible dans cette pharmacie.");return;}
+   if(lignes.some(line=>line.produit_id===item.produit_id))changerQuantite(item.produit_id,quantity,snapshot);
+   else if(!ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||"",...snapshot},quantity)){
     setError("Un médicament n’a pas pu être ajouté au panier. Vérifiez les quantités et réessayez.");return;
    }
   }
