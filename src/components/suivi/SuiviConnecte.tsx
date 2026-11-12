@@ -562,7 +562,7 @@ export function SuiviConnecte() {
     if(native?.isAvailable?.()){
       native.requestNotifications?.();
       if(native.areLocalRemindersEnabled?.()===true&&native.hasNotificationPermission?.()===true){
-        setPushEnabled(true);setNotice("Notifications locales Android activées. Les rappels H-5 liés à un appareil appairé seront affichés par le téléphone.");
+        setPushEnabled(true);setNotice("Notifications locales Android activées. Les rappels personnels et les contrôles H-5 liés à un appareil appairé peuvent être affichés par le téléphone.");
       }else setNotice("Autorisation de notifications Android demandée. Acceptez-la pour activer les rappels locaux H-5.");
       return;
     }
@@ -607,7 +607,7 @@ export function SuiviConnecte() {
     const native=(window as any).NaxaAndroid;
     if(native?.isAvailable?.()){
       native.disableLocalReminders?.();setPushEnabled(false);
-      setNotice("Rappels locaux Android désactivés sur ce téléphone. Les programmations serveur restent enregistrées.");
+      setNotice("Rappels locaux Android désactivés sur ce téléphone. Les programmations de mesure et rappels personnels restent enregistrés côté serveur.");
       return;
     }
     try{
