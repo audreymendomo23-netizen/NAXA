@@ -74,7 +74,7 @@ function ResultsContent(){
  const toggleQuickFilter=(key:"stock"|"open"|"prescription")=>{const next={...activeFilters,[key]:!activeFilters[key]};setActiveFilters(next);setFilters(v=>({...v,[key]:next[key]}))};
  const cycleDistance=()=>{const next=activeFilters.distance===""?"5":activeFilters.distance==="5"?"10":"";setActiveFilters(v=>({...v,distance:next}));setFilters(v=>({...v,distance:next}))};
  const add=(r:Row)=>{
-  const items=bulkTerms.length?r.items:[r.items[0]].filter(Boolean);
+  const items=bulkTerms.length?r.items:r.items.slice(0,1);
   if(!items.length)return;
   if(items.some(item=>rxIds.has(item.produit_id))){setError("Cette sélection contient un médicament soumis à ordonnance. La pharmacie doit valider la prescription avant sa mise au panier.");return;}
   const ids=new Set(lignes.map(line=>line.produit_id));
