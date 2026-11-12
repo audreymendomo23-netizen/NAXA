@@ -44,6 +44,7 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 - `supabase/migrations/20261112191300_marketplace_stock_metadata_freshness_guard.sql`
 - `supabase/migrations/20261112191400_marketplace_stock_freshness_inclusive_boundary.sql`
 - `supabase/migrations/20261112191500_marketplace_cart_search_freshness_gate.sql`
+- `supabase/migrations/20261112191600_marketplace_offer_pharmacy_visibility.sql`
 - `supabase/tests/300_marketplace_stock_freshness_48h.sql`
 - `supabase/tests/301_marketplace_search_freshness_gate.sql`
 - `supabase/tests/302_marketplace_stock_freshness_confirmation.sql`
@@ -55,13 +56,13 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 
 ## Vérifications / limites de preuve
 
-- Replay Supabase : les sept migrations de fraîcheur sont appliquées ; les tests SQL 300 à 304 retournent PASS.
+- Replay Supabase : les huit migrations de fraîcheur sont appliquées ; les tests SQL 300 à 304 retournent PASS.
 - Un test transactionnel vérifie qu'une modification de prix ne renouvelle pas l'horodatage du dernier mouvement physique.
 - Un test transactionnel vérifie le seuil inclusif : 48 h = visible ; 48 h + 1 seconde = masqué.
 - Les trois parcours de recherche (simple, groupé, panier) ont été vérifiés en base : ils appellent le calcul commun du stock vendable.
 - Le circuit `creer_transactions_client` appelle bien `private.reserve_stock` ; l'accès `anon` à la fonction privée de réservation est refusé.
 - La recherche depuis le panier utilise désormais la même offre vendable ; la fiche produit publique ne lit plus directement les stocks bruts.
 - La fiche `/offre` conserve pharmacie, prix et quantité maximale dans le panier, et propose `− / +` ainsi qu'un sous-total ; le checkout recalcule encore le total côté serveur.
-- Le Replay contient 100 lignes de stock de démonstration, toutes âgées de plus de 48 h : le Marketplace n'en publie donc aucune, conformément à la règle. Ces données de démonstration ne sont pas rafraîchies artificiellement.
+- Le Replay contient 100 lignes de stock de démonstration, toutes âgées de plus de 48 h : le Marketplace n'en publie donc aucune, conformément à la règle. Le RPC d'offre exclut également explicitement les pharmacies démo et archivées. Ces données de démonstration ne sont pas rafraîchies artificiellement.
 - La compilation TypeScript et le parcours navigateur complet restent à confirmer. Le statut CI GitHub du dernier commit n'a retourné aucun contrôle exploitable.
 - Aucune migration Production et aucun déploiement Vercel n'ont été effectués.
