@@ -10,6 +10,7 @@ export default async function SecuriteExamensPage({searchParams}:{searchParams:{
   const centerId=searchParams.centre||context.activeAssignments[0]?.center_id||"";
   const {sb,assignment}=await requireExamCapability(centerId,"incident_report");
   const {data:incidents,error}=await sb.from("exam_security_incidents").select("id,category,severity,state,title,description,opened_by,created_at,updated_at,resolution_summary").eq("center_id",centerId).order("created_at",{ascending:false}).limit(100);
+  const auditRows = audit ?? [];
   const canManage=examRoleHas(assignment.role_key,"security_manage");
   const {data:audit}=canManage?await sb.from("exam_security_audit_log").select("id,incident_id,action_key,from_state,to_state,created_at").eq("center_id",centerId).order("created_at",{ascending:false}).limit(100):{data:[] as any[]};
   return <div className="space-y-4">
@@ -22,6 +23,6 @@ export default async function SecuriteExamensPage({searchParams}:{searchParams:{
         {canManage&&(nextStates[i.state]??[]).length>0&&<form action={transitionExamIncident} className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="center_id" value={centerId}/><input type="hidden" name="incident_id" value={i.id}/><select name="state" className="min-h-10 rounded-lg border px-3">{(nextStates[i.state]??[]).map(s=><option key={s} value={s}>{labels[s]}</option>)}</select><input name="resolution_summary" maxLength={2000} placeholder="Mesure / décision" className="min-h-10 min-w-48 flex-1 rounded-lg border px-3"/><button className="min-h-10 rounded-lg bg-blue-900 px-3 text-sm font-bold text-white">Appliquer</button></form>}
       </article>)}</div>}
     </section>
-    {audit?.length>0&&<section className="rounded-2xl border bg-white p-5"><h3 className="font-extrabold">Journal de sécurité</h3><ul className="mt-2 space-y-2">{audit.map((a:any)=><li key={a.id} className="border-b pb-2 text-sm"><strong>{a.action_key}</strong> · {labels[a.from_state]??"—"} → {labels[a.to_state]??"—"} · {new Date(a.created_at).toLocaleString("fr-FR")}</li>)}</ul></section>}
+    {auditRows.length>0&&<section className="rounded-2xl border bg-white p-5"><h3 className="font-extrabold">Journal de sécurité</h3><ul className="mt-2 space-y-2">{auditRows.map((a:any)=><li key={a.id} className="border-b pb-2 text-sm"><strong>{a.action_key}</strong> · {labels[a.from_state]??"—"} → {labels[a.to_state]??"—"} · {new Date(a.created_at).toLocaleString("fr-FR")}</li>)}</ul></section>}
   </div>;
 }
