@@ -82,7 +82,7 @@ async function convertirPdfEnImages(file: File): Promise<File[]> {
       canvas.width = 0;
       canvas.height = 0;
       if (!blob) throw new Error("Une page du PDF n’a pas pu être convertie.");
-      pages.push(new File([blob], file.name.replace(/\\.pdf$/i, "") + "-page-" + pageNumber + ".jpg", { type: "image/jpeg" }));
+      pages.push(new File([blob], file.name.replace(/\.pdf$/i, "") + "-page-" + pageNumber + ".jpg", { type: "image/jpeg" }));
     }
     return pages;
   } finally {
