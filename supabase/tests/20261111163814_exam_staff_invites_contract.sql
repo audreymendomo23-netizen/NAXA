@@ -93,6 +93,17 @@ end;
 $function$;
 grant execute on function pg_temp.exam_staff_expire_invite(uuid) to authenticated;
 
+create or replace function pg_temp.exam_staff_audit_exists(p_actor uuid,p_assignment_id text)
+returns boolean language sql security definer set search_path=''
+as $function$
+  select exists(
+    select 1 from public.audit_log
+    where actor_id=p_actor and action='exam.staff.assignment_revoked'
+      and entity_type='exam_staff_assignment' and entity_id=p_assignment_id
+  );
+$function$;
+grant execute on function pg_temp.exam_staff_audit_exists(uuid,text) to authenticated;
+
 set local role authenticated;
 
 do $test$
@@ -264,10 +275,9 @@ begin
     or public.exam_revoke_staff_assignment(f.center_id,v_revoke_assignment) is not true then
     raise exception 'Assignment revocation failed';
   end if;
-  select count(*) into v_audit_count from public.audit_log
-  where actor_id=f.owner_id and action='exam.staff.assignment_revoked'
-    and entity_type='exam_staff_assignment' and entity_id=v_revoke_assignment::text;
-  if v_audit_count<>1 then raise exception 'Assignment revocation audit event missing'; end if;
+  if not pg_temp.exam_staff_audit_exists(f.owner_id,v_revoke_assignment::text) then
+    raise exception 'Assignment revocation audit event missing';
+  end if;
 
   if not pg_temp.exam_staff_account_survives(f.invitee_id) then
     raise exception 'Revoking an assignment must preserve the active NAXA profile and Auth account';
