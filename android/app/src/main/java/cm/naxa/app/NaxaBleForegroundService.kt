@@ -120,7 +120,8 @@ class NaxaBleForegroundService : Service() {
         var gatt: BluetoothGatt? = null,
         var retries: Int = 0,
         var retryTask: Runnable? = null,
-        val reads: ArrayDeque<BluetoothGattCharacteristic> = ArrayDeque()
+        val reads: ArrayDeque<BluetoothGattCharacteristic> = ArrayDeque(),
+        val descriptorWrites: ArrayDeque<BluetoothGattDescriptor> = ArrayDeque()
     )
 
     private val handler = Handler(Looper.getMainLooper())
@@ -267,13 +268,8 @@ class NaxaBleForegroundService : Service() {
                         if (descriptor != null) {
                             val value = if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0)
                                 BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                            if (Build.VERSION.SDK_INT >= 33) gatt.writeDescriptor(descriptor, value)
-                            else {
-                                @Suppress("DEPRECATION")
-                                descriptor.value = value
-                                @Suppress("DEPRECATION")
-                                gatt.writeDescriptor(descriptor)
-                            }
+                            descriptor.value = value
+                            session.descriptorWrites.addLast(descriptor)
                         }
                     }
                 }
@@ -281,13 +277,17 @@ class NaxaBleForegroundService : Service() {
             }
             enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "profiles")
                 .put("deviceId", session.device.address).put("deviceKey", session.key).put("profileCount", count).put("ownerUserId", session.ownerId))
-            if (session.reads.isNotEmpty()) gatt.readCharacteristic(session.reads.removeFirst())
+            performNextOperation(gatt, session)
         }
 
         @Deprecated("Android callback compatibility")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             saveMeasurement(session, characteristic, characteristic.value ?: byteArrayOf())
         }
+        override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+            performNextOperation(gatt, session)
+        }
+
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             saveMeasurement(session, characteristic, value)
         }
@@ -301,6 +301,24 @@ class NaxaBleForegroundService : Service() {
     }
 
     @Suppress("MissingPermission")
+    private fun performNextOperation(gatt: BluetoothGatt, session: DeviceSession) {
+        val descriptor = session.descriptorWrites.pollFirst()
+        if (descriptor != null) {
+            if (Build.VERSION.SDK_INT >= 33) {
+                val status = gatt.writeDescriptor(descriptor, descriptor.value ?: BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                if (status != android.bluetooth.BluetoothStatusCodes.SUCCESS) performNextOperation(gatt, session)
+            } else {
+                @Suppress("DEPRECATION")
+                val accepted = gatt.writeDescriptor(descriptor)
+                if (!accepted) performNextOperation(gatt, session)
+            }
+            return
+        }
+        val characteristic = session.reads.pollFirst() ?: return
+        if (!gatt.readCharacteristic(characteristic)) performNextOperation(gatt, session)
+    }
+
+    @Suppress("MissingPermission")
     private fun handleRead(session: DeviceSession, gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, bytes: ByteArray, status: Int) {
         if (status == BluetoothGatt.GATT_SUCCESS) {
             when (characteristic.uuid.toString().substring(4, 8).uppercase()) {
@@ -311,9 +329,7 @@ class NaxaBleForegroundService : Service() {
                 else -> saveMeasurement(session, characteristic, bytes)
             }
         }
-        if (session.reads.isNotEmpty()) {
-            try { gatt.readCharacteristic(session.reads.removeFirst()) } catch (_: SecurityException) { }
-        }
+        performNextOperation(gatt, session)
     }
 
     private fun saveMeasurement(session: DeviceSession, characteristic: BluetoothGattCharacteristic, bytes: ByteArray) {
