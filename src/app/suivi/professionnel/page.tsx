@@ -11,5 +11,5 @@ export default async function SuiviProfessionnelPage(){
   ]);
   if(enabled!==true) redirect("/suivi");
   if(verified!==true) redirect("/suivi/professionnel/demande");
-  redirect("/pharmacie/pharmacien/suivi-patients");
+  redirect("/suivi/professionnel/patients");
 }
