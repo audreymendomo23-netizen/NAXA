@@ -208,6 +208,54 @@ create policy reservation_item_lots_participant_read on public.reservation_item_
 revoke all on public.reservation_item_lots from public, anon, authenticated;
 grant select on public.reservation_item_lots to authenticated;
 
+-- Preview bootstrap: the canonical notifications table lives in legacy migration_075,
+-- outside the versioned migration directory replayed by Supabase Preview.
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  pharmacie_id uuid references public.pharmacies(id) on delete cascade,
+  type text not null,
+  titre text not null check (char_length(titre) between 1 and 160),
+  corps text not null check (char_length(corps) <= 1000),
+  fil_id uuid,
+  lu_le timestamptz,
+  created_at timestamptz not null default now(),
+  constraint notifications_un_destinataire
+    check ((user_id is not null)::int + (pharmacie_id is not null)::int = 1)
+);
+alter table public.notifications add column if not exists fil_id uuid;
+
+-- Preserve the canonical relationship when the messaging table is present in the target schema.
+do $notifications_fil_fk$
+begin
+  if to_regclass('public.fils_messages') is not null
+     and not exists (
+       select 1
+       from pg_catalog.pg_constraint
+       where conrelid = 'public.notifications'::regclass
+         and conname = 'notifications_fil_id_fkey'
+     ) then
+    alter table public.notifications
+      add constraint notifications_fil_id_fkey
+      foreign key (fil_id) references public.fils_messages(id) on delete cascade;
+  end if;
+end;
+$notifications_fil_fk$;
+
+alter table public.notifications enable row level security;
+drop policy if exists notifications_read_recipient on public.notifications;
+create policy notifications_read_recipient on public.notifications
+  for select to authenticated using (
+    user_id = (select auth.uid())
+    or (pharmacie_id is not null and (
+      public.is_admin()
+      or public.naxa_scope_allows((select auth.uid()), pharmacie_id, 'PHARMACIE')
+    ))
+  );
+revoke all on public.notifications from anon, public;
+grant select on public.notifications to authenticated;
+revoke insert, update, delete on public.notifications from anon, authenticated;
+
 alter table public.notifications
   add column if not exists reservation_id uuid references public.reservations(id) on delete cascade;
 create unique index if not exists notifications_reservation_expiry_once_uq
