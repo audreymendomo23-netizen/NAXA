@@ -148,7 +148,7 @@ export default function ExamStaffInvitePanel({ centerId }: { centerId: string })
     <section className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-blue-700">Accès nominatif</p>
-        <h3 className="mt-1 text-lg font-extrabold">Inviter un nouveau membre</h3>
+        <h3 className="mt-1 text-lg font-extrabold">Invitation par lien personnel</h3>
         <p className="mt-1 text-sm leading-6 text-slate-600">
           L’invitation est personnelle, valable 7 jours et liée à l’adresse e-mail indiquée.
           NAXA n’envoie pas automatiquement de message : copiez le lien et transmettez-le au destinataire.
@@ -157,7 +157,7 @@ export default function ExamStaffInvitePanel({ centerId }: { centerId: string })
 
       <form onSubmit={createInvite} className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-semibold">
-          Adresse e-mail du compte
+          Adresse e-mail du destinataire
           <input
             type="email"
             required
