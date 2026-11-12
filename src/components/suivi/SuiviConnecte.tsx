@@ -283,13 +283,21 @@ export function SuiviConnecte() {
 
   useEffect(()=>{
     let cancelled=false;
+    if(allowed!==true)return;
     if(!("serviceWorker" in navigator)||!("PushManager" in window)){setPushEnabled(false);return;}
-    void navigator.serviceWorker.getRegistration("/").then(async registration=>{
-      const subscription=await registration?.pushManager.getSubscription();
-      if(!cancelled)setPushEnabled(!!subscription);
-    }).catch(()=>{if(!cancelled)setPushEnabled(false);});
+    void (async()=>{
+      try{
+        const {data:authData}=await sb.auth.getUser();
+        const registration=await navigator.serviceWorker.getRegistration("/");
+        const subscription=await registration?.pushManager.getSubscription();
+        if(!authData.user||!subscription){if(!cancelled)setPushEnabled(false);return;}
+        const {data}=await sb.from("naxa_push_subscriptions").select("endpoint")
+          .eq("endpoint",subscription.endpoint).eq("user_id",authData.user.id).maybeSingle();
+        if(!cancelled)setPushEnabled(!!data);
+      }catch{if(!cancelled)setPushEnabled(false);}
+    })();
     return()=>{cancelled=true;};
-  },[]);
+  },[allowed,sb]);
   useEffect(() => {
     if (!professionalId) {
       setShareHistory(false);setShareRealtime(false);setShareAlerts(false);setShareClinicalNotes(false);
