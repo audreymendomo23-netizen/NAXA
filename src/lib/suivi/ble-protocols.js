@@ -15,6 +15,7 @@ const STANDARD_GATT_CHARACTERISTICS = {
   body_composition: { service: "body_composition", characteristic: "body_composition_measurement" },
   running_speed: { service: "running_speed_cadence", characteristic: "rsc_measurement" },
   indoor_bike: { service: "fitness_machine", characteristic: "indoor_bike_data" },
+  cycling_cadence: { service: "cycling_speed_cadence", characteristic: "csc_measurement" },
 };
 
 function requireBytes(data, length, label) {
@@ -276,7 +277,45 @@ function parseIndoorBikeData(data) {
   return values;
 }
 
-function decodeStandardGattMeasurement(serviceId, characteristicId, data) {
+const cyclingBaselines = new Map();
+
+function parseCyclingSpeedCadence(data, deviceId = "default") {
+  requireBytes(data, 1, "Cycling Speed and Cadence");
+  const flags = data.getUint8(0);
+  let offset = 1;
+  const previous = cyclingBaselines.get(deviceId) || {};
+  const next = { ...previous };
+  const values = [];
+  if (flags & 1) {
+    requireBytes(data, offset + 6, "Cycling wheel revolution data");
+    next.wheelRevolutions = data.getUint32(offset, true);
+    next.wheelEventTime = data.getUint16(offset + 4, true);
+    offset += 6;
+  }
+  if (flags & 2) {
+    requireBytes(data, offset + 4, "Cycling crank revolution data");
+    const revolutions = data.getUint16(offset, true);
+    const eventTime = data.getUint16(offset + 2, true);
+    if (Number.isFinite(previous.crankRevolutions) && Number.isFinite(previous.crankEventTime)) {
+      const deltaRevolutions = (revolutions - previous.crankRevolutions + 65536) % 65536;
+      const deltaTicks = (eventTime - previous.crankEventTime + 65536) % 65536;
+      if (deltaTicks > 0) {
+        const cadence = deltaRevolutions * 60 * 1024 / deltaTicks;
+        if (Number.isFinite(cadence) && cadence >= 0 && cadence <= 250) {
+          values.push({ measurement_type: "cadence_course", value_numeric: Number(cadence.toFixed(1)), unit: "tr/min", measured_at: null });
+        }
+      }
+    }
+    next.crankRevolutions = revolutions;
+    next.crankEventTime = eventTime;
+    offset += 4;
+  }
+  cyclingBaselines.set(deviceId, next);
+  if (cyclingBaselines.size > 200) cyclingBaselines.delete(cyclingBaselines.keys().next().value);
+  return values;
+}
+
+function decodeStandardGattMeasurement(serviceId, characteristicId, data, deviceId = "default") {
   const service = String(serviceId || "").toLowerCase().replace(/^0x/, "");
   const characteristic = String(characteristicId || "").toLowerCase().replace(/^0x/, "");
   if (service === "180d" || service === "heart_rate") if (characteristic === "2a37" || characteristic === "heart_rate_measurement") return parseHeartRate(data);
@@ -287,6 +326,7 @@ function decodeStandardGattMeasurement(serviceId, characteristicId, data) {
   
   if (service === "1814" || service === "running_speed_cadence") if (characteristic === "2a53" || characteristic === "rsc_measurement") return parseRunningSpeedCadence(data);
   if (service === "1826" || service === "fitness_machine") if (characteristic === "2ad2" || characteristic === "indoor_bike_data") return parseIndoorBikeData(data);
+  if (service === "1816" || service === "cycling_speed_cadence") if (characteristic === "2a5b" || characteristic === "csc_measurement") return parseCyclingSpeedCadence(data, deviceId);
   if (service === "181b" || service === "body_composition") if (characteristic === "2a9c" || characteristic === "body_composition_measurement") return parseBodyComposition(data);
   if (service === "181d" || service === "weight_scale") if (characteristic === "2a9d" || characteristic === "weight_measurement") return parseWeight(data);
   throw new Error("No verified decoder for GATT " + service + "/" + characteristic);
