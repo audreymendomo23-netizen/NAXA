@@ -190,12 +190,14 @@ function parseBodyComposition(data) {
   const flags = data.getUint16(0, true);
   if (flags & 0x1000) throw new Error("Fragmented Body Composition packets require a complete multi-packet decoder");
   const imperial = !!(flags & 1);
-  let offset = 2;
+  const values = [];
+  const fatPercent = data.getUint16(2, true) / 10;
+  if (fatPercent >= 0 && fatPercent <= 100) values.push({ measurement_type:"masse_grasse", value_numeric:Number(fatPercent.toFixed(1)), unit:"%", measured_at:null });
+  let offset = 4;
   let measuredAt = null;
   if (flags & 2) { measuredAt = readDateTime(data, offset); offset += 7; }
   if (flags & 4) offset += 1;
-  if (flags & 8) offset += 2; // basal metabolism: not currently in the client catalogue
-  const values = [];
+  if (flags & 8) { const basal = data.getUint16(offset, true); offset += 2; add("metabolisme_basal", basal, "kJ", 0, 50000); }
   const add = (type, value, unit, min, max) => {
     if (Number.isFinite(value) && value >= min && value <= max) {
       values.push({ measurement_type: type, value_numeric: Number(value.toFixed(4)), unit, measured_at: measuredAt });
