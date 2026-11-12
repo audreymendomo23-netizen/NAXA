@@ -42,7 +42,7 @@ as $
     ),
     false
   );
-$;
+$$;
 revoke all on function public.suivi_has_consent(uuid,text) from public,anon;
 grant execute on function public.suivi_has_consent(uuid,text) to authenticated,service_role;
 
