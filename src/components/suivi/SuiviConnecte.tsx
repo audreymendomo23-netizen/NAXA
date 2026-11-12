@@ -379,7 +379,7 @@ export function SuiviConnecte() {
           const hex=String(detail.payloadHex??"");
           if(!hex||hex.length%2!==0)throw new Error("Trame Bluetooth invalide.");
           const bytes=Uint8Array.from(hex.match(/.{2}/g)??[],part=>parseInt(part,16));
-          const decoded=decodeStandardGattMeasurement(bluetoothShortUuid(String(detail.serviceUuid??"")),bluetoothShortUuid(String(detail.characteristicUuid??"")),new DataView(bytes.buffer));
+          const decoded=decodeStandardGattMeasurement(bluetoothShortUuid(String(detail.serviceUuid??"")),bluetoothShortUuid(String(detail.characteristicUuid??"")),new DataView(bytes.buffer),deviceId);
           const allowed=decoded.filter(measurement=>{
             const family=types.find(type=>type.key===measurement.measurement_type)?.family;
             return !!family&&!!consents[family];
@@ -1300,6 +1300,7 @@ export function SuiviConnecte() {
       ["weight_scale","weight_measurement"],
       ["body_composition","body_composition_measurement"],
       ["running_speed_cadence","rsc_measurement"],
+      ["cycling_speed_cadence","csc_measurement"],
       ["fitness_machine","indoor_bike_data"]
     ];
     for (const [serviceName, characteristicName] of pairs) {
@@ -1380,7 +1381,7 @@ export function SuiviConnecte() {
     const session = { device:connected, retries:0 as number, retryTimer:undefined as ReturnType<typeof setTimeout>|undefined };
     bluetoothSessions.current.set(String(connected.id),session);
     const persist = async (service:any, characteristic:any, data:DataView) => {
-      const decoded = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data);
+      const decoded = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data,String(connected.id));
       const measurements=decoded.filter(measurement=>{
         const measurementFamily=types.find(type=>type.key===measurement.measurement_type)?.family;
         return !!measurementFamily&&!!consents[measurementFamily];
