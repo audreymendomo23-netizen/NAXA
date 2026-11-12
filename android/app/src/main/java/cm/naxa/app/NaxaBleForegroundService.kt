@@ -44,7 +44,7 @@ class NaxaBleForegroundService : Service() {
         )
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         fun enqueueEvent(context: android.content.Context, event: JSONObject) {
-            val prefs = context.getSharedPreferences(PREFS, MODE_PRIVATE)
+            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             synchronized(NaxaBleForegroundService::class.java) {
                 val queue = try { JSONArray(prefs.getString(QUEUE_KEY, "[]")) } catch (_: Exception) { JSONArray() }
                 event.put("eventId", UUID.randomUUID().toString())
@@ -55,10 +55,10 @@ class NaxaBleForegroundService : Service() {
             }
         }
         fun pendingEvents(context: android.content.Context): String =
-            context.getSharedPreferences(PREFS, MODE_PRIVATE).getString(QUEUE_KEY, "[]") ?: "[]"
+            context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, "[]") ?: "[]"
         fun acknowledgeEvents(context: android.content.Context, ids: Set<String>) {
             if (ids.isEmpty()) return
-            val prefs = context.getSharedPreferences(PREFS, MODE_PRIVATE)
+            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             synchronized(NaxaBleForegroundService::class.java) {
                 val old = try { JSONArray(prefs.getString(QUEUE_KEY, "[]")) } catch (_: Exception) { JSONArray() }
                 val next = JSONArray()
