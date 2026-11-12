@@ -57,13 +57,28 @@ export async function sendFcmToUser(db: SupabaseClient, userId: string, payload:
   const { data: tokens, error } = await db.from("naxa_fcm_tokens").select("token").eq("user_id", userId);
   if (error) return { sent: 0, configured: true, failed: 1 };
   if (!tokens?.length) return { sent: 0, configured: true, failed: 0 };
-  const bearer = await accessToken(account);
+
+  // Le projet cible vient de la clé de service : cela évite qu'une variable
+  // FIREBASE_PROJECT_ID divergente envoie silencieusement vers un autre projet.
+  const configuredProjectId = process.env.FIREBASE_PROJECT_ID;
+  if (configuredProjectId && configuredProjectId !== account.project_id) {
+    return { sent: 0, configured: true, failed: tokens.length };
+  }
+
+  let bearer: string | null;
+  try {
+    bearer = await accessToken(account);
+  } catch {
+    // Une erreur de clé privée ou une indisponibilité OAuth doit laisser
+    // la notification en échec réessayable, sans faire tomber toute la route.
+    return { sent: 0, configured: true, failed: tokens.length };
+  }
   if (!bearer) return { sent: 0, configured: true, failed: tokens.length };
-  const projectId = process.env.FIREBASE_PROJECT_ID || account.project_id!;
+
   let sent = 0, failed = 0;
   await Promise.all(tokens.map(async (row: { token: string }) => {
     try {
-      const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`, {
+      const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(account.project_id!)}/messages:send`, {
         method: "POST",
         headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
         body: JSON.stringify({ message: {
@@ -75,7 +90,9 @@ export async function sendFcmToUser(db: SupabaseClient, userId: string, payload:
       });
       if (response.ok) { sent++; return; }
       const detail = await response.text();
-      if (response.status === 404 || detail.includes("UNREGISTERED") || detail.includes("INVALID_ARGUMENT")) {
+      // INVALID_ARGUMENT peut signaler un payload invalide, pas uniquement
+      // un jeton expiré : ne jamais supprimer le jeton sur ce seul indice.
+      if (response.status === 404 || detail.includes("UNREGISTERED")) {
         await db.from("naxa_fcm_tokens").delete().eq("token", row.token);
       }
       failed++;
