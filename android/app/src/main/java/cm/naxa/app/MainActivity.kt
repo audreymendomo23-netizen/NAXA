@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private val pendingReads = linkedMapOf<String, ArrayDeque<BluetoothGattCharacteristic>>()
     private var scanning = false
     private var pendingDeviceKey = "montre_connectee"
+    private var pendingDeviceOwnerId = ""
     private var pendingReconnectAddress: String? = null
     private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
     private val adapter: BluetoothAdapter? get() = bluetoothManager?.adapter
@@ -102,8 +103,9 @@ class MainActivity : Activity() {
 
     inner class NaxaBridge {
         @JavascriptInterface fun isAvailable(): Boolean = true
-        @JavascriptInterface fun startScan(deviceKey: String) {
+        @JavascriptInterface fun startScan(deviceKey: String, ownerUserId: String) {
             pendingDeviceKey = deviceKey.take(80)
+            pendingDeviceOwnerId = ownerUserId.take(80)
             runOnUiThread { ensureBluetoothPermissionsAndScan() }
         }
         @JavascriptInterface fun disconnect(address: String) {
@@ -306,6 +308,7 @@ class MainActivity : Activity() {
             .setAction(NaxaBleForegroundService.ACTION_CONNECT)
             .putExtra(NaxaBleForegroundService.EXTRA_ADDRESS, address)
             .putExtra(NaxaBleForegroundService.EXTRA_KEY, deviceKey)
+            .putExtra(NaxaBleForegroundService.EXTRA_OWNER, pendingDeviceOwnerId)
             .putExtra(NaxaBleForegroundService.EXTRA_NAME, safeName(device))
         try {
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
