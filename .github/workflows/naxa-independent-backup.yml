@@ -27,102 +27,108 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
-          DATABASE_PASSWORD: ${{ secrets.NAXA_DATABASE_PASSWORD }}
           ENCRYPTION_KEY: ${{ secrets.NAXA_BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
-          test -n "$DATABASE_PASSWORD" || test -n "$DATABASE_URL" || { echo "::error::Missing database credentials: set NAXA_DATABASE_PASSWORD or NAXA_DATABASE_URL"; exit 1; }
+          test -n "$DATABASE_URL" || { echo "::error::Missing NAXA_DATABASE_URL. Store the complete Session Pooler URI from Supabase Connect."; exit 1; }
           test -n "$ENCRYPTION_KEY" || { echo "::error::Missing NAXA_BACKUP_ENCRYPTION_KEY repository secret"; exit 1; }
-          if [ -n "$DATABASE_URL" ]; then
-            case "$DATABASE_URL" in
-              postgres://*|postgresql://*) ;;
-              *) echo "::error::NAXA_DATABASE_URL must be a PostgreSQL connection URI"; exit 1 ;;
-            esac
-          fi
+          case "$DATABASE_URL" in
+            postgres://*|postgresql://*) ;;
+            *) echo "::error::NAXA_DATABASE_URL must be the complete PostgreSQL connection URI"; exit 1 ;;
+          esac
 
-      - name: Validate PostgreSQL URI without exposing credentials
+      - name: Validate official Supabase Session Pooler URI
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
-          DATABASE_PASSWORD: ${{ secrets.NAXA_DATABASE_PASSWORD }}
           PROJECT_REF: eouwtuusnsuxaejsxknf
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import os
           import sys
-          from urllib.parse import quote, unquote, urlsplit
+          from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
           raw = os.environ.get("DATABASE_URL", "")
-          password_override = os.environ.get("DATABASE_PASSWORD", "")
           project_ref = os.environ["PROJECT_REF"]
-          # GitHub-hosted runners are not guaranteed to have IPv6 egress.
-          # Supabase shared Session pooler is IPv4 reachable and supports
-          # long-lived PostgreSQL sessions needed by pg_dump.
-          production_host = "aws-0-eu-west-1.pooler.supabase.com"
-          production_username = f"postgres.{project_ref}"
 
           def fail(message):
-              print(f"::error::{message} No credential or raw URI was printed.")
+              print(f"::error::{message} Credentials and connection URI were not printed.")
               sys.exit(1)
 
-          if raw != raw.strip() or any(ch in raw for ch in "\r\n\t"):
-              fail("NAXA_DATABASE_URL contains whitespace or line breaks.")
+          if not raw or raw != raw.strip() or any(ch in raw for ch in "\r\n\t"):
+              fail("NAXA_DATABASE_URL is empty or contains whitespace/newlines.")
 
-          embedded_password = ""
-          if raw:
-              try:
-                  parsed = urlsplit(raw)
-                  supplied_username = unquote(parsed.username or "")
-                  embedded_password = unquote(parsed.password or "")
-                  supplied_port = parsed.port
-              except ValueError:
-                  fail("NAXA_DATABASE_URL is not a valid PostgreSQL URI.")
+          try:
+              parsed = urlsplit(raw)
+              username = unquote(parsed.username or "")
+              password = unquote(parsed.password or "")
+              host = (parsed.hostname or "").lower()
+              port = parsed.port
+          except ValueError:
+              fail("NAXA_DATABASE_URL is not a valid PostgreSQL connection URI.")
 
-              if parsed.scheme not in ("postgres", "postgresql"):
-                  fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
-              if supplied_username and supplied_username not in ("postgres", f"postgres.{project_ref}"):
-                  fail("Database username must be postgres or postgres.<production-project-ref>.")
-              if supplied_port not in (None, 5432, 6543):
-                  fail("The supplied URI has an unsupported PostgreSQL port.")
+          if parsed.scheme not in ("postgres", "postgresql"):
+              fail("Use the PostgreSQL URI copied from Supabase Connect.")
+          if username != f"postgres.{project_ref}":
+              fail("The Session Pooler username must be postgres.<production-project-ref> for the NAXA production project.")
+          if not host.endswith(".pooler.supabase.com"):
+              fail("Use the Supabase Shared Session Pooler hostname shown in the production Connect panel.")
+          if port != 5432:
+              fail("Use Session Pooler mode on port 5432, not Transaction mode on 6543.")
+          if parsed.path.rstrip("/") != "/postgres":
+              fail("The connection URI must target the postgres database.")
+          if not password or password == "[YOUR-PASSWORD]":
+              fail("The connection URI does not contain the real PostgreSQL Database Password.")
+          if parsed.fragment:
+              fail("The connection URI must not contain a fragment.")
 
-          # Prefer a dedicated secret. Fall back to a password embedded in the
-          # legacy URI so the migration can be completed without exposing it.
-          database_password = password_override or embedded_password
-          if not database_password:
-              fail("No real database password is configured. Add the NAXA_DATABASE_PASSWORD repository secret; never use a Supabase publishable/secret API key here.")
-          if database_password == "[YOUR-PASSWORD]":
-              fail("The database password is still the URI placeholder [YOUR-PASSWORD].")
+          # Preserve Supabase's exact region-specific host and tenant username.
+          # Only add SSL when the copied URI does not specify it already.
+          query = parse_qsl(parsed.query, keep_blank_values=True)
+          if not any(key.lower() == "sslmode" for key, _ in query):
+              query.append(("sslmode", "require"))
+          target_url = urlunsplit((
+              parsed.scheme,
+              parsed.netloc,
+              parsed.path or "/postgres",
+              urlencode(query),
+              ""
+          ))
 
-          encoded_password = quote(database_password, safe="")
-          target_url = (
-              f"postgresql://{production_username}:{encoded_password}"
-              f"@{production_host}:5432/postgres?sslmode=require"
-          )
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
               github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
 
           print(
-              "Credential preflight passed. "
-              f"Target fixed to production project {project_ref} using its canonical database endpoint."
+              "Connection URI preflight passed: official Supabase Session Pooler, "
+              f"project={project_ref}, port=5432. Credentials were not printed."
           )
           PY
 
-      - name: Dump PostgreSQL 17 database
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Dump PostgreSQL with the Supabase CLI
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p backup
-          docker run --rm \
-            --env SUPABASE_DATABASE_URL \
-            --volume "$PWD/backup:/backup" \
-            postgres:17-alpine sh -euc '
-              pg_dump --dbname="$SUPABASE_DATABASE_URL" --format=custom --no-owner --no-privileges --file=/backup/naxa.dump
-              pg_restore --list /backup/naxa.dump >/backup/restore-catalog.txt
-              test -s /backup/naxa.dump
-              test -s /backup/restore-catalog.txt
-            '
-          sha256sum backup/naxa.dump > backup/naxa.dump.sha256
+
+          # Supabase's supported dump path filters managed internal schemas
+          # and creates separate role, schema and data restore scripts.
+          supabase db dump --remote="$SUPABASE_DATABASE_URL" -f backup/roles.sql --role-only
+          supabase db dump --remote="$SUPABASE_DATABASE_URL" -f backup/schema.sql
+          supabase db dump --remote="$SUPABASE_DATABASE_URL" -f backup/data.sql --data-only --use-copy -x "storage.buckets_vectors" -x "storage.vector_indexes"
+
+          test -s backup/roles.sql
+          test -s backup/schema.sql
+          test -s backup/data.sql
+          tar -czf backup/naxa-supabase-backup.tar.gz -C backup roles.sql schema.sql data.sql
+          test -s backup/naxa-supabase-backup.tar.gz
+          sha256sum backup/naxa-supabase-backup.tar.gz > backup/naxa-supabase-backup.tar.gz.sha256
 
       - name: Encrypt backup before storage
         shell: bash
@@ -132,14 +138,14 @@ jobs:
           set -euo pipefail
           openssl enc -aes-256-cbc -pbkdf2 -salt \
             -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
-            -in backup/naxa.dump -out backup/naxa.dump.enc
-          test -s backup/naxa.dump.enc
+            -in backup/naxa-supabase-backup.tar.gz -out backup/naxa-supabase-backup.tar.gz.enc
+          test -s backup/naxa-supabase-backup.tar.gz.enc
           openssl enc -d -aes-256-cbc -pbkdf2 \
             -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
-            -in backup/naxa.dump.enc -out backup/verify.dump
-          cmp backup/naxa.dump backup/verify.dump
-          sha256sum backup/naxa.dump.enc > backup/naxa.dump.enc.sha256
-          rm -f backup/naxa.dump backup/verify.dump
+            -in backup/naxa-supabase-backup.tar.gz.enc -out backup/verify.tar.gz
+          cmp backup/naxa-supabase-backup.tar.gz backup/verify.tar.gz
+          sha256sum backup/naxa-supabase-backup.tar.gz.enc > backup/naxa-supabase-backup.tar.gz.enc.sha256
+          rm -f backup/naxa-supabase-backup.tar.gz backup/verify.tar.gz backup/roles.sql backup/schema.sql backup/data.sql
 
       - name: Write backup manifest
         shell: bash
@@ -147,7 +153,7 @@ jobs:
           PROJECT_REF: eouwtuusnsuxaejsxknf
         run: |
           set -euo pipefail
-          printf '{"project_ref":"%s","created_at_utc":"%s","commit":"%s","encrypted":true,"format":"pg_dump custom","restore_catalog_validated":true}\n' \
+          printf '{"project_ref":"%s","created_at_utc":"%s","commit":"%s","encrypted":true,"format":"Supabase CLI roles/schema/data SQL archive","archive_integrity_verified":true,"restore_tested":false}\n' \
             "$PROJECT_REF" "$(date -u +%FT%TZ)" "$GITHUB_SHA" > backup/manifest.json
 
       - name: Store encrypted backup in GitHub Actions
@@ -155,8 +161,8 @@ jobs:
         with:
           name: naxa-db-backup-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            backup/naxa.dump.enc
-            backup/naxa.dump.enc.sha256
+            backup/naxa-supabase-backup.tar.gz.enc
+            backup/naxa-supabase-backup.tar.gz.enc.sha256
             backup/manifest.json
           if-no-files-found: error
           retention-days: 90
@@ -179,11 +185,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$ENDPOINT_URL" ]; then
-            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/naxa.dump.enc "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc"
-            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/naxa.dump.enc.sha256 "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc.sha256"
+            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/naxa-supabase-backup.tar.gz.enc "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.tar.gz.enc"
+            aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/naxa-supabase-backup.tar.gz.enc.sha256 "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.tar.gz.enc.sha256"
             aws --endpoint-url "$ENDPOINT_URL" s3 cp backup/manifest.json "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.manifest.json"
           else
-            aws s3 cp backup/naxa.dump.enc "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc"
-            aws s3 cp backup/naxa.dump.enc.sha256 "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.dump.enc.sha256"
+            aws s3 cp backup/naxa-supabase-backup.tar.gz.enc "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.tar.gz.enc"
+            aws s3 cp backup/naxa-supabase-backup.tar.gz.enc.sha256 "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.tar.gz.enc.sha256"
             aws s3 cp backup/manifest.json "s3://$BUCKET/$PREFIX/$(date -u +%Y/%m/%d)/naxa-${GITHUB_RUN_ID}.manifest.json"
           fi
