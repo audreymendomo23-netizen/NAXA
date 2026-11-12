@@ -54,7 +54,7 @@ test("Assurance : le catalogue utilise une vue publique minimale et les conventi
 });
 
 test("RPC publics : accès anonyme via SECURITY DEFINER sans ouverture des tables internes", () => {
-  assert.equal((migrationRpcSecurity.match(/security definer/gi) ?? []).length, 2);
+  assert.equal((migrationRpcSecurity.match(/language sql\s+stable\s+security definer\s+set search_path = ''/gi) ?? []).length, 2);
   assert.equal((migrationRpcSecurity.match(/set search_path = ''/gi) ?? []).length, 2);
   assert.match(migrationRpcSecurity, /extensions\.unaccent/);
   assert.match(migrationRpcSecurity, /extensions\.similarity/);
