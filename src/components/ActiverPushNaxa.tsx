@@ -56,7 +56,10 @@ export function ActiverPushNaxa(){
         }else setMessage("Notifications locales activées. FCM attend les identifiants Firebase de compilation Android.");
       }
       if(native.areLocalRemindersEnabled?.()===true&&native.hasNotificationPermission?.()===true){
-        setState("ready");setMessage("Notifications locales Android activées. Vérification du canal distant NAXA…");
+        setState("ready");
+        setMessage(native.isFcmAvailable?.()===true
+          ?"Notifications locales Android activées. Vérification du canal distant NAXA…"
+          :"Notifications locales Android activées. FCM attend les identifiants Firebase de compilation Android.");
       }
       return()=>{
         window.removeEventListener("naxa-fcm-token",receiveToken);
