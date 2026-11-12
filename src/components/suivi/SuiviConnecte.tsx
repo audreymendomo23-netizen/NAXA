@@ -276,6 +276,9 @@ export function SuiviConnecte() {
           }));
           const {error}=await sb.from("suivi_measurements").insert(rows);
           if(error)throw error;
+          for(const measurement of allowed){
+            (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now());
+          }
           await sb.from("suivi_user_devices").update({last_measurement_at:receivedAt,last_seen_at:receivedAt,
             connection_state:"connected",last_error:null,updated_at:receivedAt}).eq("id",row!.id).eq("user_id",authData.user.id);
           if(measurementRefreshTimer.current)window.clearTimeout(measurementRefreshTimer.current);
@@ -667,6 +670,9 @@ export function SuiviConnecte() {
     if (!grant) {
       const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
       const familyMeasurementTypes=types.filter(type=>type.family===family).map(type=>type.key);
+      for(const schedule of measurementSchedules.filter(item=>familyMeasurementTypes.includes(item.measurement_type))){
+        (window as any).NaxaAndroid?.cancelMeasurementReminder?.(schedule.id);
+      }
       for(const device of devices.filter(entry=>keys.includes(entry.device_key)&&entry.platform_device_id)){
         (window as any).NaxaAndroid?.disconnect(device.platform_device_id);
         nativeDeviceRows.current.delete(device.platform_device_id!);
@@ -721,7 +727,11 @@ export function SuiviConnecte() {
       source, note:note.trim()||null
     });
     if (error) setNotice("Enregistrement refusé. Vérifiez le consentement et les champs.");
-    else { setValue(""); setNote(""); setPendingMeasurementSource(null); setMeasurementSheetOpen(false); setNotice("Entrée enregistrée dans votre espace privé."); await load(); }
+    else {
+      (window as any).NaxaAndroid?.updateMeasurementFreshness?.(selectedType,Date.now());
+      setValue(""); setNote(""); setPendingMeasurementSource(null); setMeasurementSheetOpen(false);
+      setNotice("Entrée enregistrée dans votre espace privé."); await load();
+    }
     setBusy(false);
   }
 
