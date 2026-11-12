@@ -232,9 +232,9 @@ class MainActivity : Activity() {
     }
 
     @Suppress("MissingPermission")
-    private fun connect(device: BluetoothDevice) {
+    private fun connect(device: BluetoothDevice, deviceKey: String = pendingDeviceKey) {
         val address = device.address
-        deviceKeys[address] = pendingDeviceKey
+        deviceKeys[address] = deviceKey
         emit("connecting", deviceId = address, deviceName = safeName(device))
         gatts.remove(address)?.close()
         val gatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
@@ -256,13 +256,15 @@ class MainActivity : Activity() {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
                 gatt.close()
                 gatts.remove(address)
+                pendingReads.remove(address)
                 val retry = retryCounts[address] ?: 0
                 if (deviceKeys.containsKey(address) && retry < 5) {
                     retryCounts[address] = retry + 1
                     val delay = (1000L shl retry).coerceAtMost(30000L)
                     emit("reconnecting", deviceId = address, deviceName = safeName(gatt.device), message = "Reconnexion automatique dans quelques instants…")
                     handler.postDelayed({
-                        if (deviceKeys.containsKey(address) && !gatts.containsKey(address)) connect(gatt.device)
+                        val savedKey = deviceKeys[address]
+                        if (savedKey != null && !gatts.containsKey(address)) connect(gatt.device, savedKey)
                     }, delay)
                 } else {
                     emit("disconnected", deviceId = address, deviceName = safeName(gatt.device),
