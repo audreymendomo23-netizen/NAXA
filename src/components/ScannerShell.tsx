@@ -56,6 +56,40 @@ function extrairePosologie(lecture: LectureOrdonnance): BrouillonPosologie {
   return { medicament, dose, unite, prises: prisesDetectees, heures: horaires, heureDebut: horaires[0], rappels: false };
 }
 
+async function convertirPdfEnImages(file: File): Promise<File[]> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const document = await pdfjs.getDocument({
+    data: new Uint8Array(await file.arrayBuffer()),
+    disableWorker: true,
+    isEvalSupported: false,
+  }).promise;
+  try {
+    if (document.numPages < 1 || document.numPages > 5) {
+      throw new Error("Une ordonnance PDF doit contenir entre 1 et 5 pages.");
+    }
+    const pages: File[] = [];
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(2, 1800 / baseViewport.width) });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Conversion PDF indisponible sur cet appareil.");
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      canvas.width = 0;
+      canvas.height = 0;
+      if (!blob) throw new Error("Une page du PDF n’a pas pu être convertie.");
+      pages.push(new File([blob], file.name.replace(/\\.pdf$/i, "") + "-page-" + pageNumber + ".jpg", { type: "image/jpeg" }));
+    }
+    return pages;
+  } finally {
+    await document.destroy();
+  }
+}
+
 export function ScannerShell() {
   const router = useRouter();
   const params = useSearchParams();
@@ -162,8 +196,18 @@ export function ScannerShell() {
     const normalises: File[] = [];
     for (const f of selection) {
       if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
-        setErreur("La lecture locale des PDF multipages nécessite un moteur de conversion PDF absent du projet. Importez jusqu’à 5 images de l’ordonnance.");
-        return;
+        try {
+          const pages = await convertirPdfEnImages(f);
+          if (normalises.length + pages.length > 5 || normalises.reduce((total, item) => total + item.size, 0) + pages.reduce((total, item) => total + item.size, 0) > TAILLE_MAX) {
+            setErreur("Le document dépasse les limites de 5 pages ou 10 Mo après conversion.");
+            return;
+          }
+          normalises.push(...pages);
+        } catch (cause) {
+          setErreur(cause instanceof Error ? cause.message : "Impossible de lire ce PDF. Essayez un autre document.");
+          return;
+        }
+        continue;
       }
       if (!/^image\/(jpeg|png|webp|heic|heif|jpg)/i.test(f.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) {
         setErreur("Format non pris en charge. Choisissez JPEG, PNG, WebP ou HEIC.");
@@ -274,8 +318,8 @@ export function ScannerShell() {
       const context = source?.getContext("2d");
       if (!source || !context) { setErreur("Le recadrage n’est pas disponible sur cet appareil."); return; }
       const facteur = zoomRecadrage / 100;
-      const largeur = Math.max(1, Math.floor(image.naturalWidth * 0.86 / facteur));
-      const hauteur = Math.max(1, Math.floor(image.naturalHeight * 0.68 / facteur));
+      const largeur = Math.max(1, Math.floor(image.naturalWidth / facteur));
+      const hauteur = Math.max(1, Math.floor(image.naturalHeight / facteur));
       const x = Math.max(0, Math.floor((image.naturalWidth - largeur) / 2));
       const y = Math.max(0, Math.floor((image.naturalHeight - hauteur) / 2));
       source.width = largeur;
@@ -354,7 +398,7 @@ export function ScannerShell() {
         if (raw) sessionStorage.setItem(CLE_POSOLOGIE, JSON.stringify({ ...(JSON.parse(raw) as BrouillonPosologie), rappels: true, rappelsConsentement: true }));
       } else sessionStorage.removeItem(CLE_POSOLOGIE);
     } catch {}
-    const rechercherParNom = () => router.push("/resultats?" + selection.map(item => "q=" + encodeURIComponent(item.nom.trim())).join("&"));
+    const rechercherParNom = () => router.push("/resultats?bulk=1&" + selection.map(item => "q=" + encodeURIComponent(item.nom.trim())).join("&"));
     try {
       const sb = supabaseBrowser();
       const correspondances = await Promise.all(selection.map(async item => {
