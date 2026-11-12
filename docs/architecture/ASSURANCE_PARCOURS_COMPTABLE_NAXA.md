@@ -92,3 +92,15 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Migration complémentaire Replay : `20261112170000_compta_plan_validation_globale.sql`, RPC `compta_plan_valider_plan` pour valider en une action tous les comptes encore en attente ; elle renvoie le nombre validé et journalise l'action.
 - Les comptes et mappings ont RLS activée, politiques de lecture dédiées et aucun droit direct API d'écriture. Les RPC d'écriture/validation restent le seul chemin de mutation.
 - Contrôle Replay complémentaire : la RPC de validation globale est présente, exécutable par `authenticated`, non exécutable par `anon`, et son garde d'autorisation/audit est vérifié. Aucun compte/mapping n'a été créé pendant ce contrôle.
+
+
+## Configuration opérationnelle des journaux et périodes — 12 novembre 2026
+
+- Replay : migrations `compta_journaux_periodes_configuration` et `compta_mapping_types_concurrency` appliquées.
+- RPC sécurisées : `compta_config_lire`, `compta_config_enregistrer_journal`, `compta_config_valider_journal`, `compta_config_ouvrir_periode`. Les mutations exigent `compta_ecriture_autorisee` et ajoutent un événement à l'audit comptable.
+- Les journaux sont stockés dans `compta_parametre` sous les clés `journal_code.<evenement>`; aucun code de journal par défaut n'est injecté. Leur validation refuse les périodes de validité qui se chevauchent.
+- L'ouverture d'une période vérifie les dates, la pharmacie active, le droit comptable et l'absence de chevauchement, avec verrou transactionnel par pharmacie.
+- Les mappings sont désormais limités aux événements traités par le worker qui utilisent effectivement des mappings : ventes encaissées, dépenses validées, prise en charge Assurance et remboursement Assurance reçu. L'annulation de vente utilise une contrepassation de l'écriture d'origine et son journal ; aucun mapping débit/crédit n'est requis.
+- Les validations de mapping et de journal sont sérialisées par verrou transactionnel pour éviter deux validations concurrentes qui se chevauchent.
+- Contrat SQL Replay : `202611121_compta_journaux_periodes_contract.sql` — PASS structurel. Aucune période, aucun journal et aucun mapping de démonstration n'a été persisté.
+- Limites : aucun compte Promoteur/Comptable de test authentifié n'est disponible sur Replay pour exercer les RPC par JWT réel. Le worker Edge n'est pas déployé/planifié sur Replay ; le secret de déclenchement doit être configuré avant d'affirmer le traitement automatique. Build navigateur/TypeScript encore à exécuter.
