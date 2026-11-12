@@ -205,6 +205,11 @@ export function SuiviConnecte() {
   useEffect(()=>{
     let cancelled=false;
     void(async()=>{
+      const native=(window as any).NaxaAndroid;
+      if(native?.isAvailable?.()){
+        if(!cancelled)setPushEnabled(native.areLocalRemindersEnabled?.()===true&&native.hasNotificationPermission?.()===true);
+        return;
+      }
       if(!("serviceWorker" in navigator)||!("PushManager" in window))return;
       const {data:auth}=await sb.auth.getUser();
       if(!auth.user)return;
@@ -223,6 +228,9 @@ export function SuiviConnecte() {
       const detail=(raw as CustomEvent).detail??{};
       const deviceId=String(detail.deviceId??"");
       const deviceKey=String(detail.deviceKey??nativeDeviceRows.current.get(deviceId)?.deviceKey??"");
+      if(detail.type==="notificationPermissionGranted"){
+        setPushEnabled(true);setNotice("Notifications locales Android activées pour les rappels H-5.");return;
+      }
       if(detail.type==="scanning"){setNotice(String(detail.message??"Recherche Bluetooth…"));return;}
       if(detail.type==="cancelled"){setBusy(false);setNotice("Connexion Bluetooth annulée.");return;}
       if(detail.type==="error"){setBusy(false);setNotice(String(detail.message??"Erreur Bluetooth."));return;}
@@ -543,6 +551,14 @@ export function SuiviConnecte() {
   }, [reminders, load, sb]);
 
   async function enableReminderNotifications() {
+    const native=(window as any).NaxaAndroid;
+    if(native?.isAvailable?.()){
+      native.requestNotifications?.();
+      if(native.areLocalRemindersEnabled?.()===true&&native.hasNotificationPermission?.()===true){
+        setPushEnabled(true);setNotice("Notifications locales Android activées. Les rappels H-5 liés à un appareil appairé seront affichés par le téléphone.");
+      }else setNotice("Autorisation de notifications Android demandée. Acceptez-la pour activer les rappels locaux H-5.");
+      return;
+    }
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setNotice("Les notifications Push ne sont pas prises en charge par ce navigateur. Les rappels restent enregistrés dans NAXA.");
       return;
@@ -581,6 +597,12 @@ export function SuiviConnecte() {
   }
 
   async function disableReminderNotifications(){
+    const native=(window as any).NaxaAndroid;
+    if(native?.isAvailable?.()){
+      native.disableLocalReminders?.();setPushEnabled(false);
+      setNotice("Rappels locaux Android désactivés sur ce téléphone. Les programmations serveur restent enregistrées.");
+      return;
+    }
     try{
       const registration=await navigator.serviceWorker.getRegistration("/");
       const subscription=await registration?.pushManager.getSubscription();
@@ -1533,7 +1555,7 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Échéance<input type="datetime-local" value={reminderAt} onChange={e=>setReminderAt(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
           <label className="mt-3 block text-sm font-semibold">Répétition<select value={repeatRule} onChange={e=>setRepeatRule(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="none">Une fois</option><option value="daily">Chaque jour</option><option value="weekly">Chaque semaine</option></select></label>
           <button disabled={busy||!selectedConsent} onClick={()=>void saveReminder()} className="mt-3 min-h-11 w-full rounded-xl bg-[#0A6B3A] px-4 font-bold text-white disabled:opacity-40">{reminderEditingId?"Enregistrer les modifications":"Enregistrer le rappel"}</button>{reminderEditingId&&<button type="button" onClick={cancelReminderEdit} className="mt-2 min-h-10 w-full rounded-xl border px-4 text-sm font-bold">Annuler la modification</button>}
-          <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3"><p className="text-sm font-semibold">{pushEnabled?"Notifications Push activées sur cet appareil.":"Notifications Push non activées sur cet appareil."}</p><button type="button" onClick={()=>void (pushEnabled?disableReminderNotifications():enableReminderNotifications())} className="mt-2 min-h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 font-bold text-[#0A6B3A]">{pushEnabled?"Désactiver les notifications sur cet appareil":"Activer les notifications de rappel"}</button></div>
+          <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3"><p className="text-sm font-semibold">{pushEnabled?"Notifications de rappel activées sur cet appareil.":"Notifications de rappel non activées sur cet appareil."}</p><button type="button" onClick={()=>void (pushEnabled?disableReminderNotifications():enableReminderNotifications())} className="mt-2 min-h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 font-bold text-[#0A6B3A]">{pushEnabled?"Désactiver les notifications de rappel":"Activer les notifications de rappel"}</button></div>
           <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><p className="font-bold">{r.title}</p><p className="mt-1 text-sm text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"} · {r.enabled?"Actif":"Désactivé"}</p></div><div className="flex gap-2"><button type="button" onClick={()=>editReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{r.enabled?"Désactiver":"Réactiver"}</button><button type="button" disabled={busy} onClick={()=>void deleteReminder(r)} className="min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Supprimer</button></div></li>)}</ul>
         </div>
       </section>
