@@ -160,6 +160,7 @@ class MainActivity : Activity() {
         }
         @JavascriptInterface fun showLocalNotification(title: String, body: String, path: String, tag: String) {
             runOnUiThread {
+                if (!NaxaReminderScheduler.notificationsEnabled(this@MainActivity)) return@runOnUiThread
                 if (Build.VERSION.SDK_INT >= 33 &&
                     checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 ) return@runOnUiThread
