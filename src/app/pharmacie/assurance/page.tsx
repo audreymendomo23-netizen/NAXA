@@ -78,7 +78,7 @@ export default function AssuranceDashboardPage(){
  const saveRule=async()=>{
   const rate=Number(ruleRate),cap=ruleCap.trim()?Number(ruleCap):null,franchise=Number(ruleFranchise);
   if(savingRule||!selectedConventionId||!Number.isFinite(rate)||rate<0||rate>100||!Number.isSafeInteger(franchise)||franchise<0||(cap!==null&&(!Number.isSafeInteger(cap)||cap<0))||!ruleStart||(ruleEnd&&ruleEnd<ruleStart)||(ruleScope==="categorie"&&!ruleCategory.trim())||(ruleScope==="produit"&&!ruleProduct))return;
-  const splitValues=(value:string)=>value.split(/[\\n,;]/).map(x=>x.trim()).filter(Boolean);
+  const splitValues=(value:string)=>value.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);
   setSavingRule(true);setNotice("");setError("");
   const {error:e}=await supabaseBrowser().rpc("assurance_enregistrer_regle",{
    p_convention:selectedConventionId,p_portee:ruleScope,p_categorie:ruleScope==="categorie"?ruleCategory.trim():null,
