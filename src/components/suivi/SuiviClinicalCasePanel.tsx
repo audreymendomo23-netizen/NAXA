@@ -64,8 +64,19 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
     setNotice("Dossier initial créé et diagnostic historisé.");await load();setBusy(false);
   }
 
+  async function setCaseStatus(status:"active"|"paused"|"closed"){
+    if(!caseRow)return;
+    if(status==="closed"&&!window.confirm("Clôturer définitivement ce dossier ? Le professionnel ne pourra plus le réactiver."))return;
+    setBusy(true);setNotice("");
+    const {error}=await sb.rpc("suivi_set_patient_case_status",{p_case_id:caseRow.id,p_status:status});
+    if(error){setNotice("Le changement de statut du dossier a échoué. Les droits actuels sont conservés.");setBusy(false);return;}
+    setNotice(status==="active"?"Suivi repris.":status==="paused"?"Suivi mis en pause.":"Dossier clôturé définitivement.");
+    await load();setBusy(false);
+  }
+
   async function addEntry(){
     if(!caseRow){setNotice("Créez d'abord le dossier initial.");return;}
+    if(caseRow.status!=="active"){setNotice("Le dossier est en pause ou clôturé. Aucune nouvelle entrée ne peut être ajoutée.");return;}
     if(note.trim().length<3){setNotice("L'entrée clinique doit contenir au moins 3 caractères.");return;}
     setBusy(true);setNotice("");
     const {error}=await sb.rpc("suivi_add_clinical_entry",{
@@ -77,7 +88,7 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
   }
 
   if(loading)return <p className="rounded-xl bg-slate-50 p-3 text-sm">Chargement du dossier clinique autorisé…</p>;
-  if(!allowed)return <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">Le patient n'a pas autorisé l'ouverture de son dossier clinique. Vous pouvez consulter uniquement les mesures et graphiques qu'il vous a partagés.</p>;
+  if(!allowed)return <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Le patient n'a pas autorisé l'ouverture de son dossier clinique. Les mesures, appareils et alertes restent masqués jusqu'à ce que ce droit soit accordé.</p>;
   return <section className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
     <div><h3 className="font-extrabold text-indigo-950">Dossier clinique de suivi</h3><p className="text-xs text-indigo-900">Les mesures autorisées en temps réel s’ajoutent automatiquement à la chronologie. Le diagnostic reste rédigé et validé par le professionnel.</p></div>
     {notice&&<p role="status" className="rounded-lg border bg-white p-2 text-sm">{notice}</p>}
@@ -92,14 +103,20 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
         <p className="mt-2 whitespace-pre-wrap text-sm">{caseRow.initial_diagnosis}</p>
         {caseRow.monitoring_reason&&<p className="mt-2 text-xs text-slate-600">Motif : {caseRow.monitoring_reason}</p>}
         <p className="mt-2 text-xs text-slate-500">Mis à jour : {new Date(caseRow.updated_at).toLocaleString("fr-FR")}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {caseRow.status==="active"&&<button type="button" disabled={busy} onClick={()=>void setCaseStatus("paused")} className="min-h-10 rounded-lg border px-3 text-xs font-bold">Mettre en pause</button>}
+          {caseRow.status==="paused"&&<button type="button" disabled={busy} onClick={()=>void setCaseStatus("active")} className="min-h-10 rounded-lg border border-emerald-200 px-3 text-xs font-bold text-emerald-800">Reprendre le suivi</button>}
+          {caseRow.status!=="closed"&&<button type="button" disabled={busy} onClick={()=>void setCaseStatus("closed")} className="min-h-10 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700">Clôturer définitivement</button>}
+        </div>
       </div>
-      <div className="space-y-2 rounded-xl border bg-white p-3">
+      {caseRow.status==="active"?<div className="space-y-2 rounded-xl border bg-white p-3">
         <b>Ajouter une mise à jour clinique</b>
         <label className="block text-sm font-semibold">Type d'entrée<select value={kind} onChange={e=>setKind(e.target.value as typeof kind)} className="champ mt-1 w-full"><option value="observation">Observation</option><option value="follow_up">Compte rendu de suivi</option><option value="diagnosis">Mise à jour du diagnostic</option></select></label>
         <textarea rows={3} maxLength={6000} value={note} onChange={e=>setNote(e.target.value)} className="champ w-full" placeholder={kind==="diagnosis"?"Nouveau diagnostic / appréciation clinique…":"Observation professionnelle…"} />
         <button disabled={busy} onClick={()=>void addEntry()} className="min-h-10 rounded-lg bg-indigo-800 px-4 text-sm font-bold text-white disabled:opacity-40">Enregistrer dans l'historique clinique</button>
       </div>
       <div className="space-y-2"><b className="text-sm">Historique clinique</b>{entries.length?entries.map(entry=><article key={entry.id} className="rounded-xl border bg-white p-3"><div className="flex flex-wrap justify-between gap-2"><b className="text-sm">{entry.entry_type==="diagnosis"?"Diagnostic":entry.entry_type==="follow_up"?"Suivi":entry.entry_type==="measurement"?"Mesure reçue automatiquement":"Observation"}</b><time className="text-xs text-slate-500">{new Date(entry.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-2 whitespace-pre-wrap text-sm">{entry.content}</p></article>):<p className="text-sm text-slate-500">Aucune mise à jour supplémentaire.</p>}</div>
+      </>:<p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{caseRow.status==="paused"?"Le suivi est en pause. Les mesures et alertes restent masquées jusqu'à sa reprise.":"Le dossier est définitivement clôturé. Les données restent conservées dans le dossier patient en lecture seule."}</p>}
     </>}
   </section>;
 }
