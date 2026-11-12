@@ -517,6 +517,7 @@ export function SuiviConnecte() {
     try { window.localStorage.setItem("naxa-suivi-accent", accent); } catch { /* Le choix reste actif pour la session courante. */ }
   }, [accent]);
   useEffect(() => {
+    if (allowed !== true) return;
     let cancelled = false;
     const syncOutbox = async () => {
       if (!navigator.onLine || outboxSyncInProgress.current) return;
@@ -575,7 +576,7 @@ export function SuiviConnecte() {
       window.removeEventListener("online", retry);
       document.removeEventListener("visibilitychange", retry);
     };
-  }, [sb, consents, load]);
+  }, [sb, consents, load, allowed]);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -1563,12 +1564,12 @@ export function SuiviConnecte() {
         </div>
         <aside className="rounded-[26px] border border-blue-100 bg-[#EEF5FD] p-5">
           <p className="text-xs font-extrabold uppercase tracking-wider text-blue-800">État de votre espace</p><div className="mt-3 flex items-center gap-2"><span className={"h-2.5 w-2.5 rounded-full "+(online?"bg-emerald-500":"bg-amber-500")} /><p className="font-bold text-slate-900">{online?"Application en ligne":"Hors connexion"}</p></div>
-          <p className="mt-2 text-sm leading-5 text-slate-600">{online?"Les services en ligne sont accessibles; les appareils ne sont considérés synchronisés qu’après une lecture Bluetooth vérifiée.":"La connexion est indisponible. Les nouvelles données ne peuvent pas être synchronisées."}</p>
+          <p className="mt-2 text-sm leading-5 text-slate-600">{online?"Les services en ligne sont accessibles; les appareils ne sont considérés synchronisés qu’après une lecture Bluetooth vérifiée.":"La connexion est indisponible. Les mesures Bluetooth reçues sont mises en attente locale pour synchronisation ultérieure."}</p>
           <div className="mt-4 border-t border-blue-200 pt-3"><p className="text-sm font-bold text-slate-900">Consentements</p><p className="mt-1 text-sm text-slate-600">{grantedFamilies} famille(s) sur 6 autorisée(s)</p><button type="button" onClick={() => { setActiveTab("Configurations"); setConfigurationPage("consentements"); }} className="mt-3 min-h-10 rounded-xl border border-blue-200 bg-white px-3 text-sm font-bold text-blue-800">Gérer mes autorisations</button></div>
         </aside>
       </section>
       <nav aria-label="Sections du suivi connecté" className="sticky top-0 z-30 -mx-4 mt-4 border-b border-slate-200 bg-[#F7F8F4] px-4 py-2 sm:mx-0 sm:rounded-full sm:border"><div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{(["Appareils","Configurations","Alertes","Options"] as const).map(tab=><button key={tab} onClick={()=>setActiveTab(tab)} aria-current={activeTab===tab?"page":undefined} className={"min-h-11 shrink-0 rounded-full px-4 text-sm font-extrabold transition active:scale-[.97] "+(activeTab===tab?"bg-[var(--accent)] text-white":"bg-white text-slate-600")}>{tab}</button>)}</div></nav>
-      {!online && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Hors connexion : les nouvelles données ne peuvent pas être synchronisées. Les entrées non enregistrées ne sont pas conservées automatiquement.</p>}
+      {!online && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Hors connexion : les mesures Bluetooth reçues sont conservées localement et seront synchronisées au retour du réseau. Les actions nécessitant le serveur restent indisponibles.</p>}
       {notice && <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-blue-50 p-3 text-sm text-blue-950">{notice}</p>}
       {activeTab==="Configurations" && configurationPage==="home" && <section aria-label="Configurations" className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {([{key:"consentements",title:"Consentements",description:"Choisissez les familles de données que vous autorisez."},{key:"mesures",title:"Mesures",description:"Sélectionnez un type et ajoutez une entrée à votre suivi."},{key:"rappels",title:"Rappels",description:"Organisez vos rappels personnels."}] as const).map(card=><button key={card.key} type="button" onClick={()=>setConfigurationPage(card.key)} className="min-h-36 rounded-[24px] border border-white bg-white p-5 text-left shadow-[0_12px_32px_rgba(10,75,42,0.08)] transition active:scale-[.97]"><span className="block text-lg font-extrabold text-[#064B2A]">{card.title}</span><span className="mt-2 block text-sm leading-5 text-slate-600">{card.description}</span><span className="mt-4 block text-sm font-bold text-[#0A6B3A]">Ouvrir →</span></button>)}
