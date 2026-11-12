@@ -6,7 +6,7 @@ export type LectureOrdonnance = {
   candidats: string[];
 };
 
-const BRUIT = /^(?:dr\.?|docteur|date|nom|pr[ée]nom|âge?|ordonnance|signature|cachet|le\s|n°|tél?)/i;
+const BRUIT = /^(?:dr\.?|docteur|date|nom|pr[ée]nom|âge?|ordonnance|signature|cachet|le\s|n°|t[eé]l)/i;
 
 export async function lireOrdonnance(image: File | Blob): Promise<LectureOrdonnance> {
   const { createWorker } = await import("tesseract.js");
