@@ -9,7 +9,7 @@ language sql
 stable
 security definer
 set search_path=''
-as $
+as $$
   select coalesce(
     p_user_id is not null
     and p_family is not null
