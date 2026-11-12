@@ -12,7 +12,9 @@ begin
 
   if position('marketplace_stock_last_quantity_update' in v_offer) = 0
      or position('interval ''48 hours''' in v_offer) = 0
-     or position('now() - interval ''48 hours''' in v_offer) = 0 then
+     or position('now() - interval ''48 hours''' in v_offer) = 0
+     or position('ph.est_demo = false' in v_offer) = 0
+     or position('ph.archivee_le is null' in v_offer) = 0 then
     raise exception 'MARKETPLACE_STOCK_FRESHNESS_FILTER_MISSING';
   end if;
 
