@@ -632,6 +632,18 @@ export function SuiviConnecte() {
     setReminderEditingId(reminder.id);
   }
 
+  async function deleteReminder(reminder:Reminder){
+    if(!window.confirm("Supprimer définitivement ce rappel personnel ?"))return;
+    setBusy(true);
+    const {error}=await sb.from("suivi_reminders").delete().eq("id",reminder.id);
+    setNotice(error?"Impossible de supprimer ce rappel.":"Rappel supprimé.");
+    if(!error){
+      if(reminderEditingId===reminder.id)cancelReminderEdit();
+      await load();
+    }
+    setBusy(false);
+  }
+
   async function toggleReminder(reminder:Reminder){
     const reminderFamily=types.find(type=>type.key===reminder.measurement_type)?.family;
     if(!reminder.enabled&&(!reminderFamily||!consents[reminderFamily])){
@@ -691,6 +703,18 @@ export function SuiviConnecte() {
       .eq("id",schedule.id);
     setNotice(error?"Impossible de modifier cette programmation.":schedule.enabled?"Programmation désactivée.":"Programmation réactivée.");
     if(!error) await load();
+  }
+
+  async function deleteMeasurementSchedule(schedule:MeasurementSchedule){
+    if(!window.confirm("Supprimer cette programmation et son contrôle H-5 ?"))return;
+    setBusy(true);
+    const {error}=await sb.from("suivi_measurement_schedules").delete().eq("id",schedule.id);
+    setNotice(error?"Impossible de supprimer cette programmation.":"Programmation et contrôle H-5 supprimés.");
+    if(!error){
+      if(scheduleEditingId===schedule.id)cancelScheduleEdit();
+      await load();
+    }
+    setBusy(false);
   }
 
   function editMeasurementSchedule(schedule:MeasurementSchedule){
@@ -1198,7 +1222,7 @@ export function SuiviConnecte() {
             <label className="mt-3 block text-sm font-semibold">Appareil associé (facultatif)<select value={scheduleDeviceId} onChange={e=>setScheduleDeviceId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="">Toutes les sources de cette mesure</option>{devices.filter(d=>deviceCatalogFamily(d.device_key)===typeInfo.family).map(d=><option key={d.id} value={d.id} disabled={!d.active}>{d.device_name}{d.active?"":" · désactivé"}</option>)}</select></label>
             <p className="mt-2 text-xs text-emerald-900">Fuseau : Africa/Douala · Rappel : 5 min avant · Fraîcheur exigée : 5 min. Modifiez vos heures selon votre programme de suivi.</p>
             <button type="button" disabled={busy||!selectedConsent} onClick={()=>void saveMeasurementSchedule()} className="mt-3 min-h-11 w-full rounded-xl bg-emerald-800 px-4 font-bold text-white disabled:opacity-40">{scheduleEditingId?"Enregistrer les modifications":"Enregistrer cette programmation"}</button>{scheduleEditingId&&<button type="button" onClick={cancelScheduleEdit} className="mt-2 min-h-10 w-full rounded-xl border px-4 text-sm font-bold">Annuler la modification</button>}
-            {measurementSchedules.length>0&&<div className="mt-4 space-y-2">{measurementSchedules.map(schedule=><article key={schedule.id} className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><strong>{types.find(t=>t.key===schedule.measurement_type)?.label??schedule.measurement_type} · {String(schedule.local_time).slice(0,5)}</strong><p className="text-xs text-slate-600">{(schedule.days_of_week??[]).map(d=>["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d]).join(", ")} · H-5 · {schedule.timezone}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>editMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{schedule.enabled?"Désactiver":"Réactiver"}</button></div></div></article>)}</div>}
+            {measurementSchedules.length>0&&<div className="mt-4 space-y-2">{measurementSchedules.map(schedule=><article key={schedule.id} className="rounded-xl border border-emerald-100 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><strong>{types.find(t=>t.key===schedule.measurement_type)?.label??schedule.measurement_type} · {String(schedule.local_time).slice(0,5)}</strong><p className="text-xs text-slate-600">{(schedule.days_of_week??[]).map(d=>["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"][d]).join(", ")} · H-5 · {schedule.timezone}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>editMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{schedule.enabled?"Désactiver":"Réactiver"}</button><button type="button" disabled={busy} onClick={()=>void deleteMeasurementSchedule(schedule)} className="min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Supprimer</button></div></div></article>)}</div>}
           </div>
           <div className="mt-4 border-t border-slate-200 pt-4"><h3 className="font-bold">Rappels personnels supplémentaires</h3>
           <label className="mt-3 block text-sm font-semibold">Titre<input value={reminderTitle} onChange={e=>setReminderTitle(e.target.value)} maxLength={160} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder={"Ex. Relever ma mesure"}/></label>
@@ -1206,7 +1230,7 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Répétition<select value={repeatRule} onChange={e=>setRepeatRule(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="none">Une fois</option><option value="daily">Chaque jour</option><option value="weekly">Chaque semaine</option></select></label>
           <button disabled={busy||!selectedConsent} onClick={()=>void saveReminder()} className="mt-3 min-h-11 w-full rounded-xl bg-[#0A6B3A] px-4 font-bold text-white disabled:opacity-40">{reminderEditingId?"Enregistrer les modifications":"Enregistrer le rappel"}</button>{reminderEditingId&&<button type="button" onClick={cancelReminderEdit} className="mt-2 min-h-10 w-full rounded-xl border px-4 text-sm font-bold">Annuler la modification</button>}
           <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3"><p className="text-sm font-semibold">{pushEnabled?"Notifications Push activées sur cet appareil.":"Notifications Push non activées sur cet appareil."}</p><button type="button" onClick={()=>void (pushEnabled?disableReminderNotifications():enableReminderNotifications())} className="mt-2 min-h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 font-bold text-[#0A6B3A]">{pushEnabled?"Désactiver les notifications sur cet appareil":"Activer les notifications de rappel"}</button></div>
-          <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><p className="font-bold">{r.title}</p><p className="mt-1 text-sm text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"} · {r.enabled?"Actif":"Désactivé"}</p></div><div className="flex gap-2"><button type="button" onClick={()=>editReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{r.enabled?"Désactiver":"Réactiver"}</button></div></li>)}</ul>
+          <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><p className="font-bold">{r.title}</p><p className="mt-1 text-sm text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"} · {r.enabled?"Actif":"Désactivé"}</p></div><div className="flex gap-2"><button type="button" onClick={()=>editReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{r.enabled?"Désactiver":"Réactiver"}</button><button type="button" disabled={busy} onClick={()=>void deleteReminder(r)} className="min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Supprimer</button></div></li>)}</ul>
         </div>
       </section>
       <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button>
