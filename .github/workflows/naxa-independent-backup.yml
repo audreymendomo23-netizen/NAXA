@@ -75,8 +75,6 @@ jobs:
 
           if parsed.scheme not in ("postgres", "postgresql"):
               fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
-          if not parsed.hostname:
-              fail("NAXA_DATABASE_URL does not contain a source hostname.")
           if not supplied_password or supplied_password == "[YOUR-PASSWORD]":
               fail("NAXA_DATABASE_URL has no actual database password.")
           if supplied_username not in ("postgres", f"postgres.{project_ref}"):
