@@ -24,11 +24,13 @@ begin
   if not has_function_privilege('authenticated','public.assurance_calculer_devis(uuid,uuid)','EXECUTE')
     or not has_function_privilege('authenticated','public.assurance_valider_devis(uuid)','EXECUTE')
     or not has_function_privilege('authenticated','public.assurance_confirmer_prise_en_charge(uuid,text)','EXECUTE')
-    or not has_function_privilege('authenticated','public.assurance_enregistrer_remboursement(uuid,bigint,date,text,text)','EXECUTE') then
+    or not has_function_privilege('authenticated','public.assurance_enregistrer_remboursement(uuid,bigint,date,text,text)','EXECUTE')
+    or not has_function_privilege('authenticated','public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)','EXECUTE') then
     raise exception 'ASSURANCE_RPC_GRANT_MISSING';
   end if;
   if has_function_privilege('anon','public.assurance_calculer_devis(uuid,uuid)','EXECUTE')
-    or has_function_privilege('anon','public.assurance_enregistrer_remboursement(uuid,bigint,date,text,text)','EXECUTE') then
+    or has_function_privilege('anon','public.assurance_enregistrer_remboursement(uuid,bigint,date,text,text)','EXECUTE')
+    or has_function_privilege('anon','public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)','EXECUTE') then
     raise exception 'ASSURANCE_ANON_EXECUTE_GRANTED';
   end if;
   if position('assurance_prise_en_charge' in pg_get_functiondef('public.compta_traiter_evenement(uuid,uuid)'::regprocedure))=0
