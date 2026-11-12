@@ -49,7 +49,7 @@ class MainActivity : Activity() {
         "180D" to "2A37", "1810" to "2A35", "1809" to "2A1C",
         "1822" to "2A5E", "1822" to "2A5F", "1808" to "2A18",
         "181D" to "2A9D", "181B" to "2A9C", "1814" to "2A53",
-        "1826" to "2AD2"
+        "1826" to "2AD2", "1816" to "2A5B"
     )
     private val cccd = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
