@@ -126,6 +126,7 @@ class MainActivity : Activity() {
                 else {
                     NaxaReminderScheduler.ensureChannel(this@MainActivity)
                     NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,true)
+                    emit("notificationPermissionGranted",message="Notifications Android activées.")
                 }
             }
         }
