@@ -23,8 +23,8 @@ const expectedMeasurementKeys = [
   "humeur_score", "cycle_jour", "medicament_pris", "symptome_note",
   "debit_expiratoire", "ecg_note", "masse_grasse", "masse_musculaire",
   "masse_osseuse", "cetonemie", "acide_urique", "cholesterol_hdl",
-  "cholesterol_ldl", "capacite_vitale", "vitesse_course", "cadence_course",
-  "longueur_foulee", "vitesse_cyclisme", "pourcentage_musculaire", "masse_maigre",
+  "cholesterol_ldl", "capacite_vitale", "vitesse_course", "vitesse_cyclisme", "cadence_course",
+  "longueur_foulee", "pourcentage_musculaire", "masse_maigre",
   "masse_maigre_molle", "masse_eau_corporelle", "metabolisme_basal"
 ];
 assert.equal(measurementKeys.length, expectedMeasurementKeys.length,
