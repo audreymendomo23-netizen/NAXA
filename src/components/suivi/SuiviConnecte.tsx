@@ -682,6 +682,23 @@ export function SuiviConnecte() {
     setBusy(false);
   }
 
+  async function reconnectDeviceInstance(instance:UserDevice) {
+    if(!consents[deviceCatalog.find(item=>item.key===instance.device_key)?.family??""]){
+      setNotice("Le consentement de cette famille doit être actif pour reconnecter l'appareil.");return;
+    }
+    const bluetooth=(navigator as any).bluetooth;
+    if(typeof bluetooth?.getDevices==="function"&&instance.platform_device_id){
+      setBusy(true);setNotice("Recherche de l'appareil déjà autorisé…");
+      try{
+        const permitted:any[]=await bluetooth.getDevices();
+        const device=permitted.find(item=>String(item.id)===instance.platform_device_id);
+        if(device){await startBluetoothSession(device,instance.device_key,false);return;}
+      }catch{/* Repli sur la sélection explicite ci-dessous. */}
+      finally{setBusy(false);}
+    }
+    await connectDeviceBluetooth(instance.device_key);
+  }
+
   async function removeDeviceInstance(instance:UserDevice) {
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");return;}
@@ -1019,7 +1036,7 @@ export function SuiviConnecte() {
           <p className="mt-2 text-sm"><span className={"inline-flex rounded-full px-3 py-1 font-bold "+(selectedSavedDevice?.active?"bg-[#E5F4E9] text-[#064B2A]":"bg-slate-100 text-slate-600")}>{selectedSavedDevice?.active?"Actif":"Inactif"}</span></p>
           <button type="button" disabled={busy} onClick={async()=>{await toggleDevice(selectedDevice);}} className={"mt-4 min-h-11 w-full rounded-xl px-4 font-bold text-white disabled:opacity-40 "+(selectedSavedDevice?.active?"bg-slate-700":"bg-[#0A6B3A]")}>{selectedSavedDevice?.active?"Désactiver":"Activer ce dispositif"}</button>
           {selectedSavedDevice?.active&&<button type="button" disabled={busy||!consents[selectedDevice.family]} onClick={()=>void connectDeviceBluetooth(selectedDevice.key)} className="mt-2 min-h-11 w-full rounded-xl border border-[#0A6B3A] px-4 font-bold text-[#0A6B3A] disabled:opacity-40">{selectedDeviceInstances.length>0?"Connecter / ajouter un autre appareil Bluetooth":"Connecter un appareil Bluetooth"}</button>}
-          {selectedDeviceInstances.length>0&&<div className="mt-3 space-y-2"><p className="text-sm font-bold">Appareils associés ({selectedDeviceInstances.length})</p>{selectedDeviceInstances.map(instance=><article key={instance.id} className="rounded-xl border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{instance.device_model||instance.device_name}</b><span className={"rounded-full px-2 py-1 text-xs font-bold "+(instance.connection_state==="connected"?"bg-emerald-100 text-emerald-800":"bg-slate-200 text-slate-700")}>{instance.connection_state==="connected"?"Connecté":instance.connection_state==="error"?"Erreur":instance.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-500">{instance.protocol||"Protocole non identifié"} · Reconnexion auto : {instance.auto_reconnect?"activée":"désactivée"}</p><p className="mt-1 text-xs text-slate-500">Dernière mesure : {instance.last_measurement_at?new Date(instance.last_measurement_at).toLocaleString("fr-FR"):"aucune mesure reçue"}</p><button type="button" disabled={busy} onClick={()=>void removeDeviceInstance(instance)} className="mt-2 min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Retirer cet appareil</button></article>)}</div>}
+          {selectedDeviceInstances.length>0&&<div className="mt-3 space-y-2"><p className="text-sm font-bold">Appareils associés ({selectedDeviceInstances.length})</p>{selectedDeviceInstances.map(instance=><article key={instance.id} className="rounded-xl border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{instance.device_model||instance.device_name}</b><span className={"rounded-full px-2 py-1 text-xs font-bold "+(instance.connection_state==="connected"?"bg-emerald-100 text-emerald-800":"bg-slate-200 text-slate-700")}>{instance.connection_state==="connected"?"Connecté":instance.connection_state==="error"?"Erreur":instance.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-500">{instance.protocol||"Protocole non identifié"} · Reconnexion auto : {instance.auto_reconnect?"activée":"désactivée"}</p><p className="mt-1 text-xs text-slate-500">Dernière mesure : {instance.last_measurement_at?new Date(instance.last_measurement_at).toLocaleString("fr-FR"):"aucune mesure reçue"}</p><div className="mt-2 flex flex-wrap gap-2">{instance.connection_state!=="connected"&&instance.active&&<button type="button" disabled={busy} onClick={()=>void reconnectDeviceInstance(instance)} className="min-h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold text-emerald-800 disabled:opacity-40">Reconnecter</button>}<button type="button" disabled={busy} onClick={()=>void removeDeviceInstance(instance)} className="min-h-9 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-40">Retirer cet appareil</button></div></article>)}</div>}
           <button type="button" onClick={()=>{setSelectedType(types.find(type=>type.family===selectedDevice.family)?.key??selectedType);setSelectedDeviceKey(null);setActiveTab("Configurations");setConfigurationPage("mesures");setMeasurementSheetOpen(true);}} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-4 font-bold">Ajouter une mesure</button>
         </section>
       </div>}
