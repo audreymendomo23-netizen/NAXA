@@ -31,11 +31,13 @@ class NaxaBleForegroundService : Service() {
         const val ACTION_STOP = "cm.naxa.app.BLE_STOP"
         const val EXTRA_ADDRESS = "deviceAddress"
         const val EXTRA_KEY = "deviceKey"
+        const val EXTRA_OWNER = "ownerUserId"
         const val EXTRA_NAME = "deviceName"
         private const val CHANNEL = "naxa_ble_background"
         private const val NOTIFICATION_ID = 8421
         private const val PREFS = "naxa_ble_background"
         private const val QUEUE_KEY = "pending_events"
+        private const val SESSIONS_KEY = "active_sessions"
         private val SERVICE_PAIRS = listOf(
             "180D" to "2A37", "1810" to "2A35", "1809" to "2A1C",
             "1822" to "2A5E", "1822" to "2A5F", "1808" to "2A18",
@@ -74,6 +76,7 @@ class NaxaBleForegroundService : Service() {
     private data class DeviceSession(
         val device: BluetoothDevice,
         val key: String,
+        val ownerId: String,
         var gatt: BluetoothGatt? = null,
         var retries: Int = 0,
         var retryTask: Runnable? = null,
@@ -105,7 +108,17 @@ class NaxaBleForegroundService : Service() {
                 ensureForeground()
                 val address = intent.getStringExtra(EXTRA_ADDRESS).orEmpty()
                 val key = intent.getStringExtra(EXTRA_KEY).orEmpty()
-                if (address.isNotBlank() && key.isNotBlank()) connect(address, key)
+                val owner = intent.getStringExtra(EXTRA_OWNER).orEmpty()
+                if (address.isNotBlank() && key.isNotBlank() && owner.isNotBlank()) connect(address, key, owner)
+            }
+            else -> {
+                val saved = getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(SESSIONS_KEY, "[]")
+                val sessionsJson = try { JSONArray(saved) } catch (_: Exception) { JSONArray() }
+                if (sessionsJson.length() > 0) ensureForeground()
+                for (index in 0 until sessionsJson.length()) {
+                    val item = sessionsJson.optJSONObject(index) ?: continue
+                    connect(item.optString("address"), item.optString("key"), item.optString("owner"))
+                }
             }
         }
         return START_STICKY
@@ -139,7 +152,7 @@ class NaxaBleForegroundService : Service() {
     }
 
     @Suppress("MissingPermission")
-    private fun connect(address: String, key: String) {
+    private fun connect(address: String, key: String, ownerId: String) {
         val current = sessions[address]
         if (current?.gatt != null) return
         val required = if (Build.VERSION.SDK_INT >= 31) android.Manifest.permission.BLUETOOTH_CONNECT
@@ -155,7 +168,8 @@ class NaxaBleForegroundService : Service() {
                 .put("message", "Appareil Bluetooth indisponible. Activez Bluetooth puis reconnectez-le."))
             return
         }
-        val session = current ?: DeviceSession(device, key).also { sessions[address] = it }
+        val session = current ?: DeviceSession(device, key, ownerId).also { sessions[address] = it }
+        saveSessions()
         session.retryTask?.let(handler::removeCallbacks)
         session.retryTask = null
         session.gatt?.close()
@@ -178,7 +192,7 @@ class NaxaBleForegroundService : Service() {
                 session.retries = 0
                 enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "connected")
                     .put("deviceId", address).put("deviceKey", session.key)
-                    .put("deviceName", safeName(session.device)).put("background", true))
+                    .put("deviceName", safeName(session.device)).put("background", true).put("ownerUserId", session.ownerId))
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
                 session.gatt?.close()
@@ -222,7 +236,7 @@ class NaxaBleForegroundService : Service() {
                 if (properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) session.reads.addLast(characteristic)
             }
             enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "profiles")
-                .put("deviceId", session.device.address).put("deviceKey", session.key).put("profileCount", count))
+                .put("deviceId", session.device.address).put("deviceKey", session.key).put("profileCount", count).put("ownerUserId", session.ownerId))
             if (session.reads.isNotEmpty()) gatt.readCharacteristic(session.reads.removeFirst())
         }
 
@@ -263,7 +277,7 @@ class NaxaBleForegroundService : Service() {
         val payload = bytes.joinToString("") { "%02x".format(it) }
         enqueueEvent(this, JSONObject().put("type", "measurement")
             .put("deviceId", session.device.address).put("deviceKey", session.key)
-            .put("deviceName", safeName(session.device)).put("serviceUuid", characteristic.service.uuid.toString())
+            .put("deviceName", safeName(session.device)).put("ownerUserId", session.ownerId).put("serviceUuid", characteristic.service.uuid.toString())
             .put("characteristicUuid", characteristic.uuid.toString()).put("payloadHex", payload)
             .put("background", true))
     }
@@ -278,11 +292,11 @@ class NaxaBleForegroundService : Service() {
         val attempt = session.retries.coerceAtMost(8)
         session.retries++
         val delay = (1000L shl attempt).coerceAtMost(300000L)
-        val task = Runnable { connect(session.device.address, session.key) }
+        val task = Runnable { connect(session.device.address, session.key, session.ownerId) }
         session.retryTask = task
         handler.postDelayed(task, delay)
         enqueueEvent(this, JSONObject().put("type", "reconnecting")
-            .put("deviceId", session.device.address).put("deviceKey", session.key)
+            .put("deviceId", session.device.address).put("deviceKey", session.key).put("ownerUserId", session.ownerId)
             .put("message", "Reconnexion Bluetooth en arrière-plan programmée."))
     }
 
@@ -293,12 +307,22 @@ class NaxaBleForegroundService : Service() {
         session.gatt?.disconnect()
         session.gatt?.close()
         enqueueEvent(this, JSONObject().put("type", "disconnected").put("deviceId", address))
+        saveSessions()
         if (sessions.isEmpty()) stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    private fun saveSessions() {
+        val array = JSONArray()
+        sessions.values.forEach { session ->
+            array.put(JSONObject().put("address", session.device.address).put("key", session.key).put("owner", session.ownerId))
+        }
+        getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(SESSIONS_KEY, array.toString()).apply()
     }
 
     private fun stopAll() {
         sessions.keys.toList().forEach(::disconnectDevice)
         sessions.clear()
+        saveSessions()
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
