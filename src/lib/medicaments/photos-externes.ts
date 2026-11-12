@@ -372,7 +372,7 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
     if (!response.ok) return null;
     const json = await response.json() as OpenProductsFactsResponse;
     const product = json.product;
-    if (json.status !== 1 || (product?.code ?? json.code) !== barcode) return null;
+    if (!product || json.status !== 1 || product.code !== barcode) return null;
     const categories = (product.categories_tags ?? []).join(" ").toLowerCase();
     if (!/\b(?:medicines?|medications?|pharmaceutical|drugs?)\b/.test(categories)) return null;
     const rawImage = product.image_front_url;
