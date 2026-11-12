@@ -172,6 +172,72 @@ begin
 end;
 $$;
 
+-- Le patient conserve un accès en lecture à son propre dossier clinique.
+drop policy if exists suivi_patient_cases_owner_select on public.suivi_patient_cases;
+create policy suivi_patient_cases_owner_select on public.suivi_patient_cases
+for select to authenticated
+using(
+  patient_user_id=(select auth.uid())
+  and public.suivi_is_enabled_user((select auth.uid()))
+);
+drop policy if exists suivi_clinical_entries_owner_select on public.suivi_clinical_entries;
+create policy suivi_clinical_entries_owner_select on public.suivi_clinical_entries
+for select to authenticated
+using(
+  exists(
+    select 1 from public.suivi_patient_cases c
+    where c.id=suivi_clinical_entries.case_id
+      and c.patient_user_id=(select auth.uid())
+      and public.suivi_is_enabled_user((select auth.uid()))
+  )
+);
+
+-- Le patient peut retirer indépendamment le droit de consulter le dossier clinique.
+create or replace function public.suivi_revoke_clinical_notes_access(p_professional_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $
+declare
+  v_patient uuid:=auth.uid();
+  v_now timestamptz:=now();
+  v_history boolean:=false;
+  v_realtime boolean:=false;
+  v_alerts boolean:=false;
+begin
+  if v_patient is null or p_professional_user_id is null
+     or not public.suivi_is_enabled_user(v_patient) then
+    raise exception 'Session patient invalide';
+  end if;
+
+  update public.suivi_care_links
+  set clinical_notes_access=false
+  where patient_user_id=v_patient and professional_user_id=p_professional_user_id;
+
+  -- Les lignes qui ne portaient que le droit clinique ne doivent pas maintenir
+  -- une pseudo-autorisation de mesure dans la liste des patients partagés.
+  update public.suivi_shares
+  set active=false,revoked_at=coalesce(revoked_at,v_now)
+  where owner_user_id=v_patient and recipient_user_id=p_professional_user_id
+    and active=true and not allow_history and not allow_realtime and not allow_alerts;
+
+  select coalesce(bool_or(s.allow_history),false),
+         coalesce(bool_or(s.allow_realtime),false),
+         coalesce(bool_or(s.allow_alerts),false)
+    into v_history,v_realtime,v_alerts
+  from public.suivi_shares s
+  where s.owner_user_id=v_patient and s.recipient_user_id=p_professional_user_id
+    and s.active=true and s.revoked_at is null;
+
+  update public.suivi_care_links
+  set history_access=v_history,realtime_access=v_realtime,alerts_access=v_alerts,
+      active=(v_history or v_realtime or v_alerts),
+      revoked_at=case when (v_history or v_realtime or v_alerts) then null else v_now end
+  where patient_user_id=v_patient and professional_user_id=p_professional_user_id;
+end;
+$;
+
 -- Création du dossier et première entrée diagnostique dans une seule transaction.
 create or replace function public.suivi_create_patient_case(
   p_patient_user_id uuid,
@@ -357,6 +423,8 @@ revoke all on function public.suivi_add_clinical_entry(uuid,text,text) from publ
 grant execute on function public.suivi_upsert_professional_share(uuid,text,boolean,boolean,boolean,boolean) to authenticated;
 grant execute on function public.suivi_revoke_professional_share_type(uuid,text) to authenticated;
 grant execute on function public.suivi_disconnect_professional(uuid) to authenticated;
+revoke all on function public.suivi_revoke_clinical_notes_access(uuid) from public,anon;
+grant execute on function public.suivi_revoke_clinical_notes_access(uuid) to authenticated;
 grant execute on function public.suivi_create_patient_case(uuid,text,text) to authenticated;
 grant execute on function public.suivi_add_clinical_entry(uuid,text,text) to authenticated;
 
