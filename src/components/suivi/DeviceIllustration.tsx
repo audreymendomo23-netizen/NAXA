@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 
 type Props = { deviceKey: string; label?: string; className?: string };
 
@@ -72,25 +72,101 @@ function DeviceShape({ deviceKey }: { deviceKey: string }) {
   }
 }
 
+
+const DEVICE_PHOTOS: Record<string, string[]> = {
+  tensiometre: ["/images/suivi-dispositifs/tensiometre/01.jpg", "/images/suivi-dispositifs/tensiometre/02.jpg", "/images/suivi-dispositifs/tensiometre/03.jpg"],
+  thermometre: ["/images/suivi-dispositifs/thermometre/01.jpg", "/images/suivi-dispositifs/thermometre/02.jpg"],
+  oxymetre: ["/images/suivi-dispositifs/oxymetre/01.jpg", "/images/suivi-dispositifs/oxymetre/02.jpg", "/images/suivi-dispositifs/oxymetre/03.jpg", "/images/suivi-dispositifs/oxymetre/04.jpg"],
+  glucometre: ["/images/suivi-dispositifs/glucometre/01.jpg", "/images/suivi-dispositifs/glucometre/02.jpg", "/images/suivi-dispositifs/glucometre/03.jpg"],
+  balance: ["/images/suivi-dispositifs/balance/01.jpg", "/images/suivi-dispositifs/balance/02.jpg", "/images/suivi-dispositifs/balance/03.jpg"],
+  capteur_cardiaque_bluetooth: ["/images/suivi-dispositifs/capteur_cardiaque_bluetooth/01.jpg", "/images/suivi-dispositifs/capteur_cardiaque_bluetooth/02.jpg", "/images/suivi-dispositifs/capteur_cardiaque_bluetooth/03.jpg"],
+  podometre: ["/images/suivi-dispositifs/podometre/01.jpg"],
+  ecg: ["/images/suivi-dispositifs/ecg/01.jpg", "/images/suivi-dispositifs/ecg/02.jpg"],
+  spirometre: ["/images/suivi-dispositifs/spirometre/01.jpg", "/images/suivi-dispositifs/spirometre/02.jpg", "/images/suivi-dispositifs/spirometre/03.jpg"],
+  peak_flow: ["/images/suivi-dispositifs/peak_flow/01.jpg"],
+  balance_impedance: ["/images/suivi-dispositifs/balance_impedance/01.jpg", "/images/suivi-dispositifs/balance_impedance/02.jpg"],
+  cholesterolometre: ["/images/suivi-dispositifs/cholesterolometre/01.jpg", "/images/suivi-dispositifs/cholesterolometre/02.jpg"],
+  cetonemetre: ["/images/suivi-dispositifs/cetonemetre/01.jpg"],
+  uricometre: ["/images/suivi-dispositifs/uricometre/01.jpg"],
+  montre_connectee: ["/images/suivi-dispositifs/montre_connectee/01.jpg"],
+  bracelet_activite: ["/images/suivi-dispositifs/bracelet_activite/01.jpg", "/images/suivi-dispositifs/bracelet_activite/02.jpg", "/images/suivi-dispositifs/bracelet_activite/03.jpg"],
+  tracker_sommeil: ["/images/suivi-dispositifs/tracker_sommeil/01.jpg"],
+  thermometre_infrarouge: ["/images/suivi-dispositifs/thermometre_infrarouge/01.jpg", "/images/suivi-dispositifs/thermometre_infrarouge/02.jpg", "/images/suivi-dispositifs/thermometre_infrarouge/03.jpg"],
+  capteur_respiration: ["/images/suivi-dispositifs/capteur_respiration/01.jpg", "/images/suivi-dispositifs/capteur_respiration/02.jpg", "/images/suivi-dispositifs/capteur_respiration/03.jpg"],
+  pilulier_connecte: ["/images/suivi-dispositifs/pilulier_connecte/01.jpg"],
+  bouteille_hydratation: ["/images/suivi-dispositifs/bouteille_hydratation/01.jpg", "/images/suivi-dispositifs/bouteille_hydratation/02.jpg", "/images/suivi-dispositifs/bouteille_hydratation/03.jpg"]
+};
+
+function getGalleryPhase(instanceId: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < instanceId.length; index++) {
+    hash ^= instanceId.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return 650 + ((hash >>> 0) % 3350);
+}
+
 export function DeviceIllustration({ deviceKey, label, className = "" }: Props) {
+  const instanceId = useId();
+  const photos = DEVICE_PHOTOS[deviceKey] ?? [];
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [photoOpacity, setPhotoOpacity] = useState(1);
+
+  useEffect(() => {
+    if (photos.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let fadeTimer: number | undefined;
+    let interval: number | undefined;
+    const advance = () => {
+      setPhotoOpacity(0);
+      fadeTimer = window.setTimeout(() => {
+        setPhotoIndex(current => (current + 1) % photos.length);
+        setPhotoOpacity(1);
+      }, 380);
+    };
+    const initial = window.setTimeout(() => {
+      advance();
+      interval = window.setInterval(advance, 4000);
+    }, getGalleryPhase(instanceId));
+
+    return () => {
+      window.clearTimeout(initial);
+      if (interval !== undefined) window.clearInterval(interval);
+      if (fadeTimer !== undefined) window.clearTimeout(fadeTimer);
+    };
+  }, [deviceKey, instanceId, photos.length]);
+
+  const accessibleLabel = label || deviceNames[deviceKey] || "Dispositif de suivi";
   return (
-    <div className={`grid h-full w-full place-items-center overflow-hidden ${className}`} role="img" aria-label={label || deviceNames[deviceKey] || "Illustration d’un dispositif de suivi"}>
-      <svg viewBox="0 0 300 300" className="h-full w-full" aria-hidden="true" focusable="false">
-        <defs>
-          <linearGradient id={`device-bg-${deviceKey}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#F8FBFF" />
-            <stop offset="100%" stopColor="#E8F1F7" />
-          </linearGradient>
-          <filter id={`device-shadow-${deviceKey}`} x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#7892A5" floodOpacity=".16" />
-          </filter>
-        </defs>
-        <rect x="0" y="0" width="300" height="300" rx="28" fill={`url(#device-bg-${deviceKey})`} />
-        <ellipse cx="150" cy="252" rx="92" ry="13" fill="#B7C9D5" opacity=".28" />
-        <g filter={`url(#device-shadow-${deviceKey})`}><DeviceShape deviceKey={deviceKey} /></g>
-        <circle cx="244" cy="54" r="17" fill="#E1F2E9" />
-        <path d="M237 54h14M244 47v14" stroke="#18865A" strokeWidth="2.5" strokeLinecap="round" opacity=".7" />
-      </svg>
+    <div className={`grid h-full w-full place-items-center overflow-hidden ${className}`} role="img" aria-label={accessibleLabel}>
+      {photos.length > 0 ? (
+        <img
+          src={photos[photoIndex]}
+          alt={`Photo de référence — ${accessibleLabel}`}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          className="h-full w-full select-none object-contain p-3 sm:p-5"
+          style={{ opacity: photoOpacity, transition: "opacity 380ms ease-in-out" }}
+        />
+      ) : (
+        <svg viewBox="0 0 300 300" className="h-full w-full" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id={`device-bg-${deviceKey}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#F8FBFF" />
+              <stop offset="100%" stopColor="#E8F1F7" />
+            </linearGradient>
+            <filter id={`device-shadow-${deviceKey}`} x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#7892A5" floodOpacity=".16" />
+            </filter>
+          </defs>
+          <rect x="0" y="0" width="300" height="300" rx="28" fill={`url(#device-bg-${deviceKey})`} />
+          <ellipse cx="150" cy="252" rx="92" ry="13" fill="#B7C9D5" opacity=".28" />
+          <g filter={`url(#device-shadow-${deviceKey})`}><DeviceShape deviceKey={deviceKey} /></g>
+          <circle cx="244" cy="54" r="17" fill="#E1F2E9" />
+          <path d="M237 54h14M244 47v14" stroke="#18865A" strokeWidth="2.5" strokeLinecap="round" opacity=".7" />
+        </svg>
+      )}
     </div>
   );
 }
