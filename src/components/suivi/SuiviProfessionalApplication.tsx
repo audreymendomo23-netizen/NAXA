@@ -61,6 +61,9 @@ export function SuiviProfessionalApplication(){
       if(file&&credentialPath) await sb.storage.from("suivi-accreditations").remove([credentialPath]);
       setNotice("Demande non enregistrée. Votre justificatif n'a pas été conservé.");
     } else {
+      if(file&&existing?.credential_storage_path&&existing.credential_storage_path!==credentialPath){
+        await sb.storage.from("suivi-accreditations").remove([existing.credential_storage_path]);
+      }
       setExisting({user_id:userId,professional_role:role,display_name:displayName.trim(),registration_number:registration.trim(),issuing_authority:authority.trim(),specialty:specialty.trim()||null,credential_storage_path:credentialPath,verification_status:"pending",verification_expires_at:expiry?new Date(expiry+"T23:59:59").toISOString():null,verified:false});
       setFile(null);setNotice("Demande transmise à NAXA. Votre profil ne sera visible dans l'annuaire qu'après contrôle et validation de l'accréditation.");
     }
