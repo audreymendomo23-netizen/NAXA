@@ -124,6 +124,15 @@ export default function OffrePage() {
         const record = (payload.new || payload.old) as { produit_id?: string } | null;
         if (record?.produit_id === produitId) void rafraichirStock();
       })
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "stocks_lots",
+        filter: `pharmacie_id=eq.${pharmacieId}`,
+      }, (payload) => {
+        const record = (payload.new || payload.old) as { produit_id?: string } | null;
+        if (record?.produit_id === produitId) void rafraichirStock();
+      })
       .subscribe();
     const onFocus = () => { void rafraichirStock(); };
     const onVisibility = () => {
