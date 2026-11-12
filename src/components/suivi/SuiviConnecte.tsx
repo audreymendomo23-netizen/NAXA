@@ -52,6 +52,7 @@ const types: TrackType[] = [
   {key:"cholesterol_ldl",label:"Cholestérol LDL",unit:"unité du résultat",family:"metabolisme",numeric:true},
   {key:"capacite_vitale",label:"Capacité vitale",unit:"L",family:"constantes",numeric:true},
   {key:"vitesse_course",label:"Vitesse de course",unit:"m/s",family:"activite",numeric:true},
+  {key:"vitesse_cyclisme",label:"Vitesse cycliste",unit:"km/h",family:"activite",numeric:true},
   {key:"cadence_course",label:"Cadence course / vélo",unit:"pas/min ou tr/min selon le profil",family:"activite",numeric:true},
   {key:"longueur_foulee",label:"Longueur de foulée",unit:"cm",family:"activite",numeric:true},
   {key:"pourcentage_musculaire",label:"Pourcentage musculaire",unit:"%",family:"metabolisme",numeric:true},
