@@ -390,7 +390,7 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
         </section>
 
         <section id="comptabilite-reseau" className="promoteur-card xl:col-span-6 rounded-3xl border border-naxa-green-100 bg-white p-5 sm:p-6">
-          <div><h2 className="text-lg font-extrabold">Contrôle comptable — réseau</h2><p className="mt-1 text-sm text-naxa-green-700">Indicateurs de traitement et de clôture, en lecture seule. Ils ne remplacent pas les états comptables validés.</p></div>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-extrabold">Contrôle comptable — réseau</h2><p className="mt-1 text-sm text-naxa-green-700">Indicateurs de traitement et de clôture, en lecture seule. Ils ne remplacent pas les états comptables validés.</p></div><Link href="/pharmacie/promoteur/comptabilite/droits" className="inline-flex min-h-10 items-center rounded-full bg-naxa-green-900 px-4 py-2 text-sm font-bold text-white">Gérer les droits comptables</Link></div>
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { title: "Périodes comptables ouvertes", value: accountingError ? "Indisponible" : String(accountingPeriodsResult.count ?? 0), color: "border-[#3DBBFF] bg-sky-50" },
