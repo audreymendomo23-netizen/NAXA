@@ -263,9 +263,9 @@ class MainActivity : Activity() {
                 gatts.remove(address)
                 pendingReads.remove(address)
                 val retry = retryCounts[address] ?: 0
-                if (deviceKeys.containsKey(address) && retry < 5) {
+                if (deviceKeys.containsKey(address) && retry < 10) {
                     retryCounts[address] = retry + 1
-                    val delay = (1000L shl retry).coerceAtMost(30000L)
+                    val delay = (1000L shl retry).coerceAtMost(300000L)
                     emit("reconnecting", deviceId = address, deviceName = safeName(gatt.device), message = "Reconnexion automatique dans quelques instants…")
                     handler.postDelayed({
                         val savedKey = deviceKeys[address]
