@@ -20,7 +20,7 @@ assert.equal(spo[1].value_numeric,72);
 const fat=decodeStandardGattMeasurement("body_composition","body_composition_measurement",view([0,0,0x58,0x02]));
 assert.equal(fat[0].measurement_type,"masse_grasse");
 assert.equal(fat[0].value_numeric,60);
-const glucose=decodeStandardGattMeasurement("glucose","glucose_measurement",view([2,1,0,0xe8,0x07,1,1,0,0,0,0,0,sf(100)&255,sf(100)>>8,1]));
+const glucose=decodeStandardGattMeasurement("glucose","glucose_measurement",view([2,1,0,0xe8,0x07,1,1,0,0,0,sf(100)&255,sf(100)>>8,1,1]));
 assert.equal(glucose[0].measurement_type,"glycemie");
 assert.throws(()=>decodeStandardGattMeasurement("vendor","unknown",view([0,0])));
 assert.equal(supportsNotifications({properties:{notify:true}}),true);
