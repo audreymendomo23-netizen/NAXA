@@ -154,7 +154,7 @@ export function SuiviConnecte() {
     const [p, c, m, r, ar, al, d, schedules, links, shares] = await Promise.all([
       sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
       sb.from("suivi_consents").select("family_key,granted").eq("user_id",userData.user.id),
-      sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(1000),
+      sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,received_at,device_id,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(1000),
       sb.from("suivi_reminders").select("id,measurement_type,title,due_at,repeat_rule,enabled").eq("user_id",userData.user.id).order("due_at",{ascending:true}).limit(100),
       sb.from("suivi_alert_rules").select("id,measurement_type,min_value,max_value,enabled").eq("user_id",userData.user.id),
       sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
@@ -164,6 +164,30 @@ export function SuiviConnecte() {
       sb.from("suivi_shares").select("recipient_user_id,measurement_type,allow_history,allow_realtime,allow_alerts,active,revoked_at").eq("owner_user_id",userData.user.id),
     ]);
     if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error || links.error || shares.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
+    const native=(window as any).NaxaAndroid;
+    if(native?.isAvailable?.()&&!d.error&&!schedules.error&&!m.error){
+      const localDeviceIds=new Set((d.data??[]).filter((device:any)=>device.active&&device.platform_device_id).map((device:any)=>device.id));
+      const localSchedules=(schedules.data??[]).filter((schedule:any)=>schedule.enabled&&schedule.device_id&&localDeviceIds.has(schedule.device_id)).map((schedule:any)=>({
+        id:schedule.id,enabled:true,measurementType:schedule.measurement_type,deviceId:schedule.device_id,
+        localTime:String(schedule.local_time).slice(0,5),timezone:schedule.timezone,
+        daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
+        freshnessWindowMinutes:schedule.freshness_window_minutes
+      }));
+      native.syncMeasurementReminders?.(JSON.stringify(localSchedules));
+      const latestBySource=new Map<string,{type:string;deviceId:string;timestamp:number}>();
+      for(const measurement of m.data??[]){
+        const deviceId=String((measurement as any).device_id??"");
+        const timestamp=new Date((measurement as any).received_at??measurement.measured_at).getTime();
+        const key=measurement.measurement_type+":"+deviceId;
+        const current=latestBySource.get(key);
+        if(Number.isFinite(timestamp)&&(!current||timestamp>current.timestamp)){
+          latestBySource.set(key,{type:measurement.measurement_type,deviceId,timestamp});
+        }
+      }
+      for(const latest of latestBySource.values()){
+        native.updateMeasurementFreshness?.(latest.type,latest.timestamp,latest.deviceId);
+      }
+    }
     setPreferredName(p.data?.preferred_name ?? "");
     setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");
     setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
