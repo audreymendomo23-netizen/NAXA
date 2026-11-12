@@ -105,7 +105,6 @@ export async function GET(request: Request) {
           body: pushBody(item),
           url: "/notifications",
           tag: "naxa-notification-" + item.notification_id,
-          type: item.notification_type,
         });
         fcmSent += result.sent;
         if (result.sent > 0) {
