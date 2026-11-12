@@ -332,7 +332,7 @@ export async function GET(request:Request) {
     const {error:finishError}=await db.from("suivi_push_outbox").update({
       processed_at:pushError?null:now.toISOString(),
       locked_until:null,
-      last_error:pushError??(pushed?null:pushConfigured?"Aucun abonnement Push actif":"Push désactivé : clés VAPID non configurées")
+      last_error:pushError??(pushed?null:(pushConfigured||alertFcm.configured)?"Aucun abonnement Push actif":"Canaux Push désactivés : configuration VAPID et Firebase absente")
     }).eq("id",item.id);
     if(finishError) failed++;
   }
