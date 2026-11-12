@@ -91,6 +91,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 - `supabase/tests/148_suivi_21_dispositifs_interoperabilite.sql`
 - `supabase/tests/149_suivi_background_reminders_push.sql`
+- `supabase/tests/20261112230000_naxa_fcm_android_tokens.sql`
 - `supabase/tests/150_suivi_mesures_multidispositifs.sql`
 - `npm run test:suivi-interoperabilite`
 
