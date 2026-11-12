@@ -553,6 +553,11 @@ export function SuiviConnecte() {
   }
 
   async function toggleReminder(reminder:Reminder){
+    const reminderFamily=types.find(type=>type.key===reminder.measurement_type)?.family;
+    if(!reminder.enabled&&(!reminderFamily||!consents[reminderFamily])){
+      setNotice("Réactivez d'abord le consentement de cette famille pour remettre ce rappel en service.");
+      return;
+    }
     const {error}=await sb.from("suivi_reminders")
       .update({enabled:!reminder.enabled,updated_at:new Date().toISOString()})
       .eq("id",reminder.id);
@@ -589,6 +594,11 @@ export function SuiviConnecte() {
   }
 
   async function toggleMeasurementSchedule(schedule:MeasurementSchedule) {
+    const scheduleFamily=types.find(type=>type.key===schedule.measurement_type)?.family;
+    if(!schedule.enabled&&(!scheduleFamily||!consents[scheduleFamily])){
+      setNotice("Réactivez d'abord le consentement de cette famille pour réactiver la programmation.");
+      return;
+    }
     const {error}=await sb.from("suivi_measurement_schedules")
       .update({enabled:!schedule.enabled,updated_at:new Date().toISOString()})
       .eq("id",schedule.id);
