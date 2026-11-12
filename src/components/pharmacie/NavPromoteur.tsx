@@ -16,6 +16,7 @@ const iconPaths: Record<string, string> = {
   "▧": "M4 4h16v16H4z M8 8h8v8H8z", "▥": "M4 19V5 M10 19V9 M16 19V3 M22 19H2",
   "⚙": "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M19 12h2 M3 12h2 M12 3v2 M12 19v2 M18.4 5.6 17 7 M7 17l-1.4 1.4 M18.4 18.4 17 17 M7 7 5.6 5.6",
   "↪": "M9 14 4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-2",
+  "◉": "M4 8h10a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4z M16 10l4-2v8l-4-2 M7 8l1.5-2h3L13 8",
 };
 function NavIcon({ symbol }: { symbol: string }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={iconPaths[symbol] ?? "M12 3v18 M3 12h18"} /></svg>;

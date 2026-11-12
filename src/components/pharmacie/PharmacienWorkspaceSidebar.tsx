@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -86,8 +87,8 @@ export function PharmacienWorkspaceSidebar({ activeTab, onNavigate }: Props) {
           {expanded && <div className="ml-3 mt-1 space-y-1 border-l border-white/20 pl-2">{group.children.map(itemButton)}</div>}
         </section>;
       })}
-      <a href="/pharmacie/pharmacien/service" onClick={() => setMobileOpen(false)} aria-current={pathname === "/pharmacie/pharmacien/service" ? "page" : undefined}
-        className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${pathname === "/pharmacie/pharmacien/service" ? "bg-[#FFE23D] text-[#0B3D26]" : "text-white hover:bg-white/10"}`}><span aria-hidden="true" className="w-5 text-center text-lg">◷</span><span>Prise / fin de service</span></a>
+      <Link href="/pharmacie/pharmacien/service" onClick={() => setMobileOpen(false)} aria-current={pathname === "/pharmacie/pharmacien/service" ? "page" : undefined}
+        className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${pathname === "/pharmacie/pharmacien/service" ? "bg-[#FFE23D] text-[#0B3D26]" : "text-white hover:bg-white/10"}`}><span aria-hidden="true" className="w-5 text-center text-lg">◷</span><span>Prise / fin de service</span></Link>
       {direct.map(itemButton)}
     </nav>
     <div className="mt-auto pt-6"><button type="button" onClick={() => void logout()} disabled={busy} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"><span aria-hidden="true" className="w-5 text-center text-lg">↪</span>{busy ? "Déconnexion…" : "Déconnexion"}</button>{error && <p role="alert" className="mx-3 mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-800">{error}</p>}</div></>;

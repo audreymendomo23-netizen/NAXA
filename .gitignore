@@ -1,6 +1,25 @@
-node_modules
-.next
+# Dependencies and build output
+node_modules/
+.next/
+
+# Local environment files — keep only the documented template
+.env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
+.env.*.local
+
+# Local credentials and certificates
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.jks
+.secrets/
+credentials/
+
+# Generated service worker bundles
 public/sw.js
 public/workbox-*.js
 public/swe-worker-*.js

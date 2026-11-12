@@ -11,7 +11,8 @@ const errors: Record<string, string> = {
   envoi: "Le message n’a pas pu être envoyé. Vérifiez votre connexion puis réessayez.",
 };
 
-export default async function AidePage({ searchParams }: { searchParams: SearchParams }) {
+export default async function AidePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   const profileResult = auth.user
@@ -35,7 +36,7 @@ export default async function AidePage({ searchParams }: { searchParams: SearchP
     tickets = (data ?? []) as typeof tickets;
   }
 
-  const requestedTicket = typeof searchParams.ticket === "string" ? searchParams.ticket : "";
+  const requestedTicket = typeof params.ticket === "string" ? params.ticket : "";
   const currentTicket = tickets.find((ticket) => ticket.id === requestedTicket) ?? tickets[0] ?? null;
   const messagesResult = currentTicket
     ? await sb.from("messages_support").select("id,ticket_id,auteur_profile_id,contenu,created_at")
@@ -76,7 +77,7 @@ export default async function AidePage({ searchParams }: { searchParams: SearchP
           </aside>
 
           <section className="space-y-4">
-            {searchParams.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{errors[searchParams.erreur] ?? "Une erreur est survenue. Réessayez."}</p>}
+            {params.erreur && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{errors[params.erreur] ?? "Une erreur est survenue. Réessayez."}</p>}
 
             {!auth.user && <div className="rounded-2xl border border-emerald-100 p-4">
               <h2 className="font-extrabold">Connectez-vous pour discuter</h2>

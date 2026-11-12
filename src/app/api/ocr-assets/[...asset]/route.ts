@@ -43,6 +43,10 @@ const ASSETS: Record<string, { url: string; type: string }> = {
     url: "https://tessdata.projectnaptha.com/4.0.0/fra.traineddata.gz",
     type: "application/gzip",
   },
+  "tesseract/lang/eng.traineddata.gz": {
+    url: "https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz",
+    type: "application/gzip",
+  },
 };
 
 export const dynamic = "force-dynamic";
@@ -50,9 +54,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { asset: string[] } }
+  { params }: { params: Promise<{ asset: string[] }> }
 ) {
-  const key = Array.isArray(params.asset) ? params.asset.join("/") : "";
+  const { asset: assetSegments } = await params;
+  const key = Array.isArray(assetSegments) ? assetSegments.join("/") : "";
   const asset = ASSETS[key];
 
   if (!asset) {

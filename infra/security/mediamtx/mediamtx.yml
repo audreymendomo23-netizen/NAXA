@@ -1,0 +1,44 @@
+# MediaMTX v1.21.3 — NAXA Secure Video Relay
+# Replace the example domain and install matching TLS files before starting.
+logLevel: warn
+logDestinations: [stdout]
+
+# Strict external authorization. No action is exempt.
+authMethod: http
+authHTTPAddress: https://app.example.com/api/security/mediamtx/auth
+authHTTPExclude: []
+
+# Administration and diagnostics are not exposed.
+api: false
+metrics: false
+pprof: false
+playback: false
+
+# Gateway publishing must use RTSPS only.
+rtsp: true
+rtspEncryption: strict
+rtspsAddress: :8322
+rtspTransports: [tcp]
+rtspServerKey: /run/secrets/mediamtx_tls_key
+rtspServerCert: /run/secrets/mediamtx_tls_cert
+rtspAuthMethods: [basic]
+
+# Browser viewing uses WHEP over HTTPS and WebRTC media encryption.
+webrtc: true
+webrtcAddress: :8889
+webrtcEncryption: true
+webrtcServerKey: /run/secrets/mediamtx_tls_key
+webrtcServerCert: /run/secrets/mediamtx_tls_cert
+webrtcAllowOrigins:
+  - https://app.example.com
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+webrtcIPsFromInterfaces: false
+webrtcAdditionalHosts:
+  - video.example.com
+
+# A stream exists only while a verified publisher is connected.
+pathDefaults:
+  source: publisher
+  overridePublisher: false
+  record: false

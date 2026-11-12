@@ -10,7 +10,8 @@ type Vente = { id: string; numero_vente: string | null; total_net: number; mode_
 const fcfa = (value: number) => new Intl.NumberFormat("fr-CM", { style: "currency", currency: "XAF", maximumFractionDigits: 0 }).format(value);
 const dateFr = (value: string) => new Intl.DateTimeFormat("fr-CM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 
-export default async function RapprochementsPage({ searchParams }: { searchParams?: { debut?: string; fin?: string } }) {
+export default async function RapprochementsPage({ searchParams }: { searchParams?: Promise<{ debut?: string; fin?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/rapprochements");
@@ -19,8 +20,10 @@ export default async function RapprochementsPage({ searchParams }: { searchParam
   const { data: allowed, error: permissionError } = await sb.rpc("compta_scope_autorise", { p_pharmacie: profile.pharmacie_id });
   if (permissionError || allowed !== true) redirect("/pharmacie");
 
-  const debut = /^\d{4}-\d{2}-\d{2}$/.test(searchParams?.debut ?? "") ? searchParams!.debut! : "";
-  const fin = /^\d{4}-\d{2}-\d{2}$/.test(searchParams?.fin ?? "") ? searchParams!.fin! : "";
+  const debutParam = filters?.debut ?? "";
+  const finParam = filters?.fin ?? "";
+  const debut = /^\d{4}-\d{2}-\d{2}$/.test(debutParam) ? debutParam : "";
+  const fin = /^\d{4}-\d{2}-\d{2}$/.test(finParam) ? finParam : "";
   let mouvementsQuery = sb.from("tresorerie_mouvements").select("id,nature,montant,libelle,reference,source_type,source_id,date_operation,compte_id").eq("pharmacie_id", profile.pharmacie_id).order("date_operation", { ascending: false }).limit(200);
   let ventesQuery = sb.from("ventes").select("id,numero_vente,total_net,mode_paiement,paid_at,created_at,paiement_ref").eq("pharmacie_id", profile.pharmacie_id).eq("statut", "payee").order("paid_at", { ascending: false }).limit(200);
   if (debut) { mouvementsQuery = mouvementsQuery.gte("date_operation", debut + "T00:00:00"); ventesQuery = ventesQuery.gte("paid_at", debut + "T00:00:00"); }

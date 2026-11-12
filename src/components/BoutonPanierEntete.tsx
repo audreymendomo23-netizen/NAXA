@@ -15,10 +15,11 @@ export function BoutonPanierEntete() {
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
+    const activeTimers = timers.current;
     const arrived = (event: Event) => {
       setArrival(true);
       const reset = window.setTimeout(() => setArrival(false), 850);
-      timers.current.push(reset);
+      activeTimers.push(reset);
       const detail = (event as AjoutEvent).detail;
       const origin = detail?.origine;
       const target = targetRef.current?.getBoundingClientRect();
@@ -28,12 +29,12 @@ export function BoutonPanierEntete() {
       const y = origin.y;
       setTrajets(current => [...current.slice(-2), { id, x, y, dx: target.left + target.width / 2 - x, dy: target.top + target.height / 2 - y, nom: detail.nom || "Médicament" }]);
       const cleanup = window.setTimeout(() => setTrajets(current => current.filter(item => item.id !== id)), 820);
-      timers.current.push(cleanup);
+      activeTimers.push(cleanup);
     };
     window.addEventListener("naxa:panier-ajoute", arrived);
     return () => {
       window.removeEventListener("naxa:panier-ajoute", arrived);
-      timers.current.forEach(window.clearTimeout);
+      activeTimers.forEach(window.clearTimeout);
     };
   }, []);
 

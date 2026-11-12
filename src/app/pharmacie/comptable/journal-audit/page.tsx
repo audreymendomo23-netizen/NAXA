@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 const dateFr = (value: string) =>
   new Intl.DateTimeFormat("fr-CM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 
-export default async function JournalAuditComptablePage({ searchParams }: { searchParams?: { debut?: string; fin?: string; action?: string } }) {
+export default async function JournalAuditComptablePage({ searchParams }: { searchParams?: Promise<{ debut?: string; fin?: string; action?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/comptable/journal-audit");
@@ -23,9 +24,9 @@ export default async function JournalAuditComptablePage({ searchParams }: { sear
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === v ? v : "";
   };
   const safeMotif = (value: string | null) => value ? "Motif enregistré — détail masqué pour protéger les données confidentielles" : "—";
-  const debut = validDate(searchParams?.debut);
-  const fin = validDate(searchParams?.fin);
-  const action = (searchParams?.action ?? "").trim().slice(0, 80);
+  const debut = validDate(filters?.debut);
+  const fin = validDate(filters?.fin);
+  const action = (filters?.action ?? "").trim().slice(0, 80);
   const invalid = Boolean(debut && fin && debut > fin);
   let query = sb.from("compta_audit")
     .select("sequence_no,acteur_id,action,objet_type,objet_id,resultat,motif,horodatage")

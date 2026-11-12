@@ -62,8 +62,9 @@ const fcfa = (value: number) => `${Number(value || 0).toLocaleString("fr-FR")} F
 export default async function GestionnaireStockReservationsPage({
   searchParams,
 }: {
-  searchParams: { ok?: string; erreur?: string; page?: string; reservation?: string };
+  searchParams: Promise<{ ok?: string; erreur?: string; page?: string; reservation?: string }>;
 }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/reservations");
@@ -100,7 +101,7 @@ export default async function GestionnaireStockReservationsPage({
   const { data: pharmacyRows } = pharmacyIds.length ? await sb.from("pharmacies").select("id,nom").in("id",pharmacyIds) : { data: [] as {id:string;nom:string}[] };
   if (!pharmacyIds.length) redirect("/");
 
-  const pageNumber = Math.max(1, Math.min(10000, Number.parseInt(searchParams.page ?? "1", 10) || 1));
+  const pageNumber = Math.max(1, Math.min(10000, Number.parseInt(filters.page ?? "1", 10) || 1));
   const pageSize = 50;
   let reservationQuery = sb
     .from("reservations")
@@ -108,8 +109,8 @@ export default async function GestionnaireStockReservationsPage({
     .in("pharmacie_id", pharmacyIds)
     .eq("mode", "reservation")
     .order("created_at", { ascending: true });
-  const focusedReservation = searchParams.reservation && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(searchParams.reservation);
-  reservationQuery = focusedReservation ? reservationQuery.eq("id", searchParams.reservation!) : reservationQuery.in("statut", ["en_attente", "confirmee"]);
+  const focusedReservation = filters.reservation && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(filters.reservation);
+  reservationQuery = focusedReservation ? reservationQuery.eq("id", filters.reservation!) : reservationQuery.in("statut", ["en_attente", "confirmee"]);
   const { data: rawReservations, error: reservationError, count: reservationCount } = await reservationQuery
     .range((pageNumber - 1) * pageSize, pageNumber * pageSize - 1);
 
@@ -152,8 +153,8 @@ export default async function GestionnaireStockReservationsPage({
           <div className="rounded-2xl border bg-white p-4"><p className="text-sm text-slate-600">Source</p><p className="mt-1 text-sm font-bold">Réservations pharmacie existantes</p><p className="mt-1 text-xs text-slate-500">Aucun dossier ou moteur de stock parallèle.</p></div>
         </section>
 
-        {searchParams.ok === "annulee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La réservation a été annulée et la mise à jour serveur confirmée.</p>}{searchParams.ok === "en_preparation" && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-950">Début de préparation enregistré côté serveur.</p>}{searchParams.ok === "prete_au_retrait" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation marquée prête au retrait. Elle est protégée contre l’annulation disciplinaire automatique.</p>}{searchParams.ok === "confirmee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation confirmée. Le dossier est transmis au parcours de préparation et de retrait.</p>}
-        {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "preparation" ? "Transition de préparation refusée : vérifie le statut, le périmètre et les droits du compte." : searchParams.erreur === "confirmation" ? "Coche la confirmation avant d’annuler." : searchParams.erreur === "confirmation_stock" ? "Confirmation refusée : le serveur a détecté une réservation expirée, un stock absent ou des lots utilisables insuffisants. Vérifie les lots et réessaie." : "Annulation refusée : vérifie le statut actuel et les droits du compte. Aucune réussite n’est présumée."}</p>}
+        {filters.ok === "annulee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La réservation a été annulée et la mise à jour serveur confirmée.</p>}{filters.ok === "en_preparation" && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-950">Début de préparation enregistré côté serveur.</p>}{filters.ok === "prete_au_retrait" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation marquée prête au retrait. Elle est protégée contre l’annulation disciplinaire automatique.</p>}{filters.ok === "confirmee" && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation confirmée. Le dossier est transmis au parcours de préparation et de retrait.</p>}
+        {filters.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{filters.erreur === "preparation" ? "Transition de préparation refusée : vérifie le statut, le périmètre et les droits du compte." : filters.erreur === "confirmation" ? "Coche la confirmation avant d’annuler." : filters.erreur === "confirmation_stock" ? "Confirmation refusée : le serveur a détecté une réservation expirée, un stock absent ou des lots utilisables insuffisants. Vérifie les lots et réessaie." : "Annulation refusée : vérifie le statut actuel et les droits du compte. Aucune réussite n’est présumée."}</p>}
         {reservationError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Impossible de charger les réservations dans le périmètre du compte.</p>}
         {(stockResult.error || lotsResult.error || allocationResult.error) && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Les informations de stock, de lots ou d’allocation sont incomplètes. La confirmation est bloquée si l’affectation des lots ne peut pas être vérifiée.</p>}
 

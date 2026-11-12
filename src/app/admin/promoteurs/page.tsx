@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { suspendrePromoteurDisciplinaire, leverSuspensionPromoteur } from "./actions";
 
-type SearchParams = { ok?: string; erreur?: string };
+type SearchParams = Promise<{ ok?: string; erreur?: string }>;
 
 const erreurs: Record<string, string> = {
   verification: "Cochez la confirmation après vérification effective des autorisations.",
@@ -23,6 +23,7 @@ const erreurs: Record<string, string> = {
 };
 
 export default async function DossiersPromoteurs({ searchParams }: { searchParams: SearchParams }) {
+  const filters = await searchParams;
   await requireAdminActive("/admin/promoteurs");
   const db = supabaseAdmin();
   const [{ data: pharmacies, error }, { data: partnerDossiers, error: partnerDossiersError }, { data: promoteurs, error: promoteursError }, { data: suspensions, error: suspensionsError }] = await Promise.all([
@@ -44,29 +45,29 @@ export default async function DossiersPromoteurs({ searchParams }: { searchParam
         </p>
       </header>
 
-      {searchParams.ok === "suspension" && (
+      {filters.ok === "suspension" && (
         <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
           Suspension disciplinaire enregistrée. Le renouvellement commercial ne la lèvera pas.
         </p>
       )}
-      {searchParams.ok === "levee-suspension" && (
+      {filters.ok === "levee-suspension" && (
         <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
           Décision de levée enregistrée. L’accès reste soumis aux conditions commerciales et opérationnelles.
         </p>
       )}
-      {searchParams.ok === "documents" && (
+      {filters.ok === "documents" && (
         <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
           État des pièces reçues enregistré.
         </p>
       )}
-      {searchParams.ok === "validation" && (
+      {filters.ok === "validation" && (
         <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
           Dossier validé. La pharmacie et l’accès Promoteur sont activés.
         </p>
       )}
-      {searchParams.erreur && (
+      {filters.erreur && (
         <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-          {erreurs[searchParams.erreur] ?? "L’opération n’a pas abouti. Aucun succès n’est confirmé."}
+          {erreurs[filters.erreur] ?? "L’opération n’a pas abouti. Aucun succès n’est confirmé."}
         </p>
       )}
       {error && (

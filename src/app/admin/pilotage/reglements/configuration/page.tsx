@@ -6,7 +6,6 @@ import { enregistrerDestinationPaiement } from "./actions";
 const CHANNELS = [
   { canal: "orange_money", label: "Orange Money", placeholder: "Code marchand Orange Money" },
   { canal: "mtn_momo", label: "MTN Mobile Money", placeholder: "Code marchand MTN MoMo" },
-  { canal: "virement", label: "Virement bancaire", placeholder: "Numéro de compte bancaire / RIB" },
 ] as const;
 
 type Destination = {
@@ -21,8 +20,9 @@ type Destination = {
 export default async function ConfigurationDestinationsPaiement({
   searchParams,
 }: {
-  searchParams?: { ok?: string; erreur?: string };
+  searchParams?: Promise<{ ok?: string; erreur?: string }>;
 }) {
+  const query = await searchParams;
   await requireAdminActive("/admin/pilotage/reglements/configuration");
   const db = supabaseAdmin();
   const { data, error } = await db
@@ -50,14 +50,14 @@ export default async function ConfigurationDestinationsPaiement({
           </Link>
         </header>
 
-        {searchParams?.ok === "enregistre" && (
+        {query?.ok === "enregistre" && (
           <p role="status" className="rounded-2xl bg-white p-4 text-green-800">
             Destination enregistrée. Les nouvelles déclarations utiliseront ces coordonnées ; les déclarations déjà soumises gardent leur instantané.
           </p>
         )}
-        {searchParams?.erreur && (
+        {query?.erreur && (
           <p role="alert" className="rounded-2xl bg-white p-4 text-red-700">
-            {messages[searchParams.erreur] ?? "Une erreur est survenue."}
+            {messages[query?.erreur ?? ''] ?? "Une erreur est survenue."}
           </p>
         )}
         {error && (
@@ -92,7 +92,7 @@ export default async function ConfigurationDestinationsPaiement({
                     />
                   </label>
                   <label className="grid gap-1 text-sm font-semibold">
-                    {channel.canal === "virement" ? "Compte bancaire" : "Code marchand"}
+                    Code marchand
                     <input
                       name="reference_destination"
                       required
@@ -132,7 +132,7 @@ export default async function ConfigurationDestinationsPaiement({
           })}
         </section>
         <p className="text-xs text-slate-500">
-          Les coordonnées ne sont pas préremplies. N'activez un canal qu'après avoir vérifié le code marchand ou le compte bancaire réel.
+          Les coordonnées ne sont pas préremplies. N'activez un canal qu'après avoir vérifié le code marchand réel.
         </p>
       </div>
     </main>

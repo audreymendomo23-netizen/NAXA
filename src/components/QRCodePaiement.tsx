@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
@@ -27,7 +28,7 @@ export function QRCodePaiement({ code }: { code: string }) {
   if (!src) return <p role="status" className="text-sm text-slate-500">Génération du QR code…</p>;
   return <figure className="flex flex-col items-center gap-1">
     {/* QR generated locally in the browser; no external QR service receives the transaction code. */}
-    <img src={src} width={240} height={240} alt={"QR code de paiement NAXA " + code} className="h-48 w-48 rounded-lg border bg-white p-2" />
+    <Image unoptimized src={src} width={240} height={240} alt={"QR code de paiement NAXA " + code} className="h-48 w-48 rounded-lg border bg-white p-2" />
     <figcaption className="text-xs text-slate-500">Code de paiement sécurisé · lecture locale</figcaption>
   </figure>;
 }

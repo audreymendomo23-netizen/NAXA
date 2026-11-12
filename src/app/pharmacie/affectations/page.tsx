@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { InvitationLivreurForm } from "@/components/pharmacie/InvitationLivreurForm";
 import { LivreursAssignmentsManager } from "@/components/pharmacie/LivreursAssignmentsManager";
+import { PharmacyDeliveryConfig } from "@/components/PharmacyDeliveryConfig";
 import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace } from "./actions";
 
 type Assignment = {
@@ -29,15 +30,16 @@ const labels:Record<string,string>={
   pharmacien:"Pharmacien",
   responsable:"Responsable",
   comptable:"Comptable",
-  livreur:"Livreur",
+  livreur:"Livreur · permanence temporaire",
 };
 const date=(v:string)=>new Date(v).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"});
 
 export default async function AffectationsPage({
   searchParams,
 }:{
-  searchParams:{ok?:string;erreur?:string};
+  searchParams: Promise<{ok?:string;erreur?:string}>;
 }){
+  const filters = await searchParams;
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
@@ -57,7 +59,7 @@ export default async function AffectationsPage({
 
   const [{data:pharmacies},{data:rows,error:assignmentsError}]=await Promise.all([
     ids.length
-      ?sb.from("pharmacies").select("id,nom,actif").in("id",ids).eq("actif",true).order("nom")
+      ?sb.from("pharmacies").select("id,nom,actif,livraison_active,rayon_livraison_km,lat,lng").in("id",ids).eq("actif",true).order("nom")
       :Promise.resolve({data:[] as {id:string;nom:string;actif:boolean}[]}),
     sb.from("naxa_professional_assignments")
       .select("id,profile_id,pharmacie_id,fonction,statut,nature_affectation,motif,commence_at,expire_at,accorde_at,revoque_at,motif_revocation")
@@ -115,14 +117,14 @@ export default async function AffectationsPage({
         <Link href={isPromoteur?"/pharmacie/promoteur":"/pharmacie"} className="underline">{isPromoteur?"← Espace Promoteur":"← Espace Pharmacie"}</Link>
       </header>
 
-      {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
-        searchParams.ok==="accordee"?"Affectation accordée.":
-        searchParams.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
-        searchParams.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
-        searchParams.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
+      {filters.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
+        filters.ok==="accordee"?"Affectation accordée.":
+        filters.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
+        filters.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
+        filters.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
         "Affectation révoquée."
       }</p>}
-      {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[searchParams.erreur]??"Opération impossible."}</p>}
+      {filters.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[filters.erreur]??"Opération impossible."}</p>}
       {(linksError||assignmentsError)&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">Lecture incomplète. Aucune opération ne doit être considérée comme validée.</p>}
 
       <InvitationLivreurForm
@@ -134,10 +136,20 @@ export default async function AffectationsPage({
         pharmacies={(pharmacies??[]).map(p=>({id:p.id,nom:p.nom}))}
       />
 
+      <PharmacyDeliveryConfig
+        pharmacies={(pharmacies??[]).map(p=>({
+          id:p.id,nom:p.nom,
+          livraison_active:Boolean((p as any).livraison_active),
+          rayon_livraison_km:Number((p as any).rayon_livraison_km??10),
+          lat:typeof (p as any).lat==="number"?(p as any).lat:null,
+          lng:typeof (p as any).lng==="number"?(p as any).lng:null,
+        }))}
+      />
+
       <section className="rounded-2xl border bg-white p-5">
         <h2 className="text-lg font-bold">Accorder une fonction</h2>
         <p className="my-2 text-sm text-slate-600">
-          Une affectation ordinaire reste active jusqu’à révocation explicite. Une affectation urgente expire automatiquement à la date choisie. Aucun délai par défaut n’est inventé.
+          Une affectation ordinaire reste active jusqu’à révocation explicite. Une permanence Livreur accordée à un membre déjà affecté doit être de type Urgence avec une date de fin. Un profil Livreur dédié se crée par invitation et ne peut recevoir aucun autre poste professionnel.
         </p>
         <form action={accorderAffectationProfessionnelle} className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold">Pharmacie

@@ -3,11 +3,12 @@ import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 
 const valid=(v:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
-export async function GET(_request:Request,{params}:{params:{id:string}}){
-  const sb=supabaseServer();
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const sb = supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)return NextResponse.json({error:"Connexion requise"},{status:401});
-  if(!valid(params.id))return NextResponse.json({error:"Référence invalide"},{status:400});
+  if (!valid(id)) return NextResponse.json({ error: "Référence invalide" }, { status: 400 });
 
   const {data:profile}=await sb.from("profiles")
     .select("role,fonction_interne,actif,niveau_interne")
@@ -21,7 +22,7 @@ export async function GET(_request:Request,{params}:{params:{id:string}}){
   // la politique RLS can_access_pharmacy borne le justificatif à la pharmacie accessible.
   const {data:row,error}=await sb.from("client_credit_requests")
     .select("pharmacie_id,origine,justificatif_path")
-    .eq("id",params.id).maybeSingle();
+    .eq("id", id).maybeSingle();
   if(error||!row||row.origine!=="marketplace"||!row.justificatif_path){
     return NextResponse.json({error:"Justificatif indisponible"},{status:404});
   }

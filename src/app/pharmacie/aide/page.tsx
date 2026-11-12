@@ -5,7 +5,8 @@ import { envoyerMessageChat } from "@/app/aide/actions";
 
 const inputClass = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#0A6B3A] focus:outline-none focus:ring-2 focus:ring-emerald-100";
 
-export default async function PharmacieAidePage({ searchParams }: { searchParams: { ticket?: string; erreur?: string } }) {
+export default async function PharmacieAidePage({ searchParams }: { searchParams: Promise<{ ticket?: string; erreur?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?espace=pharmacie&retour=%2Fpharmacie%2Faide");
@@ -15,7 +16,7 @@ export default async function PharmacieAidePage({ searchParams }: { searchParams
   const { data: tickets } = pharmacyIds.length
     ? await sb.from("tickets_support").select("id,sujet,type,statut,auteur_profile_id,pharmacie_id,created_at,first_response_at").in("pharmacie_id", pharmacyIds).eq("type", "conseil_pharmacien").order("created_at", { ascending: false }).limit(100)
     : { data: [] };
-  const current = (tickets ?? []).find((ticket) => ticket.id === searchParams.ticket) ?? (tickets ?? [])[0] ?? null;
+  const current = (tickets ?? []).find((ticket) => ticket.id === filters.ticket) ?? (tickets ?? [])[0] ?? null;
   const { data: messages } = current
     ? await sb.from("messages_support").select("id,auteur_profile_id,contenu,created_at")
       .eq("ticket_id", current.id).eq("interne", false).order("created_at", { ascending: true }).limit(100)
@@ -24,7 +25,7 @@ export default async function PharmacieAidePage({ searchParams }: { searchParams
     <header className="flex items-center justify-between gap-3"><Link href="/" className="font-bold text-[#064B2A]">← NAXA</Link><Link href="/pharmacie" className="font-bold text-[#064B2A] underline">"Espace pharmacie"</Link></header>
     <section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
       <div className="bg-[#064B2A] p-6 text-white"><p className="text-xs font-bold uppercase tracking-widest text-emerald-200">NAXA · Pharmacie</p><h1 className="mt-2 text-3xl font-black">Questions des clients</h1><p className="mt-2 text-sm text-emerald-50">Répondez aux conversations qui concernent votre pharmacie. Les réponses ne constituent pas un diagnostic médical.</p></div>
-      {searchParams.erreur && <p role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Le message n’a pas pu être envoyé. Actualisez la page et réessayez.</p>}
+      {filters.erreur && <p role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Le message n’a pas pu être envoyé. Actualisez la page et réessayez.</p>}
       <div className="grid gap-4 p-4 sm:grid-cols-[0.8fr_1.2fr] sm:p-6">
         <aside><h2 className="font-extrabold">Conversations reçues</h2>
           {(tickets ?? []).length === 0 && <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucune question pour le moment.</p>}

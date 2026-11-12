@@ -1,93 +1,42 @@
 "use client";
 
-import { useState } from "react";
-import { importerStock } from "@/lib/importStock";
+import { useEffect, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { ImportStockIntelligent } from "@/components/pharmacie/ImportStockIntelligent";
+import type { StockImportProduct } from "@/lib/importStock";
 
 type Pharmacie = { id: string; nom: string };
 
 export function ImportAdmin({ pharmacies }: { pharmacies: Pharmacie[] }) {
-  const [pharmacieId, setPharmacieId] = useState(pharmacies[0]?.id ?? "");
-  const [fichier, setFichier] = useState<File | null>(null);
-  const [etat, setEtat] = useState<"idle" | "chargement" | "ok" | "erreur">("idle");
-  const [message, setMessage] = useState("");
+  const [products,setProducts]=useState<StockImportProduct[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
 
-  async function importer() {
-    if (!pharmacieId || !fichier) {
-      setEtat("erreur");
-      setMessage("Choisissez une pharmacie et un fichier Excel.");
-      return;
-    }
-
-    setEtat("chargement");
-    setMessage("");
-
-    try {
-      const resultat = await importerStock(fichier, pharmacieId);
-      setEtat("ok");
-      setMessage(
-        `Import terminé : ${resultat.importes} stock(s) importé(s), ${resultat.ignores} ligne(s) ignorée(s) sur ${resultat.lus} lue(s).`
-      );
-      setFichier(null);
-    } catch (error) {
-      setEtat("erreur");
-      setMessage(error instanceof Error ? error.message : "Échec de l'import.");
-    }
-  }
+  useEffect(()=>{
+    let active=true;
+    void (async()=>{
+      try{
+        const sb=supabaseBrowser();
+        const {data,error:queryError}=await sb.from("produits")
+          .select("id,nom,dci,dosage,forme,code_barre,conditionnement")
+          .order("nom",{ascending:true}).limit(5000);
+        if(!active)return;
+        if(queryError)throw queryError;
+        setProducts((data??[]) as StockImportProduct[]);
+      }catch{
+        if(active)setError("Le catalogue produits n’a pas pu être chargé. L’import reste verrouillé.");
+      }finally{
+        if(active)setLoading(false);
+      }
+    })();
+    return()=>{active=false;};
+  },[]);
 
   return (
-    <section className="carte space-y-3">
-      <div>
-        <h2 className="text-lg font-bold">Importer un stock</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Fichier Excel (.xlsx/.xls). Les colonnes reconnues sont nom, dosage, prix et quantité.
-        </p>
-      </div>
-
-      {pharmacies.length === 0 ? (
-        <p className="text-sm text-slate-600">Créez d’abord une pharmacie.</p>
-      ) : (
-        <>
-          <label className="block text-sm font-semibold">
-            Pharmacie
-            <select
-              value={pharmacieId}
-              onChange={(event) => setPharmacieId(event.target.value)}
-              className="champ mt-1"
-            >
-              {pharmacies.map((pharmacie) => (
-                <option key={pharmacie.id} value={pharmacie.id}>
-                  {pharmacie.nom}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-semibold">
-            Fichier
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(event) => setFichier(event.target.files?.[0] ?? null)}
-              className="mt-1 block w-full text-sm"
-            />
-          </label>
-
-          <button
-            type="button"
-            className="btn btn-vert w-full"
-            onClick={importer}
-            disabled={etat === "chargement" || !fichier}
-          >
-            {etat === "chargement" ? "Import en cours…" : "Importer le stock"}
-          </button>
-        </>
-      )}
-
-      {message && (
-        <p role={etat === "erreur" ? "alert" : "status"} className={etat === "erreur" ? "text-sm text-red-700" : "text-sm"}>
-          {message}
-        </p>
-      )}
+    <section className="space-y-3">
+      {loading&&<p role="status" className="text-sm text-slate-500">Chargement du catalogue NAXA…</p>}
+      {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {!loading&&!error&&<ImportStockIntelligent pharmacies={pharmacies} products={products}/>}
     </section>
   );
 }

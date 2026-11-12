@@ -1,5 +1,6 @@
 "use client";
 
+import NextImage from "next/image";
 import Link from "next/link";
 import { IllustrationPageClient } from "@/components/IllustrationPageClient";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -324,7 +325,7 @@ export default function ProfilClientPage() {
       <section className="naxa-profile-card naxa-profile-enter rounded-[24px] bg-white px-5 pb-7 pt-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex items-center gap-4">
           <button type="button" onClick={() => { setSheet("photo"); setCameraError(""); }} className="relative h-[72px] w-[72px] shrink-0 rounded-full bg-[#1E7B3A] text-[#F4C430] active:scale-[.97]" aria-label={savedLanguage === "en" ? "Edit profile photo" : "Modifier la photo de profil"}>
-            {shown.photo ? <img src={shown.photo} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full text-[28px] font-black">{shownInitials}</span>}
+            {shown.photo ? <NextImage width={320} height={320} unoptimized src={shown.photo} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full text-[28px] font-black">{shownInitials}</span>}
             <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#f4f4f4] bg-white text-[#1E7B3A] shadow-[0_2px_6px_rgba(0,0,0,.15)]"><Icon name="camera" size={15}/></span>
           </button>
           <div className="min-w-0 flex-1">
@@ -401,7 +402,7 @@ export default function ProfilClientPage() {
       <p className="mt-3 text-center text-sm text-white/75">{savedLanguage === "en" ? "Move the photo inside the circle and adjust the zoom." : "Déplacez la photo dans le cercle et ajustez le zoom."}</p>
       <div className="my-auto flex justify-center">
         <div className="relative h-[min(72vw,240px)] w-[min(72vw,240px)] touch-none overflow-hidden rounded-full border-4 border-white" onPointerDown={dragStartAt} onPointerMove={dragMove} onPointerUp={() => setDragStart(null)} onPointerCancel={() => setDragStart(null)}>
-          <img src={cropSource} alt={savedLanguage === "en" ? "Crop preview" : "Aperçu du recadrage"} draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.width * zoom}px`, height: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.height * zoom}px`, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`, objectFit: "cover" }}/>
+          <NextImage width={960} height={960} unoptimized src={cropSource} alt={savedLanguage === "en" ? "Crop preview" : "Aperçu du recadrage"} draggable={false} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.width * zoom}px`, height: `${Math.max(240 / cropDims.width, 240 / cropDims.height) * cropDims.height * zoom}px`, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`, objectFit: "cover" }}/>
         </div>
       </div>
       <label className="mx-auto mb-8 flex w-full max-w-[300px] items-center gap-3 text-sm"><span>−</span><input aria-label={savedLanguage === "en" ? "Photo zoom" : "Zoom de la photo"} type="range" min="1" max="2.5" step=".05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#F4C430]"/><span>+</span></label>

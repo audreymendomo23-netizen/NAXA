@@ -2,7 +2,7 @@
 
 > **Priorité documentaire (mise à jour 2026-10-16) :** `AGENTS.md` est la règle opérationnelle prioritaire. Toute consigne historique de ce document qui impose CircleCI, interdit une modification autorisée de `main`, ou exige une PR/branche de travail est obsolète et ne doit pas être appliquée contre `AGENTS.md` et les ordres explicites plus récents de l’utilisateur. La Production Supabase reste en lecture seule sans autorisation explicite et aucun secret ne doit être affiché.
 
-Dernière mise à jour : 2026-11-04
+Dernière mise à jour : 2026-11-09
 
 ## Règles impératives
 - Déclencheur « Rappel » : relire ce document, vérifier l'état réel GitHub/CI, comparer avec le dernier point, puis reprendre sans refaire inutilement le travail.
@@ -465,3 +465,636 @@ Poursuivre uniquement sur les contrôles de compilation/CI et recette navigateur
 - Aucune écriture Supabase Production et aucun déploiement.
 
 - Contrôle SQL en lecture seule sur Replay `pwfftcsjyeibxxqhwysw` : 10 assertions structurelles PASS. Les fonctions présentes ont été vérifiées par leurs vrais noms/signatures (le helper `naxa_can_manage_lots(uuid)` est dans `public`) ; le RPC de rejeu est SECURITY DEFINER, exécutable uniquement par `service_role` parmi anon/authenticated/service_role ; journal `stock_manager_movement_journal` avec RLS ; colonnes LWW présentes ; policy de lecture `stocks_lots` utilise le helper et aucune policy `ALL` ne subsiste sur cette table. La migration 280 figure dans l'historique Replay. Aucune écriture réalisée par ce contrôle.
+
+
+---
+
+# Point de continuité — NAXA Security intelligente : périmètre final et prompt d'implémentation (09/11/2026)
+
+## Référence de travail vérifiée
+
+- Dépôt : audreymendomo23-netizen/NAXA.
+- Branche active pour cette intervention : qa/e2e-stabilisation-20261106.
+- HEAD vérifié avant mise à jour documentaire : b52457d03d01df658238d5c65878942efaf7cc27.
+- CI GitHub Actions #1311 : completed / success sur ce SHA exact : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42531445059.
+- Logs : 241 tests PASS / 0 FAIL ; test WS-Security UsernameToken n°203 PASS ; npx tsc --noEmit PASS ; next lint PASS ; build Next.js PASS ; pages statiques 129/129 ; audit dépendances 0 vulnérabilité ; scans de secrets de l'historique et du répertoire courant PASS.
+- Correctif UsernameToken : commit b52457d03d01df658238d5c65878942efaf7cc27.
+- Cette CI valide le logiciel de la branche QA. Elle ne prouve pas un flux caméra physique, MediaMTX déployé, une sauvegarde Drive réelle, des alertes Android en arrière-plan, un enregistrement NVR ou une sirène physique.
+- Aucun changement main, aucune écriture Supabase Production, aucune fusion et aucun déploiement Production dans cette intervention.
+
+## Fonctionnalités finales attendues
+
+Le Promoteur surveille les pharmacies actives de son réseau ; le Responsable ne voit que sa pharmacie et les fonctions déléguées. Le périmètre final confirmé comprend :
+
+1. Live multi-caméras et grille 2×2, sélection pharmacie/caméra, état mesuré.
+2. Compatibilité multi-marques ONVIF, RTSP/RTSPS, NVR/DVR, encodeur analogique, Wi-Fi et API/SDK officiels ; validation par modèle/firmware, aucune promesse universelle.
+3. Enregistrement principal local, timeline, relecture, recherche et clips avant/après événement ; continuité hors Internet.
+4. Horodatage permanent sur live et archive : date, heure à la seconde, pharmacie, caméra et fuseau ; UTC en données, Africa/Douala par défaut pour affichage. NTP, dérive et heure non fiable suivis ; original et copie horodatée/intègre distingués.
+5. Destinations sélectionnables : stockage local pharmacie/NVR, Google Drive personnel et copie locale du téléphone.
+6. Sauvegarde manuelle immédiate et automatique programmée, avec reprise, progression, déduplication, hash et états réels.
+7. Google OAuth minimal de préférence drive.file + Google Picker ; jetons chiffrés côté serveur ; upload resumable ; aucun lien public par défaut.
+8. Copie Android consultable hors ligne via API de stockage appropriée, sans permission globale inutile.
+9. Calendrier haute surveillance par pharmacie/zone, intervalles multiples et exceptions ; 22:00–08:00 et franchissement minuit ; politique signée synchronisée à la passerelle.
+10. Niveaux d'alertes personnalisables : son, vibration, répétition, acquittement, destinataires et escalade.
+11. Compagnon Android natif si aucun projet existant ; test permissions, verrouillage, Doze et limites OEM.
+12. Sirène locale autonome et commande distante confirmée, relais validé, anti-rejeu, accusé matériel, arrêt local/automatique.
+13. Moteur IA réellement exécuté et mesuré ; revue humaine ; aucune accusation automatique.
+14. Audit de lecture, export, sauvegarde, calendrier, événements, notifications et commandes sirène.
+
+## État construit à distinguer des fonctions restantes
+
+### Fondations déjà présentes dans la branche QA
+
+- Menu Sécurité Promoteur, tableau multi-pharmacies, grille 2×2 et navigation.
+- Schéma installations, passerelles, caméras, événements, métadonnées clips, commandes sirène et journal append-only ; RLS forcée, accès backend service_role.
+- Enrôlement passerelle par code unique, identité Ed25519 locale et heartbeat signé anti-rejeu.
+- Découverte ONVIF locale opt-in, candidats soumis à revue Promoteur.
+- Diagnostic ONVIF fabricant/modèle/firmware/capacités.
+- Sessions live temporaires WHEP/WebRTC, hash de ticket, vérification périmètre, révocation.
+- Tickets de publication RTSPS liés à passerelle/caméra/pharmacie et remontée santé du flux.
+- Ingestion événement signée, anti-rejeu, déduplication, gravité serveur et revue humaine.
+- Collecteur ONVIF Pull-Point, identifiants chiffrés localement, UsernameToken, parsing limité et normalisation des événements.
+- CI #1311 validée sur le SHA exact.
+
+### Non démontré ou non construit à ce checkpoint
+
+- MediaMTX n'est pas déployé ; le chemin caméra physique → passerelle → relais → navigateur n'est pas prouvé.
+- Les adaptateurs non testés ne sont pas des drivers opérationnels ; les garder design_only.
+- Enregistrement local complet, index temporel, relecture et export NVR non opérationnels.
+- Clips effectifs, tampon pré/post et stockage vidéo à construire.
+- Horodatage incrusté et contrôlé sur vidéos réelles, NTP, dérive, manifeste/hash à construire.
+- OAuth Google Drive, sélection dossier, sauvegarde manuelle/planifiée, upload resumable, reprise et révocation à construire.
+- Copie locale sur téléphone avec accès hors ligne à construire.
+- Calendrier haute surveillance et synchronisation hors ligne passerelle à construire.
+- Moteur IA d'inférence réel à construire. Le libellé edge_ai seul n'est pas une preuve.
+- Profils d'alertes sonores personnalisables, acquittement/escalade et compagnon Android natif à construire.
+- Contrôleur sirène, commandes matérielles et accusés à construire.
+- Aucun E2E complet sur pharmacie pilote prouvé.
+
+Les tables naxa_security_clips et naxa_security_siren_commands sont des métadonnées/fondations de schéma, pas des fonctions opérationnelles. Ne jamais afficher « sauvegardé », « enregistré », « live », « sonnerie activée » ou « sirène activée » sans accusé du service/équipement correspondant.
+
+## Découpage des lots restants
+
+- Lot 12 : relais média sur infrastructure dédiée, premier flux caméra physique.
+- Lot 13 : enregistrement local/NVR, index, relecture, clips pré/post.
+- Lot 14 : NTP, date/heure visible, fuseau, dérive, original + copie horodatée, hash/manifeste.
+- Lot 15 : destinations locale/Drive/téléphone, OAuth minimal, sauvegarde manuelle et programmée, uploads resumable, reprise et intégrité.
+- Lot 16 : haute surveillance 22:00–08:00, exceptions, politique signée hors ligne.
+- Lot 17 : événements et IA réellement exécutée, calibrée et mesurée.
+- Lot 18 : application Android, canaux par niveau, sonnerie, répétition, acquittement et escalade.
+- Lot 19 : relais physique, sirène locale, commande distante confirmée, anti-rejeu et arrêt.
+- Lot 20 : recette E2E matérielle multi-pharmacies et feu vert pilote.
+
+Chaque lot doit être clôturé individuellement. CI verte obligatoire, mais elle ne remplace pas les essais caméra, NVR, téléphone et relais physiques.
+
+## Références techniques officielles retenues
+
+- Google Drive OAuth scopes : https://developers.google.com/workspace/drive/api/guides/api-specific-auth
+- Google Drive resumable uploads : https://developers.google.com/workspace/drive/api/guides/manage-uploads
+- Android plein écran : https://source.android.com/docs/core/permissions/fsi-limits
+- Android 14 : https://developer.android.com/about/versions/14/behavior-changes-14
+- FCM priorité Android/Doze : https://firebase.google.com/docs/cloud-messaging/android-message-priority
+- Android notification channels : https://developer.android.com/design/ui/mobile/guides/home-screen/notifications
+- ONVIF profils et produits conformes : https://www.onvif.org/profiles/ et https://www.onvif.org/conformant-products/
+
+## Prompt d'exécution
+
+Le prompt expert complet incluant l'architecture, les lots 12 à 20, Google OAuth, sauvegardes, Android, horodatage, sirène, sécurité et critères d'acceptation est enregistré dans :
+
+docs/security/PROMPT_IMPLEMENTATION_SECURITE_INTELLIGENTE.md
+
+Ce document est une spécification de travail. Il ne signifie pas que les fonctions restantes sont construites ou que leur mise en œuvre a commencé.
+
+## Actions de cette intervention
+
+- Création du prompt expert dédié.
+- Mise à jour de ce document de continuité avec l'état réel, la preuve CI #1311 et le périmètre final.
+- Aucun code applicatif, migration SQL, variable ou configuration d'infrastructure modifiés.
+- Aucune écriture Supabase Production, aucune fusion et aucun déploiement.
+
+## Prochaine action technique
+
+Commencer le lot 12 par un audit ciblé du chemin MediaMTX/publisher, du contrat de configuration caméras et de l'infrastructure média disponible ; identifier le matériel physique de pilote et les prérequis manquants. Ne jamais annoncer « live opérationnel » avant essai caméra/gateway réel. Ne pas toucher à main, Supabase Production ou Vercel Production.
+
+---
+
+## Exécution du prompt — Lot 12, audit initial et correctifs (09/11/2026)
+
+### État vérifié avant correction
+
+- HEAD de départ : `33af6e672943925241e2b58c86327feaa8763457`, branche `qa/e2e-stabilisation-20261106`.
+- CI #1312 : completed / success sur ce SHA exact : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42535966828.
+- Configuration MediaMTX présente : image `bluenviron/mediamtx:1.21.3`, RTSPS strict 8322/TCP, WHEP/HTTPS 8889/TCP, WebRTC UDP 8189, authentification HTTP NAXA, API/métriques/PPROF/playback désactivés, conteneur en lecture seule et publisher non remplaçable.
+- La route d'authentification accepte `publish/rtsp` via ticket publisher court et `read/webrtc` via ticket live. Les tickets sont liés au gateway, à la caméra, à la pharmacie et au chemin.
+- Contradiction prouvée : le README MediaMTX affirmait encore que toute publication RTSPS était refusée jusqu'à la phase 9, alors que le code phase 9 l'autorise déjà avec ticket. README corrigé.
+- Défaut logiciel identifié : si l'arrêt du service survenait pendant la demande du ticket publisher, un AbortSignal déjà annulé pouvait ne pas empêcher le spawn FFmpeg. Un garde avant spawn et un test de régression sont ajoutés.
+- Lacune WebRTC : MediaMTX ouvre actuellement UDP 8189 mais ne configure ni listener TCP ni `webrtcICEServers2` STUN/TURN. L'accès depuis tous les réseaux mobiles/NAT n'est donc pas démontré ; aucun TURN n'a été inventé.
+- Le paquet MediaMTX ne déploie pas un serveur. Aucun hôte, domaine DNS, certificat, firewall, variable Preview, serveur TURN ou endpoint média accessible n'est prouvé configuré.
+- Aucun matériel caméra/NVR, passerelle locale, FFmpeg sur site ou réseau pilote n'est accessible dans cette vérification.
+
+### Correctifs appliqués dans le lot 12
+
+- `services/security-gateway/agent.cjs` : ne démarre pas FFmpeg si le signal d'arrêt est déjà annulé ; fonction exportée pour test direct.
+- `scripts/test-security-gateway-agent.cjs` : test de régression « arrêt demandé avant spawn ».
+- `infra/security/mediamtx/README.md` : contrat phase 9 exact, variables d'environnement attendues, ports/certificats et limites TURN explicités.
+- `scripts/test-security-mediamtx-deployment.cjs` : assertions sur publication autorisée par ticket et absence actuelle de TURN.
+- Aucun domaine, certificat, secret, compte Google, variable runtime ou endpoint fictif ajouté.
+
+### Statut du lot 12
+
+**PARTIEL — NON VERT MATÉRIEL.** Le correctif logiciel et documentaire a passé la CI #1313 sur son SHA exact (completed / success). La clôture matérielle demande :
+1. serveur MediaMTX réellement installé sur un hôte dédié ;
+2. DNS, TLS, firewall et variables Preview contrôlés ;
+3. caméra réelle → passerelle → RTSPS → MediaMTX → WHEP vérifiés ;
+4. connectivité testée sur Wi-Fi et mobile, TURN configuré si requis ;
+5. expiration/révocation/reconnexion et cloisonnement inter-pharmacies testés en intégration.
+
+### Prochaine action
+
+CI #1313 vérifiée : PASS sur 17a7d80e7e330e75c9daad51480850f7cebd9729. Le listener WebRTC TCP de secours est ajouté dans le correctif suivant ; la recette réseau et matérielle reste conditionnée à un hôte et un kit caméra/passerelle. Aucun déploiement Vercel/Production ni écriture Supabase Production.
+
+---
+
+## Addendum lot 12 — repli WebRTC TCP (09/11/2026)
+
+### Preuves et correction
+
+- CI #1313 : completed / success sur le commit 17a7d80e7e330e75c9daad51480850f7cebd9729 : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42536457278.
+- La référence MediaMTX v1.21.3 confirme que webrtcLocalTCPAddress active un listener ICE TCP lorsque le chemin UDP est bloqué. Documentation : https://mediamtx.org/docs/features/webrtc-specific-features.
+- infra/security/mediamtx/mediamtx.yml : listener webrtcLocalTCPAddress: :8189 ajouté, UDP conservé comme transport prioritaire.
+- infra/security/mediamtx/docker-compose.yml : publication du port 8189/tcp ajoutée en plus de 8189/udp.
+- infra/security/mediamtx/README.md : prérequis firewall/NAT, ordre des transports, limites et besoin éventuel de STUN/TURN documentés.
+- scripts/test-security-mediamtx-deployment.cjs : assertions sur les deux transports et la documentation ajoutées.
+- Les 20 séquences de backtick littérales échappées dans la section précédente de ce document ont été corrigées.
+
+### État restant
+
+**PARTIEL — NON VERT MATÉRIEL.** CI #1314 a échoué sur une seule assertion documentaire restée sur l'ancien libellé TURN ; 241/242 tests passent. Le correctif remplace cette attente par le libellé actuel STUN/TURN. Le job s'est arrêté sur les tests : TypeScript, ESLint et build ne sont donc pas validés sur ce SHA. La syntaxe YAML des deux configurations a été contrôlée localement ; le binaire officiel MediaMTX n'a pas été exécuté. STUN/TURN n’est pas configuré ; l’accessibilité depuis tous les NAT/FAI n’est pas prouvée. Aucun serveur MediaMTX, domaine/DNS/TLS, pare-feu externe, passerelle ou caméra physique n’a été mis en service ou testé dans ce lot. Ne pas démarrer l’enregistrement local ni déclarer le flux live opérationnel avant la recette physique.
+
+
+### Analyse CI #1314
+
+- Run : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42537799039 (SHA 6c1118415dcc8c55d21eb3b8fbd4a4e8ef0df047).
+- Secret scan, analyse des références, scan dépôt, installation et audit dépendances : PASS.
+- Tests : 241 PASS / 1 FAIL sur 242. Test 203 échoue uniquement parce qu'il attendait l'ancien texte « Aucun TURN n'est actuellement configuré » ; le README indique désormais « Aucun STUN/TURN n’est actuellement configuré ».
+- TypeScript, ESLint et build : non validés dans cette exécution, arrêtée après l'échec des tests.
+- Correction ciblée : aligner l'assertion documentaire sur le README actuel ; aucun changement du comportement réseau n'est nécessaire pour cette panne.
+
+---
+
+## Clôture du correctif logiciel MediaMTX — vérification finale (09/11/2026)
+
+### Raisonnement par contradiction et cause racine
+
+- L'échec CI #1314 (SHA 6c1118415dcc8c55d21eb3b8fbd4a4e8ef0df047) n'était pas une régression applicative : 241 tests PASS et 1 FAIL sur une assertion documentaire qui attendait encore l'ancien libellé TURN. La correction 8c600f5 aligne le test sur le README ; aucun comportement réseau n'a été modifié pour corriger cet échec.
+- Le défaut de repli WebRTC était réel : UDP 8189 était configuré, mais aucun listener TCP n'était ouvert. Le listener TCP 8189 et son exposition Docker ont été ajoutés dans le correctif précédent, UDP restant prioritaire.
+- Le défaut d'arrêt passerelle était réel : FFmpeg pouvait être lancé après une annulation déjà reçue pendant la demande du ticket. Le garde avant spawn et le test de régression dédié sont présents dans la branche.
+
+### Corrections et preuves exactes
+
+- Commit 17a7d80e7e330e75c9daad51480850f7cebd9729 : garde anti-spawn après abort, test de régression, README MediaMTX corrigé ; CI #1313 PASS.
+- Commit 6c1118415dcc8c55d21eb3b8fbd4a4e8ef0df047 : ajout du listener ICE TCP 8189, port TCP publié dans Compose et assertions dédiées ; CI #1314 a révélé uniquement l'assertion documentaire obsolète.
+- Commit 8c600f5ec54c99521132b72be01f2d4f6540713e : assertion corrigée ; CI #1315 completed/success, 242 tests PASS / 0 FAIL, TypeScript, ESLint, build Next.js, scans secrets et audit dépendances PASS.
+- Commit bce5e3a614c279147265cde8952df5c21faaddeb : workflow qualité renforcé par validation de mediamtx.yml avec le binaire officiel bluenviron/mediamtx:1.21.3 et l'option --validate-conf, sans démarrer le serveur.
+- CI #1316 : completed/success sur le SHA exact bce5e3a614c279147265cde8952df5c21faaddeb. Les scans de toutes les références et du répertoire courant passent ; npm audit signale 0 vulnérabilité ; le validateur MediaMTX officiel passe ; 242 tests PASS / 0 FAIL ; la séquence TypeScript et ESLint retourne avec succès ; Next.js compile avec succès et génère 129/129 pages statiques.
+- La commande lint produit encore des avertissements non bloquants existants (notamment images HTML et une dépendance React Hook) ainsi qu'un avertissement de dépréciation de next lint ; aucune erreur bloquante n'a échoué la CI.
+- Workflow et preuve : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42541347507
+
+### Verdict exact
+
+**VERT — CORRECTIF LOGICIEL ET CONFIGURATION VERSIONNÉE.** Le défaut d'arrêt FFmpeg est corrigé et testé ; UDP/TCP WebRTC sont configurés et le fichier MediaMTX est validé par le binaire officiel ; l'intégralité des contrôles CI passe sur le SHA bce5e3a.
+
+**PARTIEL — MISE EN SERVICE MATÉRIELLE NON VALIDÉE.** Aucun serveur MediaMTX dédié, DNS, certificat TLS, firewall/NAT externe, variable Preview effective, passerelle physique ou caméra n'a été mis en service dans cette intervention. Aucun parcours caméra réelle → passerelle → RTSPS → MediaMTX → WHEP n'a été testé. La connectivité Wi-Fi/mobile reste à mesurer ; aucun STUN/TURN n'est configuré et un TURN pourra être nécessaire sur certains NAT stricts. Ne pas annoncer le live opérationnel et ne pas démarrer le lot enregistrement avant cette recette.
+
+### Périmètre préservé
+
+- Branche active : qa/e2e-stabilisation-20261106.
+- Aucun changement de main, aucune écriture Supabase Production, aucun déploiement Vercel/Production.
+- Le commit bce5e3a ne modifie que .github/workflows/naxa-quality.yml ; la validation MediaMTX officielle est un contrôle CI, pas un déploiement.
+
+### Reprise exacte
+
+La correction logicielle/configuration MediaMTX est clôturable au vert CI. La suite est la recette d'infrastructure et du kit caméra/passerelle réel ; garder le lot 12 matériel PARTIEL jusqu'à preuve vidéo et réseau de bout en bout.
+
+---
+
+## Recette E2E — Lot 12, tests logiciels et Replay (09/11/2026)
+
+### Environnement et référence exacte
+
+- Branche : qa/e2e-stabilisation-20261106.
+- HEAD avant ce rapport : b662aa570a7d66260ae505bba0b6efb35ca3a8d4.
+- CI #1317 : completed/success sur ce SHA exact ; scans secrets, audit dépendances, validation MediaMTX officielle, tests, TypeScript, ESLint et build terminés avec succès : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42541608473.
+- Base de recette : Supabase Replay `pwfftcsjyeibxxqhwysw`, projet `naxa-ci-replay-2`, ACTIVE_HEALTHY. Aucun accès en écriture ni déploiement Production.
+- Historique Replay : migrations de sécurité jusqu'à 309 présentes (fondation 301, connectivité 302, enrôlement 303, découverte/revue 304–306, session live 307, publisher 308, événements 309).
+
+### Scénarios exécutés et résultats
+
+- CI : 242 tests automatisés PASS / 0 FAIL. Les logs montrent notamment les tests Ed25519/heartbeat, arrêt FFmpeg après abort, découverte ONVIF, ingestion d'événements signée, tickets publisher, autorisation MediaMTX publish/read, session live, lecteur WHEP et révocation ; ces tests vérifient le logiciel/contrat et utilisent des fixtures ou assertions, pas une caméra physique.
+- MediaMTX : Docker télécharge `bluenviron/mediamtx:1.21.3`, exécute `--validate-conf=/tmp/mediamtx.yml` et retourne exactement `configuration file is valid`. Aucun serveur relay n'est laissé en marche et aucun port public n'est ouvert par ce contrôle.
+- Replay — schéma : 14 tables `naxa_security_*` inspectées, RLS et FORCE RLS activés sur toutes ; aucun privilège direct SELECT/INSERT/UPDATE/DELETE pour anon/authenticated sur les tables sensibles.
+- Replay — fonctions : les 6 RPC attendues existent ; émission session live, émission ticket publisher, rapport de santé, ingestion événement et revue événement sont SECURITY INVOKER avec search_path vide ; revue atomique des candidats ONVIF SECURITY DEFINER avec search_path vide, verrouillage `FOR UPDATE`, audit et sans déclarer une connexion `connected`.
+- Replay — privilèges : émission session/ticket, ingestion/revue événements et revue atomique des candidats réservées à service_role ; index d'unicité des tickets, de session et de déduplication événements présents ; trigger audit append-only présent ; contraintes revue humaine et confirmation sirène présentes.
+- Replay — données pilote : 0 installation, 0 passerelle, 0 caméra, 0 connexion caméra, 0 événement, 0 clip, 0 commande sirène, 0 session live et 0 ticket publisher. Le catalogue contient 15 adaptateurs, tous `design_only` (0 validé).
+
+### Verdict de recette
+
+**PASS — CI, contrats logiciel, validation de configuration MediaMTX et contrôles SQL/RLS sur Replay.**
+
+**NON EXÉCUTABLE / BLOQUÉ — E2E vidéo réel.** Aucun site/installation pilote ni aucune caméra/passerelle ne sont enregistrés dans Replay. Aucun MediaMTX public avec DNS/TLS/firewall vérifiés, aucune variable runtime effective, aucun agent Linux de pharmacie et aucun flux RTSPS réel ne sont disponibles. La base Replay ne peut donc pas délivrer un ticket publish/live valide : installation `pilot_active`, revue légale et avis confidentialité approuvés, passerelle fraîche et connexion `live_view` testée manquent. Il n'existe pas de cible réelle pour tester WHEP, frames, renouvellement/révocation, coupure/reconnexion ou isolation Promoteur A/B.
+
+### Conclusion
+
+La recette E2E logicielle et SQL disponible est exécutée et PASS. La recette E2E du lot 12 selon son critère de sortie (caméra physique d'une pharmacie pilote, flux autorisé et révocable) reste PARTIELLE et non exécutée faute d'environnement/périphériques ; ne pas la noter PASS et ne pas démarrer le lot 13 avant cette preuve.
+
+Aucune donnée de test n'a été insérée dans Replay ; aucune migration n'a été appliquée pendant cette recette ; aucun secret, endpoint fictif, accès Vercel ou déploiement Production utilisé.
+
+---
+
+## Lot 13 — enregistrement local et index (09/11/2026)
+
+Le périmètre livré depuis l'index initial comprend maintenant :
+- migrations 310/311 et API signée d'index de métadonnées ;
+- worker FFmpeg local opt-in, segments continus, no-overwrite, audio désactivé et secrets absents des arguments de processus ;
+- indexeur ffprobe, SHA-256 et outbox AES-256-GCM avec reprise ;
+- migration 312 et RPC protect/unprotect transactionnelle, auditée, réservée à service_role ;
+- endpoint signé de synchronisation des segments protégés ; purge locale suspendue si l'état distant est inconnu/incomplet ;
+- API et UI Promoteur de timeline des métadonnées ; aucun chemin local ou lien de lecture n'est exposé.
+
+La timeline et la protection sont livrées côté logiciel ; le lecteur/export vidéo, l'enregistrement programmé/événementiel, la supervision de disque et la recette caméra/NVR restent ouverts.
+
+
+## Lot 13 — protection des archives et timeline metadata (09/11/2026)
+
+### Implémentation QA en cours
+- Migration 312 `security_recording_protection_lot13` appliquée sur Replay `pwfftcsjyeibxxqhwysw`.
+- RPC `naxa_security_set_recording_protection` : transaction + verrou `FOR UPDATE`, rôle acteur, justification 8–500 caractères, changement ready/protected et audit atomique.
+- Vérification Replay : `SECURITY INVOKER`, `search_path=''`, exécution accordée à `service_role`, refusée à `anon` et `authenticated`.
+- Le lot de code raccorde route Promoteur de protection, endpoint passerelle signé de synchronisation des chemins protégés, purge locale fail-closed (si synchronisation manquante/incomplète : aucune purge), API timeline auditée et interface Promoteur. Les chemins locaux ne sont jamais fournis à l'interface.
+- Tests Replay exécutés : RPC 312 présente, invoker + search_path vide, backend-only, verrou/audit transactionnels PASS ; justification courte rejetée. CI #1330 SUCCESS sur ec6f6963a1b94b30f9810730f43e49bb50cffe10 : 276/276 tests, 0 échec, audit npm 0 vulnérabilité, build Next.js et 129/129 pages PASS. Matériel physique et lecture/export vidéo non couverts.
+
+
+## Lot 14 — mesure de dérive temporelle passerelle (09/11/2026)
+
+### Fondations logicielles ajoutées sur QA
+- Module SNTP local `services/security-gateway/time-integrity.cjs` : requête UDP, contrôle mode/version/stratum, originate timestamp, calcul offset et RTT, bornes de sécurité.
+- Configuration explicite `NAXA_NTP_SERVER` sur la passerelle ; aucune synchronisation système n'est déclenchée par NAXA.
+- Agent : correction de l'horodatage des requêtes signées à partir de la mesure NTP ; heartbeat HTTPS capable d'affiner un décalage si la première requête passe déjà la fenêtre de validation.
+- Migration 313 : historique privé `naxa_security_gateway_time_samples`, RLS + FORCE RLS, service_role only, RPC transactionnelle et audit.
+- Routes gateway signée et Promoteur scoppée ; affichage dérive/RTT/source/ancienneté dans Sécurité.
+- « Mesure dans le seuil » exige offset ≤1 000 ms, RTT ≤1 500 ms et mesure de moins de 10 minutes.
+
+### Limites non vertes
+- SNTP non authentifié (NTS non intégré) ; le réseau pourrait fausser la mesure. Une configuration NAXA_NTP_SERVER et une connectivité NTP réelle restent nécessaires.
+- L'agent ne change pas l'horloge OS. Il corrige uniquement les timestamps de signature HTTP ; FFmpeg et les caméras/NVR peuvent encore dériver.
+- Incrustation date/heure/pharmacie/caméra, fuseau IANA par site, manifeste vidéo signé, PTS/DTS, hash vérifié à l'export et comparaison physique caméra/NVR/passerelle/serveur restent à livrer.
+- Le test SNTP simulé valide le calcul protocolaire, pas l'accès réel à un serveur NTP.
+
+
+## Lot 16 — calendrier de haute surveillance (09/11/2026)
+
+### Implémentation QA en place, CI à confirmer
+- Migration 314 : table privée par pharmacie, fuseau IANA, fenêtres hebdomadaires, exceptions datées, version monotone, expiration hors ligne 72 h. RLS + FORCE RLS, accès service_role uniquement.
+- RPC transactionnelle : version incrémentée et audit Promoteur.
+- UI Promoteur : plusieurs plages, jours, horaires, fuseau local, exceptions armées/désarmées.
+- API passerelle : requête Ed25519 authentifiée, périmètre de la pharmacie, réponse HTTPS et empreinte SHA-256.
+- Agent : cache local AES-256-GCM, renouvellement 5 min, durée offline 72 h, évaluation des plages traversant minuit et état informatif pour événements ONVIF.
+- Trigger SQL : élève à `high` la priorité serveur des mouvements/intrusions/franchissements/présences hors horaires dont l'instant détecté tombe dans une plage active.
+- Exemple 22:00–08:00 vérifiable dans le module, fuseau Africa/Douala.
+
+### Limites
+- HTTPS + empreinte SHA-256, sans signature Ed25519 serveur indépendante du canal TLS ; clé de signature centrale non provisionnée.
+- Sensibilité caméra/zone ONVIF, règles IA, notifications/sonneries, destinataires, escalade, sauvegarde immédiate des clips et file durable d'événements hors ligne non raccordés.
+- UI Promoteur uniquement ; délégation Responsable mono-pharmacie non implémentée.
+- Pas d'essai sur passerelle/caméra physique.
+
+**Verdict : fondations logicielles validées par CI #1341, lot 16 global PARTIEL faute de recette passerelle et de fonctions aval (alertes, IA, clips, Responsable).**
+- Commit QA testé : 909727b13bdd8872baba0450955206c3ed04d252.
+- CI #1341 SUCCESS : 290/290 tests, 0 échec, audit npm 0 vulnérabilité, build Next.js et 129/129 pages PASS.
+
+
+## Contrôle terminal CI et statut transverse — 09/11/2026
+- Branche QA : qa/e2e-stabilisation-20261106 ; SHA du lot 16 validé : 909727b13bdd8872baba0450955206c3ed04d252.
+- CI #1341 : SUCCESS ; 290 tests PASS / 0 FAIL, audit npm 0 vulnérabilité, validation officielle MediaMTX, TypeScript/ESLint/build PASS et 129/129 pages.
+- CI #1333 lot 14 : SUCCESS ; 283/283 tests PASS, audit npm 0 vulnérabilité, TypeScript/ESLint/build PASS et 129/129 pages.
+- Replay : zéro installation, passerelle, caméra, connexion, live session, clip, segment, commande sirène et politique de haute surveillance. Les 15 adaptateurs caméra sont design_only.
+- Lire docs/security/SUIVI_LOTS12_20_RESTANTS.md pour les raisons lot par lot. Les nombres Replay ne décrivent pas Production.
+- Lot 16 : contrats logiciels et CI PASS ; recette physique et fonctions aval non terminées.
+
+
+## Point de reprise — lots sécurité 13, 14 et 16 (09/11/2026, après demande de mise au vert)
+
+- Demande utilisateur : mettre au vert les trois lots immédiatement clôturables côté logiciel ; reporter les autres lots et leurs recettes Node.js à une phase ultérieure.
+- Périmètre retenu : **VERT pour le socle logiciel livré et testé** des lots 13, 14 et 16 ; **PARTIEL pour la clôture globale** tant que les extensions logicielles explicitement listées et les recettes physiques ne sont pas faites. Ne jamais résumer ces lots comme totalement opérationnels.
+- Branche contrôlée : `qa/e2e-stabilisation-20261106`, commit parent vérifié `2ccbaf673e5b490688096aa2393ccdd7191fc86d`. Aucune modification de `main`, aucune écriture Supabase Production, aucun déploiement Vercel.
+- GitHub Actions #1388 : SUCCESS sur SHA `2ccbaf673e5b490688096aa2393ccdd7191fc86d` — 290/290 tests PASS, 0 échec ; npm audit production 0 vulnérabilité ; TypeScript, ESLint, Next.js build et 129/129 pages PASS.
+- Logs CI dédiés : lot 13 27/27 ; lot 14 7/7 ; lot 16 7/7 ; total 41/41 sous-tests explicitement étiquetés.
+- Lot 13 : worker FFmpeg opt-in, indexeur/hash/outbox, synchronisation signée, protection transactionnelle et timeline metadata testés. Restent lecteur/export, planification/événementiel, surveillance disque/récupération et caméra/NVR réels.
+- Lot 14 : client SNTP, validation des réponses, offset/RTT, ajustement des signatures passerelle, stockage/audit et UI testés. Restent NTP réel, horloge OS/caméra/NVR, incrustation et manifeste/export signé.
+- Lot 16 : fuseau IANA, plages et franchissement minuit, exceptions, snapshot chiffré, RPC/audit, API gateway et trigger de priorité testés. Restent signature serveur indépendante, file offline durable, notifications/escalades/clips, délégation Responsable et gateway réel.
+- Les 3 fiches de phase et le registre `docs/security/SUIVI_LOTS12_20_RESTANTS.md` sont alignés sur cette qualification. Les lots 12, 15, 17, 18, 19 et 20 restent différés pour les recettes Node.js/SIL et/ou prérequis externes.
+- Prochaine action lors de la reprise : construire séparément les recettes Node.js SIL pour les lots différés ; ne pas créer de faux équipements/données Replay et ne pas annoncer de validation matérielle.
+
+
+## Point de reprise — audit général du code et état Sécurité (09/11/2026)
+
+### Référence et preuves exactes
+
+- Dépôt : `audreymendomo23-netizen/NAXA`.
+- Branche contrôlée : `qa/e2e-stabilisation-20261106`, HEAD `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d`.
+- Depuis le commit `2ccbaf673e5b490688096aa2393ccdd7191fc86d`, un seul commit documentaire a été ajouté ; aucun fichier applicatif, migration ou configuration n'a changé dans cet intervalle.
+- GitHub Actions **#1389** : [run 42578412264](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42578412264), SUCCESS sur le SHA exact `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d`.
+- Résultats du run : scan Gitleaks des refs Git et du working tree PASS ; `npm audit --omit=dev --audit-level=high` = **0 vulnérabilité de production** ; suite Node **290/290 PASS, 0 échec, 0 ignoré** ; TypeScript PASS ; ESLint terminé sans erreur bloquante ; compilation Next.js PASS ; génération statique **129/129 pages** ; configuration officielle MediaMTX 1.21.3 validée.
+- Le workflow exécute `npm run build`, qui appelle le pré-build qualité défini dans `package.json`. Cette preuve couvre le dépôt QA à ce SHA ; elle ne prouve ni un déploiement, ni un comportement Production, ni une recette navigateur/authentifiée.
+
+### Inventaire du dépôt examiné
+
+Au SHA contrôlé, l'arbre Git contient 1 471 fichiers : 73 routes API, 132 pages Next.js, 136 composants, 46 modules `src/lib`, 148 migrations SQL et 10 fichiers du service Security Gateway. Cet inventaire confirme une base applicative large, mais le nombre de fichiers ne vaut pas validation métier.
+
+### État logiciel déjà construit
+
+- Client/Marketplace : accueil, recherche, catalogue, panier, réservation/retrait, paiement guidé, scan/import d'ordonnance, historique client et interactions WhatsApp sont documentés comme construits ; les statuts historiques de `FONCTIONNALITES_VALIDEES.md` doivent toutefois être relus au regard du HEAD courant avant d'en déduire une certification E2E.
+- ERP pharmacie : espaces pharmacie et équipes, import de stock, lots/FEFO, caisse/POS, réservations avec hold de stock, comptabilité et exports disposent de code, migrations et tests de contrat/SQL. Le mode hors ligne ne doit pas être décrit comme ERP complet : le périmètre offline garanti dans les fiches actuelles reste notamment la correction de quantité du stock non lotisé ; les ventes, la caisse et les clôtures exigent une preuve dédiée.
+- Rôles professionnels : le modèle d'affectations et de poste actif est construit ; les tests SQL Replay 295–299 donnent 36 assertions PASS. Cela ne prouve pas l'inscription et l'utilisation simultanées par de vrais comptes Promoteur, Pharmacie, Caisse, Pharmacien, Stock, Comptable et Livreur.
+- Livreur : workflow applicatif avancé (affectation/invitation, préparation Stock avant publication, acceptation atomique, retrait, arrivée, position au premier plan, suivi Client, performance et export). Les migrations jusqu'à `20261106172700` sont présentes sur Replay et la suite générale passe. Restent le parcours Auth multi-comptes, les accès Promoteur/Pharmacie réels, la recette commande→stock→livraison et Push/appareil. Les anciennes lignes de recette qui le disent « non construit » sont périmées et doivent être traitées comme historique.
+- Sécurité intelligente : le tableau Promoteur, les APIs de passerelle, les sessions live temporaires, le lecteur WHEP, la découverte/normalisation ONVIF, l'enregistrement local, la protection des segments, l'historique temporel et le calendrier haute surveillance ont un socle versionné. Le catalogue de 15 familles d'adaptateurs caméra reste `design_only` tant que chaque modèle/firmware n'a pas été réellement testé.
+
+### Lots Sécurité — qualification à conserver
+
+- **Lot 13 — socle logiciel VERT** : 27/27 sous-tests dédiés documentés PASS ; worker FFmpeg opt-in, indexeur/hash/outbox, synchronisation signée, protection transactionnelle et timeline de métadonnées. Le lot complet reste PARTIEL : lecture/export vidéo, planification/événementiel, télémétrie disque/récupération et test caméra/NVR manquent.
+- **Lot 14 — socle logiciel VERT** : 7/7 sous-tests dédiés documentés PASS ; SNTP, validation mode/version/stratum/originate, offset/RTT, historique privé, audit et UI. Le lot complet reste PARTIEL : serveur NTP réel, horloge OS/caméra/NVR, incrustation vérifiable, manifeste signé et intégrité après export manquent.
+- **Lot 16 — socle logiciel VERT** : 7/7 sous-tests dédiés documentés PASS ; fuseau IANA, plages traversant minuit, exceptions, cache local chiffré, RPC/audit, API passerelle et priorité SQL d'événement. Le lot complet reste PARTIEL : signature serveur indépendante, file offline durable, alertes/escalades/clips, délégation Responsable et passerelle réelle manquent.
+- Ces trois lots sont verts **pour leur socle logiciel uniquement**, pas pour l'exploitation complète ou un site réel.
+
+### Lots différés — recette Node.js SIL à construire
+
+| Lot | Socle déjà présent | Recette SIL à construire | Limite non simulable |
+|---|---|---|---|
+| 12 — Live / MediaMTX | Auth/tickets, API live, proxy et config MediaMTX validée | RTSP local, tickets expirés/révoqués, connexion, reconnexion, réseau coupé, isolation multi-pharmacie, WHEP | Caméra/NVR, réseau, DNS/TLS et serveur média réellement déployés |
+| 15 — Drive / sauvegardes | Backup DB quotidien chiffré en artefact GitHub (90 jours), S3 facultatif ; onboarding Google seul | Faux fournisseur OAuth/Drive, state/CSRF, scopes, quota, reprise, checksum et restauration | Projet Google Cloud, consentement OAuth réel, Drive du Promoteur, copie locale native téléphone |
+| 17 — IA / détection | ONVIF discovery/events et normalisation | Pull-Point simulé, événements dupliqués/retardés, contrats d'inférence, files, latence, erreurs et revue humaine | Runtime/modèle réel, accélérateur, dataset vidéo autorisé, faux positifs/négatifs terrain |
+| 18 — Android | PWA/Web Push et logique serveur de notifications | API/FCM simulé, jetons, retries, déduplication, révocation, file et redémarrage de workers | Projet Android natif, APK signé, FCM réel, Doze, écran verrouillé et téléphones physiques |
+| 19 — Sirène | Table de commandes et contraintes SQL | Relais factice local, signatures, nonce, watchdog, durée maximale, ACK, panne et arrêt d'urgence simulé | GPIO/relais/contrôleur, câblage, alimentation/UPS et arrêt matériel réel |
+| 20 — E2E pilote | APIs, règles et tests isolés déjà disponibles | Scénario composé caméra simulée→gateway→API→événements→notification→accusé, avec coupures/reprises et isolation | Pharmacie volontaire équipée, consentements, NVR/caméra, gateway, réseau/UPS et mobile réels |
+
+Les recettes SIL devront être explicitement marquées `simulated=true` et s'exécuter en local/CI avec `node:test`, fixtures éphémères et aucun faux équipement persistant dans Replay. Un PASS SIL validera le logiciel simulé, jamais le matériel réel.
+
+### Audit qualité — points à traiter sans bloquer la CI
+
+Le run #1389 passe, mais ses logs montrent des avertissements non bloquants :
+- usages répétés de `<img>` au lieu de `next/image` ;
+- dépendances manquantes ou expressions complexes dans plusieurs `useEffect` ;
+- attribut `aria-expanded` appliqué à des éléments ayant le rôle implicite `textbox` ;
+- `next lint` est déprécié et devra être remplacé par l'ESLint CLI avant Next.js 16 ;
+- avertissements Node sur `url.parse()` et `punycode`.
+Ces points sont corrigeables par le code, sans équipement réel. Le contrôle npm exécuté porte sur les dépendances de production avec seuil `high` ; il ne remplace pas une revue complète des dépendances de développement ou une analyse SAST.
+
+### Risques sécurité transversaux à ne pas marquer verts
+
+Le rapport de faisabilité sécurité du 07/11/2026 conserve des alertes Replay à recontrôler : fonctions `SECURITY DEFINER` exposées à `anon` ou `authenticated` (dont `log_evenement` et `log_recherche`), vues/fonctions sensibles, schéma `private` exposé dans la configuration Data API et protection Supabase Auth contre les mots de passe compromis signalée désactivée. Ces constats ne sont pas revalidés dans le run GitHub #1389 ; ils exigent un audit SQL/ACL/RLS et de configuration sur Replay, fonction par fonction. Ne pas les considérer corrigés parce que npm audit et CI passent.
+
+### Contradictions documentaires repérées
+
+- `STATUT.md` et certaines sections historiques de `FONCTIONNALITES_VALIDEES.md` indiquent encore que build/typecheck/lint/npm test n'ont pas été exécutés ou que le workflow Livreur n'existe pas. Ces mentions précèdent les vérifications récentes et ne doivent plus servir de statut courant.
+- `FONCTIONNALITES_VALIDEES.md` contient plusieurs états successifs du même sujet. Garder les historiques, mais faire prévaloir les addenda datés et les preuves sur SHA exact.
+- Le présent point de reprise est établi sur la branche QA uniquement. Aucun changement sur `main`, aucune écriture Supabase Production et aucun déploiement Vercel Production.
+
+### Classement opérationnel
+
+- **Déjà verts avec preuve actuelle :** qualité générale CI au SHA `1a79b8cc4d7e92b89eb8e79d5cbf5859249f3d8d` ; socles logiciels des lots 13, 14 et 16.
+- **Vert possible par correction/tests logiciels accessibles :** avertissements ESLint/React/ARIA, migration du script lint, vérification ACL/RLS/`SECURITY DEFINER` et réglages Auth sur Replay, et recettes SIL des lots différés une fois leurs interfaces/code manquants construits.
+- **À réserver aux recettes SIL Node.js puis aux preuves terrain :** lots 12, 15, 17, 18, 19 et 20. Une recette Node.js peut mettre au vert le contrat logiciel simulé ; elle ne peut pas certifier caméra, Drive OAuth réel, AI sur vidéos réelles, Android/FCM sur téléphone, relais de sirène ni pilote équipé.
+
+
+## Addendum — audit approfondi, clôtures accessibles et écarts terrain (09/11/2026 — reprise après interruption)
+
+### Preuve qualité la plus récente sur QA
+
+- Branche : `qa/e2e-stabilisation-20261106`.
+- SHA applicatif vérifié : `6fec5e0890cfc653f146ff7639a8577b15ef4e8c`.
+- GitHub Actions #1414 : SUCCESS — https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42600593801.
+- Journaux du job unique : scan Gitleaks sur tous les refs/historiques et le répertoire courant PASS ; audit des dépendances de production = 0 vulnérabilité ; validation de la configuration officielle MediaMTX 1.21.3 PASS ; tests Node `296/296`, 0 échec, 0 skip ; TypeScript PASS ; ESLint terminé sans erreur ; build Next.js PASS ; pages statiques `129/129`.
+- Le ratissage du fichier `src/app/resultats/page.tsx` a stabilisé les dépendances de l'effet de recherche (coordonnées dérivées et sélection panier mémorisée). Les deux avertissements `react-hooks/exhaustive-deps` ont disparu. Il reste 28 avertissements ESLint, principalement les usages HTML `<img>` non optimisés ; ils ne bloquent pas le build.
+- Le PASS ci-dessus certifie le logiciel de QA au SHA cité. Il ne certifie ni la branche `main`, ni les services externes, ni un parcours navigateur/appareil complet.
+
+### Corrections SQL et tests réalisés — Replay seulement
+
+- Migration source QA `supabase/migrations/20261109101500_replay_duplicate_index_cleanup.sql` et test `supabase/tests/20261109101500_replay_duplicate_index_cleanup.sql` ajoutés. La migration a supprimé sur `naxa-ci-replay-2` quatre index identiques redondants : `abonnements_pharmacie_unique_base`, `commandes_fournisseurs_lignes_order_idx`, `reservation_events_pharmacie_idx` et `stocks_lots_id_uq`. L'index unique `stocks_lots_id_uidx`, adossé à une contrainte, a été conservé et vérifié unique/valide. Test transactionnel PASS ; l'Advisor Replay ne signale plus de doublons d'index. Aucun index Production n'a été modifié.
+- Migrations QA déjà présentes et appliquées sur Replay : `20261109060000_fournisseurs_rls_policy_consolidation.sql` et `20261109070000_revoke_execute_favoris_purchase_trigger.sql`. Le test transactionnel fournisseur refuse la lecture, l'insertion, la modification et la suppression pour un sujet sans profil professionnel actif ; le test trigger confirme l'absence d'EXECUTE direct pour `anon`, `authenticated` et `service_role`, tout en vérifiant que le trigger reste attaché. Les deux tests SQL passent. Pas de changement Production.
+- Relecture contradictoire des tables d'architecture : les policies de lecture existent bien. Le test corrigé sous le rôle `authenticated` avec le contexte Admin retourne 638 lignes `naxa_architecture_privileges`, 309 `naxa_role_privileges` et 3 `pharmacie_architectures`. Le constat antérieur « tables sans policy / page privilèges cassée » est retiré ; la première mesure à zéro n'était pas valide.
+- Les 43 tables Replay signalées `rls_enabled_no_policy` ne sont pas accordées aux rôles `anon` ou `authenticated` : le contrôle SQL retourne 0 table de cette liste ayant un accès applicatif. Elles sont fermées au client et ne constituent pas une fuite RLS sur la base des ACL vérifiées.
+
+### État sécurité Supabase revalidé en lecture seule
+
+- Replay : deux fonctions `SECURITY DEFINER` exécutables par `anon` sont les RPC de télémétrie publique `log_evenement` et `log_recherche`, qui limitent les types/volumes et filtrent les termes ; leur accès public doit rester surveillé.
+- Replay : 198 fonctions `SECURITY DEFINER` sont exécutables par `authenticated`. Une recherche de gardes directes trouve 188 fonctions contenant un contrôle explicite d'identité, de rôle ou de scope ; 10 autres sont des wrappers/délégations ou des fonctions de télémétrie qui doivent être suivis individuellement. Ce nombre Advisor n'est pas un décompte de failles confirmées. Aucun retrait global d'EXECUTE n'est justifié.
+- Replay : Advisor performance après le nettoyage — 31 policies avec `auth_rls_initplan`, 214 clés étrangères sans index couvrant signalées, 175 index sans utilisation observée, 56 ensembles de policies permissives. Ces alertes sont des pistes de performance/revue, non des preuves d'accès indu. Les politiques multiples sont parfois intentionnelles (Admin + propriétaire + partenaire) ; ne pas les fusionner ou supprimer massivement sans tests d'autorisation par rôle. Les index non utilisés ne doivent pas être supprimés sur un environnement de test sans statistiques de charge représentatives.
+- Production, lecture seule : les tables d'architecture sont lisibles selon les policies attendues. En revanche, `fournisseurs` conserve encore les quatre policies héritées `fournisseurs_read_scope`, `fournisseurs_insert_scope`, `fournisseurs_update_scope`, `fournisseurs_delete_scope` en plus des policies `*_staff`. La migration QA de consolidation correspondante n'a pas été appliquée en Production ; son application y demande une autorisation explicite.
+- Protection native Supabase Auth contre les mots de passe compromis : l'Advisor la signale toujours désactivée. Le code QA exécute déjà une vérification HIBP serveur, en mode fail-closed, sur les routes de changement Pharmacie, Promoteur et inscription/récupération ; les sous-tests 141–143 passent. Cela ne remplace pas le réglage natif du projet et ne signifie pas que cette correction est présente sur `main`. L'activation native nécessite le réglage Auth du projet ; aucun outil de configuration Auth utilisable dans cette passe n'a permis de l'activer.
+- Production est restée en lecture seule : aucune migration, ACL, donnée métier, variable ou déploiement modifié.
+
+### État des lots et du reste de l'application
+
+- Lots 13, 14 et 16 : **VERT pour le socle logiciel testé seulement** ; état de livraison complet reste PARTIEL tant que les lectures vidéo, l'horloge caméra/NVR, les signatures/alertes et passerelles physiques listées dans le tableau ne sont pas validées.
+- Lots 12, 15, 17, 18, 19 et 20 restent PARTIELS/BLOQUÉS par les éléments précis déjà listés dans `docs/security/SUIVI_LOTS12_20_RESTANTS.md`. Le périmètre demandé ici n'a pas étendu les travaux en construisant une recette E2E Node.js.
+- Corrections encore réalisables par code/SQL/outil disponible : les 28 avertissements d'images ; les 31 policies RLS à initplan (après réécriture et test rôle par rôle) ; les 214 index de clés étrangères (après priorisation par tables et coût d'écriture) ; les policies permissives (revue individuelle) ; les 10 wrappers `SECURITY DEFINER` non classés par inspection de leurs fonctions déléguées ; migration de consolidation fournisseur Production après autorisation ; modernisation des dépendances/outils de lint.
+- Dépendances qui ne peuvent pas être certifiées par les outils et environnements actuels seuls : caméra/NVR/flux et réseau pilote ; consentement réel Google Drive/OAuth et compte Drive ; modèle d'inférence/vidéos terrain/accélérateur ; projet Android natif signé + Firebase/FCM et téléphone physique ; contrôleur relais/sirène/câblage/UPS ; pharmacie pilote et consentements opérationnels. Ces éléments exigent des systèmes, appareils, comptes ou décisions externes réels.
+- Le dépôt reste désynchronisé : `main` HEAD `2374348e416d4745e19546da1151ea1ad8fefa11` ; QA HEAD au moment de cet addendum `6fec5e0890cfc653f146ff7639a8577b15ef4e8c`, 459 commits devant `main`, aucun commit derrière. Ne pas lire la CI QA comme une validation de `main`.
+- Aucun merge/PR, aucun déploiement Vercel et aucune écriture Supabase Production n'ont été effectués.
+
+### Verdict de cette passe
+
+**PASS logiciel QA au SHA 6fec5e0 ; 3 corrections de cohérence/SQL vérifiées sur Replay ; audit global toujours ouvert.** La base n'est pas « au bout de ce qui est corrigeable » : des optimisations de code et de RLS restent réalisables. La clôture complète de l'application demeure impossible tant que les dépendances matérielles, Android natif, Google Drive réel et la pharmacie pilote ne sont pas disponibles.
+
+## Addendum 2026-11-09 — correction des avertissements d’images
+
+### Audit, cause et correction
+
+- Sur `qa/e2e-stabilisation-20261106`, les 28 balises `<img>` identifiées par ESLint ont été remplacées par `next/image` dans 22 fichiers. Les sources, textes alternatifs, classes, gestionnaires d’erreur et comportements existants ont été conservés ; les dimensions intrinsèques ont été explicitées lorsque nécessaire.
+- Les sources externes, `blob:` et `data:` utilisent `unoptimized` pour préserver leurs URL sans ajouter de domaines distants arbitraires à la configuration Next.js. Les logos statiques locaux restent optimisables par Next.js.
+- Le premier contrôle #1416 a révélé une collision de nom : l’import `Image` masquait le constructeur navigateur `new Image()` employé dans le recadrage du profil et le scanner. La correction a renommé l’import en `NextImage` dans `src/app/client/profil/page.tsx` et `src/components/ScannerShell.tsx`.
+- Commit final du code : `935290a593c75fbf36f2fdc5fe8e85ae32b8fdd0`.
+
+### Preuve de validation
+
+- CI #1417 : **SUCCESS** sur le commit ci-dessus — https://github.com/audreymendomo23-netizen/NAXA/actions/runs/42603304077
+- Tests Node : 296/296 PASS, 0 échec, 0 ignoré.
+- Audit des dépendances de production : 0 vulnérabilité.
+- Gitleaks : scan des références Git et de l’arbre courant réussi.
+- Configuration MediaMTX 1.21.3 : validation réussie.
+- TypeScript et build Next.js : réussis ; 129/129 pages statiques générées.
+- Avertissements ESLint `@next/next/no-img-element` : 0 dans le journal du run final.
+
+### Réserves non clôturées par cette correction
+
+- Les avertissements Node `DEP0040` (`punycode`) et `DEP0169` (`url.parse()`) demeurent dans les outils/dépendances exécutés par CI.
+- Des dépendances de développement signalent encore des dépréciations, notamment ESLint 8.57.1 et les anciens paquets `@humanwhocodes`. Elles ne sont pas mises à niveau dans cette passe.
+- Cette preuve concerne exclusivement le code de la branche QA. Le HEAD `main` reste `2374348e416d4745e19546da1151ea1ad8fefa11`. Aucun merge/PR, aucun déploiement Vercel et aucune écriture Supabase Production n’ont été effectués.
+- Les alertes RLS, les index FK, les policies permissives, les fonctions `SECURITY DEFINER` à examiner et les dépendances réelles des lots 12–20 restent ouvertes selon les constats précédents. La correction des images ne constitue pas un verdict vert global de NAXA.
+
+
+## Addendum 2026-11-09 — optimisation des InitPlans RLS
+
+### Audit et correction
+
+- Replay signalait initialement 31 alertes Supabase `auth_rls_initplan`.
+- Précontrôle SQL effectué sur les 31 politiques avec trois contextes JWT : compte Administrateur actif Replay, identifiant authentifié inconnu et contexte anonyme. Les expressions d'origine et les versions encapsulées ont donné les mêmes résultats sur les lignes Replay existantes, dans les clauses USING et WITH CHECK présentes.
+- La première migration enregistrée (`20261109115431_rls_auth_initplan_policy_optimization`) a été inefficace : son motif regex était sur-échappé et n'a pas remplacé les appels. Elle est conservée pour la traçabilité de l'historique ; aucune permission n'a été modifiée.
+- La migration corrective `20261109115710_rls_auth_initplan_policy_optimization_v2` a remplacé les appels directs `auth.uid()` par `(select auth.uid())` dans exactement 31 politiques, sans changer roles, commandes ni permissive mode.
+- Contrôle après application : 31/31 politiques présentes ; 31/31 rôles, commandes et modes permissifs identiques au relevé ; 0 appel direct `auth.uid()` restant ; 31/31 politiques avec InitPlan ; RLS activé sur 24/24 tables concernées.
+- Supabase Performance Advisor après rafraîchissement : l'alerte `auth_rls_initplan` a disparu. Les alertes distinctes subsistent : 214 clés étrangères sans index couvrant, 175 index inutilisés et 56 ensembles de politiques permissives. Elles ne sont pas modifiées dans cette passe.
+- Test SQL de régression : `supabase/tests/316_rls_auth_initplan_policy_optimization.sql`. Exécution Replay réussie ; transaction annulée après assertions en lecture seule.
+
+### Limite de preuve
+
+Replay ne contient qu'un profil actif d'Administrateur ; les contextes Client, Pharmacien, Promoteur et Partenaire ne sont pas présents comme comptes Auth actifs. La comparaison SQL couvre l'Administrateur disponible, un identifiant authentifié inconnu et le contexte anonyme, mais ne remplace pas une recette de bout en bout avec des comptes réels de chaque rôle.
+
+### Périmètre
+
+Ces deux migrations et leur preuve concernent exclusivement Replay et la branche QA. `main` reste inchangée ; aucune migration, donnée, ACL ou variable Supabase Production n'a été modifiée. Aucun PR, merge ni déploiement Vercel n'a été effectué.
+
+
+## Addendum 2026-11-09 — indexation ciblée des privilèges
+
+### Audit et correction
+
+- Replay signalait 214 clés étrangères sans index couvrant. Deux tables de privilèges actives ont été priorisées : `naxa_architecture_privileges` (638 lignes) et `naxa_role_privileges` (309 lignes). Sur les deux, la PK composite commence respectivement par `(architecture_code, role_key, privilege_code)` et `(role_key, privilege_code)` ; elle ne fournit pas un index dont `privilege_code` est le premier attribut pour les recherches inversement indexées et la maintenance de la FK.
+- Migration Replay enregistrée : `20261109121000_naxa_privilege_fk_indexes`. Elle crée deux index B-tree dédiés sur `privilege_code`, sans modifier les données, contraintes ou règles d'accès.
+- Plans Replay validés en forçant temporairement le test à considérer les index : `naxa_architecture_privileges` — Index Only Scan, 10 lignes, 0,166 ms ; `naxa_role_privileges` — Bitmap Index Scan, 4 lignes, 0,099 ms. Ces timings sont propres à Replay, pas une promesse de performance Production.
+- Les compteurs `pg_stat_user_indexes` après test : 2 scans / 20 entrées lues pour l'index architecture, 1 scan / 4 entrées lues pour l'index rôles.
+- Advisor performance après rafraîchissement : alertes de FK sans index 214 → 212 ; index inutilisés 175 (les deux nouveaux index ont été exercés) ; policies permissives multiples 56, inchangées.
+- Test SQL versionné : `supabase/tests/317_naxa_privilege_fk_indexes.sql`. Contrôle des deux index, de leur validité et de l'ordre de la première colonne ; exécuté avec succès sur Replay en transaction annulée.
+
+### Limite et périmètre
+
+- Cette passe ne traite que deux des 214 alertes ; les autres nécessitent priorisation table/charge par table et ne seront pas corrigées en masse.
+- Changements appliqués à Replay et versionnés sur QA uniquement. Aucune écriture Supabase Production, aucun merge/PR et aucun déploiement Vercel.
+
+
+## Addendum 2026-11-09 — façades SECURITY DEFINER et alignement des migrations
+
+### Index FK
+
+- Le fichier migration des deux index FK est aligné sur la version Replay enregistrée : `supabase/migrations/20261109120519_naxa_privilege_fk_indexes.sql`.
+- Replay : les plans utilisent les deux nouveaux index et l'Advisor FK est passé de 214 à 212. Le test dédié est `supabase/tests/317_naxa_privilege_fk_indexes.sql`.
+
+### Audit de quatre façades SECURITY DEFINER
+
+- `public.caisse_cloturer(uuid, integer)` ne fait que déléguer à la surcharge à trois arguments qui vérifie la session de caisse, la pharmacie et le titulaire actif.
+- `public.naxa_can_approve_marketplace_credit(uuid)` délègue à `private.naxa_actor_can_approve_marketplace_credit(uuid)`, qui impose l'identité, la fonction métier et le privilège Promoteur/Responsable.
+- `public.naxa_provision_caisse(uuid, uuid)` délègue à `public.naxa_grant_professional_assignment(...)`, qui vérifie l'acteur, la cible, la pharmacie, le rôle attribuable, le scope, le privilège requis et les quotas.
+- `public.accrediter_responsable(uuid, uuid)` délègue à `public.accrediter_profile(...)`, qui vérifie l'identité active, le rôle Promoteur, le scope de pharmacie, le privilège d'accréditation, l'architecture et les quotas.
+- Ces quatre façades n'ont pas de logique privilégiée propre : elles passent en `SECURITY INVOKER`. Les implémentations déléguées restent `SECURITY DEFINER`, avec les mêmes ACL et contrôles. Aucun droit EXECUTE n'a été ajouté ou retiré.
+- Migrations Replay : `20261109120846_security_definer_guarded_wrapper_invoker` et `20261109121248_accreditation_wrapper_invoker`.
+- Test de régression `supabase/tests/318_security_definer_wrapper_delegation.sql` : exécuté en transaction annulée avec rôle `authenticated`, UUID fictif et cas invalides ; les quatre façades délèguent et les implémentations rejettent proprement les arguments invalides.
+- Advisor sécurité Replay : les fonctions SECURITY DEFINER exécutables par `authenticated` passent de 198 à 194. Cela ne clôt pas toutes les alertes ; les fonctions restantes ne sont pas automatiquement des failles et doivent être lues individuellement.
+- Les deux RPC de télémétrie publique `log_evenement` et `log_recherche` restent accessibles à `anon` ; elles sont volontairement conservées pour la télémétrie publique et doivent rester surveillées. La protection native Supabase Auth contre les mots de passe compromis reste désactivée.
+
+### Limite et périmètre
+
+- Ces changements sont appliqués sur Replay et versionnés sur QA uniquement. `main`, Production et Vercel ne sont pas modifiés.
+- Replay ne dispose pas encore de comptes Auth actifs pour chaque rôle Client, Pharmacien, Promoteur, Responsable et Partenaire. Les validations transactionnelles et fonctions gardées ne remplacent pas une recette complète avec ces identités réelles.
+
+
+## Addendum 2026-11-09 — privilèges de télémétrie publique
+
+- La RPC `public.log_recherche(text[])` avait un grant `EXECUTE` à `PUBLIC`. La migration Replay `20261109121757_revoke_public_execute_log_recherche` retire uniquement ce grant global et accorde explicitement `EXECUTE` à `anon`, `authenticated` et `service_role`.
+- Test SQL `supabase/tests/319_log_recherche_public_execute_acl.sql` exécuté avec succès : `anon`, `authenticated`, `service_role` peuvent toujours appeler la RPC ; `authenticator` n'a plus d'accès direct ; la fonction reste `SECURITY DEFINER`.
+- Cette correction ne supprime pas l'alerte Advisor de la RPC anonyme : son exposition à `anon` reste voulue pour la télémétrie de recherche. Les limites de 10 termes par appel et de 3 à 80 caractères sont conservées. La migration ne change pas le corps de la fonction.
+- CI #1423 sur le commit `7e8e0ed83ade9436b5b021c99e47fe773f0040fc` : succès, 296 tests réussis, 0 vulnérabilité npm, TypeScript/build réussis, 129/129 pages.
+- Replay et QA seulement ; aucune modification Production, `main` ou Vercel.
+
+ 
+## Addendum 2026-11-09 — index FK ciblés sur les parcours métier
+
+### Audit et correction
+
+- Replay signalait 212 clés étrangères sans index couvrant après les deux index de privilèges précédents.
+- Revue des définitions d'index et contraintes sur les parcours Réservations, POS, crédits Marketplace, rôles professionnels, événements, alertes, rappels de lots et journal de mouvements. Les colonnes déjà couvertes en tête d'un index composite complet ont été exclues. Les clés nullable couvertes par un index unique partiel IS NOT NULL ont également été exclues pour éviter les doublons.
+- Migration Replay enregistrée sous 20261109121909_naxa_core_fk_indexes_batch2 et versionnée sur QA dans supabase/migrations/20261109121909_naxa_core_fk_indexes_batch2.sql. Elle ajoute 22 index B-tree sur les clés étrangères qui n'avaient pas de couverture complète.
+- Test versionné supabase/tests/320_naxa_core_fk_indexes_batch2.sql : 22 assertions structurelles vérifient la présence des FK, la validité/l'état ready des index et l'absence de prédicat partiel ; 22 vérifications EXPLAIN confirment que le planificateur choisit chaque index avec enable_seqscan=off. Le test groupé a été exécuté dans une transaction annulée : 44/44 assertions PASS.
+- Advisor Performance Replay après la migration : unindexed_foreign_keys passe de 212 à 191 ; aucune des 22 FK ciblées ne reste dans les findings. multiple_permissive_policies reste à 56.
+- unused_index passe de 175 à 197. Ce signal est attendu après création des index : Replay n'a pas une charge métier représentative ; certains index FK servent aussi à accélérer les suppressions/mises à jour de lignes parentes et ne doivent pas être supprimés sur la seule base de statistiques de test.
+
+### Limite et périmètre
+
+- Les timings et plans ne sont pas un benchmark de charge réelle : les tables Replay sont petites/vides après les tests transactionnels et le contrôle de sélection d'index force temporairement le planificateur à éviter les scans séquentiels.
+- Migration appliquée sur Replay et source/test versionnés sur QA uniquement. Aucun changement Production, main, ACL, donnée métier ou déploiement Vercel.
+- Il reste 191 alertes FK dans d'autres tables, plus les 56 ensembles de policies permissives à examiner individuellement. Ne pas les corriger en masse sans examiner les index composites, contraintes métier, charge et sécurité.
+
+## Addendum 2026-11-09 — consolidation RLS du dictionnaire
+
+### Audit et correction
+
+- Replay : la table `public.dictionnaire` avait deux policies permissives de lecture : `dico_admin FOR ALL USING is_admin()` et `dico_lecture FOR SELECT USING true`. L’Advisor la signalait pour plusieurs rôles effectifs.
+- Correction : la policy globale Admin a été remplacée par trois policies dédiées `INSERT`, `UPDATE` et `DELETE`, chacune gardant exactement `is_admin()`. La policy `dico_lecture` reste seule pour `SELECT` public ; RLS et les grants de table n’ont pas été modifiés.
+- Migration Replay appliquée sous la version `20261109210843`, enregistrée dans `supabase/migrations/20261109210843_dictionnaire_select_policy_consolidation.sql`.
+- Test structurel versionné : `supabase/tests/20261109210843_dictionnaire_select_policy_consolidation.sql`.
+
+### Preuves Replay
+
+- Advisor `multiple_permissive_policies` : **56 → 51** ; aucun finding ne cite plus `dictionnaire`.
+- Policies relues après migration : une seule SELECT publique (`dico_lecture`), trois policies d’écriture `is_admin()`, RLS toujours activé.
+- Test Admin Replay : `is_admin() = true` ; INSERT, UPDATE et DELETE autorisés dans une transaction de test ensuite annulée.
+- Test profil authentifié non-Admin : 14 lignes lisibles ; UPDATE/DELETE ne retournent aucune ligne ; INSERT refusé par RLS.
+- Test `anon` : 14 lignes lisibles ; UPDATE/DELETE ne retournent aucune ligne ; INSERT refusé par RLS.
+- La recette structurelle SQL a été exécutée avec succès. Aucune donnée de test n’a été conservée.
+
+### État restant
+
+- Advisor Replay après correction : 189 FK sans index couvrant, 175 index non utilisés observés et 51 groupes de policies permissives restant à examiner. Ces alertes sont à traiter table par table ; pas de suppression ou fusion automatique.
+- La modification est limitée à Replay et à la branche `qa/e2e-stabilisation-20261106`. `main` et Supabase Production sont inchangées ; aucun merge/PR ni déploiement n’a été effectué.
+
+## Addendum 2026-11-09 — consolidation RLS des niveaux d’architecture
+
+- Replay : `naxa_architecture_niveaux` avait `naxa_architecture_niveaux_admin_write FOR ALL` en plus de `naxa_architecture_niveaux_read FOR SELECT`. Les deux policies étaient permissives pour les SELECT authentifiés.
+- Correction : la policy Admin globale a été séparée en `INSERT`, `UPDATE` et `DELETE`, chacune conservant `(select is_admin())`. La lecture authentifiée `USING true`, RLS, grants et données restent inchangés.
+- Migration Replay : `20261109211700_naxa_architecture_niveaux_select_policy_consolidation`.
+- Test SQL structurel versionné : `supabase/tests/20261109211700_naxa_architecture_niveaux_select_policy_consolidation.sql`, exécuté avec succès sur Replay.
+- Preuve comportementale : Admin actif reconnu et autorisé à insérer/modifier/supprimer dans une transaction annulée ; authentifié non-Admin lit 10 lignes, ne modifie/supprime aucune ligne et son INSERT est refusé. `anon` n’a pas de grant SQL SELECT sur cette table et n’entre pas dans ce périmètre.
+- Advisor `multiple_permissive_policies` : **51 → 50** après retrait des doublons sur `dictionnaire` et `naxa_architecture_niveaux`. Aucun des deux objets ne figure encore dans les findings.
+- Les autres 50 ensembles de policies restent à examiner individuellement. Replay affiche toujours 189 FK sans index couvrant et 175 index non utilisés observés ; pas de suppression massive sans mesure de charge et revue des index composites.
+- QA/Replay seulement ; Production et `main` restent inchangées, aucun merge/PR ni déploiement.
+
+## Addendum 2026-11-09 — séparation de la lecture publique et Admin des pharmacies
+
+### Cause confirmée en lecture seule sur Production
+
+- Production contient 4 pharmacies : 1 active et 3 inactives.
+- La policy de lecture Production `pharmacies_read` utilisait `actif OR private.is_admin()`, alors que `anon` n'a pas le droit `EXECUTE` sur `private.is_admin()`.
+- Une requête réelle `anon` exécutée en lecture seule sur Production a échoué avec `42501 permission denied for function is_admin`. Aucune donnée ni policy Production n'a été modifiée.
+
+### Correction Replay / source QA
+
+- Migration Replay `20261109212452_pharmacies_select_policy_consolidation_20261109` : remplacement de la policy Admin `ALL` par trois policies DML Admin.
+- Migration Replay `20261109212710_pharmacies_admin_dml_authenticated_only_20261109` : DML limité au rôle `authenticated`, qui porte les sessions Admin NAXA ; aucun appel du helper privé pour `anon`.
+- Migration Replay `20261109212829_pharmacies_public_authenticated_read_split_20261109` : séparation explicite des lectures :
+  - `anon` lit uniquement les pharmacies actives via `pharmacies_read_anon`, sans appeler `private.is_admin()`.
+  - `authenticated` lit les pharmacies actives et, si `private.is_admin()` est vrai, conserve la visibilité des pharmacies inactives.
+- Les trois migrations Replay ci-dessus ont été ajoutées au dépôt QA avec le test structurel `supabase/tests/20261109212829_pharmacies_public_authenticated_read_split.sql`.
+
+### Preuves Replay et limites
+
+- Replay : 9 pharmacies visibles pour `anon` et pour un profil `authenticated` non-Admin ; la mise à jour Admin en session authentifiée a fonctionné. Les trois policies DML sont maintenant `TO authenticated`.
+- Le test structurel vérifie que la policy `anon` n'appelle jamais `private.is_admin()`, que chaque rôle n'a qu'une policy SELECT et que les trois policies DML restent Admin-only.
+- Advisor `multiple_permissive_policies` : **50 → 45** ; aucun finding ne cite plus `pharmacies`. Replay reste à 189 FK sans index couvrant et 175 index non utilisés observés.
+- **Production reste inchangée** : le défaut y est établi par la requête de lecture anonyme en lecture seule. Le correctif nécessite une migration Production explicitement autorisée. Aucun merge, PR ni déploiement n'a été effectué.
+
+## Addendum 2026-11-09 — séparation RLS des équivalences de produits
+
+- Replay : `produit_equivalences` avait `produit_equivalences_admin FOR ALL` et `produit_equivalences_lecture FOR SELECT` sur `anon,authenticated`. Le chevauchement concernait les SELECT authentifiés.
+- Correction : lecture séparée — `anon` voit les entrées actives sans appeler le helper privé ; `authenticated` voit les entrées actives et Admin conserve la visibilité des inactives via `private.is_admin()`. Les écritures sont réparties en trois policies DML `TO authenticated` gardées par `is_admin()`.
+- Migration Replay : `20261109213201_produit_equivalences_read_policy_split_20261109`.
+- Test structurel SQL `supabase/tests/20261109213201_produit_equivalences_read_policy_split.sql` exécuté avec succès. La table Replay contenait 0 ligne et aucun trigger ; aucune donnée artificielle n’a été créée. Les droits effectifs d’écriture n’ont donc pas été revendiqués comme testés par des lignes métier.
+- Advisor `multiple_permissive_policies` : **45 → 44** ; aucun finding ne cite plus `produit_equivalences`.
+- Replay reste à 189 FK sans index couvrant et 175 index non utilisés observés ; les 44 autres groupes de policies demandent une revue spécifique de leurs portées et ne seront pas fusionnés en masse.
+
+## Addendum 2026-11-09 — consolidation des lectures Admin des partenaires
+
+- Replay : `partner_members`, `partner_universes` et `partners` avaient chacune une policy Admin `FOR ALL` plus une policy de lecture propriétaire/membre ; l’Advisor signalait une policy SELECT permissive superposée par table.
+- Correction : le chemin Admin a été ajouté à la policy de lecture existante (lecture personnelle, membre d’un partenaire actif, ou Admin), puis les anciennes policies Admin `ALL` ont été remplacées par `INSERT`, `UPDATE` et `DELETE` `TO authenticated`, chacune gardée par `is_admin()`.
+- Le garde de phase 1 `guard_medical_devices_partner_universe_phase1` reste attaché à `partner_universes`.
+- Migration Replay : `20261109213523_partner_admin_read_policy_consolidation_20261109`. Test structurel `supabase/tests/20261109213523_partner_admin_read_policy_consolidation.sql` exécuté avec succès.
+- Replay : les trois tables contiennent 0 ligne ; aucune donnée métier fictive n’a été créée. La preuve de ce lot est structurelle, pas une recette comportementale d’un partenaire réel.
+- Advisor `multiple_permissive_policies` : **44 → 41** après cette migration. Les trois tables ne figurent plus dans les findings. Replay conserve 189 FK sans index couvrant et 175 index non utilisés observés.
+- Aucun changement Production, `main`, ACL de table ou déploiement ; migration limitée à Replay/QA.

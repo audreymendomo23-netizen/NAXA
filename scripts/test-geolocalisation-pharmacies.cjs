@@ -56,24 +56,39 @@ test("GPS navigateur : permission, précision et délai bornés", () => {
   assert.match(helper, /lat < -90 \|\| lat > 90 \|\| lng < -180 \|\| lng > 180/);
 });
 
-test("GPS : Yaoundé et Douala ont des replis explicites, sans suivi permanent", () => {
+test("GPS et localité manuelle : recherche nationale sans repli implicite vers Yaoundé", () => {
   const helper = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "geolocation.ts"), "utf8");
   const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "resultats", "page.tsx"), "utf8");
-  assert.match(helper, /Yaoundé:\s*\{\s*lat:\s*3\.8480,\s*lng:\s*11\.5021\s*\}/);
-  assert.match(helper, /Douala:\s*\{\s*lat:\s*4\.0511,\s*lng:\s*9\.7679\s*\}/);
-  assert.match(page, /Actualiser GPS/);
-  assert.match(page, /id="naxa-ville"/);
-  assert.match(page, /Position approximative/);
+  const geocoder = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "geolocalisation", "recherche", "route.ts"), "utf8");
+  assert.match(helper, /villeDepuisPosition/);
+  assert.match(page, /api\/geolocalisation\/recherche\?q=/);
+  assert.match(page, /Utiliser le GPS/);
+  assert.match(page, /Ville ou localité au Cameroun/);
+  assert.match(page, /setCoords\(null\)/);
+  assert.doesNotMatch(page, /useState\("Yaoundé"\)/);
+  assert.doesNotMatch(page, /YAOUNDE/);
+  assert.match(geocoder, /countrycodes", "cm"/);
+  assert.match(geocoder, /address\?\.country_code\?\.toLowerCase\(\) !== "cm"/);
+  assert.match(geocoder, /revalidate: 86400/);
+  assert.match(geocoder, /waitForGlobalGeocoderSlot/);
+  assert.match(geocoder, /naxa_reserve_api_rate_limit/);
+  assert.match(geocoder, /p_interval_ms: 1000/);
+  assert.doesNotMatch(geocoder, /lastRequestAt|requestQueue/);
+  assert.doesNotMatch(geocoder, /autocomplete/i);
   assert.doesNotMatch(page, /watchPosition\s*\(/);
   assert.doesNotMatch(page, /localStorage\.setItem\([^\n]*(?:lat|lng|position|coord)/i);
 });
 
-test("OpenStreetMap : endpoint administratif protégé et synchronisation limitée à Yaoundé", () => {
+test("OpenStreetMap : référentiel national, authentification admin et rapprochement prudent", () => {
   const route = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "geolocalisation-osm", "route.ts"), "utf8");
   assert.match(route, /auth\.getUser\(\)/);
   assert.match(route, /rpc\("is_admin"\)/);
-  assert.match(route, /YAOUNDE_BBOX/);
-  assert.match(route, /openstreetmap\.org/);
+  assert.match(route, /ISO3166-1.*CM/);
+  assert.match(route, /CAMEROON_LAT/);
+  assert.match(route, /byNameAndCity/);
+  assert.match(route, /normaliserNom\(pharmacy\.ville\)/);
+  assert.doesNotMatch(route, /YAOUNDE_BBOX/);
+  assert.doesNotMatch(route, /\.ilike\("ville", "%Yaound%"/);
   assert.match(route, /pharmacies_geo_osm_sync/);
   assert.match(route, /24 \* 60 \* 60 \* 1000/);
   assert.match(route, /onConflict: "nom_source,source_url"/);
@@ -144,4 +159,121 @@ test("Migration de géolocalisation : politiques RLS limitées aux administrateu
   assert.match(migration, /for update to authenticated\s+using \(public\.is_admin\(\)\)\s+with check \(public\.is_admin\(\)\)/i);
   assert.match(migration, /revoke all on public\.pharmacies_geolocalisation_referentiel from anon/i);
   assert.doesNotMatch(migration, /drop table|delete from public\.pharmacies/i);
+});
+
+test("Gardes nationales : dates, source et vérification requises sur toutes les régions", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "gardes", "page.tsx"), "utf8");
+  assert.match(page, /garde_debut/);
+  assert.match(page, /garde_fin/);
+  assert.match(page, /garde_source_url/);
+  assert.match(page, /garde_verifiee_le/);
+  assert.match(page, /\.gte\("garde_verifiee_le", verificationMin\)/);
+  assert.match(page, /\.order\("region"/);
+  assert.match(page, /grouperParRegion/);
+  assert.match(page, /Aucune garde NAXA confirmée en cours/);
+  assert.doesNotMatch(page, /\.ilike\("ville", "%Yaound%"/);
+  assert.match(page, /annuaire-medical\.cm\/fr\/pharmacies-de-garde/);
+});
+
+test("Administration des gardes : rôle actif, source HTTPS et périodes bornées", () => {
+  const api = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "admin", "gardes", "route.ts"), "utf8");
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "gardes", "page.tsx"), "utf8");
+  const client = fs.readFileSync(path.join(__dirname, "..", "src", "components", "admin", "GardesAdminClient.tsx"), "utf8");
+  assert.match(api, /auth\.getUser\(\)/);
+  assert.match(api, /naxa_business_function/);
+  assert.match(api, /profile\?\.role !== "admin"/);
+  assert.match(api, /profile\.actif !== true/);
+  assert.match(api, /sourceUrl\.protocol !== "https:"/);
+  assert.match(api, /duration > maxDuration/);
+  assert.match(api, /14 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(api, /garde_verifiee_le: new Date\(\)\.toISOString\(\)/);
+  assert.match(api, /garde_source_url: sourceUrl\.toString\(\)/);
+  assert.match(api, /est_demo/,);
+  assert.match(page, /requireAdminActive/);
+  assert.match(client, /timeZone: "Africa\/Douala"/);
+  assert.match(client, /Publier et vérifier/);
+  assert.match(client, /Retirer la garde/);
+  assert.match(client, /api\/admin\/gardes/);
+});
+
+test("Géocodage : limite globale atomique et fonction réservée au serveur", () => {
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261107180000_naxa_shared_geocoder_rate_limit.sql"), "utf8");
+  assert.match(migration, /create table if not exists public\.naxa_api_rate_limits/);
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /revoke all on table public\.naxa_api_rate_limits from public, anon, authenticated/);
+  assert.match(migration, /create or replace function public\.naxa_reserve_api_rate_limit/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /grant execute on function public\.naxa_reserve_api_rate_limit/);
+  assert.match(migration, /to service_role/);
+});
+
+test("Accueil gardes : réseau NAXA national uniquement, périodes confirmées et tri par distance", () => {
+  const api = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "pharmacies", "gardes", "route.ts"), "utf8");
+  const home = fs.readFileSync(path.join(__dirname, "..", "src", "components", "AccueilClient.tsx"), "utf8");
+  assert.match(api, /\.eq\("est_demo", false\)/);
+  assert.match(api, /\.eq\("de_garde", true\)/);
+  assert.match(api, /\.lte\("garde_debut", nowIso\)/);
+  assert.match(api, /\.gt\("garde_fin", nowIso\)/);
+  assert.match(api, /\.gte\("garde_verifiee_le", verificationMin\)/);
+  assert.match(api, /\.order\("region"/);
+  assert.doesNotMatch(api, /chargerGardesMfasha|mfasha\.com/);
+  assert.doesNotMatch(api, /illustration|creerIllustrationPharmacie/);
+  assert.match(home, /gardesTriees/);
+  assert.match(home, /distance\(coord\.lat, coord\.lng, a\.lat, a\.lng\)/);
+  assert.doesNotMatch(home, /pharmaciesProches\.filter\(p => p\.de_garde\)/);
+  assert.match(home, /annuaire-medical\.cm\/fr\/pharmacies-de-garde/);
+  assert.doesNotMatch(home, /mboapharma\.cm\/single-location-3\/yaounde/);
+});
+
+test("Accueil public : l'échec GPS ne prétend plus utiliser Yaoundé par défaut", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "app", "page.tsx"), "utf8");
+  const dictionary = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "accueil-textes.ts"), "utf8");
+  assert.match(page, /setPosition\("indisponible"\)/);
+  assert.match(page, /t\.localisationIndisponible/);
+  assert.doesNotMatch(page, /yaoundeDefaut/);
+  assert.doesNotMatch(dictionary, /Yaoundé par défaut|Yaoundé by default/);
+  assert.match(dictionary, /Position non disponible/);
+  assert.match(dictionary, /Location unavailable/);
+});
+
+test("Recherche régionale : aucune ville de repli codée en dur", () => {
+  const results = fs.readFileSync(path.join(__dirname, "..", "src", "app", "resultats", "page.tsx"), "utf8");
+  const dictionary = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "accueil-textes.ts"), "utf8");
+  assert.match(results, /Localisation non renseignée/);
+  assert.doesNotMatch(results, /\.ville\|\|["'](?:Yaoundé|Douala)["']/);
+  assert.match(dictionary, /Position détectée/);
+  assert.match(dictionary, /Location detected/);
+  assert.doesNotMatch(dictionary, /Position enregistrée|Location saved/);
+});
+
+
+test("GPS par établissement : provenance, mise en attente et vérification Admin", () => {
+  const geoForm = fs.readFileSync(path.join(__dirname, "..", "src", "components", "admin", "GeolocalisationChamps.tsx"), "utf8");
+  const create = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "actions.ts"), "utf8");
+  const promoter = fs.readFileSync(path.join(__dirname, "..", "src", "app", "pharmacie", "promoteur", "actions.ts"), "utf8");
+  const component = fs.readFileSync(path.join(__dirname, "..", "src", "components", "pharmacie", "PromoteurGeolocalisationReseau.tsx"), "utf8");
+  const access = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "promoteur-access.ts"), "utf8");
+  const adminPage = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "pharmacies", "[id]", "page.tsx"), "utf8");
+  const adminAction = fs.readFileSync(path.join(__dirname, "..", "src", "app", "admin", "pharmacies", "[id]", "actions.ts"), "utf8");
+  const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261107174620_promoteur_pharmacy_geo_management.sql"), "utf8");
+  assert.match(geoForm, /name="geo_source_type"/);
+  assert.match(geoForm, /setSource\("gps"\)/);
+  assert.match(geoForm, /setSource\("saisie_manuelle"\)/);
+  assert.match(create, /estCoordonneeCamerounaise/);
+  assert.match(create, /geo_statut: "a_verifier"/);
+  assert.match(create, /geo_source_type/);
+  assert.match(access, /lat,lng,geo_statut,geo_source_type/);
+  assert.match(promoter, /access\.activeLinkIds\.has\(pharmacieId\)/);
+  assert.match(promoter, /access\.profile\.role !== "promoteur"/);
+  assert.match(promoter, /geo_statut: "a_verifier"/);
+  assert.match(promoter, /naxa_pharmacie_geo_audit/);
+  assert.match(component, /Capturer le GPS ici/);
+  assert.match(component, /saisie_manuelle/);
+  assert.match(adminAction, /validerGeolocalisationPharmacie/);
+  assert.match(adminAction, /geo_statut: "verifiee_terrain"/);
+  assert.match(adminPage, /Journal de géolocalisation/);
+  assert.match(migration, /create table if not exists public\.naxa_pharmacie_geo_audit/i);
+  assert.match(migration, /alter table public\.naxa_pharmacie_geo_audit force row level security/i);
+  assert.match(migration, /revoke all on public\.naxa_pharmacie_geo_audit from public, anon, authenticated/i);
+  assert.doesNotMatch(component, /Responsable/);
 });

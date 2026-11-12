@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -10,10 +11,10 @@ function CheckIcon({ size = 18 }: { size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>;
 }
 function MtnMomoLogo() {
-  return <img src="https://momodeveloper.mtn.com/content/momo_mtnb.png" alt="MTN MoMo" className="h-10 w-full object-contain" />;
+  return <Image width={240} height={100} unoptimized src="https://momodeveloper.mtn.com/content/momo_mtnb.png" alt="MTN MoMo" className="h-10 w-full object-contain" />;
 }
 function OrangeMoneyLogo() {
-  return <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/Logo_Orange_Money.svg" alt="Orange Money" className="h-8 w-full object-contain" />;
+  return <Image width={240} height={80} unoptimized src="https://upload.wikimedia.org/wikipedia/commons/1/19/Logo_Orange_Money.svg" alt="Orange Money" className="h-8 w-full object-contain" />;
 }
 function CashIcon() {
   return <svg viewBox="0 0 48 48" role="img" aria-label="Paiement en espèces" className="h-10 w-10" fill="none"><rect x="5" y="11" width="38" height="26" rx="5" fill="#E9F5EC" stroke="#1E7B3A" strokeWidth="2"/><circle cx="24" cy="24" r="7" fill="#1E7B3A"/><path d="M9 17h4M35 31h4" stroke="#1E7B3A" strokeWidth="2.5" strokeLinecap="round"/><path d="M22 21h4M22 24h4M22 27h4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>;

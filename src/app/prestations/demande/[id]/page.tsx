@@ -27,22 +27,24 @@ const labels: Record<string, string> = {
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
 
 export default async function HomeServiceRequestReceipt({ params, searchParams }: {
-  params: { id: string };
-  searchParams: { ok?: string; erreur?: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ok?: string; erreur?: string }>;
 }) {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.id)) redirect("/prestations");
+  const { id } = await params;
+  const query = await searchParams;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(id)) redirect("/prestations");
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/prestations/demande/" + params.id);
-  const { data, error } = await sb.rpc("get_home_service_request_receipt", { p_request_id: params.id });
+  if (!auth.user) redirect("/connexion?retour=/prestations/demande/" + id);
+  const { data, error } = await sb.rpc("get_home_service_request_receipt", { p_request_id: id });
   const receipt = ((data ?? []) as unknown as RequestReceipt[])[0];
   if (error || !receipt) return <main className="mx-auto max-w-xl px-4 py-8"><Link href="/prestations" className="font-bold underline">← Prestations à domicile</Link><section className="mt-5 rounded-2xl border bg-white p-5"><h1 className="text-xl font-extrabold">Demande indisponible</h1><p className="mt-2 text-sm text-slate-600">Cette demande n’existe pas ou n’appartient pas à ton compte.</p></section></main>;
   const canCancel = ["requested", "confirmed"].includes(receipt.status);
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900">
     <div className="mx-auto max-w-xl pt-4">
       <header className="flex items-center justify-between rounded-2xl bg-[#064B2A] px-4 py-3 text-white"><Link href="/" className="font-extrabold">NAXA</Link><Link href="/prestations" className="text-sm font-bold underline">Catalogue</Link></header>
-      {searchParams.ok === "annulation" && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La demande a été annulée.</p>}
-      {searchParams.erreur && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-900">L’action n’a pas abouti. Vérifie le statut avant de réessayer.</p>}
+      {query.ok === "annulation" && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">La demande a été annulée.</p>}
+      {query.erreur && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-900">L’action n’a pas abouti. Vérifie le statut avant de réessayer.</p>}
       <p className="mt-5 text-xs font-extrabold uppercase tracking-widest text-[#B73623]">Prestations et soins à domicile</p>
       <h1 className="mt-1 text-2xl font-black">Suivi de ma demande</h1>
       <section className="mt-4 rounded-2xl border bg-white p-5 shadow-sm">

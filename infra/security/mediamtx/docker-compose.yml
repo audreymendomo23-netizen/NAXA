@@ -1,0 +1,31 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.3
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+    ports:
+      - "8322:8322/tcp"
+      - "8889:8889/tcp"
+      - "8189:8189/udp"
+      - "8189:8189/tcp"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    secrets:
+      - source: mediamtx_tls_cert
+        target: mediamtx_tls_cert
+      - source: mediamtx_tls_key
+        target: mediamtx_tls_key
+
+secrets:
+  mediamtx_tls_cert:
+    file: ./secrets/mediamtx.crt
+  mediamtx_tls_key:
+    file: ./secrets/mediamtx.key

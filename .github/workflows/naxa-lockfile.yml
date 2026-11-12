@@ -1,0 +1,39 @@
+name: NAXA lockfile generation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: naxa-lockfile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lockfile:
+    name: Generate and commit npm lockfile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Resolve deterministic dependency tree
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit package-lock.json when changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json is already current."
+            exit 0
+          fi
+          git commit -m "build(deps): generate deterministic npm lockfile"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

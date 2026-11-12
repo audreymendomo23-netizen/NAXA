@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -64,7 +65,7 @@ export function PhotoUpload({ produitId, photoUrl }: { produitId: string; photoU
     <div className="space-y-3 rounded-xl border border-slate-200 p-3">
       <div className="flex items-center gap-3">
         {photoUrl
-          ? <img src={photoUrl} alt="" width={64} height={64} className="h-16 w-16 rounded-lg bg-white object-contain" />
+          ? <Image unoptimized src={photoUrl} alt="" width={64} height={64} className="h-16 w-16 rounded-lg bg-white object-contain" />
           : <span className="flex h-16 w-16 items-center justify-center rounded-lg bg-naxa-green-100 text-xs">Aucune</span>}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">Photo du médicament</p>

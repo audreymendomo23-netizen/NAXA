@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { attribuerPrivilegeCaisse, retirerPrivilegeCaisse } from "./actions";
 
-type SearchParams = { ok?: string; erreur?: string };
+type SearchParams = Promise<{ ok?: string; erreur?: string }>;
 
 export default async function PrivilegesCaissesPage({ searchParams }: { searchParams: SearchParams }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/caisses/privileges");
@@ -111,8 +112,8 @@ export default async function PrivilegesCaissesPage({ searchParams }: { searchPa
         <h1 className="text-xl font-extrabold">Privilèges des Caisses</h1>
         <p className="mt-1 text-sm text-slate-600">Les droits sont attribués individuellement, dans le périmètre de la pharmacie et selon l'architecture NAXA. Les privilèges de gouvernance et ceux hors niveau Caisse ne sont jamais proposés.</p>
       </section>
-      {searchParams.ok && <p role="status" className="carte">{searchParams.ok === "attribution" ? "Privilège attribué." : "Privilège retiré."}</p>}
-      {searchParams.erreur && <p role="alert" className="carte text-red-700">{errorText[searchParams.erreur] ?? "Action impossible."}</p>}
+      {filters.ok && <p role="status" className="carte">{filters.ok === "attribution" ? "Privilège attribué." : "Privilège retiré."}</p>}
+      {filters.erreur && <p role="alert" className="carte text-red-700">{errorText[filters.erreur] ?? "Action impossible."}</p>}
       {loadError && <p role="alert" className="carte text-red-700">Le catalogue ou le périmètre est indisponible. Par sécurité, aucune attribution n'est proposée.</p>}
       {!loadError && team.length === 0 && <p className="carte text-sm text-slate-600">Aucune Caisse active n'est rattachée à une pharmacie opérationnelle du réseau.</p>}
       {!loadError && team.map((c) => {

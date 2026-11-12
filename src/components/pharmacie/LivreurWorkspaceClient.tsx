@@ -4,13 +4,21 @@ import Link from "next/link";
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {supabaseBrowser} from "@/lib/supabase/client";
 import {EspaceNaxaSwitcher} from "@/components/EspaceNaxaSwitcher";
+import {DeliveryClientSignaturePad} from "@/components/DeliveryClientSignaturePad";
+import {DeliveryMissionChat} from "@/components/DeliveryMissionChat";
 
 type Item={quantite:number;nom:string;dosage:string|null};
 type Mission={
   id:string;reservation_id:string;statut:string;created_at:string;ready_at:string;
   accepted_at:string|null;picked_up_at:string|null;arrived_at:string|null;delivered_at:string|null;
   failed_at?:string|null;failure_code:string|null;failure_note:string|null;commande_statut:string|null;
-  total:number;frais_livraison:number;ville:string|null;quartier:string|null;
+  paiement_mode:string|null;paiement_statut:string;montant_a_encaisser:number;frais_livraison:number;
+  cash_payment_status:string|null;cash_received:number|null;
+  client_confirme_at?:string|null;livreur_confirme_at?:string|null;signature_client?:boolean;
+  livraison_depart_at?:string|null;livraison_echeance_at?:string|null;duree_livraison_estimee_min?:number|null;
+  latitude_destination?:number|null;longitude_destination?:number|null;
+  latitude_pharmacie?:number|null;longitude_pharmacie?:number|null;
+  total:number;ville:string|null;quartier:string|null;
   adresse:string|null;repere:string|null;telephone:string|null;items:Item[];
 };
 type Stats={
@@ -27,6 +35,20 @@ const issueLabels:Record<string,string>={client_absent:"Client absent",client_in
 const money=(value:number)=>Number(value??0).toLocaleString("fr-FR")+" FCFA";
 const date=(value:string|null)=>value?new Date(value).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"—";
 
+function NavigationMaps({latitude,longitude,label}:{latitude:number|null|undefined;longitude:number|null|undefined;label:string}){
+  if(typeof latitude!=="number"||typeof longitude!=="number"
+    ||!Number.isFinite(latitude)||!Number.isFinite(longitude))return null;
+  const url=new URL("https://www.google.com/maps/dir/");
+  url.searchParams.set("api","1");
+  url.searchParams.set("destination",latitude+","+longitude);
+  url.searchParams.set("travelmode","driving");
+  return <a href={url.toString()} target="_blank" rel="noreferrer"
+    className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950">
+    {label} dans Google Maps
+  </a>;
+}
+
+
 export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
   const [missions,setMissions]=useState<Mission[]>([]);
   const [stats,setStats]=useState<Stats|null>(null);
@@ -35,6 +57,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
   const [error,setError]=useState("");
   const [busy,setBusy]=useState<string|null>(null);
   const [automaticTracking,setAutomaticTracking]=useState(false);
+  const [cashReceived,setCashReceived]=useState<Record<string,string>>({});
 
   const load=useCallback(async()=>{
     const sb=supabaseBrowser();
@@ -164,7 +187,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
         <a href="#missions" className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-950">Missions</a>
         <a href="#performances" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Performances</a>
         <a href="#rapports" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Rapports</a>
-        <a href="#compte" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Mon compte</a>
+        <Link href="/pharmacie/livreur/profil" className="rounded-xl px-3 py-2 text-slate-700 hover:bg-slate-50">Mon profil</Link>
       </nav>
 
       {error&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
@@ -178,7 +201,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
 
         <section id="missions" className="scroll-mt-4 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-2">
-            <div><h2 className="text-xl font-black">File des missions</h2><p className="mt-1 text-sm text-slate-600">Seules les commandes préparées et publiées par le poste Stock apparaissent ici.</p></div>
+            <div><h2 className="text-xl font-black">File des missions</h2><p className="mt-1 text-sm text-slate-600">Dès que Stock confirme une demande, la mission est proposée aux livreurs. Le retrait reste bloqué jusqu’au paiement autorisé et à la préparation physique.</p></div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600">{available.length} disponible(s)</span>
           </div>
           {available.length===0?<p className="rounded-2xl border bg-white p-5 text-sm text-slate-600">Aucune nouvelle mission prête dans cette pharmacie.</p>:
@@ -186,7 +209,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
               <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Nouvelle mission</p><h3 className="mt-1 text-lg font-black">Commande #{m.reservation_id.slice(0,8).toUpperCase()}</h3></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950">À prendre</span></div>
               <p className="mt-3 text-sm text-slate-600">{[m.quartier,m.ville].filter(Boolean).join(" · ")||"Zone de livraison non précisée"}</p>
               <p className="mt-2 text-lg font-black">{money(m.total)}</p>
-              <p className="mt-1 text-xs text-slate-500">Préparée : {date(m.ready_at)} · L’adresse et le téléphone seront visibles après acceptation.</p>
+              <p className="mt-1 text-xs text-slate-500">Demande confirmée par Stock : {date(m.ready_at)} · L’adresse et le téléphone seront visibles après acceptation.</p>
               <button type="button" disabled={busy===m.id||Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_accept")} className="mt-4 min-h-11 w-full rounded-xl bg-[#0B3D26] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{busy===m.id?"Acceptation…":"Accepter cette livraison"}</button>
             </article>)}</div>}
         </section>
@@ -197,20 +220,31 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
             <div className="grid gap-3 lg:grid-cols-2">{active.map(m=><article key={m.id} className="rounded-2xl border bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Mission active</p><h3 className="mt-1 text-lg font-black">Commande #{m.reservation_id.slice(0,8).toUpperCase()}</h3></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-950">{statusLabels[m.statut]??m.statut}</span></div>
               <p className="mt-2 text-sm text-slate-600">{[m.adresse,m.repere,m.quartier,m.ville].filter(Boolean).join(", ")||"Adresse non renseignée"}</p>
-              {m.telephone&&<a href={"tel:"+m.telephone} className="mt-1 inline-block text-sm font-bold text-emerald-900 underline">Appeler le Client · {m.telephone}</a>}
+              <NavigationMaps
+                latitude={m.statut==="accepted"?m.latitude_pharmacie:m.latitude_destination}
+                longitude={m.statut==="accepted"?m.longitude_pharmacie:m.longitude_destination}
+                label={m.statut==="accepted"?"Itinéraire vers la pharmacie":"Itinéraire vers le Client"}
+              />
+              <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-900">Contacter le Client</p>
+                {m.telephone
+                  ? <a href={"tel:"+m.telephone} className="mt-2 inline-flex min-h-10 items-center rounded-lg bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white">Appeler le Client · {m.telephone}</a>
+                  : <p className="mt-2 text-xs text-amber-900">Numéro non renseigné. Utilisez la messagerie NAXA.</p>}
+                <DeliveryMissionChat reservationId={m.reservation_id} viewer="livreur"/>
+              </div>
               <ul className="mt-3 space-y-1 border-t pt-3 text-sm">{(m.items??[]).map((item,i)=><li key={i}>{item.quantite} × {item.nom}{item.dosage?" · "+item.dosage:""}</li>)}</ul>
-              <p className="mt-3 font-extrabold">{money(m.total)}</p>
+              <p className="mt-3 font-extrabold">Articles : {money(m.total)}</p>{m.statut==="arrived"&&m.paiement_mode==="especes_livraison"&&<p className="mt-1 text-sm font-bold">À encaisser avec la livraison : {money(m.montant_a_encaisser)}</p>}
               <div className="mt-4 flex flex-wrap gap-2">
-                {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait</button>}
+                {m.statut==="accepted"&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_pickup")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer le retrait</button>}
                 {m.statut==="picked_up"&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_arrived")} className="min-h-11 rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Signaler mon arrivée</button>}{m.statut==="picked_up"&&<button type="button" aria-pressed={automaticTracking} onClick={()=>setAutomaticTracking(value=>!value)} className={automaticTracking?"min-h-11 rounded-xl bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-950":"min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950"}>{automaticTracking?"Arrêter le suivi GPS":"Activer le suivi GPS automatique"}</button>}
                 {["accepted","picked_up","arrived"].includes(m.statut)&&<button type="button" disabled={Boolean(busy)} onClick={()=>withPosition(m.id,"naxa_delivery_add_location")} className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-bold text-emerald-950 disabled:opacity-50">Partager ma position</button>}
-                {m.statut==="arrived"&&<p className="w-full rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Le Client doit confirmer la réception dans NAXA. Vous ne pouvez pas valider « Livrée » à sa place.</p>}
+                {m.statut==="arrived"&&<div className="w-full space-y-3"><div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950"><p className="font-bold">Validation en deux parties</p><p className="mt-1">Client : {m.client_confirme_at?"confirmé":"en attente"} · Livreur : {m.livreur_confirme_at?"confirmé":"en attente"}</p>{m.signature_client&&<p className="mt-1">Signature recueillie sur ce téléphone.</p>}</div>{m.paiement_mode==="especes_livraison"&&m.paiement_statut!=="effectue"&&<div className="rounded-xl border border-amber-200 p-3"><p className="text-sm font-bold">Paiement en espèces à la remise</p>{m.cash_payment_status==="cash_declared"?<p role="status" className="mt-2 text-sm text-emerald-800">Espèces déclarées : {money(m.cash_received??0)}. La Caisse de la pharmacie doit rapprocher et valider l’encaissement.</p>:<><label className="mt-2 block text-sm font-semibold">Espèces reçues du Client (FCFA)<input type="number" min={m.montant_a_encaisser} step="1" inputMode="numeric" className="champ mt-1" value={cashReceived[m.id]??String(m.montant_a_encaisser)} onChange={event=>setCashReceived(current=>({...current,[m.id]:event.target.value}))}/></label><button type="button" disabled={Boolean(busy)} onClick={()=>{const amount=Number(cashReceived[m.id]??m.montant_a_encaisser);if(!Number.isSafeInteger(amount)||amount<m.montant_a_encaisser){setError("Le montant reçu doit couvrir le total à encaisser.");return;}void callAction(m.id,"naxa_delivery_courier_declare_cash",{p_cash_received:amount});}} className="mt-3 min-h-10 w-full rounded-lg bg-amber-700 px-3 py-2 text-sm font-bold text-white">Déclarer les espèces reçues</button></>}</div>}{!m.livreur_confirme_at&&<button type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_confirm_handover")} className="min-h-11 w-full rounded-xl bg-[#0B3D26] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirmer que j’ai remis la commande</button>}{m.livreur_confirme_at&&!m.client_confirme_at&&<p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">Votre confirmation est enregistrée. La commande attend la confirmation du Client ou sa signature sur ce téléphone.</p>}<DeliveryClientSignaturePad missionId={m.id} onDone={()=>void load()}/></div>}
               </div>
               {["accepted","picked_up","arrived"].includes(m.statut)&&<div className="mt-4 border-t pt-3">
                 <p className="text-xs font-bold uppercase text-slate-500">Signaler une difficulté</p>
                 <div className="mt-2 flex flex-wrap gap-2">{(["client_absent","adresse_introuvable","incident_route"] as const).map(code=><button key={code} type="button" disabled={Boolean(busy)} onClick={()=>void callAction(m.id,"naxa_delivery_report_issue",{p_code:code,p_note:null})} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">{issueLabels[code]}</button>)}</div>
               </div>}
-              {m.statut==="picked_up"&&<p className="mt-2 text-xs text-slate-500">Le suivi GPS automatique fonctionne uniquement pendant que cet écran reste ouvert et que la localisation est autorisée. Il s’arrête lorsque vous le désactivez ou signalez votre arrivée.</p>}<p className="mt-3 text-xs text-slate-500">Acceptée : {date(m.accepted_at)} · Retirée : {date(m.picked_up_at)} · Arrivée : {date(m.arrived_at)}</p>
+              {m.statut==="picked_up"&&<p className="mt-2 text-xs text-slate-500">Le suivi GPS automatique fonctionne uniquement pendant que cet écran reste ouvert et que la localisation est autorisée. Il s’arrête lorsque vous le désactivez ou signalez votre arrivée.</p>}{m.livraison_echeance_at&&["picked_up","arrived"].includes(m.statut)&&<p className="mt-2 text-sm font-bold text-emerald-900">Délai estimé : {date(m.livraison_echeance_at)}</p>}<p className="mt-3 text-xs text-slate-500">Acceptée : {date(m.accepted_at)} · Retirée : {date(m.picked_up_at)} · Arrivée : {date(m.arrived_at)}</p>
             </article>)}</div>}
         </section>
 
@@ -239,7 +273,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
             <p><span className="text-slate-500">Téléphone :</span> <strong>{profile.phone??"—"}</strong></p>
             <p><span className="text-slate-500">Profil majeur vérifié :</span> <strong>{profile.age_verified?"Oui":"À vérifier"}</strong></p>
           </div>:<p className="mt-2 text-sm text-slate-600">Profil indisponible.</p>}
-          <Link href="/client/profil" className="mt-4 inline-flex min-h-11 items-center rounded-xl border px-4 py-2 text-sm font-bold text-emerald-950">Gérer mon profil et ma sécurité</Link>
+          <Link href="/pharmacie/livreur/profil" className="mt-4 inline-flex min-h-11 items-center rounded-xl border px-4 py-2 text-sm font-bold text-emerald-950">Ouvrir mon profil Livreur</Link>
         </section>
       </>}
     </div>

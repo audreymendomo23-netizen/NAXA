@@ -1,3 +1,4 @@
+import Image from "next/image";
 type IllustrationPageClientProps = { src: string; alt: string; titre: string };
 
 /** Carte éditoriale avec photo en arrière-plan et texte superposé, dans le style Achats / Réservations / Commandes. */
@@ -7,7 +8,7 @@ export function IllustrationPageClient({ src, alt, titre }: IllustrationPageClie
       aria-label={titre}
       className="relative isolate mb-4 flex min-h-[116px] items-end overflow-hidden rounded-2xl border border-[#DCE9DF] bg-[#0B3D26] shadow-sm sm:min-h-[144px]"
     >
-      <img
+      <Image width={1200} height={800} unoptimized
         src={src}
         alt={alt}
         loading="eager"

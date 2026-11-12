@@ -26,7 +26,8 @@ type StockRow = {
 
 export default async function ServiceGestionStockPage({
   searchParams,
-}: { searchParams: { ok?: string; erreur?: string } }) {
+}: { searchParams: Promise<{ ok?: string; erreur?: string }> }) {
+  const filters = await searchParams;
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/service");
@@ -99,8 +100,8 @@ export default async function ServiceGestionStockPage({
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         <GestionnaireStockSidebar active="/pharmacie/gestionnaire-stock/service" />
         <section className="min-w-0 space-y-4">
-          {searchParams.ok && successMessages[searchParams.ok] && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{successMessages[searchParams.ok]}</p>}
-          {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{errorMessages[searchParams.erreur] || "Opération refusée."}</p>}
+          {filters.ok && successMessages[filters.ok] && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{successMessages[filters.ok]}</p>}
+          {filters.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{errorMessages[filters.erreur] || "Opération refusée."}</p>}
           {(sessionsError || (active && (countsError || stockError))) && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Lecture incomplète : aucune clôture ne doit être considérée comme validée.</p>}
 
           {active && <section className="rounded-2xl border bg-white p-5">

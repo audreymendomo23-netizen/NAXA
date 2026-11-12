@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { PROMOTEUR_VALIDATION, normalizePromoteurPhone, validatePromoteurPhone, type PromoteurPhoneCountry } from "@/lib/promoteur-validation";
+import { estCoordonneeCamerounaise } from "@/lib/server/delivery-routing";
 
 async function exigerAdmin() {
   const { user } = await requireAdminActive("/admin");
@@ -39,6 +40,10 @@ export async function creerPharmacie(formData: FormData) {
   if (!(phoneCountry in PROMOTEUR_VALIDATION.phone)) errors.phone_number = "Choisissez un indicatif téléphonique valide.";
   if (!f("lat") || !Number.isFinite(Number(f("lat"))) || Number(f("lat")) < -90 || Number(f("lat")) > 90) errors.lat = "Latitude obligatoire entre -90 et 90.";
   if (!f("lng") || !Number.isFinite(Number(f("lng"))) || Number(f("lng")) < -180 || Number(f("lng")) > 180) errors.lng = "Longitude obligatoire entre -180 et 180.";
+  if (f("lat") && f("lng") && !estCoordonneeCamerounaise({ lat: Number(f("lat")), lng: Number(f("lng")) })) {
+    errors.lat = "Les coordonnées doivent correspondre à un emplacement situé au Cameroun.";
+    errors.lng = "Vérifiez le couple latitude/longitude : pharmacie hors des limites géographiques camerounaises.";
+  }
   if (!PROMOTEUR_VALIDATION.username.test(username)) errors.username = "3 à 30 caractères : lettres, chiffres, point, tiret ou underscore.";
   if (!PROMOTEUR_VALIDATION.email.test(email)) errors.email = "Adresse e-mail invalide.";
   if (password.length < PROMOTEUR_VALIDATION.passwordMinLength) errors.motdepasse = "6 caractères minimum.";
@@ -65,6 +70,9 @@ export async function creerPharmacie(formData: FormData) {
     nom: f("nom"), ville: f("ville") || "Yaoundé", actif: false, visible_recherche: false, de_garde: false,
     quartier: f("quartier") || null, adresse: f("adresse") || null,
     lat: Number(f("lat")), lng: Number(f("lng")),
+    geo_statut: "a_verifier",
+    geo_source_type: f("geo_source_type") === "gps" ? "gps" : "saisie_manuelle",
+    geo_mise_a_jour: new Date().toISOString(),
   }).select("id").single();
 
   if (pharmacyError || !pharmacy) {
@@ -74,6 +82,13 @@ export async function creerPharmacie(formData: FormData) {
   }
 
   const pharmacyId = pharmacy.id;
+  const geoSource = f("geo_source_type") === "gps" ? "gps" : "saisie_manuelle";
+  const { error: geoAuditError } = await db.from("naxa_pharmacie_geo_audit").insert({
+    pharmacie_id: pharmacyId, acteur_id: adminId, role_acteur: "admin", event_type: "creation",
+    source_type: geoSource, latitude_nouvelle: Number(f("lat")), longitude_nouvelle: Number(f("lng")),
+    statut_nouveau: "a_verifier",
+  });
+  if (geoAuditError) console.error("[admin.creerPharmacie] geo_audit_insert", { code: geoAuditError.code, message: geoAuditError.message });
   const cleanup = async () => {
     const cleanupSteps = [
       ["pharmacie_documents_recus", () => db.from("pharmacie_documents_recus").delete().eq("pharmacie_id", pharmacyId)],

@@ -1,0 +1,24 @@
+[Unit]
+Description=NAXA Security Gateway Heartbeat Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=naxa-gateway
+Group=naxa-gateway
+ExecStart=/usr/bin/node /opt/naxa-security-gateway/agent.cjs run --state-dir /var/lib/naxa-security-gateway --interval 60
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectProc=invisible
+ProcSubset=pid
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/naxa-security-gateway
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

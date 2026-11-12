@@ -5,16 +5,17 @@ import { BoutonNotifications } from "@/components/BoutonNotifications";
 
 const statusLabel: Record<string, string> = { draft: "Brouillon", active: "Publié", archived: "Archivé" };
 
-export default async function AdminHomeServices({ searchParams }: { searchParams: { ok?: string; erreur?: string; q?: string; statut?: string } }) {
+export default async function AdminHomeServices({ searchParams }: { searchParams: Promise<{ ok?: string; erreur?: string; q?: string; statut?: string }> }) {
+  const filters = await searchParams;
   const { sb } = await requireAdminActive("/admin/prestations");
 
   const { data: offers, error } = await sb.from("home_service_offers")
     .select("id,partner_id,name,category,description,service_area_label,price_fcfa,status,created_at,partners!inner(name,city,neighborhood,status,partner_type)")
     .order("created_at", { ascending: false }).limit(300);
   const allOffers = offers ?? [];
-  const query = (searchParams.q ?? "").trim().toLocaleLowerCase("fr");
+  const query = (filters.q ?? "").trim().toLocaleLowerCase("fr");
   const filteredOffers = allOffers.filter((offer: any) =>
-    (!searchParams.statut || offer.status === searchParams.statut) &&
+    (!filters.statut || offer.status === filters.statut) &&
     (!query || [offer.name, offer.category, offer.description ?? "", offer.service_area_label, offer.partners?.name ?? "", offer.partners?.city ?? "", offer.partners?.neighborhood ?? ""].join(" ").toLocaleLowerCase("fr").includes(query))
   );
   const colonnes = [{ key: "draft", label: "À examiner", items: filteredOffers.filter((offer: any) => offer.status === "draft") }, { key: "active", label: "Publiées", items: filteredOffers.filter((offer: any) => offer.status === "active") }, { key: "archived", label: "Archivées", items: filteredOffers.filter((offer: any) => offer.status === "archived") }];
@@ -23,13 +24,13 @@ export default async function AdminHomeServices({ searchParams }: { searchParams
     <div className="mx-auto max-w-5xl space-y-5 pt-4">
       <header className="flex items-center justify-between gap-3 rounded-2xl bg-[#064B2A] px-4 py-3 text-white"><strong>NAXA · Administration</strong><nav className="flex items-center gap-3"><BoutonNotifications/><Link href="/admin/prestations/demandes" className="font-bold underline">Demandes clients</Link><Link href="/admin/univers" className="font-bold underline">Univers et partenaires</Link></nav></header>
       <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Validation des offres</p><h1 className="mt-1 text-3xl font-black">Prestations et soins à domicile</h1><p className="mt-2 text-sm leading-6 text-slate-600">Une offre ne peut être publiée que si le professionnel, son association à l’univers Prestations et les drapeaux de l’univers sont actifs. La validation ne remplace pas la vérification réelle des justificatifs du professionnel.</p></div>
-      {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "active" ? "Prestation publiée." : searchParams.ok === "archived" ? "Prestation archivée." : "Prestation remise en brouillon."}</p>}
-      {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Action refusée. Vérifie le statut du partenaire, l’association à l’univers et les activations.</p>}
+      {filters.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{filters.ok === "active" ? "Prestation publiée." : filters.ok === "archived" ? "Prestation archivée." : "Prestation remise en brouillon."}</p>}
+      {filters.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">Action refusée. Vérifie le statut du partenaire, l’association à l’univers et les activations.</p>}
       {broken && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Le catalogue des prestations est temporairement indisponible. Les actions restent désactivées jusqu’au retour des données.</p>}
       {!broken && !allOffers.length && <p className="rounded-2xl border bg-white p-5 text-sm text-slate-600">Aucune prestation soumise à validation.</p>}
       {!broken && allOffers.length > 0 && <form method="get" role="search" aria-label="Rechercher les prestations à valider" className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-[1fr_220px_auto_auto]">
-        <label className="text-sm font-semibold">Rechercher<input name="q" defaultValue={searchParams.q ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Offre, professionnel, zone…"/></label>
-        <label className="text-sm font-semibold">Statut<select name="statut" defaultValue={searchParams.statut ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3"><option value="">Tous les statuts</option><option value="draft">Brouillon</option><option value="active">Publié</option><option value="archived">Archivé</option></select></label>
+        <label className="text-sm font-semibold">Rechercher<input name="q" defaultValue={filters.q ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Offre, professionnel, zone…"/></label>
+        <label className="text-sm font-semibold">Statut<select name="statut" defaultValue={filters.statut ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3"><option value="">Tous les statuts</option><option value="draft">Brouillon</option><option value="active">Publié</option><option value="archived">Archivé</option></select></label>
         <button className="min-h-11 self-end rounded-xl bg-[#064B2A] px-4 font-bold text-white">Filtrer</button><Link href="/admin/prestations" className="inline-flex min-h-11 items-center self-end rounded-xl border px-4 font-bold">Réinitialiser</Link>
       </form>}
       {!broken && allOffers.length > 0 && <p className="text-sm font-semibold text-slate-600">{filteredOffers.length} offre(s) affichée(s) sur {allOffers.length}</p>}

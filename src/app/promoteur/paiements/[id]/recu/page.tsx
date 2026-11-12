@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 import { ReceiptPrintButton } from "./ReceiptPrintButton";
@@ -6,7 +7,8 @@ const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA";
 const dt = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
 const dateTime = (s: string | null) => s ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Douala" }).format(new Date(s)) : "—";
 
-export default async function RecuReglementPage({ params }: { params: { id: string } }) {
+export default async function RecuReglementPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sb = supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect("/connexion");
@@ -16,7 +18,7 @@ export default async function RecuReglementPage({ params }: { params: { id: stri
   const db = supabaseAdmin();
   const { data: r, error } = await db.from("abonnement_promoteur_reglements")
     .select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,numero_recu,identifiant_paiement,periode_du,periode_au,confirme_le,statut")
-    .eq("id", params.id).eq("promoteur_id", user.id).maybeSingle();
+    .eq("id", id).eq("promoteur_id", user.id).maybeSingle();
   if (error || !r || r.statut !== "confirme" || !r.numero_recu || !r.identifiant_paiement) notFound();
 
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || "Promoteur";
@@ -34,7 +36,7 @@ export default async function RecuReglementPage({ params }: { params: { id: stri
   return <main className="min-h-screen bg-slate-100 p-4 print:bg-white">
     <article className="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-sm print:shadow-none sm:p-10">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#0F6B3F] pb-5">
-        <div className="flex items-center gap-3"><img src="/naxa-logo.png" alt="Logo NAXA" className="h-auto w-36 object-contain"/><div><h1 className="text-2xl font-black">Reçu de paiement</h1><p className="mt-1 text-sm text-slate-500">Abonnement mensuel Promoteur</p></div></div>
+        <div className="flex items-center gap-3"><Image width={144} height={40} src="/naxa-logo.png" alt="Logo NAXA" className="h-auto w-36 object-contain"/><div><h1 className="text-2xl font-black">Reçu de paiement</h1><p className="mt-1 text-sm text-slate-500">Abonnement mensuel Promoteur</p></div></div>
         <div className="text-right"><p className="text-xs text-slate-500">N° de reçu</p><p className="font-extrabold">{r.numero_recu}</p><p className="mt-2 text-xs text-slate-500">ID de paiement</p><p className="font-extrabold">{r.identifiant_paiement}</p></div>
       </header>
 
@@ -55,7 +57,7 @@ export default async function RecuReglementPage({ params }: { params: { id: stri
 
       <section className="mt-10 border-t pt-5">
         <p className="text-sm text-slate-600">Pour NAXA,</p>
-        <img src="/signature-bitseki.svg" alt="Signature de l’administrateur NAXA" className="mt-2 h-16 w-56 object-contain object-left"/>
+        <Image width={224} height={64} src="/signature-bitseki.svg" alt="Signature de l’administrateur NAXA" className="mt-2 h-16 w-56 object-contain object-left"/>
         <p className="mt-1 font-extrabold">BITSEKI MAYAKA Bienvenu</p>
         <p className="text-sm text-slate-600">Chief Executive Officer</p>
       </section>

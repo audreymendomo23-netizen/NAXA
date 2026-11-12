@@ -1,3 +1,62 @@
+## Paiement abonnement Promoteur — état de la reprise — 11/11/2026
+
+**Statut global : JAUNE.** Le circuit Admin SMS, la confirmation serveur et l'OCR sont codés. Les migrations et tests SQL sont passés sur Replay. Le compagnon Android est ajouté comme source, mais il n'est ni compilé ni testé sur téléphone. Aucun paiement E2E réel n'a été exécuté.
+
+### Les cinq chantiers
+
+1. **Téléphone Admin — CODE QA.** Endpoints d'enrôlement séparé par canal et capture SMS ajoutés : /api/admin/paiements/device/register et /api/admin/paiements/capture. L'interface Admin liste les captures, leur état et le lien vers le dossier. Les événements sont protégés par RLS ; aucun accès direct anon/authenticated.
+2. **Compagnon Android — SOURCE AJOUTÉE, NON BUILDÉE.** Projet Java/Gradle android/payment-companion/ : connexion Supabase, enrôlement Promoteur/Admin, stockage des jetons via Android Keystore AES-GCM, SMS_RECEIVED_ACTION, lecture de l'adresse brute SmsMessage.getOriginatingAddress(), filtre exact OrangeMoney/MobileMoney, transmission au backend. Aucun accès READ_SMS, aucune lecture des contacts ni des conversations. Build non exécuté : Android SDK, Gradle et ADB absents de l'environnement.
+3. **Renouvellement automatique — CODE SQL INSTALLÉ.** Un SMS de crédit reçu par le téléphone Admin peut renouveler l'abonnement uniquement si l'expéditeur brut, le sens crédit, montant FCFA, canal, destination marchande, payeur, référence liée au même dossier, unicité et délais concordent. La fenêtre SMS Admin est limitée à 15 minutes avant / 30 minutes après l'heure de paiement déclarée, à l'intérieur de la tolérance de 24 h. Ambiguïté, payeur manquant, conflit ou écart = revue manuelle. La RPC appelle la confirmation Admin canonique et ne réactive aucun compte/pharmacie suspendu indépendamment.
+4. **OCR justificatifs — CODE QA.** Images et PDF, 3 pages PDF maximum, OCR local navigateur en français + anglais. Les champs structurés sont enregistrés ; le texte intégral du justificatif reste temporaire dans le navigateur et n'est pas persisté. L'OCR n'est jamais une confirmation automatique.
+5. **Recette — SQL CIBLÉ PASS, E2E TERRAIN BLOQUÉ.** Les tests SQL des trois niveaux et de la capture Admin passent sur Replay. Aucun code marchand n'est configuré dans Replay (0 destination active), aucun appareil Promoteur/Admin n'est enrôlé et aucun SMS réel MTN/Orange n'a été testé. La suite Node statique versionnée, le typecheck complet, lint, build Next.js et build APK restent à exécuter.
+
+### Migrations Replay appliquées
+
+| Version distante | Migration |
+|---|---|
+| 20261111011044 | promoteur_payment_three_stage_verification_20261111 |
+| 20261111011317 | promoteur_payment_secondary_reference_history_guard |
+| 20261111012919 | promoteur_payment_admin_sms_capture_schema |
+| 20261111012923 | promoteur_payment_declaration_sms_received_at_fix |
+| 20261111013438 | promoteur_payment_admin_sms_auto_confirm_rpc |
+| 20261111013608 | promoteur_payment_admin_sms_time_guard |
+
+### Preuves et réserves de sécurité
+
+- supabase/tests/promoteur_payment_three_stage_verification.sql : PASS.
+- supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql : PASS.
+- ACL capture Admin : anon=false, authenticated=false, service_role=true. RLS active sur les deux tables Admin et index unique sur les références d'événements.
+- 5 modèles SMS fournis : parseur déterministe 5/5 ; repli IA simulé 2/2. Aucun appel réel Gemini/Groq n'est revendiqué.
+- Un Sender ID alphanumérique SMS n'est pas une signature cryptographique. Le code applique exactement les contrôles choisis et garde les cas incomplets en manuel, mais une validation opérateur/SIM réelle reste requise avant de considérer le risque de spoofing résolu.
+- **Blocage de distribution Android :** RECEIVE_SMS est une permission dangereuse hard-restricted ; Play Protect peut bloquer les applications téléchargées depuis Internet (navigateur/site) qui la déclarent. La capture automatique nécessite une voie d'installation approuvée/allowlistée. Ne pas contourner Play Protect. Le téléchargement direct depuis le site NAXA n'est pas validé pour ce compagnon.
+- Replay ne dispose d'aucune destination marchande. Aucun code marchand réel ne doit être inventé pour débloquer les tests.
+
+**Périmètre :** branche QA uniquement, Supabase Replay uniquement. Aucune écriture Production, aucun déploiement Vercel, aucune modification main.
+
+
+## Import stock hybride IA + moteur — 10/11/2026
+
+**Branche QA :** `qa/e2e-stabilisation-20261106` · **Commit code/tests :** `cab8b965c3464b4d7acd1285c888a8e4f82440c4`.
+
+- Implémentation : suggestions Gemini/Groq limitées aux produits candidats relus dans le catalogue ; moteur déterministe indépendant (code-barres, DCI, dosage, forme, score) ; aucune sélection IA automatique et confirmation humaine.
+- Durcissement : la route authentifie/autorise l'acteur, puis délègue à une RPC réservée à `service_role`. L'ancienne RPC est inaccessible à `anon` et `authenticated`. Le code reconnaît aussi la variable Preview `Gemini_API_Key` déjà configurée.
+- **Tests ciblés : 18/18 PASS** avec `node --test scripts/test-stock-import-intelligent.cjs`, sur les fichiers commités de QA. La syntaxe TypeScript des trois routes `apply`, `mapping` et `match` est également PASS (transpilation ciblée TypeScript 5.6.2).
+- **E2E SQL Replay : PASS** — ACL, mutation d'une ligne et vérification dans la transaction, puis rollback confirmé ; le stock fixture est resté à 26 unités après la recette. ACL vérifiées : ancienne RPC bloquée pour anon/authenticated/service_role ; wrapper autorisé uniquement à service_role. Régressions SQL 273 et 275 : PASS.
+- Migration Replay : `20261110011755_stock_import_rpc_service_role_guard_20261110`. Aucun changement Production ni déploiement.
+- **JAUNE :** appel réel Gemini/Groq, import HTTP avec un fichier externe, `npm test` global, typecheck complet, lint et build non prouvés. Une erreur de parenthèse repérée dans `match/route.ts` a été corrigée et la syntaxe des trois routes est maintenant vérifiée. Aucun déploiement QA de cette branche ; secrets IA masqués et non vérifiables.
+
+Détails : `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, lot **STOCK-IMPORT-AI-01**.
+
+---
+
+# BRANCHE ACTIVE DES VÉRIFICATIONS — NAXA
+
+**Branche de travail :** `qa/e2e-stabilisation-20261106`.
+**Dernier commit de code/tests de référence :** `cab8b965c3464b4d7acd1285c888a8e4f82440c4` (les commits suivants de cette passe sont documentaires).
+Avant toute nouvelle session : lire `AGENTS.md`, puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Reprendre seulement les réserves ouvertes et les lots réellement impactés. `main` est la branche par défaut, non la branche active de cette campagne. Ne pas écrire ni fusionner vers main sans ordre explicite.
+
+---
+
 ## Recette pilote pharmacies et utilisateurs — 05/11/2026
 
 **Statut : 🟡 terrain non certifié ; contrôles Replay ciblés PASS.**

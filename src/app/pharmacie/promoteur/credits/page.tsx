@@ -6,7 +6,8 @@ type CreditRequest={id:string;pharmacie_id:string;client_id:string;montant:numbe
 const fcfa=(v:number)=>Number(v||0).toLocaleString("fr-FR")+" FCFA";
 const ref=(v:string)=>v.replace(/-/g,"").slice(0,8).toUpperCase();
 
-export default async function CreditsMarketplacePage({searchParams}:{searchParams:{ok?:string;erreur?:string}}){
+export default async function CreditsMarketplacePage({searchParams}:{searchParams:Promise<{ok?:string;erreur?:string}>}){
+ const params=await searchParams;
  const sb=supabaseServer();const {data:auth}=await sb.auth.getUser();
  if(!auth.user)redirect("/connexion?retour=/pharmacie/promoteur/credits");
  const {data:profile}=await sb.from("profiles").select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
@@ -21,8 +22,8 @@ export default async function CreditsMarketplacePage({searchParams}:{searchParam
  const names=new Map((products??[]).map(p=>[p.id,p.nom+(p.dosage?" "+p.dosage:"")]));
  return <main className="mx-auto max-w-5xl space-y-4 px-4 py-6">
  <header className="rounded-2xl bg-[#0B3D26] p-5 text-white"><h1 className="text-2xl font-black">Demandes de crédit Marketplace</h1><p className="mt-2 text-sm">L’approbation débite immédiatement le stock physique et affecte les lots FEFO. La commande est ensuite transmise à la préparation.</p></header>
- {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{searchParams.ok==="approuvee"?"Crédit approuvé, stock débité et commande transmise à la préparation.":"Demande refusée ; aucun stock n’a été débité."}</p>}
- {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Décision non enregistrée. Vérifiez le statut, les droits et le stock.</p>}
+ {params.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{params.ok==="approuvee"?"Crédit approuvé, stock débité et commande transmise à la préparation.":"Demande refusée ; aucun stock n’a été débité."}</p>}
+ {params.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Décision non enregistrée. Vérifiez le statut, les droits et le stock.</p>}
  {error&&<p role="alert" className="rounded-xl bg-red-50 p-3">Impossible de charger les demandes.</p>}
  {!error&&!requests.length&&<p className="rounded-xl border bg-white p-4">Aucune demande Marketplace enregistrée.</p>}
  {requests.map(r=><article key={r.id} className="space-y-3 rounded-2xl border bg-white p-4">

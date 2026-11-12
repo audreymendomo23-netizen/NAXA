@@ -26,8 +26,9 @@ const ref=(v:string)=>v.replace(/-/g,"").slice(0,8).toUpperCase();
 export default async function ResponsableCreditsMarketplacePage({
   searchParams,
 }:{
-  searchParams:{ok?:string;erreur?:string};
+  searchParams:Promise<{ok?:string;erreur?:string}>;
 }) {
+  const params=await searchParams;
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/pharmacie/responsable/credits");
@@ -92,8 +93,8 @@ export default async function ResponsableCreditsMarketplacePage({
       <Link href="/pharmacie/pilotage" className="underline">← Pilotage Responsable</Link>
       <Link href="/pharmacie/gestionnaire-stock/reservations" className="underline">Commandes à préparer</Link>
     </nav>
-    {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{searchParams.ok==="approuvee"?"Crédit approuvé, stock débité et commande transmise à la préparation.":"Demande refusée ; aucun stock n’a été débité."}</p>}
-    {searchParams.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Décision non enregistrée. Vérifiez votre affectation, le privilège délégué, le statut et le stock.</p>}
+    {params.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{params.ok==="approuvee"?"Crédit approuvé, stock débité et commande transmise à la préparation.":"Demande refusée ; aucun stock n’a été débité."}</p>}
+    {params.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Décision non enregistrée. Vérifiez votre affectation, le privilège délégué, le statut et le stock.</p>}
     {(error||pharmacyError)&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Les demandes ou les pharmacies affectées n’ont pas pu être chargées. Aucune décision n’a été prise.</p>}
     {!error&&!requests.length&&<p className="rounded-xl border bg-white p-4">Aucune demande Marketplace enregistrée pour vos pharmacies affectées.</p>}
     {requests.map(r=><article key={r.id} className="space-y-3 rounded-2xl border bg-white p-4">

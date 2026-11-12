@@ -17,10 +17,11 @@ const money = (value: number) =>
 export default async function AdminHomeServiceRequestsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; statut?: string };
+  searchParams: Promise<{ q?: string; statut?: string }>;
 }) {
+  const filters = await searchParams;
   const { sb } = await requireAdminActive("/admin/prestations/demandes");
-  const status = statuses.includes(searchParams.statut ?? "") ? searchParams.statut! : "";
+  const status = statuses.includes(filters.statut ?? "") ? filters.statut! : "";
   let requestQuery = sb
     .from("home_service_requests")
     .select(
@@ -33,7 +34,7 @@ export default async function AdminHomeServiceRequestsPage({
 
   const { data, error, count } = await requestQuery;
   const rows = (data ?? []) as any[];
-  const term = (searchParams.q ?? "").trim().toLocaleLowerCase("fr");
+  const term = (filters.q ?? "").trim().toLocaleLowerCase("fr");
   const filtered = rows.filter((row) => {
     const partner = Array.isArray(row.partners) ? row.partners[0] : row.partners;
     const haystack = [
@@ -93,7 +94,7 @@ export default async function AdminHomeServiceRequestsPage({
 
             <form method="get" role="search" aria-label="Filtrer les demandes de prestations" className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-[minmax(0,1fr)_220px_auto_auto]">
               <label className="text-sm font-semibold">Rechercher
-                <input name="q" defaultValue={searchParams.q ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Prestation, professionnel, zone…" />
+                <input name="q" defaultValue={filters.q ?? ""} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Prestation, professionnel, zone…" />
               </label>
               <label className="text-sm font-semibold">Statut
                 <select name="statut" defaultValue={status} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">

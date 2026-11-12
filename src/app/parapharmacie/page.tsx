@@ -1,5 +1,12 @@
 import { UniverseCatalog } from "@/components/universes/UniverseCatalog";
 
-export default function ParapharmaciePage({ searchParams }: { searchParams: { erreur?: string } }) {
-  return <UniverseCatalog universe="parapharmacie" actionError={searchParams.erreur} />;
+type PageSearchParams = { erreur?: string };
+
+export default async function ParapharmaciePage({
+  searchParams,
+}: {
+  searchParams: Promise<PageSearchParams>;
+}) {
+  const params = await searchParams;
+  return <UniverseCatalog universe="parapharmacie" actionError={params.erreur} />;
 }
