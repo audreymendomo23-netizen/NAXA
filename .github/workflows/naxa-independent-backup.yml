@@ -33,6 +33,56 @@ jobs:
             *) echo "::error::NAXA_DATABASE_URL must be a PostgreSQL connection URI"; exit 1 ;;
           esac
 
+      - name: Validate PostgreSQL URI without exposing credentials
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
+          PROJECT_REF: eouwtuusnsuxaejsxknf
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          from urllib.parse import urlsplit, unquote
+
+          raw = os.environ.get("DATABASE_URL", "")
+          project_ref = os.environ["PROJECT_REF"]
+
+          def fail(message):
+              print(f"::error::{message} No credential or raw URI was printed.")
+              sys.exit(1)
+
+          try:
+              parsed = urlsplit(raw)
+              host = parsed.hostname
+              port = parsed.port
+              username = unquote(parsed.username or "")
+              password = parsed.password
+          except ValueError:
+              fail("NAXA_DATABASE_URL is not a valid PostgreSQL URI. Check separators and percent-encode reserved characters in the password.")
+
+          if parsed.scheme not in ("postgres", "postgresql"):
+              fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
+          if parsed.fragment:
+              fail("NAXA_DATABASE_URL contains a URI fragment. A reserved character in the password may not be percent-encoded.")
+          if not host:
+              fail("NAXA_DATABASE_URL has no parseable database host. Check the @ separator and percent-encoding.")
+          is_pooler = bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9-]+\\.pooler\\.supabase\\.com", host))
+          is_direct = host == f"db.{project_ref}.supabase.co"
+          if not (is_pooler or is_direct):
+              fail("NAXA_DATABASE_URL host is not a recognized Supabase database endpoint for this project.")
+          if is_pooler and not username.endswith("." + project_ref):
+              fail("Shared-pooler username must end with the project reference shown in Supabase Connect.")
+          if is_direct and username != "postgres":
+              fail("Direct-connection username must be postgres.")
+          if not password or password == "[YOUR-PASSWORD]":
+              fail("NAXA_DATABASE_URL has no actual database password.")
+          if port != 5432:
+              fail("Use a Supabase direct connection or shared Session pooler on port 5432 for pg_dump; do not use the Transaction pooler on port 6543.")
+          print(f"PostgreSQL URI preflight passed: host={host}, port={port}, mode={'Session pooler' if is_pooler else 'Direct'}")
+          PY
+
       - name: Dump PostgreSQL 17 database
         shell: bash
         env:
