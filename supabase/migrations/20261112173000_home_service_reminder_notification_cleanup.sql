@@ -157,8 +157,6 @@ begin
       and n.type='home_service_appointment_reminder';
 
     update public.home_service_reminder_dispatches d
-    set state='cancelled',  else
-    update public.home_service_reminder_dispatches d
     set state='cancelled',
         locked_at=null,
         last_error=case
