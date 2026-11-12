@@ -388,10 +388,26 @@ export function ScannerShell() {
     });
   };
 
+  const ajouterProduitManuel = () => {
+    const item: ProduitDetecte = { id: "manuel-" + Date.now().toString(36), nom: "", quantite: 1, statut: "À confirmer" };
+    setProduits(previous => {
+      const next = [...previous, item];
+      try { sessionStorage.setItem(CLE_RESULTATS, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const supprimerProduit = (id: string) => {
+    setProduits(previous => {
+      const next = previous.filter(item => item.id !== id);
+      try { sessionStorage.setItem(CLE_RESULTATS, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const ouvrirPrix = (nom: string) => router.push("/resultats?q=" + encodeURIComponent(nom));
   const voirPharmacies = async () => {
-    const selection = produits.filter(p => p.nom.trim()).slice(0, 12);
+    const selection = produits.filter(p => p.nom.trim());
     if (!selection.length) return;
+    if (selection.length > 10) { setErreur("Le panier NAXA accepte au maximum 10 médicaments par commande. Retirez des lignes avant de continuer."); return; }
     try {
       if (configurerRappels) {
         const raw = sessionStorage.getItem(CLE_BROUILLON);
@@ -480,7 +496,7 @@ export function ScannerShell() {
       </header>
       <section className="mx-auto max-w-[480px]">
         <p className="mb-4 text-sm leading-5 text-[#53685C]">Vérifiez les noms reconnus. La disponibilité réelle et le statut d’ordonnance sont à confirmer par les données des pharmacies partenaires.</p>
-        {produits.length ? <div className="space-y-3">{produits.map(item => <article key={item.id} className="rounded-[22px] border border-[#DCE8DF] bg-white p-4 shadow-sm">
+        {produits.length ? <div className="space-y-3"><button type="button" onClick={ajouterProduitManuel} disabled={produits.length >= 10} className="min-h-11 w-full rounded-xl border border-dashed border-[#0F6B3F] bg-white px-4 text-sm font-bold text-[#0F6B3F] disabled:opacity-50">+ Ajouter un médicament</button>{produits.map(item => <article key={item.id} className="rounded-[22px] border border-[#DCE8DF] bg-white p-4 shadow-sm"><div className="mb-2 flex justify-end"><button type="button" onClick={() => supprimerProduit(item.id)} className="text-xs font-bold text-red-700 underline">Retirer</button></div>
           <label className="block text-xs font-bold text-[#53685C]">Médicament reconnu
             <input value={item.nom} onChange={e => mettreAJourProduit(item.id, { nom: e.target.value })} maxLength={120} className="mt-2 min-h-12 w-full rounded-xl border border-[#D8E5DC] bg-[#FBFDFC] px-3 text-sm font-bold text-[#0B3D26] outline-none focus:border-[#0F6B3F] focus:ring-4 focus:ring-[#0F6B3F]/10"/>
           </label>
