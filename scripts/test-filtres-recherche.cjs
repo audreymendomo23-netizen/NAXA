@@ -7,6 +7,7 @@ const root = path.join(__dirname, "..");
 const page = fs.readFileSync(path.join(root, "src/app/resultats/page.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261112050000_marketplace_assurance_search_read_models.sql"), "utf8");
 const migrationAssureurActif = fs.readFileSync(path.join(root, "supabase/migrations/20261112051000_marketplace_assurance_active_insurer_guard.sql"), "utf8");
+const migrationRpcSecurity = fs.readFileSync(path.join(root, "supabase/migrations/20261112055000_public_search_rpc_security_hardening.sql"), "utf8");
 
 test("GPS : aucune demande intrusive au chargement ; activation explicite du filtre Distance", () => {
   assert.match(page, /useState<"pending"\|"gps"\|"fallback">\("fallback"\)/);
@@ -50,6 +51,20 @@ test("Assurance : le catalogue utilise une vue publique minimale et les conventi
   assert.match(migration, /p\.archivee_le is null/);
   assert.match(migrationAssureurActif, /join public\.assureurs a on a\.id = c\.assureur_id and a\.actif = true/);
   assert.doesNotMatch(migration, /reference_convention|cree_par/);
+});
+
+test("RPC publics : accès anonyme via SECURITY DEFINER sans ouverture des tables internes", () => {
+  assert.equal((migrationRpcSecurity.match(/security definer/gi) ?? []).length, 2);
+  assert.equal((migrationRpcSecurity.match(/set search_path = ''/gi) ?? []).length, 2);
+  assert.match(migrationRpcSecurity, /extensions\.unaccent/);
+  assert.match(migrationRpcSecurity, /extensions\.similarity/);
+  assert.match(migrationRpcSecurity, /OPERATOR\(extensions\.%\)/);
+  assert.match(migrationRpcSecurity, /ph\.visible_recherche is true/);
+  assert.match(migrationRpcSecurity, /ph\.est_demo is false/);
+  assert.match(migrationRpcSecurity, /ph\.archivee_le is null/);
+  assert.match(migrationRpcSecurity, /grant execute on function public\.search_pharmacies\([\s\S]*to anon, authenticated/i);
+  assert.match(migrationRpcSecurity, /grant execute on function public\.search_pharmacies_bulk\([\s\S]*to anon, authenticated/i);
+  assert.doesNotMatch(migrationRpcSecurity, /grant select on public\.stocks/i);
 });
 
 test("Assurance : les cinq assureurs de référence sont initialisés sans doublon", () => {
