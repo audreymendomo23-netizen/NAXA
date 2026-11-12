@@ -612,6 +612,10 @@ export function SuiviConnecte() {
   async function saveReminder() {
     if (!selectedConsent) { setNotice("Acceptez d’abord le consentement de cette famille."); return; }
     if (reminderTitle.trim().length<2) { setNotice("Donnez un titre au rappel."); return; }
+    const dueAt=new Date(reminderAt);
+    if(!Number.isFinite(dueAt.getTime())||dueAt.getTime()<=Date.now()){
+      setNotice("Choisissez une échéance future pour ce rappel.");return;
+    }
     setBusy(true);
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
