@@ -119,9 +119,11 @@ export default function PharmacienSuiviPatientsPage() {
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
     if (!recipientId) return;
-    const channel=sb.channel("pharmacien-suivi-partages")
+    const channel=sb.channel("professionnel-suivi-partages")
       .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements"},()=>{void loadSharedData(recipientId);})
       .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts"},()=>{void loadSharedData(recipientId);})
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_shares"},()=>{void loadSharedData(recipientId);})
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_care_links"},()=>{void loadSharedData(recipientId);})
       .subscribe();
     const poll=window.setInterval(()=>{void loadSharedData(recipientId);},30000);
     return ()=>{window.clearInterval(poll);void sb.removeChannel(channel);};
