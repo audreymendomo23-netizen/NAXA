@@ -35,7 +35,8 @@ export function ComptaDroitsManager({ rows }: { rows: AccountantAccess[] }) {
         p_autorise: autorise,
       });
       if (rpcError) throw rpcError;
-      if (!data || data.ecriture_autorisee !== autorise || data.lecture_conservee !== true) {
+      const confirmation = data as { ecriture_autorisee?: boolean; lecture_conservee?: boolean } | null;
+      if (!confirmation || confirmation.ecriture_autorisee !== autorise || confirmation.lecture_conservee !== true) {
         throw new Error("La base n’a pas confirmé le changement de droit.");
       }
       setMessage(autorise
