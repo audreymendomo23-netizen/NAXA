@@ -13,6 +13,10 @@ function safeNext(value: string | null) {
   }
 }
 
+function isExamStaffInvitation(value: string) {
+  return /^\/invitation\/personnel-examen\?token=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -73,10 +77,11 @@ export async function GET(request: Request) {
 
   let destination = next;
   if (isGoogleUser) {
-    // Google est exclusivement une méthode d'accès client : un rôle inattendu ne renvoie jamais vers "/".
-    const clientDestination = next.startsWith("/client") ? next : "/client";
+    // Google reste un accès Client ; préserver également le retour sécurisé d'une invitation Examens.
+    const preserveExamInvitation = isExamStaffInvitation(next);
+    const clientDestination = next.startsWith("/client") || preserveExamInvitation ? next : "/client";
     destination = incompleteGoogleClient
-      ? "/completer-profil?next=" + encodeURIComponent("/client")
+      ? "/completer-profil?next=" + encodeURIComponent(clientDestination)
       : clientDestination;
   } else if (next === "/" || next === "/connexion?redirectionRole=1") {
     const espacesParRole: Record<string, string> = {
