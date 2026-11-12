@@ -6,12 +6,13 @@ create temporary table exam_staff_invite_fixture (
   owner_id uuid not null,
   invitee_id uuid not null,
   wrong_user_id uuid not null,
+  pending_user_id uuid not null,
   partner_id uuid not null,
   center_id uuid not null
 ) on commit drop;
 
 insert into exam_staff_invite_fixture
-values (gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),gen_random_uuid());
+values (gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),gen_random_uuid());
 
 grant select on table pg_temp.exam_staff_invite_fixture to authenticated;
 
@@ -32,6 +33,12 @@ select wrong_user_id,'authenticated','authenticated',
   'wrong-'||left(wrong_user_id::text,8)||'@example.invalid',now(),
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"naxa_signup_pending":"true"}'::jsonb,now(),now()
+from exam_staff_invite_fixture
+union all
+select pending_user_id,'authenticated','authenticated',
+  'pending-'||left(pending_user_id::text,8)||'@example.invalid',null,
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"naxa_signup_pending":"true","exam_staff_direct_pending":"true"}'::jsonb,now(),now()
 from exam_staff_invite_fixture;
 
 insert into public.profiles(id,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif)
@@ -57,6 +64,17 @@ set member_role='manager'
 from exam_staff_invite_fixture f
 where pm.partner_id=f.partner_id and pm.user_id=f.owner_id;
 
+create or replace function pg_temp.exam_staff_finish_pending_signup(p_user uuid)
+returns void language plpgsql security definer set search_path=''
+as $function$
+begin
+  update auth.users set email_confirmed_at=now() where id=p_user;
+  insert into public.profiles(id,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif)
+  values(p_user,'pending_'||replace(p_user::text,'-',''),'Pending','Invitee','699000003','CM',date '1990-01-01',true,now(),true);
+end;
+$function$;
+grant execute on function pg_temp.exam_staff_finish_pending_signup(uuid) to authenticated;
+
 create or replace function pg_temp.exam_staff_account_survives(p_user uuid)
 returns boolean language sql security definer set search_path=''
 as $function$
@@ -70,6 +88,9 @@ do $test$
 declare
   f record;
   v_email text;
+  v_pending_email text;
+  v_pending_token uuid;
+  v_pending_result jsonb;
   v_token uuid;
   v_token_again uuid;
   v_invite_id uuid;
@@ -236,6 +257,26 @@ begin
   from public.exam_list_staff_invites(f.center_id)
   where invite_id=v_invite_id;
   if v_count<>0 then raise exception 'Revoked invitation remains pending'; end if;
+
+  v_pending_email:='pending-'||left(f.pending_user_id::text,8)||'@example.invalid';
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
+  v_pending_token:=public.exam_create_staff_invite(f.center_id,v_pending_email,'accueil');
+
+  perform set_config('request.jwt.claim.sub',f.pending_user_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.pending_user_id,'role','authenticated')::text,true);
+  v_rejected:=false;
+  begin
+    perform public.exam_accept_staff_invite(v_pending_token);
+  exception when insufficient_privilege then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Pending Auth account accepted before email confirmation and profile completion'; end if;
+
+  perform pg_temp.exam_staff_finish_pending_signup(f.pending_user_id);
+  v_pending_result:=public.exam_accept_staff_invite(v_pending_token);
+  if coalesce((v_pending_result->>'accepted')::boolean,false) is not true then
+    raise exception 'Directly provisioned pending account could not accept after completing signup';
+  end if;
 end
 $test$;
 
