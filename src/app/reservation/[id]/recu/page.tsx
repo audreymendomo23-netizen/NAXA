@@ -172,7 +172,10 @@ export default function Recu() {
           <section className="rounded-xl border p-4 text-sm">
             <p><strong>Ticket de caisse :</strong> {ticket.sale.numero_vente ?? ticket.reservation.ticket_numero_snapshot ?? "—"}</p>
             <p><strong>Référence transaction :</strong> {id.toUpperCase()}</p>
-            <p><strong>Pharmacie :</strong> {d.pharmacie}</p>\n            <p><strong>Caisse :</strong> {ticket.sale.caisse_nom || (ticket.sale.caisse_id ? `Caisse ${ticket.sale.caisse_id.slice(0, 8).toUpperCase()}` : ticket.sale.caisse_session_id ? `Session ${ticket.sale.caisse_session_id.slice(0, 8).toUpperCase()}` : "Non renseignée")}</p>\n            <p><strong>Code manuel de réservation :</strong> <span className="font-mono text-lg font-extrabold tracking-widest">{d.codeManuel}</span></p>\n            <div className="mt-3 flex flex-col items-center border-t pt-3"><img src={d.qrDataUrl} alt="QR code de la réservation" width={220} height={220} /><p className="text-xs text-slate-600">Scanner pour ouvrir les détails de la réservation et du reçu.</p></div>
+            <p><strong>Pharmacie :</strong> {d.pharmacie}</p>
+            <p><strong>Caisse :</strong> {ticket.sale.caisse_nom || (ticket.sale.caisse_id ? `Caisse ${ticket.sale.caisse_id.slice(0, 8).toUpperCase()}` : ticket.sale.caisse_session_id ? `Session ${ticket.sale.caisse_session_id.slice(0, 8).toUpperCase()}` : "Non renseignée")}</p>
+            <p><strong>Code manuel de réservation :</strong> <span className="font-mono text-lg font-extrabold tracking-widest">{d.codeManuel}</span></p>
+            <div className="mt-3 flex flex-col items-center border-t pt-3"><img src={d.qrDataUrl} alt="QR code de la réservation" width={220} height={220} /><p className="text-xs text-slate-600">Scanner pour ouvrir les détails de la réservation et du reçu.</p></div>
             <p><strong>Vente créée :</strong> {dateFr(ticket.sale.created_at)}</p>
             <p><strong>Paiement validé :</strong> {dateFr(ticket.sale.paid_at ?? ticket.reservation.paiement_valide_at)}</p>
             <p><strong>Statut de la vente POS :</strong> PAYÉE</p>
