@@ -56,7 +56,7 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 
 ## Vérifications / limites de preuve
 
-- Replay Supabase : les huit migrations de fraîcheur sont appliquées ; les tests SQL 300 à 304 retournent PASS.
+- Replay Supabase : les sept migrations de fraîcheur sont appliquées ; les tests SQL 300 à 304 retournent PASS.
 - Un test transactionnel vérifie qu'une modification de prix ne renouvelle pas l'horodatage du dernier mouvement physique.
 - Un test transactionnel vérifie le seuil inclusif : 48 h = visible ; 48 h + 1 seconde = masqué.
 - Les trois parcours de recherche (simple, groupé, panier) ont été vérifiés en base : ils appellent le calcul commun du stock vendable.
