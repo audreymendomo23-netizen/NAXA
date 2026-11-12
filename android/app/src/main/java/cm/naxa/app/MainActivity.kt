@@ -94,7 +94,9 @@ class MainActivity : Activity() {
         }
         web.addJavascriptInterface(NaxaBridge(), "NaxaAndroid")
         setContentView(web)
-        web.loadUrl(BuildConfig.NAXA_BASE_URL + "/suivi")
+        NaxaReminderScheduler.ensureChannel(this)
+        NaxaReminderScheduler.scheduleAll(this)
+        web.loadUrl(BuildConfig.NAXA_BASE_URL + (intent.getStringExtra("openPath") ?: "/suivi"))
     }
 
     inner class NaxaBridge {
@@ -116,6 +118,29 @@ class MainActivity : Activity() {
             runOnUiThread { ensureBluetoothPermissionsAndReconnect() }
         }
         @JavascriptInterface fun stopScan() { runOnUiThread { stopBleScan() } }
+        @JavascriptInterface fun requestNotifications() {
+            runOnUiThread {
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 704)
+                else NaxaReminderScheduler.ensureChannel(this@MainActivity)
+            }
+        }
+        @JavascriptInterface fun scheduleMeasurementReminder(raw: String) {
+            runOnUiThread {
+                NaxaReminderScheduler.ensureChannel(this@MainActivity)
+                NaxaReminderScheduler.save(this@MainActivity, raw.take(4000))
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 704)
+            }
+        }
+        @JavascriptInterface fun cancelMeasurementReminder(id: String) {
+            runOnUiThread { NaxaReminderScheduler.remove(this@MainActivity, id.take(120)) }
+        }
+        @JavascriptInterface fun updateMeasurementFreshness(measurementType: String, timestampMillis: Long) {
+            NaxaReminderScheduler.updateFreshness(this@MainActivity, measurementType.take(100), timestampMillis)
+        }
     }
 
     private fun ensureBluetoothPermissionsAndScan() {
@@ -167,6 +192,10 @@ class MainActivity : Activity() {
         } else if (requestCode == 702) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) ensureBluetoothPermissionsAndReconnect()
             else emit("error", deviceId = pendingReconnectAddress, message = "Autorisation Bluetooth nécessaire pour reconnecter l'appareil.")
+        } else if (requestCode == 704) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                NaxaReminderScheduler.ensureChannel(this)
+            }
         }
     }
 
