@@ -57,6 +57,13 @@ set member_role='manager'
 from exam_staff_invite_fixture f
 where pm.partner_id=f.partner_id and pm.user_id=f.owner_id;
 
+create or replace function pg_temp.exam_staff_account_survives(p_user uuid)
+returns boolean language sql security definer set search_path=''
+as $function$
+  select exists(select 1 from auth.users where id=p_user)
+     and exists(select 1 from public.profiles where id=p_user and actif is true);
+$function$;
+
 set local role authenticated;
 
 do $test$
@@ -197,12 +204,9 @@ begin
     and role_key='technicien_laboratoire' and is_active;
   if not found then raise exception 'Assignment revocation failed'; end if;
 
-  select count(*) into v_count from public.profiles
-  where id=f.invitee_id and actif is true;
-  if v_count<>1 then raise exception 'Revoking an assignment must preserve the active NAXA profile'; end if;
-
-  select count(*) into v_count from auth.users where id=f.invitee_id;
-  if v_count<>1 then raise exception 'Revoking an assignment must never delete the Auth account'; end if;
+  if not pg_temp.exam_staff_account_survives(f.invitee_id) then
+    raise exception 'Revoking an assignment must preserve the active NAXA profile and Auth account';
+  end if;
 
   select count(*) into v_count from public.exam_staff_assignments
   where center_id=f.center_id and user_id=f.invitee_id
