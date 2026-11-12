@@ -266,9 +266,17 @@ class MainActivity : Activity() {
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             emitMeasurement(gatt, characteristic, value)
         }
+        @Deprecated("Android callback compatibility")
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            handleCharacteristicRead(gatt, characteristic, characteristic.value ?: byteArrayOf(), status)
+        }
+
+        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
+            handleCharacteristicRead(gatt, characteristic, value, status)
+        }
+
+        private fun handleCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, bytes: ByteArray, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                val bytes = characteristic.value ?: byteArrayOf()
                 val short = characteristic.uuid.toString().substring(4, 8).uppercase()
                 when (short) {
                     "2A29" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "manufacturer", metadataValue = String(bytes, Charsets.UTF_8).trim())
