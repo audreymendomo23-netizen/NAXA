@@ -7,6 +7,7 @@ import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
 import { SuiviPatientClinicalRecord } from "@/components/suivi/SuiviPatientClinicalRecord";
 import { OPTIONAL_GATT_SERVICES, decodeStandardGattMeasurement } from "@/lib/suivi/ble-protocols";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { enqueueSuiviMeasurements, listQueuedSuiviMeasurements, removeQueuedSuiviMeasurements } from "@/lib/suivi/measurement-outbox";
 
 type Family = "constantes" | "metabolisme" | "activite" | "sommeil" | "bien_etre" | "traitements";
 type TrackType = { key: string; label: string; unit: string; family: Family; numeric: boolean };
@@ -91,6 +92,7 @@ function AnimatedCounter({ value }: { value: number }) {
 
 export function SuiviConnecte() {
   const sb = useMemo(() => supabaseBrowser(), []);
+  const outboxSyncInProgress = useRef(false);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [online, setOnline] = useState(true);
   const [consents, setConsents] = useState<Record<string, boolean>>({});
@@ -350,7 +352,11 @@ export function SuiviConnecte() {
             source:"bluetooth",device_model_snapshot:row!.name,note:null
           }));
           const {error}=await sb.from("suivi_measurements").insert(rows);
-          if(error)throw error;
+          if(error){
+            await enqueueSuiviMeasurements(rows);
+            setNotice("Mesure conservée sur cet appareil. Elle sera synchronisée automatiquement au retour du réseau.");
+            return;
+          }
           for(const measurement of allowed){
             (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now(),row!.id);
           }
@@ -510,6 +516,67 @@ export function SuiviConnecte() {
   useEffect(() => {
     try { window.localStorage.setItem("naxa-suivi-accent", accent); } catch { /* Le choix reste actif pour la session courante. */ }
   }, [accent]);
+  useEffect(() => {
+    let cancelled = false;
+    const syncOutbox = async () => {
+      if (!navigator.onLine || outboxSyncInProgress.current) return;
+      outboxSyncInProgress.current = true;
+      try {
+        const { data } = await sb.auth.getUser();
+        const user = data.user;
+        if (!user || cancelled) return;
+        const pending = await listQueuedSuiviMeasurements(user.id);
+        if (!pending.length || cancelled) return;
+        const permitted = pending.filter(entry => {
+          const family = types.find(type => type.key === entry.row.measurement_type)?.family;
+          return !!family && !!consents[family];
+        });
+        const revoked = pending.filter(entry => !permitted.some(item => item.eventId === entry.eventId));
+        if (revoked.length) await removeQueuedSuiviMeasurements(revoked.map(entry => entry.eventId));
+        for (let offset = 0; offset < permitted.length; offset += 40) {
+          if (cancelled || !navigator.onLine) break;
+          const batch = permitted.slice(offset, offset + 40);
+          const { error } = await sb.from("suivi_measurements").insert(batch.map(entry => entry.row));
+          if (error) break;
+          await removeQueuedSuiviMeasurements(batch.map(entry => entry.eventId));
+          const byDevice = new Map<string, string>();
+          for (const entry of batch) {
+            const current = byDevice.get(entry.row.device_id);
+            if (!current || current < entry.row.received_at) byDevice.set(entry.row.device_id, entry.row.received_at);
+          }
+          for (const [deviceId, lastAt] of byDevice) {
+            await sb.from("suivi_user_devices").update({
+              last_sync_at: lastAt, last_measurement_at: lastAt, last_seen_at: new Date().toISOString(),
+              connection_state: "connected", last_error: null, updated_at: new Date().toISOString()
+            }).eq("id", deviceId).eq("user_id", user.id);
+          }
+        }
+        if (!cancelled) {
+          const remaining = await listQueuedSuiviMeasurements(user.id);
+          if (!remaining.length) {
+            setNotice("Toutes les mesures conservées hors ligne sont maintenant synchronisées.");
+            void load();
+          } else {
+            setNotice(remaining.length + " mesure(s) en attente de synchronisation.");
+          }
+        }
+      } catch {
+        // La file reste intacte; la prochaine reconnexion relancera la synchronisation.
+      } finally {
+        outboxSyncInProgress.current = false;
+      }
+    };
+    const retry = () => { void syncOutbox(); };
+    retry();
+    window.addEventListener("online", retry);
+    document.addEventListener("visibilitychange", retry);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", retry);
+      document.removeEventListener("visibilitychange", retry);
+    };
+  }, [sb, consents, load]);
+
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     update();
@@ -1296,7 +1363,8 @@ export function SuiviConnecte() {
       }));
       const {error:insertError}=await sb.from("suivi_measurements").insert(rows);
       if(insertError) {
-        setNotice("Mesure reçue, mais son enregistrement serveur a échoué. Vérifiez que la migration de synchronisation multi-appareils est appliquée.");
+        await enqueueSuiviMeasurements(rows);
+        setNotice("Mesure conservée localement. NAXA la synchronisera automatiquement dès que la connexion sera rétablie.");
         return;
       }
       for(const measurement of measurements){
