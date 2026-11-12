@@ -209,18 +209,15 @@ export async function GET(request:Request) {
       .eq("id",item.patient_user_id).maybeSingle();
     let authorized=!!consent?.granted&&!consent?.revoked_at&&patientAccount?.actif===true;
     if(authorized&&item.recipient_user_id!==item.patient_user_id){
-      const [shareResult,linkResult,professionalResult,recipientAccount]=await Promise.all([
+      const [shareResult,professionalResult,recipientAccount]=await Promise.all([
         db.from("suivi_shares").select("id").eq("owner_user_id",item.patient_user_id)
           .eq("recipient_user_id",item.recipient_user_id).eq("measurement_type",item.measurement_type)
           .eq("active",true).eq("allow_alerts",true).is("revoked_at",null).maybeSingle(),
-        db.from("suivi_care_links").select("id").eq("patient_user_id",item.patient_user_id)
-          .eq("professional_user_id",item.recipient_user_id).eq("active",true)
-          .eq("alerts_access",true).is("revoked_at",null).maybeSingle(),
         db.rpc("suivi_is_verified_professional",{p_user_id:item.recipient_user_id}),
         db.from("profiles").select("actif").eq("id",item.recipient_user_id).maybeSingle()
       ]);
       authorized=professionalResult.data===true&&recipientAccount.data?.actif===true
-        &&(!shareResult.error&&!!shareResult.data||!linkResult.error&&!!linkResult.data);
+        &&!shareResult.error&&!!shareResult.data;
     }
     if(!authorized){
       await db.from("suivi_push_outbox").update({
