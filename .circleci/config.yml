@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   quality:
     docker:
-      - image: cimg/node:20.14
+      - image: cimg/node:22.23.4
     environment:
       NEXT_PUBLIC_SUPABASE_URL: https://build-test.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-anon-key
