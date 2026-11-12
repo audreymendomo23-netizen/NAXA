@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
+import { sendFcmToUser } from "@/lib/firebase/fcm";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Body = { filId?: string; messageId?: string };
@@ -37,23 +38,37 @@ export async function POST(request: Request) {
     } else return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
     const publicKey = process.env.NAXA_VAPID_PUBLIC_KEY;
     const privateKey = process.env.NAXA_VAPID_PRIVATE_KEY;
-    if (!publicKey || !privateKey || recipients.length === 0) return NextResponse.json({ ok: true, sent: 0, reason: "Push non configuré ou destinataire indisponible." });
-    webpush.setVapidDetails(process.env.NAXA_VAPID_SUBJECT || "mailto:naxa.home@gmail.com", publicKey, privateKey);
-    const { data: subscriptions, error: subscriptionError } = await admin.from("naxa_push_subscriptions").select("endpoint,subscription").in("user_id", recipients);
-    if (subscriptionError) return NextResponse.json({ error: "Abonnements Push indisponibles." }, { status: 503 });
+    if (recipients.length === 0) return NextResponse.json({ ok: true, sent: 0, fcmSent: 0 });
     const title = message.expediteur === "client" ? (fil.anonyme ? "Nouveau message — client anonyme" : "Nouveau message client") : "Nouvelle réponse de la pharmacie";
     const url = message.expediteur === "client" ? "/pharmacie/messages" : "/client/messages";
     let sent = 0;
-    await Promise.all((subscriptions ?? []).map(async (item: { endpoint: string; subscription: webpush.PushSubscription }) => {
-      try {
-        await webpush.sendNotification(item.subscription, JSON.stringify({ title, body: "Nouveau message reçu. Ouvrez NAXA pour le consulter.", url, tag: "naxa-message-" + body.messageId }));
-        sent++;
-      } catch (error) {
-        const status = (error as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) await admin.from("naxa_push_subscriptions").delete().eq("endpoint", item.endpoint);
-      }
-    }));
-    return NextResponse.json({ ok: true, sent });
+    if (publicKey && privateKey) {
+      webpush.setVapidDetails(process.env.NAXA_VAPID_SUBJECT || "mailto:naxa.home@gmail.com", publicKey, privateKey);
+      const { data: subscriptions, error: subscriptionError } = await admin.from("naxa_push_subscriptions")
+        .select("endpoint,subscription").in("user_id", recipients);
+      if (subscriptionError) return NextResponse.json({ error: "Abonnements Push indisponibles." }, { status: 503 });
+      await Promise.all((subscriptions ?? []).map(async (item: { endpoint: string; subscription: webpush.PushSubscription }) => {
+        try {
+          await webpush.sendNotification(item.subscription, JSON.stringify({
+            title, body: "Nouveau message reçu. Ouvrez NAXA pour le consulter.", url,
+            tag: "naxa-message-" + body.messageId
+          }));
+          sent++;
+        } catch (error) {
+          const status = (error as { statusCode?: number }).statusCode;
+          if (status === 404 || status === 410) await admin.from("naxa_push_subscriptions").delete().eq("endpoint", item.endpoint);
+        }
+      }));
+    }
+    let fcmSent = 0, fcmFailed = 0;
+    for (const recipient of recipients) {
+      const result = await sendFcmToUser(admin, recipient, {
+        title, body: "Nouveau message reçu. Ouvrez NAXA pour le consulter.", url,
+        tag: "naxa-message-" + body.messageId
+      });
+      fcmSent += result.sent; fcmFailed += result.failed;
+    }
+    return NextResponse.json({ ok: true, sent, fcmSent, fcmFailed });
   } catch {
     return NextResponse.json({ error: "Impossible d’envoyer la notification pour le moment." }, { status: 500 });
   }
