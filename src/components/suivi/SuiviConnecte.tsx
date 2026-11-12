@@ -550,6 +550,7 @@ export function SuiviConnecte() {
       for(const instance of instances.filter(item=>item.active&&item.platform_device_id)){
         (window as any).NaxaAndroid?.disconnect(instance.platform_device_id!);
         nativeDeviceRows.current.delete(instance.platform_device_id!);
+        nativeReconnectRequested.current.delete(instance.platform_device_id!);
         const session=bluetoothSessions.current.get(instance.platform_device_id!);
         if(!session)continue;
         if(session.retryTimer)window.clearTimeout(session.retryTimer);
@@ -632,6 +633,7 @@ export function SuiviConnecte() {
       for(const device of devices.filter(entry=>keys.includes(entry.device_key)&&entry.platform_device_id)){
         (window as any).NaxaAndroid?.disconnect(device.platform_device_id);
         nativeDeviceRows.current.delete(device.platform_device_id!);
+        nativeReconnectRequested.current.delete(device.platform_device_id!);
       }
       for(const [deviceId,session] of bluetoothSessions.current.entries()){
         const saved=devices.find(device=>device.platform_device_id===deviceId);
@@ -933,6 +935,7 @@ export function SuiviConnecte() {
     if(instance.platform_device_id){
       (window as any).NaxaAndroid?.disconnect(instance.platform_device_id);
       nativeDeviceRows.current.delete(instance.platform_device_id);
+      nativeReconnectRequested.current.delete(instance.platform_device_id);
     }
     const session=instance.platform_device_id?bluetoothSessions.current.get(instance.platform_device_id):undefined;
     if(session){
