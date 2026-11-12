@@ -14,6 +14,7 @@ const STANDARD_GATT_CHARACTERISTICS = {
   weight: { service: "weight_scale", characteristic: "weight_measurement" },
   body_composition: { service: "body_composition", characteristic: "body_composition_measurement" },
   running_speed: { service: "running_speed_cadence", characteristic: "rsc_measurement" },
+  indoor_bike: { service: "fitness_machine", characteristic: "indoor_bike_data" },
 };
 
 function requireBytes(data, length, label) {
@@ -234,6 +235,47 @@ function parseRunningSpeedCadence(data) {
   return values;
 }
 
+function parseIndoorBikeData(data) {
+  requireBytes(data, 2, "Indoor Bike Data");
+  const flags = data.getUint16(0, true);
+  let offset = 2;
+  const values = [];
+  // Bit 0 means the instantaneous speed field is omitted from this packet.
+  if (!(flags & 1)) {
+    requireBytes(data, offset + 2, "Indoor Bike instantaneous speed");
+    const speedKmh = data.getUint16(offset, true) / 100;
+    offset += 2;
+    if (speedKmh >= 0 && speedKmh <= 100) {
+      values.push({ measurement_type: "vitesse_course", value_numeric: Number((speedKmh / 3.6).toFixed(3)), unit: "m/s", measured_at: null });
+    }
+  }
+  const skip = (length, label) => { requireBytes(data, offset + length, label); offset += length; };
+  if (flags & 0x0002) skip(2, "Indoor Bike average speed");
+  if (flags & 0x0004) {
+    requireBytes(data, offset + 2, "Indoor Bike cadence");
+    const cadence = data.getUint16(offset, true) / 2;
+    offset += 2;
+    if (cadence >= 0 && cadence <= 250) {
+      values.push({ measurement_type: "cadence_course", value_numeric: Number(cadence.toFixed(1)), unit: "tr/min", measured_at: null });
+    }
+  }
+  if (flags & 0x0008) skip(2, "Indoor Bike average cadence");
+  if (flags & 0x0010) skip(3, "Indoor Bike total distance");
+  if (flags & 0x0020) skip(2, "Indoor Bike resistance");
+  if (flags & 0x0040) skip(2, "Indoor Bike instantaneous power");
+  if (flags & 0x0080) skip(2, "Indoor Bike average power");
+  if (flags & 0x0100) skip(5, "Indoor Bike energy");
+  if (flags & 0x0200) {
+    requireBytes(data, offset + 1, "Indoor Bike heart rate");
+    const bpm = data.getUint8(offset++);
+    if (bpm > 0 && bpm <= 250) values.push(...result("frequence_cardiaque", bpm, "bpm"));
+  }
+  if (flags & 0x0400) skip(1, "Indoor Bike metabolic equivalent");
+  if (flags & 0x0800) skip(2, "Indoor Bike elapsed time");
+  if (flags & 0x1000) skip(2, "Indoor Bike remaining time");
+  return values;
+}
+
 function decodeStandardGattMeasurement(serviceId, characteristicId, data) {
   const service = String(serviceId || "").toLowerCase().replace(/^0x/, "");
   const characteristic = String(characteristicId || "").toLowerCase().replace(/^0x/, "");
@@ -244,6 +286,7 @@ function decodeStandardGattMeasurement(serviceId, characteristicId, data) {
   if (service === "1808" || service === "glucose") if (characteristic === "2a18" || characteristic === "glucose_measurement") return parseGlucose(data);
   
   if (service === "1814" || service === "running_speed_cadence") if (characteristic === "2a53" || characteristic === "rsc_measurement") return parseRunningSpeedCadence(data);
+  if (service === "1826" || service === "fitness_machine") if (characteristic === "2ad2" || characteristic === "indoor_bike_data") return parseIndoorBikeData(data);
   if (service === "181b" || service === "body_composition") if (characteristic === "2a9c" || characteristic === "body_composition_measurement") return parseBodyComposition(data);
   if (service === "181d" || service === "weight_scale") if (characteristic === "2a9d" || characteristic === "weight_measurement") return parseWeight(data);
   throw new Error("No verified decoder for GATT " + service + "/" + characteristic);
