@@ -56,7 +56,7 @@ test("Assurance : les cinq assureurs de référence sont initialisés sans doubl
 });
 
 test("Notifications : distance et prix sont calculés uniquement depuis les pharmacies filtrées", () => {
-  assert.match(page, /const meilleureOffre=useMemo\(\(\)=>filtered\.length/);
+  assert.match(page, /const meilleureOffre=useMemo\(\(\)=>pharmaciesPanierComplet\.length/);
   assert.match(page, /\[\.\.\.filtered\]\.sort\(\(a,b\)=>Number\(a\.distance_km\)-Number\(b\.distance_km\)\)/);
   assert.match(page, /Math\.round\(Number\(nearest\.distance_km\)\*1000\)/);
   assert.match(page, /totalPrix\(meilleureOffre\)/);
