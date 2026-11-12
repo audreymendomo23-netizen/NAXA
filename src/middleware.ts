@@ -77,7 +77,13 @@ export async function middleware(req: NextRequest) {
     { prefix: "/partenaire/prestations", slug: "prestations" },
     { prefix: "/suivi", slug: "suivi" },
   ];
-  let universVerrouillable = universParcours.find(
+  // L'accréditation et l'espace professionnel du suivi privé ne sont pas
+  // l'univers commercial public. Ils restent protégés par l'authentification,
+  // le flag suivi_connecte, l'agrément et les politiques RLS.
+  const suiviProfessionalWorkflow =
+    path === "/suivi/professionnel" ||
+    path.startsWith("/suivi/professionnel/");
+  let universVerrouillable = suiviProfessionalWorkflow ? undefined : universParcours.find(
     (item) => path === item.prefix || path.startsWith(item.prefix + "/")
   );
   if (path === "/partenaire/catalogue" || path.startsWith("/partenaire/catalogue/")) {
