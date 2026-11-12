@@ -29,6 +29,7 @@ type Caisse = { id: string; nom: string };
 type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string; ouvert_par: string };
 type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
 type PaiementTicket = { montant_percu: number | null; monnaie_rendue: number | null; montant: number; mode: string };
+type AssuranceTicket = { assureur: string; montant_total: number; montant_prise_en_charge: number; montant_client: number; montant_rembourse: number; statut: string };
 type TicketLigne = {
   vente_id: string;
   numero_vente: string;
@@ -82,6 +83,25 @@ export default function CaissePage() {
   const [paiementTicket, setPaiementTicket] = useState<PaiementTicket | null>(null);
   const [historique, setHistorique] = useState<VenteHistorique[]>([]);
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
+  const [assuranceTicket, setAssuranceTicket] = useState<AssuranceTicket | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!ticket?.length) { setAssuranceTicket(null); return () => { active = false; }; }
+    void (async () => {
+      const { data: dossier, error } = await sb.from("dossiers_assurance")
+        .select("id,couverture_id,montant_total,montant_prise_en_charge,montant_client,montant_rembourse,statut")
+        .eq("vente_id", ticket[0].vente_id).maybeSingle();
+      if (!active) return;
+      if (error || !dossier) { setAssuranceTicket(null); return; }
+      const { data: couverture } = await sb.from("couvertures_assurance").select("assureur_id").eq("id", dossier.couverture_id).maybeSingle();
+      const { data: assureur } = couverture?.assureur_id
+        ? await sb.from("assureurs").select("nom").eq("id", couverture.assureur_id).maybeSingle()
+        : { data: null };
+      if (active) setAssuranceTicket({ assureur: assureur?.nom ?? "Assureur", montant_total: Number(dossier.montant_total), montant_prise_en_charge: Number(dossier.montant_prise_en_charge), montant_client: Number(dossier.montant_client), montant_rembourse: Number(dossier.montant_rembourse ?? 0), statut: dossier.statut });
+    })();
+    return () => { active = false; };
+  }, [ticket, sb]);
 
   const chargerVenteBrouillon = useCallback(async (sessionId: string, userId: string): Promise<boolean> => {
     const { data: draft, error } = await sb.from("ventes")
@@ -700,6 +720,15 @@ export default function CaissePage() {
           <div className="flex justify-between text-sm"><span>Sous-total</span><span>{fcfa(ticket[0].total_brut)}</span></div>
           {ticket[0].remise > 0 && <div className="flex justify-between text-sm"><span>Remise</span><span>-{fcfa(ticket[0].remise)}</span></div>}
           <div className="mt-2 flex justify-between text-lg font-extrabold"><span>Total payé</span><span>{fcfa(ticket[0].total_net)}</span></div>
+          {assuranceTicket && <div className="mt-3 space-y-1 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+            <p className="font-extrabold">Prise en charge · {assuranceTicket.assureur}</p>
+            <div className="flex justify-between"><span>Montant brut assuré</span><strong>{fcfa(assuranceTicket.montant_total)}</strong></div>
+            <div className="flex justify-between"><span>Part assureur (créance)</span><strong>{fcfa(assuranceTicket.montant_prise_en_charge)}</strong></div>
+            <div className="flex justify-between"><span>Part client</span><strong>{fcfa(assuranceTicket.montant_client)}</strong></div>
+            <div className="flex justify-between"><span>Remboursements réellement reçus</span><strong>{fcfa(assuranceTicket.montant_rembourse)}</strong></div>
+            <div className="flex justify-between font-extrabold"><span>Créance restante</span><strong>{fcfa(Math.max(0,assuranceTicket.montant_prise_en_charge-assuranceTicket.montant_rembourse))}</strong></div>
+            <p className="text-xs text-slate-600">La part assureur n’est pas comptée comme encaissée avant réception effective.</p>
+          </div>}
           <div className="mt-3 space-y-1 text-sm"><div className="flex justify-between"><span>Mode de paiement</span><span>{paiementTicket?.mode === "especes" ? "Espèces" : ticket[0].mode_paiement ?? "—"}</span></div>{paiementTicket?.montant_percu != null && <div className="flex justify-between"><span>Montant reçu</span><span>{fcfa(paiementTicket.montant_percu)}</span></div>}{paiementTicket?.monnaie_rendue != null && <div className="flex justify-between font-bold"><span>Monnaie rendue</span><span>{fcfa(paiementTicket.monnaie_rendue)}</span></div>}</div><p className="mt-3 text-center text-xs">Merci de votre confiance.</p>
           <div className="mt-4 flex justify-center gap-2 print:hidden"><button className="btn btn-vert" onClick={() => void printAfterImagesLoaded(document.querySelector(".ticket-print") ?? document)}>Imprimer le ticket</button><button className="btn btn-clair" onClick={() => { setTicket(null); setPaiementTicket(null); }}>Fermer</button></div>
         </section>
