@@ -108,7 +108,7 @@ begin
   join public.reservations r on r.id = ri.reservation_id
   where r.pharmacie_id = p_pharmacie
     and ri.produit_id = p_produit
-    and r.mode = 'reservation'
+    and r.mode in ('reservation', 'commande')
     and r.statut in ('en_attente', 'confirmee')
     and r.expires_at > now()
     and r.consumed_at is null
