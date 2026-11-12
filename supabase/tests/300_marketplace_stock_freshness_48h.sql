@@ -10,13 +10,18 @@ begin
   select pg_get_functiondef('private.reserve_stock(uuid,jsonb)'::regprocedure)
     into v_reserve;
 
-  if position('v_stock.updated_at is null' in v_offer) = 0
+  if position('marketplace_stock_last_quantity_update' in v_offer) = 0
      or position('interval ''48 hours''' in v_offer) = 0
      or position('clock_timestamp()' in v_offer) = 0 then
     raise exception 'MARKETPLACE_STOCK_FRESHNESS_FILTER_MISSING';
   end if;
 
-  if position('v_stock_updated_at is null' in v_reserve) = 0
+  if position('stock_manager_movement_journal' in pg_get_functiondef('private.marketplace_stock_last_quantity_update(uuid,uuid)'::regprocedure)) = 0
+     or position('event_type in (''creation'', ''quantite'', ''suppression'')' in pg_get_functiondef('private.marketplace_stock_last_quantity_update(uuid,uuid)'::regprocedure)) = 0 then
+    raise exception 'MARKETPLACE_FRESHNESS_MUST_USE_PHYSICAL_QUANTITY_JOURNAL';
+  end if;
+
+  if position('marketplace_stock_last_quantity_update' in v_reserve) = 0
      or position('interval ''48 hours''' in v_reserve) = 0
      or position('for update' in v_reserve) = 0 then
     raise exception 'RESERVATION_STOCK_FRESHNESS_GUARD_MISSING';
