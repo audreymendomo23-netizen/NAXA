@@ -77,8 +77,9 @@ async function findAuthUserByEmail(admin:ReturnType<typeof supabaseAdmin>,email:
 async function sendExamStaffActivationEmail(email:string,token:string){
   const endpoint=process.env.GOOGLE_APPS_SCRIPT_URL;
   const secret=process.env.GOOGLE_APPS_SCRIPT_SECRET;
-  const siteUrl=process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/,"");
-  if(!endpoint||!secret) throw new Error("Passerelle e-mail non configurée");
+  const configuredSiteUrl=process.env.NEXT_PUBLIC_SITE_URL;
+  if(!endpoint||!secret||!configuredSiteUrl) throw new Error("Passerelle e-mail ou URL publique non configurée");
+  const siteUrl=configuredSiteUrl.replace(/\/$/,"");
   const base=new URL(siteUrl);
   if(base.protocol!=="https:") throw new Error("URL publique HTTPS requise");
   const destination="/creation-compte?retour="+encodeURIComponent("/invitation/personnel-examen?token="+encodeURIComponent(token));
