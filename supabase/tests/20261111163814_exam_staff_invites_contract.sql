@@ -82,6 +82,17 @@ as $function$
      and exists(select 1 from public.profiles where id=p_user and actif is true);
 $function$;
 
+create or replace function pg_temp.exam_staff_expire_invite(p_token uuid)
+returns void language plpgsql security definer set search_path=''
+as $function$
+begin
+  update public.exam_staff_invites
+     set expires_at=now()-interval '1 second'
+   where token=p_token;
+end;
+$function$;
+grant execute on function pg_temp.exam_staff_expire_invite(uuid) to authenticated;
+
 set local role authenticated;
 
 do $test$
@@ -285,9 +296,7 @@ begin
   v_expired_token:=public.exam_create_staff_invite(
     f.center_id,'expired-'||left(f.owner_id::text,8)||'@example.invalid','accueil'
   );
-  update public.exam_staff_invites
-     set expires_at=now()-interval '1 second'
-   where token=v_expired_token;
+  perform pg_temp.exam_staff_expire_invite(v_expired_token);
   v_rejected:=false;
   begin
     perform public.exam_accept_staff_invite(v_expired_token);
