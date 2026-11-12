@@ -224,7 +224,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 const primary = imageVariants.boite ?? imageVariants.comprime;
                 if (!primary || controller.signal.aborted) continue;
                 const sourceName = primary.provider === "cima_aemps"
-                  ? "AEMPS / CIMA"
+                  ? "AEMPS / CIMA (Espagne) — référence visuelle indicative, non preuve d’AMM ou de présentation camerounaise"
                   : primary.provider === "open_products_facts"
                     ? "Open Products Facts"
                     : primary.provider === "catalogue_local_verifie"
