@@ -17,7 +17,7 @@ begin
   if v_patient is null or not public.suivi_is_enabled_user(v_patient) then
     raise exception 'Session patient invalide';
   end if;
-  if p_family not in ('constantes','metabolisme','activite','sommeil','bien_etre','traitements')
+  if p_family is null or p_family not in ('constantes','metabolisme','activite','sommeil','bien_etre','traitements')
      or p_granted is null then
     raise exception 'Famille de consentement invalide';
   end if;
