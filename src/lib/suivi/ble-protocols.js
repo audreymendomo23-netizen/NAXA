@@ -247,7 +247,7 @@ function parseIndoorBikeData(data) {
     const speedKmh = data.getUint16(offset, true) / 100;
     offset += 2;
     if (speedKmh >= 0 && speedKmh <= 100) {
-      values.push({ measurement_type: "vitesse_course", value_numeric: Number((speedKmh / 3.6).toFixed(3)), unit: "m/s", measured_at: null });
+      values.push({ measurement_type: "vitesse_cyclisme", value_numeric: Number(speedKmh.toFixed(2)), unit: "km/h", measured_at: null });
     }
   }
   const skip = (length, label) => { requireBytes(data, offset + length, label); offset += length; };
