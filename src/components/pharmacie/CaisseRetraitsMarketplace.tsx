@@ -37,6 +37,7 @@ type Receipt = {
   canal: string;
   date: string;
   items: ReservationItem[];
+  assurance: {assureur:string;partAssureur:number;partClient:number}|null;
 };
 const channels = [
   { value: "especes", label: "Espèces au retrait" },
@@ -97,6 +98,7 @@ export function CaisseRetraitsMarketplace({
   const load = useCallback(async () => {
     if (!pharmacieId) {
       setRows([]);
+      setAssuranceByReservation({});
       setLoading(false);
       return;
     }
@@ -115,10 +117,12 @@ export function CaisseRetraitsMarketplace({
       setError("Impossible de charger les réservations de cette pharmacie. Aucune action n’a été effectuée.");
       setRows([]);
     } else {
-      setRows((data ?? []) as unknown as Reservation[]);
+      const reservations=(data ?? []) as unknown as Reservation[];
+      setRows(reservations);
+      await chargerAssurances(reservations.map(x=>x.id));
     }
     setLoading(false);
-  }, [pharmacieId]);
+  }, [pharmacieId,chargerAssurances]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -403,8 +407,9 @@ export function CaisseRetraitsMarketplace({
                       <input className="champ mt-1 w-full" type="number" min={clientDue} step="1" inputMode="numeric" value={received[row.id] ?? String(clientDue)} onChange={(event) => setReceived((current) => ({ ...current, [row.id]: event.target.value }))} disabled={!sessionId || !!busyId} />
                     </label>
                     <div className="rounded-xl bg-slate-50 p-3 text-sm sm:col-span-2">
-                      <p>Montant du reçu : <strong>{fcfa(row.total)}</strong></p>
-                      <p>Monnaie à rendre : <strong>{fcfa(channel === "especes" ? Math.max(Number(received[row.id] ?? row.total) - row.total, 0) : 0)}</strong></p>
+                      <p>Total produits : <strong>{fcfa(row.total)}</strong></p>
+                      {assurance&&<><p>Part assureur (créance, non encaissée) : <strong>{fcfa(assurance.montant_assureur_fcfa)}</strong></p><p>Part client : <strong>{fcfa(clientDue)}</strong></p></>}
+                      <p>Monnaie à rendre : <strong>{fcfa(channel === "especes" ? Math.max(Number(received[row.id] ?? clientDue) - clientDue, 0) : 0)}</strong></p>
                       <p className="mt-1 text-xs text-slate-600">Pour Mobile Money, carte ou autre canal, cochez uniquement après avoir vérifié que la pharmacie a réellement reçu le montant. Aucun appel d’API de paiement n’est effectué par NAXA.</p>
                     </div>
                     <button type="button" className="btn btn-vert sm:col-span-2" disabled={!sessionId || !!busyId || !normalizedCode} onClick={() => void encaisser(row)}>
@@ -437,7 +442,8 @@ export function CaisseRetraitsMarketplace({
           </div>
           <div className="mt-3 space-y-1 text-sm">
             <p>Total achat : <strong>{fcfa(receipt.total)}</strong></p>
-            <p>Montant perçu : <strong>{fcfa(receipt.montantRecu)}</strong></p>
+            {receipt.assurance&&<><p>Assureur · {receipt.assurance.assureur} (créance non encaissée) : <strong>{fcfa(receipt.assurance.partAssureur)}</strong></p><p>Reste à payer client : <strong>{fcfa(receipt.assurance.partClient)}</strong></p></>}
+            <p>Montant perçu du client : <strong>{fcfa(receipt.montantRecu)}</strong></p>
             <p>Monnaie à rendre : <strong>{fcfa(receipt.monnaie)}</strong></p>
           </div>
           <p className="mt-4 text-xs">Conservez ce reçu. La réservation et son historique sont mis à jour par NAXA après confirmation par la pharmacie.</p>
