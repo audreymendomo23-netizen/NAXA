@@ -24,6 +24,7 @@ type Reservation = {
   credit_request_id: string | null;
   reservation_items: ReservationItem[] | null;
 };
+type AssuranceInfo={reservation_id:string;assureur_id:string;assureur:string;montant_brut_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;valide_client:boolean;controle_documents_statut:string;statut_dossier:string|null;};
 type QRDetector = { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
 type QRDetectorConstructor = new (options?: { formats: string[] }) => QRDetector;
 type Receipt = {
@@ -62,7 +63,7 @@ export function CaisseRetraitsMarketplace({
   pharmacieId: string | null;
   sessionId: string | null;
 }) {
-  const [rows, setRows] = useState<Reservation[]>([]);
+  const [rows, setRows] = useState<Reservation[]>([]);\n  const [assuranceByReservation,setAssuranceByReservation]=useState<Record<string,AssuranceInfo>>({});
   const [codeInput, setCodeInput] = useState("");
   const [received, setReceived] = useState<Record<string, string>>({});
   const [channel, setChannel] = useState("especes");
@@ -74,7 +75,7 @@ export function CaisseRetraitsMarketplace({
   const [cameraOpen, setCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const load = useCallback(async () => {
+  const chargerAssurances = useCallback(async (ids:string[]) => {\n    if(!ids.length){setAssuranceByReservation({});return;}\n    const sb=supabaseBrowser();\n    const [{data:snapshots,error:se},{data:dossiers,error:de}]=await Promise.all([\n      sb.from("assurance_reservation_snapshots").select("reservation_id,assureur_id,montant_brut_fcfa,montant_assureur_fcfa,montant_client_fcfa,valide_client,controle_documents_statut").in("reservation_id",ids),\n      sb.from("dossiers_assurance").select("reservation_id,statut").in("reservation_id",ids),\n    ]);\n    if(se||de){setError("Le détail Assurance n’a pas pu être vérifié. Aucun encaissement ne sera proposé.");setAssuranceByReservation({});return;}\n    const insurerIds=[...new Set((snapshots??[]).map(x=>x.assureur_id))];\n    const {data:insurers,error:ie}=insurerIds.length?await sb.from("assureurs").select("id,nom").in("id",insurerIds):{data:[] as {id:string;nom:string}[],error:null};\n    if(ie){setError("Impossible de vérifier le référentiel des assureurs.");setAssuranceByReservation({});return;}\n    const names=new Map((insurers??[]).map(x=>[x.id,x.nom]));\n    const statuses=new Map((dossiers??[]).map(x=>[x.reservation_id,x.statut]));\n    const next:Record<string,AssuranceInfo>={};\n    for(const s of snapshots??[])next[s.reservation_id]={...s,assureur:names.get(s.assureur_id)??"Assureur",statut_dossier:statuses.get(s.reservation_id)??null};\n    setAssuranceByReservation(next);\n  },[]);\n\n  const load = useCallback(async () => {
     if (!pharmacieId) {
       setRows([]);
       setLoading(false);
@@ -180,7 +181,7 @@ export function CaisseRetraitsMarketplace({
       setError("Aucune réservation Marketplace trouvée pour ce code dans cette pharmacie.");
       return;
     }
-    setRows((current) => [found as Reservation, ...current.filter((row) => row.id !== found?.id)]);
+    setRows((current) => [found as Reservation, ...current.filter((row) => row.id !== found?.id)]);\n    await chargerAssurances([found.id]);
     if (found.statut !== "confirmee" && found.statut !== "payee") {
       setError("Transaction retrouvée, mais son statut ne permet pas un règlement au retrait.");
     }
@@ -245,7 +246,7 @@ export function CaisseRetraitsMarketplace({
       setError(paymentError.message || "Paiement non confirmé. Actualisez la réservation avant de réessayer.");
     } else {
       const result = Array.isArray(data) ? data[0] : data;
-      const change = Number(result?.monnaie_rendue ?? (channel === "especes" ? amount - row.total : 0));
+      const change = Number(result?.monnaie_rendue ?? (channel === "especes" ? amount - clientDue : 0));
       setReceipt({
         transactionId: row.id,
         code: String(result?.code_paiement ?? row.code_paiement),
@@ -360,7 +361,7 @@ export function CaisseRetraitsMarketplace({
           {rows.map((row) => {
             const expired = new Date(row.expires_at).getTime() <= Date.now() && row.statut !== "payee";
             const isSelected = selected?.id === row.id;
-            const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
+            const assurance=assuranceByReservation[row.id]??null;\n            const clientDue=assurance?Number(assurance.montant_client_fcfa):row.total;\n            const assuranceReady=!assurance||(assurance.valide_client&&assurance.controle_documents_statut==="conforme"&&["accepte","clos"].includes(assurance.statut_dossier??""));\n            const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired && assuranceReady;
             const canCredit = Boolean(row.credit_request_id) && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
             const paid = row.statut === "payee" && (row.paiement_statut === "effectue" || Boolean(row.credit_request_id));
             return (
@@ -380,7 +381,7 @@ export function CaisseRetraitsMarketplace({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-extrabold">{row.credit_request_id ? "Montant du crédit approuvé : " : "Total dû : "}{fcfa(row.total)}</p>
+                    <p className="font-extrabold">{row.credit_request_id ? "Montant du crédit approuvé : " : "Total produits : "}{fcfa(row.total)}</p>\n                    {assurance&&<div className="mt-1 text-xs text-slate-700"><p>Assureur · {assurance.assureur} : {fcfa(assurance.montant_assureur_fcfa)} (créance non encaissée)</p><p>Reste à payer client : <strong>{fcfa(clientDue)}</strong></p>{!assuranceReady&&<p className="mt-1 font-semibold text-amber-800">Paiement bloqué : accord client, contrôle documentaire conforme et confirmation de prise en charge requis.</p>}</div>}
                     <p className="text-xs text-slate-600">Canal enregistré : {row.paiement_mode ?? "à sélectionner au retrait"}</p>
                   </div>
                   {canCredit && isSelected && <button type="button" className="btn btn-vert" disabled={!sessionId || !!busyId || !normalizedCode} onClick={() => void validerRetraitCredit(row)}>{busyId === row.id ? "Enregistrement…" : "Valider le retrait à crédit"}</button>}
@@ -394,7 +395,7 @@ export function CaisseRetraitsMarketplace({
                       </select>
                     </label>
                     <label className="text-sm font-semibold">Montant réellement reçu (FCFA)
-                      <input className="champ mt-1 w-full" type="number" min={row.total} step="1" inputMode="numeric" value={received[row.id] ?? String(row.total)} onChange={(event) => setReceived((current) => ({ ...current, [row.id]: event.target.value }))} disabled={!sessionId || !!busyId} />
+                      <input className="champ mt-1 w-full" type="number" min={clientDue} step="1" inputMode="numeric" value={received[row.id] ?? String(clientDue)} onChange={(event) => setReceived((current) => ({ ...current, [row.id]: event.target.value }))} disabled={!sessionId || !!busyId} />
                     </label>
                     <div className="rounded-xl bg-slate-50 p-3 text-sm sm:col-span-2">
                       <p>Montant du reçu : <strong>{fcfa(row.total)}</strong></p>
