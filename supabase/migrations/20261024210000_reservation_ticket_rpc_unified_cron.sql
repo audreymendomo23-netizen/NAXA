@@ -91,27 +91,43 @@ grant execute on function public.get_client_reservation_ticket(uuid) to authenti
 comment on function public.get_client_reservation_ticket(uuid) is
   'Retourne le ticket POS réellement enregistré, uniquement au client propriétaire d’une réservation payée ou retirée.';
 
+-- Preview and restricted environments may not expose pg_cron.
+-- Keep lifecycle functions callable by a trusted external scheduler in those environments.
+do $extension$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pg_cron') then
+    create extension pg_cron with schema pg_catalog;
+  end if;
+exception when undefined_file or insufficient_privilege or feature_not_supported then
+  raise notice 'pg_cron non activable : reservation_lifecycle_cron doit être planifié par un ordonnanceur sécurisé.';
+end;
+$extension$;
+
 do $schedule$
 declare
   v_job record;
 begin
-  for v_job in
-    select jobid
-    from cron.job
-    where jobname in ('naxa-reservation-expire-stock-restore', 'naxa-reservation-expiry-30m')
-  loop
-    perform cron.unschedule(v_job.jobid);
-  end loop;
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    for v_job in
+      select jobid
+      from cron.job
+      where jobname in ('naxa-reservation-expire-stock-restore', 'naxa-reservation-expiry-30m')
+    loop
+      perform cron.unschedule(v_job.jobid);
+    end loop;
 
-  if not exists (
-    select 1 from cron.job where jobname = 'naxa-reservation-lifecycle'
-  ) then
-    perform cron.schedule(
-      'naxa-reservation-lifecycle',
-      '*/5 * * * *',
-      'select public.reservation_lifecycle_cron();'
-    );
+    if not exists (
+      select 1 from cron.job where jobname = 'naxa-reservation-lifecycle'
+    ) then
+      perform cron.schedule(
+        'naxa-reservation-lifecycle',
+        '*/5 * * * *',
+        'select public.reservation_lifecycle_cron();'
+      );
+    end if;
   end if;
+exception when undefined_table or undefined_function or insufficient_privilege then
+  raise notice 'pg_cron présent mais non accessible : reservation_lifecycle_cron doit être planifié par un ordonnanceur sécurisé.';
 end;
 $schedule$;
 
