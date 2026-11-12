@@ -233,6 +233,45 @@ export function SuiviConnecte() {
   },[sb]);
 
   useEffect(()=>{
+    const native=(window as any).NaxaAndroid;
+    if(!native?.isAvailable?.()||!native.getPendingBleEvents)return;
+    let active=true;
+    let reading=false;
+    const seen=new Set<string>();
+    const poll=()=>{
+      if(!active||reading||document.visibilityState==="hidden")return;
+      reading=true;
+      try{
+        const raw=String(native.getPendingBleEvents?.()??"[]");
+        const events=JSON.parse(raw);
+        if(Array.isArray(events)){
+          for(const detail of events){
+            const eventId=String(detail?.eventId??"");
+            if(!eventId||seen.has(eventId))continue;
+            seen.add(eventId);
+            window.dispatchEvent(new CustomEvent("naxa-android-ble",{detail}));
+            window.setTimeout(()=>{
+              try{native.acknowledgeBleEvents?.(JSON.stringify([eventId]));}catch{/* L'événement restera disponible au prochain démarrage. */}
+              seen.delete(eventId);
+            },12000);
+          }
+        }
+      }catch{/* La file native reste intacte en cas de lecture invalide. */}
+      finally{reading=false;}
+    };
+    poll();
+    const timer=window.setInterval(poll,1800);
+    window.addEventListener("focus",poll);
+    document.addEventListener("visibilitychange",poll);
+    return()=>{
+      active=false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus",poll);
+      document.removeEventListener("visibilitychange",poll);
+    };
+  },[]);
+
+  useEffect(()=>{
     const onNativeBle=(raw:Event)=>{
       const detail=(raw as CustomEvent).detail??{};
       const deviceId=String(detail.deviceId??"");
@@ -277,7 +316,7 @@ export function SuiviConnecte() {
             .eq("user_id",authData.user.id).eq("platform_device_id",deviceId).maybeSingle();
           if(existing.error)throw existing.error;
           const payload={device_key:deviceKey,connection_mode:"bluetooth",active:true,platform_device_id:deviceId,device_model:name,connection_state:"connected",
-            auto_reconnect:true,background_supported:false,last_seen_at:new Date().toISOString(),
+            auto_reconnect:true,background_supported:detail.background===true,last_seen_at:new Date().toISOString(),
             last_error:null,updated_at:new Date().toISOString()};
           const saved=existing.data?.id
             ? await sb.from("suivi_user_devices").update(payload).eq("id",existing.data.id).eq("user_id",authData.user.id).select("id").single()
@@ -348,7 +387,7 @@ export function SuiviConnecte() {
             user_id:authData.user!.id,device_id:row!.id,measurement_type:measurement.measurement_type,
             value_numeric:measurement.value_numeric,value_text:null,
             unit:measurement.unit,measured_at:measurement.measured_at??receivedAt,
-            received_at:receivedAt,device_event_id:crypto.randomUUID(),sync_origin:"android_native",
+            received_at:receivedAt,device_event_id:String(detail.eventId??crypto.randomUUID())+"-"+index,sync_origin:"android_native",
             source:"bluetooth",device_model_snapshot:row!.name,note:null
           }));
           const {error}=await sb.from("suivi_measurements").insert(rows);
