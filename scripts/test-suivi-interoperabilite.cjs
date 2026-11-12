@@ -65,7 +65,7 @@ assert.match(component, /import \{ DeviceIllustration \} from "@\/components\/su
 assert.match(component, /<DeviceIllustration deviceKey=\{device\.key\} label=\{"Illustration : "\+device\.name\}/, "chaque carte de dispositif doit afficher son image sémantique");
 assert.match(deviceIllustrations, /role="img" aria-label=\{label \|\| deviceNames\[deviceKey\]/, "les illustrations doivent être accessibles au lecteur d’écran");
 assert.match(deviceIllustrations, /<svg viewBox="0 0 300 300"/, "chaque illustration doit être un visuel SVG autonome");
-const photoMapMatch = deviceIllustrations.match(/const DEVICE_PHOTOS: Record<string, string\\[]> = \\{([\\s\\S]*?)\\n\\};/);
+const photoMapMatch = deviceIllustrations.match(/const DEVICE_PHOTOS:[\\s\\S]*?= \\{([\\s\\S]*?)\\n\\};/);
 assert.ok(photoMapMatch, "le catalogue photographique des dispositifs doit exister");
 const photoEntries = [...photoMapMatch[1].matchAll(/^  ([a-z0-9_]+): \\[(.*?)\\]/gm)];
 assert.equal(photoEntries.length, 21, "les 21 catégories doivent avoir une galerie");
