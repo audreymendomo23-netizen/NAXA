@@ -100,15 +100,22 @@ jobs:
           username = unquote(encoded_username)
           password = unquote(encoded_password)
           scheme = match.group("scheme")
-          host = match.group("host").lower()
+          host = match.group("host").lower().rstrip(".")
           port = int(match.group("port"))
 
           if scheme not in ("postgres", "postgresql"):
               fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
-          is_pooler = bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*\.pooler\.supabase\.com", host))
+          # Supabase shared Session pooler hostnames vary by region and cluster.
+          # Validate the DNS suffix and labels rather than one AWS-only pattern.
+          pooler_suffix = ".pooler.supabase.com"
+          pooler_prefix = host[:-len(pooler_suffix)] if host.endswith(pooler_suffix) else ""
+          is_pooler = bool(pooler_prefix) and all(
+              label and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
+              for label in pooler_prefix.split(".")
+          )
           is_direct = host == f"db.{project_ref}.supabase.co"
           if not (is_pooler or is_direct):
-              fail("NAXA_DATABASE_URL host is not a recognized Supabase database endpoint. Expected db.<project>.supabase.co or a <region>.pooler.supabase.com hostname; no credential or host value was printed.")
+              fail("NAXA_DATABASE_URL host is not a recognized Supabase database endpoint. Expected db.<project>.supabase.co or any regional *.pooler.supabase.com hostname; no credential or host value was printed.")
           if is_pooler and not username.endswith("." + project_ref):
               fail("Shared-pooler username must end with the project reference shown in Supabase Connect.")
           if is_direct and username != "postgres":
