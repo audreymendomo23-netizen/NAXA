@@ -81,7 +81,7 @@ function ResultsContent(){
   items.forEach(item=>ids.add(item.produit_id));
   if(ids.size>10){setError("Votre panier peut contenir au maximum 10 médicaments. Réduisez la sélection.");return;}
   for(const [index,item] of items.entries()){
-   const termIndex=bulkTerms.findIndex(term=>{const a=term.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const b=item.nom.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();return a===b||a.includes(b)||b.includes(a)});
+   const termIndex=bulkTerms.findIndex(term=>{const a=term.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const b=item.nom.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();return a===b||a.includes(b)||b.includes(a)});
    const quantity=bulkTerms.length?(bulkQuantities[termIndex>=0?termIndex:index]??1):1;
    if(lignes.some(line=>line.produit_id===item.produit_id))changerQuantite(item.produit_id,quantity);
    else ajouter({produit_id:item.produit_id,nom:item.nom,dosage:item.dosage||""},quantity);
