@@ -59,7 +59,7 @@ jobs:
 
           if not raw:
               fail("NAXA_DATABASE_URL is empty.")
-          if raw != raw.strip() or any(ch in raw for ch in "\\r\\n\\t"):
+          if raw != raw.strip() or any(ch in raw for ch in "\r\n\t"):
               fail("NAXA_DATABASE_URL contains whitespace or line breaks.")
 
           # Parse only the supplied credentials. The hostname in this secret
@@ -93,7 +93,7 @@ jobs:
               f"@{production_host}:5432/postgres?sslmode=require"
           )
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
-              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\\n")
+              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
 
           print(
               "Credential preflight passed. "
