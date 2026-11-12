@@ -40,7 +40,7 @@ export async function lireOrdonnance(image: File | Blob): Promise<LectureOrdonna
               ligne.length >= 3 &&
               /[a-zA-ZÀ-ÿ]{3,}/.test(ligne) &&
               !BRUIT.test(ligne) &&
-              !/\b(?:prendre|posologie|matin|midi|soir|fois par jour|\d+\s*(?:cp|comprim[eé]s?|g[eé]lules?|ml|mg))\b/i.test(ligne)
+              !/^(?:prendre|posologie|matin|midi|soir|\d+\s*(?:cp|comprim[eé]s?|g[eé]lules?|ml|mg)\b)/i.test(ligne)
           )
       )
     ).slice(0, 12);
