@@ -9,6 +9,7 @@ import { MessageReservation } from "@/components/MessageReservation";
 import { AppelerPharmacie } from "@/components/AppelerPharmacie";
 import { QRCodePaiement } from "@/components/QRCodePaiement";
 import { SuiviLivraison } from "@/components/SuiviLivraison";
+import { AssuranceReceiptDetails } from "@/components/assurance/AssuranceReceiptDetails";
 type Item={quantite:number;prix_unitaire:number;produits:{nom:string;dosage:string|null}|null};
 type HistoryRow={id:string;ancien_statut:string|null;nouveau_statut:string;cree_le:string};
 type Resa={id:string;code_paiement:string;statut:string;total:number;expires_at:string;paiement_ref:string|null;created_at:string;mode:string;paiement_statut:string;paiement_mode:string|null;commande_statut:string|null;adresse_livraison:string|null;quartier_livraison:string|null;ville_livraison:string|null;repere_livraison:string|null;telephone_livraison:string|null;pharmacie_id:string;pharmacies:{nom:string;quartier:string|null}|null;reservation_items:Item[]};
