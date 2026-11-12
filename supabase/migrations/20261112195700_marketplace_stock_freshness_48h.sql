@@ -123,7 +123,7 @@ $function$;
 revoke all on function public.marketplace_offre_stock_disponible(uuid, uuid) from public;
 grant execute on function public.marketplace_offre_stock_disponible(uuid, uuid) to anon, authenticated;
 comment on function public.marketplace_offre_stock_disponible(uuid, uuid) is
-  'Offre Marketplace vendable uniquement si stocks.updated_at est dans les 48 dernières heures; lots vendables moins holds actifs, sans double-déduction legacy.';
+  'Offre Marketplace vendable uniquement si un mouvement réel de quantité est tracé depuis 48 h au plus; lots vendables moins holds actifs, sans double-déduction legacy.';
 
 -- Même garde à la création : ne jamais accepter une réservation depuis un résultat
 -- ancien, un cache client ou un appel RPC direct.
@@ -141,8 +141,8 @@ declare
   v_q integer;
   v_produit uuid;
   v_stock integer;
+  v_available integer;
   v_stock_updated_at timestamptz;
-  v_reserved integer;
 begin
   if auth.uid() is null then raise exception 'Connexion requise'; end if;
   if not exists(select 1 from public.pharmacies where id=p_pharmacie and actif) then
@@ -182,18 +182,13 @@ begin
       raise exception 'Stock non actualisé depuis plus de 48 heures : produit indisponible sur le Marketplace';
     end if;
 
-    select coalesce(sum(ri.quantite),0)::integer into v_reserved
-    from public.reservation_items ri
-    join public.reservations r on r.id=ri.reservation_id
-    where r.pharmacie_id=p_pharmacie
-      and ri.produit_id=v_produit
-      and r.statut in ('en_attente','confirmee')
-      and r.expires_at > now()
-      and r.consumed_at is null
-      and r.stock_restored = false
-      and r.stock_decremented = false;
-
-    if v_stock - v_reserved < v_q then
+    select o.prix, o.quantite
+      into v_prix, v_available
+    from public.marketplace_offre_stock_disponible(p_pharmacie, v_produit) o;
+    if not found then
+      raise exception 'Produit indisponible sur le Marketplace';
+    end if;
+    if v_available < v_q then
       raise exception 'Stock disponible insuffisant après réservations actives';
     end if;
     v_total := v_total + v_prix * v_q;
