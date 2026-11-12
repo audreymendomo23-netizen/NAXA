@@ -104,7 +104,6 @@ drop policy if exists suivi_user_devices_professional_shared_select on public.su
 create policy suivi_user_devices_professional_shared_select on public.suivi_user_devices
 for select to authenticated using(
   public.suivi_is_enabled_user((select auth.uid()))
-  and public.suivi_is_enabled_user(user_id)
   and public.suivi_is_verified_professional((select auth.uid()))
   and exists(
     select 1 from public.suivi_patient_cases c
@@ -112,6 +111,7 @@ for select to authenticated using(
       and c.professional_user_id=(select auth.uid())
       and c.status='active'
   )
+  and public.suivi_device_family(device_key) is not null
   and public.suivi_has_consent(user_id,public.suivi_device_family(device_key))
   and exists(
     select 1 from public.suivi_shares s
