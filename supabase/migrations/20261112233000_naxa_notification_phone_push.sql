@@ -85,9 +85,9 @@ begin
   update private.notification_push_outbox o
   set status='dead',locked_at=null,last_error='Compte destinataire inactif'
   where o.status in ('pending','processing')
-    and exists (
+    and not exists (
       select 1 from public.profiles p
-      where p.id=o.recipient_user_id and p.actif is distinct from true
+      where p.id=o.recipient_user_id and p.actif=true
     );
 
   return query
