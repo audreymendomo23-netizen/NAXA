@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 val firebaseApiKey = providers.gradleProperty("FIREBASE_API_KEY").orElse(providers.environmentVariable("FIREBASE_API_KEY")).getOrElse("")
 val firebaseAppId = providers.gradleProperty("FIREBASE_APP_ID").orElse(providers.environmentVariable("FIREBASE_APP_ID")).getOrElse("")
