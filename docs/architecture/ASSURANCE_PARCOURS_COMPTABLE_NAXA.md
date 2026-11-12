@@ -104,3 +104,13 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Les validations de mapping et de journal sont sérialisées par verrou transactionnel pour éviter deux validations concurrentes qui se chevauchent.
 - Contrat SQL Replay : `202611121_compta_journaux_periodes_contract.sql` — PASS structurel. Aucune période, aucun journal et aucun mapping de démonstration n'a été persisté.
 - Limites : aucun compte Promoteur/Comptable de test authentifié n'est disponible sur Replay pour exercer les RPC par JWT réel. Le worker Edge n'est pas déployé/planifié sur Replay ; le secret de déclenchement doit être configuré avant d'affirmer le traitement automatique. Build navigateur/TypeScript encore à exécuter.
+
+
+## Traitement automatique de la file comptable — 12 novembre 2026
+
+- Replay : migration `compta_worker_pg_cron` appliquée. La fonction privée `private.compta_worker_traiter_lot(50)` réclame et traite la file via les RPC service-role existantes.
+- Le job `naxa-compta-worker` est actif toutes les 5 minutes, exécuté sous le rôle PostgreSQL `postgres`. Il ne dépend pas d'un endpoint HTTP, d'une Edge Function ou d'un secret supplémentaire.
+- La fonction interne est inaccessible à `anon`, `authenticated` et `service_role` ; seul `postgres` peut l'exécuter. Elle pose un claim service-role transactionnel puis appelle les RPC existantes, qui conservent les contrôles métier, les périodes, les mappings, les journaux et l'idempotence.
+- Test de contrat `202611121_compta_worker_cron_contract.sql` : vérifie le job, sa fréquence, son propriétaire et les ACL. Test positif Assurance modifié pour passer par le worker planifié lui-même et traiter prise en charge 10 000 FCFA + remboursements 4 000 et 6 000 FCFA, avec rollback des fixtures.
+- Replay : appel manuel du worker à vide retournant `ok=true, reclames=0, traite=0, erreurs=0`. Le job est programmé ; l'exécution périodique réelle sera confirmée par les logs `cron.job_run_details` après son premier cycle.
+- Aucun compte, mapping, journal, période, événement ou écriture de démonstration n'est conservé.

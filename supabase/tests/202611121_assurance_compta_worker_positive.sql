@@ -104,18 +104,13 @@ begin
   where pharmacie_id=v_pharmacie and cle_idempotence like 'assurance-worker-test:%';
   if v_count<>3 then raise exception 'Idempotence outbox incorrecte : % événements',v_count; end if;
 
-  for v_row in
-    select c.event_id,c.claim_token
-    from public.compta_evenements_reclamer(100) c
-    where c.event_id=any(v_events)
-  loop
-    v_result:=public.compta_traiter_evenement(v_row.event_id,v_row.claim_token);
-    if v_result<>'traite' then
-      raise exception 'Worker Assurance non traité pour % : %',v_row.event_id,v_result;
-    end if;
-    v_processed:=v_processed+1;
-  end loop;
-  if v_processed<>3 then raise exception 'Nombre événements traités incorrect : %',v_processed; end if;
+  if exists(select 1 from public.compta_evenement
+    where statut in ('a_traiter','en_cours') and id<>all(v_events)) then
+    raise exception 'La file doit être vide hors fixtures avant le test du worker';
+  end if;
+  select coalesce((private.compta_worker_traiter_lot(100)->>'traite')::integer,0)
+    into v_processed;
+  if v_processed<>3 then raise exception 'Nombre événements traités par le worker cron incorrect : %',v_processed; end if;
 
   select id into v_entry_prise from public.compta_ecriture
   where pharmacie_id=v_pharmacie and source_id=(select source_id from public.compta_evenement where id=v_event_prise);
