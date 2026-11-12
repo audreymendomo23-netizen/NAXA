@@ -66,6 +66,7 @@ export function CaisseRetraitsMarketplace({
 }) {
   const [rows, setRows] = useState<Reservation[]>([]);
   const [assuranceByReservation,setAssuranceByReservation]=useState<Record<string,AssuranceInfo>>({});
+  const [assuranceVerificationError,setAssuranceVerificationError]=useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [received, setReceived] = useState<Record<string, string>>({});
   const [channel, setChannel] = useState("especes");
@@ -78,27 +79,28 @@ export function CaisseRetraitsMarketplace({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const chargerAssurances = useCallback(async (ids:string[]) => {
-    if(!ids.length){setAssuranceByReservation({});return;}
+    if(!ids.length){setAssuranceByReservation({});setAssuranceVerificationError(false);return;}\n    setAssuranceVerificationError(false);
     const sb=supabaseBrowser();
     const [{data:snapshots,error:se},{data:dossiers,error:de}]=await Promise.all([
       sb.from("assurance_reservation_snapshots").select("reservation_id,assureur_id,montant_brut_fcfa,montant_assureur_fcfa,montant_client_fcfa,valide_client,controle_documents_statut").in("reservation_id",ids),
       sb.from("dossiers_assurance").select("reservation_id,statut").in("reservation_id",ids),
     ]);
-    if(se||de){setError("Le détail Assurance n’a pas pu être vérifié. Aucun encaissement ne sera proposé.");setAssuranceByReservation({});return;}
+    if(se||de){setError("Le détail Assurance n’a pas pu être vérifié. Aucun encaissement ne sera proposé.");setAssuranceByReservation({});setAssuranceVerificationError(true);return;}
     const insurerIds=[...new Set((snapshots??[]).map(x=>x.assureur_id))];
     const {data:insurers,error:ie}=insurerIds.length?await sb.from("assureurs").select("id,nom").in("id",insurerIds):{data:[] as {id:string;nom:string}[],error:null};
-    if(ie){setError("Impossible de vérifier le référentiel des assureurs.");setAssuranceByReservation({});return;}
+    if(ie){setError("Impossible de vérifier le référentiel des assureurs.");setAssuranceByReservation({});setAssuranceVerificationError(true);return;}
     const names=new Map((insurers??[]).map(x=>[x.id,x.nom]));
     const statuses=new Map((dossiers??[]).map(x=>[x.reservation_id,x.statut]));
     const next:Record<string,AssuranceInfo>={};
     for(const s of snapshots??[])next[s.reservation_id]={...s,assureur:names.get(s.assureur_id)??"Assureur",statut_dossier:statuses.get(s.reservation_id)??null};
-    setAssuranceByReservation(next);
+    setAssuranceByReservation(next);setAssuranceVerificationError(false);
   },[]);
 
   const load = useCallback(async () => {
     if (!pharmacieId) {
       setRows([]);
       setAssuranceByReservation({});
+      setAssuranceVerificationError(false);
       setLoading(false);
       return;
     }
@@ -368,7 +370,7 @@ export function CaisseRetraitsMarketplace({
             const isSelected = selected?.id === row.id;
             const assurance=assuranceByReservation[row.id]??null;
             const clientDue=assurance?Number(assurance.montant_client_fcfa):row.total;
-            const assuranceReady=!assurance||(assurance.valide_client&&assurance.controle_documents_statut==="conforme"&&["accepte","clos"].includes(assurance.statut_dossier??""));
+            const assuranceReady=!assuranceVerificationError&&(!assurance||(assurance.valide_client&&assurance.controle_documents_statut==="conforme"&&["accepte","clos"].includes(assurance.statut_dossier??"")));
             const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired && assuranceReady;
             const canCredit = Boolean(row.credit_request_id) && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
             const paid = row.statut === "payee" && (row.paiement_statut === "effectue" || Boolean(row.credit_request_id));
