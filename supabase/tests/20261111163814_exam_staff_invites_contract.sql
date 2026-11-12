@@ -143,6 +143,20 @@ begin
   end;
   if not v_rejected then raise exception 'Director role must not be self-invited'; end if;
 
+  v_rejected:=false;
+  begin
+    perform public.exam_create_staff_invite(f.center_id,'livreur@example.invalid','livreur');
+  exception when sqlstate '22023' then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Livreur role must be excluded from Examens invitations'; end if;
+
+  v_rejected:=false;
+  begin
+    perform public.exam_assign_existing_staff(f.center_id,'invitee_'||replace(f.invitee_id::text,'-',''),'livreur');
+  exception when sqlstate '22023' then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Livreur role must be excluded from direct Examens assignment'; end if;
+
   v_token:=public.exam_create_staff_invite(f.center_id,v_email,'technicien_laboratoire');
   select invite_id into v_invite_id
   from public.exam_list_staff_invites(f.center_id)
