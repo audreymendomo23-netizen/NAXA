@@ -171,7 +171,13 @@ jobs:
             echo "Locale de rejeu: LC_ALL=$LC_ALL"
             echo "Supabase CLI version: $(npx supabase@latest --version)"
             npx supabase@latest init --force
-            cat > supabase/config.toml \<<'EOF'
+            # Préserver les migrations timestampées déjà présentes : elles ne sont
+            # pas dans le lot historique migration_*.sql et doivent aussi être rejouées.
+            feature_migrations_dir="$(mktemp -d)"
+            if [[ -d supabase/migrations ]]; then
+              find supabase/migrations -maxdepth 1 -type f -name '*.sql' -exec cp {} "$feature_migrations_dir"/ \;
+            fi
+            cat > supabase/config.toml <<'EOF'
             project_id = "naxa-tests-ci"
             [api]
             enabled = true
@@ -185,9 +191,9 @@ jobs:
             cp supabase/schema.sql supabase/migrations/20261006000000_base.sql
             shopt -s nullglob
             mapfile -d '' migration_files < <(find supabase -maxdepth 1 -type f -name 'migration_*.sql' -print0 | LC_ALL=C sort -z)
-            printf 'Nombre de migrations sources: %s\n' "${#migration_files[@]}"
+            printf 'Nombre de migrations historiques: %s\n' "${#migration_files[@]}"
             if [[ "${#migration_files[@]}" -lt 1 ]]; then
-              echo "FAIL: aucune migration source détectée"
+              echo "FAIL: aucune migration historique détectée"
               exit 1
             fi
             n=1
@@ -196,6 +202,17 @@ jobs:
               ts=$(printf '202610060000%02d' "$n")
               cp "$f" "supabase/migrations/${ts}_$(basename "$f")"
               n=$((n+1))
+            done
+            shopt -s nullglob
+            feature_files=("$feature_migrations_dir"/*.sql)
+            printf 'Nombre de migrations timestampées: %s\n' "${#feature_files[@]}"
+            for f in "${feature_files[@]}"; do
+              target="supabase/migrations/$(basename "$f")"
+              if [[ -e "$target" ]]; then
+                echo "FAIL: migration source en doublon: $target"
+                exit 1
+              fi
+              cp "$f" "$target"
             done
             echo "ORDRE EFFECTIF DU REJEU (LC_ALL=C):"
             find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | LC_ALL=C sort
