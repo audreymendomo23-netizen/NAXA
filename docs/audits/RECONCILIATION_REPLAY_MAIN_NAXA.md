@@ -69,3 +69,14 @@ Pour chaque lot : audit → contradiction → cause racine → correction → te
 ## Prochain point concret
 
 Commencer le lot Paiements Promoteur en portant les fonctions et migrations requises sur main, après adaptation Next 14 et vérification des dépendances. Le compagnon Android restera explicitement non vert tant que son mode de distribution et un test sur appareil réel ne seront pas établis.
+
+
+## Journal d'exécution — lot Paiements Promoteur (2026-11-12, 20:01 UTC)
+
+- Lot candidat préparé : 41 chemins Replay, dont routes API, pages/actions, OCR, compagnon Android, tests et migrations SQL.
+- Adaptations préparées avant intégration : contrats `searchParams` ramenés au modèle Next.js 14 de main ; migration `20261111013000` ajustée pour préserver les anciennes destinations bancaires (`virement`) dans l'historique, tout en laissant les RPC/UI limiter les nouvelles déclarations à MTN/Orange ; migration dupliquée `20261111024000` exclue.
+- Commit candidat créé : `c931781e610fbd949f5365507e69eebfd05d2acb`, parent `6e44fb7cb2a0a18c166b349cb1ca77987f93e7c5`. Il n'a pas été attaché à une branche.
+- Entre la préparation et la mise à jour protégée de `main`, la branche a avancé de `6e44fb7` à `f072e3331b8b2adb896b57cf0d86f470d3324aec`. L'opération `update_ref` a retourné une erreur GraphQL ; aucune mise à jour forcée ni aucun contournement n'a été tenté.
+- **Résultat :** aucun fichier du lot Paiements n'a été intégré à main ; aucune migration n'a été appliquée ; aucun déploiement n'a été déclenché par cette tentative.
+- **Reprise obligatoire :** repartir du HEAD actuel `f072e3331b8b2adb896b57cf0d86f470d3324aec`, refaire l'inventaire des changements intervenus depuis `6e44fb7`, puis recréer le commit candidat sur le nouvel arbre. Ne jamais rattacher le commit candidat à l'ancien parent.
+- **Blocage Android restant :** la documentation Replay indique que `RECEIVE_SMS` est hard-restricted et que l'installation directe depuis le site peut être bloquée par Play Protect ; APK et test sur téléphone/SIM non disponibles. La capture Android ne peut pas être déclarée verte.
