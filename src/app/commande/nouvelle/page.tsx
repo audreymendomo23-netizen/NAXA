@@ -9,7 +9,8 @@ import { BoutonNotifications } from "@/components/BoutonNotifications";
 type Pharmacy={id:string;nom:string;ville:string|null;quartier:string|null;adresse:string|null};
 type Address={city?:string;neighborhood?:string;street?:string;landmark?:string;latitude?:number;longitude?:number;isDefault?:boolean};
 type Created={id:string;mode:"reservation"|"commande";expires_at:string};
-const money=(n:number)=>new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(n)+" FCFA";\nconst METHODS=[["mtn_marchand","MTN Mobile Money — code marchand de la pharmacie"],["orange_money","Orange Money"],["especes_retrait","Espèces au retrait en pharmacie"],["especes_livraison","Espèces à la livraison"],["a_convenir","À convenir directement avec la pharmacie"]];
+const money=(n:number)=>new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(n)+" FCFA";
+const METHODS=[["mtn_marchand","MTN Mobile Money — code marchand de la pharmacie"],["orange_money","Orange Money"],["especes_retrait","Espèces au retrait en pharmacie"],["especes_livraison","Espèces à la livraison"],["a_convenir","À convenir directement avec la pharmacie"]];
 export default function NouvelleTransactionPage(){
  const router=useRouter(),{lignes,pret,retirer,changerQuantite}=usePanier();
  const lignesMedicament=useMemo(()=>lignes.filter(x=>x.type_article!=="bebe-maman"),[lignes]);
