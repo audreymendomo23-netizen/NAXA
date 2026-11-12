@@ -179,6 +179,14 @@ export function SuiviConnecte() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
+    const {data}=sb.auth.onAuthStateChange(event=>{
+      if(event==="SIGNED_OUT"){
+        (window as any).NaxaAndroid?.clearMeasurementReminders?.();
+      }
+    });
+    return ()=>data.subscription.unsubscribe();
+  },[sb]);
+  useEffect(()=>{
     const onNativeBle=(raw:Event)=>{
       const detail=(raw as CustomEvent).detail??{};
       const deviceId=String(detail.deviceId??"");
