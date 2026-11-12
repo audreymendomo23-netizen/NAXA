@@ -334,11 +334,33 @@ export function SuiviConnecte() {
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements",filter:"user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts",filter:"user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_user_devices",filter:"user_id=eq."+data.user.id},()=>{void load();})
-        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_consents",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_consents",filter:"user_id=eq."+data.user.id},(payload)=>{
+          const consent=payload.new as {family_key?:string;granted?:boolean;revoked_at?:string|null};
+          if(consent.family_key&&(consent.granted!==true||!!consent.revoked_at)){
+            const keys=deviceCatalog.filter(device=>device.family===consent.family_key).map(device=>device.key);
+            const measurementTypes=types.filter(type=>type.family===consent.family_key).map(type=>type.key);
+            for(const device of devices.filter(item=>keys.includes(item.device_key)&&item.platform_device_id)){
+              (window as any).NaxaAndroid?.disconnect(device.platform_device_id!);
+              nativeDeviceRows.current.delete(device.platform_device_id!);
+              nativeReconnectRequested.current.delete(device.platform_device_id!);
+            }
+            for(const [deviceId,session] of bluetoothSessions.current.entries()){
+              const saved=devices.find(item=>item.platform_device_id===deviceId);
+              if(!saved||!keys.includes(saved.device_key))continue;
+              if(session.retryTimer)window.clearTimeout(session.retryTimer);
+              bluetoothSessions.current.delete(deviceId);
+              try{if(session.device?.gatt?.connected)session.device.gatt.disconnect();}catch{/* Session déjà fermée. */}
+            }
+            for(const schedule of measurementSchedules.filter(item=>measurementTypes.includes(item.measurement_type))){
+              (window as any).NaxaAndroid?.cancelMeasurementReminder?.(schedule.id);
+            }
+          }
+          void load();
+        })
         .subscribe();
     });
     return()=>{cancelled=true;if(channel)void sb.removeChannel(channel);};
-  },[allowed,sb,load]);
+  },[allowed,sb,load,devices,measurementSchedules]);
 
   useEffect(()=>{
     let cancelled=false;
