@@ -62,6 +62,8 @@ type UserDevice = { id:string; device_key:string; device_name:string; connection
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
 type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
 type MeasurementSchedule = { id:string; measurement_type:string; device_id:string|null; local_time:string; timezone:string; days_of_week:number[]; lead_minutes:number; freshness_window_minutes:number; enabled:boolean };
+type DirectoryProfessional = { user_id:string; professional_role:"medecin"|"pharmacien"; display_name:string; specialty:string|null };
+type CareLink = { id:string; patient_user_id:string; professional_user_id:string; active:boolean; history_access:boolean; realtime_access:boolean; alerts_access:boolean; clinical_notes_access:boolean; revoked_at:string|null };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
 type TrackingAlert = { id:string; measurement_type:string; observed_value:number; alert_kind:string; created_at:string; read_at:string|null };
 
@@ -96,6 +98,13 @@ export function SuiviConnecte() {
   const [devices, setDevices] = useState<UserDevice[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [measurementSchedules, setMeasurementSchedules] = useState<MeasurementSchedule[]>([]);
+  const [professionalDirectory, setProfessionalDirectory] = useState<DirectoryProfessional[]>([]);
+  const [professionalLinks, setProfessionalLinks] = useState<CareLink[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+  const [shareHistory, setShareHistory] = useState(true);
+  const [shareRealtime, setShareRealtime] = useState(false);
+  const [shareAlerts, setShareAlerts] = useState(false);
+  const [shareClinicalNotes, setShareClinicalNotes] = useState(false);
   const [scheduleTime, setScheduleTime] = useState("07:00");
   const [scheduleDays, setScheduleDays] = useState<number[]>([0,1,2,3,4,5,6]);
   const [scheduleDeviceId, setScheduleDeviceId] = useState("");
@@ -129,7 +138,7 @@ export function SuiviConnecte() {
     const { data: userData } = await sb.auth.getUser();
     if (!userData.user) { setAllowed(false); return; }
     setAllowed(true);
-    const [p, c, m, r, ar, al, d, schedules] = await Promise.all([
+    const [p, c, m, r, ar, al, d, schedules, links] = await Promise.all([
       sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
       sb.from("suivi_consents").select("family_key,granted").eq("user_id",userData.user.id),
       sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(1000),
@@ -138,8 +147,9 @@ export function SuiviConnecte() {
       sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
       sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at").eq("user_id",userData.user.id).order("created_at",{ascending:true}),
       sb.from("suivi_measurement_schedules").select("id,measurement_type,device_id,local_time,timezone,days_of_week,lead_minutes,freshness_window_minutes,enabled").eq("user_id",userData.user.id).order("local_time",{ascending:true}),
+      sb.from("suivi_care_links").select("id,patient_user_id,professional_user_id,active,history_access,realtime_access,alerts_access,clinical_notes_access,revoked_at").eq("patient_user_id",userData.user.id).order("created_at",{ascending:false}),
     ]);
-    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
+    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error || links.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
     setPreferredName(p.data?.preferred_name ?? "");
     setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");
     setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
@@ -149,9 +159,22 @@ export function SuiviConnecte() {
     setAlerts((al.data??[]) as TrackingAlert[]);
     setDevices((d.data??[]) as UserDevice[]);
     setMeasurementSchedules((schedules.data??[]) as MeasurementSchedule[]);
+    setProfessionalLinks((links.data??[]) as CareLink[]);
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if(activeTab!=="Options" || optionsPage!=="partage") return;
+    let cancelled=false;
+    setDirectoryLoading(true);
+    void sb.rpc("suivi_list_verified_professional_directory").then(({data,error})=>{
+      if(cancelled) return;
+      if(error) setNotice("L'annuaire des professionnels agréés n'est pas disponible. Vérifiez que la fonction d'annuaire a été migrée.");
+      else setProfessionalDirectory((data??[]) as DirectoryProfessional[]);
+      setDirectoryLoading(false);
+    });
+    return ()=>{cancelled=true;};
+  },[sb,activeTab,optionsPage]);
 
   useEffect(() => {
     if (!allowed || !devices.some(device=>device.active && device.auto_reconnect && device.platform_device_id)) return;
@@ -447,21 +470,69 @@ export function SuiviConnecte() {
   }
 
   async function shareSelectedType() {
-    if (!professionalId.trim()) { setNotice("Saisissez l’UUID du professionnel vérifié."); return; }
-    setBusy(true);
+    if (!professionalId.trim()) { setNotice("Sélectionnez un professionnel agréé dans l'annuaire NAXA."); return; }
+    if (!selectedConsent) { setNotice("Le consentement explicite de cette famille de données est nécessaire avant tout partage."); return; }
+    if (!shareHistory && !shareRealtime && !shareAlerts && !shareClinicalNotes) { setNotice("Activez au moins un droit de partage."); return; }
+    setBusy(true); setNotice("");
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
-    const {error}=await sb.from("suivi_shares").upsert({owner_user_id:userData.user.id,recipient_user_id:professionalId.trim(),measurement_type:selectedType,active:true,revoked_at:null},{onConflict:"owner_user_id,recipient_user_id,measurement_type"});
-    if(error)setNotice("Partage refusé : le destinataire doit être un professionnel explicitement vérifié. Aucune donnée n’a été partagée.");
-    else setNotice("Autorisation de partage enregistrée pour ce type uniquement.");
+    const recipient=professionalId.trim();
+    const {data:existing,error:existingError}=await sb.from("suivi_shares")
+      .select("measurement_type,allow_history,allow_realtime,allow_alerts")
+      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true).neq("measurement_type",selectedType);
+    if(existingError){setNotice("Impossible de vérifier les autorisations existantes.");setBusy(false);return;}
+    const rights=[...(existing??[]),{allow_history:shareHistory,allow_realtime:shareRealtime,allow_alerts:shareAlerts}];
+    const aggregate={history_access:rights.some(x=>x.allow_history),realtime_access:rights.some(x=>x.allow_realtime),alerts_access:rights.some(x=>x.allow_alerts)};
+    const now=new Date().toISOString();
+    const {error:shareError}=await sb.from("suivi_shares").upsert({
+      owner_user_id:userData.user.id,recipient_user_id:recipient,measurement_type:selectedType,
+      active:true,revoked_at:null,allow_history:shareHistory,allow_realtime:shareRealtime,
+      allow_alerts:shareAlerts,realtime_from_at:shareRealtime?now:null
+    },{onConflict:"owner_user_id,recipient_user_id,measurement_type"});
+    if(shareError){setNotice("Partage refusé. Le professionnel doit être agréé et votre consentement actif.");setBusy(false);return;}
+    const currentLink=professionalLinks.find(link=>link.professional_user_id===recipient);
+    const {error:linkError}=await sb.from("suivi_care_links").upsert({
+      patient_user_id:userData.user.id,professional_user_id:recipient,active:true,revoked_at:null,
+      ...aggregate,clinical_notes_access:shareClinicalNotes || !!currentLink?.clinical_notes_access
+    },{onConflict:"patient_user_id,professional_user_id"});
+    if(linkError){
+      setNotice("Le partage de cette mesure est enregistré, mais le lien de suivi clinique n'a pas pu être synchronisé. Vérifiez les droits du dossier.");
+    } else {
+      setNotice("Droits de partage enregistrés. Le temps réel ne donnera accès qu'aux mesures reçues après cette autorisation.");
+      await load();
+    }
     setBusy(false);
   }
 
   async function revokeShare() {
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user || !professionalId.trim()) return;
-    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:new Date().toISOString()}).eq("owner_user_id",userData.user.id).eq("recipient_user_id",professionalId.trim()).eq("measurement_type",selectedType);
-    setNotice(error?"Impossible de révoquer ce partage.":"Partage révoqué.");
+    const recipient=professionalId.trim();
+    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:new Date().toISOString()})
+      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("measurement_type",selectedType);
+    if(error){setNotice("Impossible de révoquer ce partage.");return;}
+    const {data:remaining}=await sb.from("suivi_shares").select("allow_history,allow_realtime,allow_alerts")
+      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true).is("revoked_at",null);
+    const link=professionalLinks.find(item=>item.professional_user_id===recipient);
+    const rights={history_access:(remaining??[]).some(x=>x.allow_history),realtime_access:(remaining??[]).some(x=>x.allow_realtime),alerts_access:(remaining??[]).some(x=>x.allow_alerts)};
+    await sb.from("suivi_care_links").update({...rights,active:!!(rights.history_access||rights.realtime_access||rights.alerts_access||link?.clinical_notes_access),revoked_at:undefined})
+      .eq("patient_user_id",userData.user.id).eq("professional_user_id",recipient);
+    setNotice("Droit de consultation révoqué pour ce type. Les autres autorisations distinctes sont conservées.");
+    await load();
+  }
+
+  async function disconnectProfessional(recipient:string) {
+    const {data:userData}=await sb.auth.getUser();
+    if(!userData.user) return;
+    const revokedAt=new Date().toISOString();
+    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:revokedAt})
+      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true);
+    if(error){setNotice("La révocation complète du suivi a échoué.");return;}
+    const {error:linkError}=await sb.from("suivi_care_links").update({
+      active:false,history_access:false,realtime_access:false,alerts_access:false,clinical_notes_access:false,revoked_at:revokedAt
+    }).eq("patient_user_id",userData.user.id).eq("professional_user_id",recipient);
+    setNotice(linkError?"Partages révoqués, mais la fermeture du dossier professionnel reste à finaliser.":"Connexion supprimée. Le professionnel perd immédiatement l'accès NAXA aux données et historiques partagés.");
+    await load();
   }
 
   async function connectHeartRate() {
@@ -814,10 +885,27 @@ export function SuiviConnecte() {
           <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="rounded-xl border p-3"><p className="font-bold">{r.title}</p><p className="mt-1 text-sm text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"}</p></li>)}</ul>
         </div>
       </section>
-      <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] transition duration-300 hover:-translate-y-0.5 print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button><h2 className="text-xl font-extrabold">Partage par type</h2><p className="mt-1 text-sm text-slate-600">Chaque autorisation est limitée à un type. Le destinataire doit être un professionnel explicitement vérifié par NAXA. Vous pouvez retirer le partage.</p>
-        <label className="mt-3 block text-sm font-semibold">Type à partager<select value={selectedType} onChange={e=>setSelectedType(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">{types.map(t=><option key={t.key} value={t.key}>{t.label}</option>)}</select></label>
-        <label className="mt-3 block text-sm font-semibold">UUID du professionnel vérifié<input value={professionalId} onChange={e=>setProfessionalId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3 font-mono" placeholder="UUID Supabase"/></label>
-        <div className="mt-3 flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void shareSelectedType()} className="min-h-11 rounded-xl bg-[#0A6B3A] px-4 font-bold text-white">Autoriser ce type</button><button disabled={busy} onClick={()=>void revokeShare()} className="min-h-11 rounded-xl border border-slate-300 px-4 font-bold text-slate-700">Révoquer ce type</button></div>
+      <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button>
+        <h2 className="text-xl font-extrabold">Vous faire suivre par un professionnel de santé agréé par l'État ?</h2>
+        <p className="mt-1 text-sm text-slate-600">Choisissez dans l'annuaire NAXA. Les professionnels non vérifiés, expirés ou désactivés ne sont pas proposés.</p>
+        {directoryLoading?<p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm">Chargement de l'annuaire agréé…</p>:<label className="mt-3 block text-sm font-semibold">Professionnel de santé
+          <select value={professionalId} onChange={e=>setProfessionalId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">
+            <option value="">Choisir un professionnel</option>
+            {professionalDirectory.map(p=><option key={p.user_id} value={p.user_id}>{p.display_name} · {p.professional_role==="medecin"?"Médecin":"Pharmacien"}{p.specialty?" · "+p.specialty:""}</option>)}
+          </select>
+        </label>}
+        {!directoryLoading&&!professionalDirectory.length&&<p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Aucun professionnel agréé n'est actuellement disponible dans l'annuaire NAXA.</p>}
+        <label className="mt-3 block text-sm font-semibold">Type de mesure<select value={selectedType} onChange={e=>setSelectedType(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">{types.map(t=><option key={t.key} value={t.key}>{t.label}</option>)}</select></label>
+        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 p-3">
+          <p className="font-bold">Choisissez les autorisations à accorder</p>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={shareHistory} onChange={e=>setShareHistory(e.target.checked)} className="mt-1"/> <span><b>Historique</b><span className="block text-slate-500">Consultation des mesures antérieures de ce type.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={shareRealtime} onChange={e=>setShareRealtime(e.target.checked)} className="mt-1"/> <span><b>Suivi en temps réel</b><span className="block text-slate-500">Accès aux mesures reçues à partir de l'activation de ce droit.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={shareAlerts} onChange={e=>setShareAlerts(e.target.checked)} className="mt-1"/> <span><b>Alertes personnalisées</b><span className="block text-slate-500">Transmission des alertes générées par les seuils que vous avez configurés.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={shareClinicalNotes} onChange={e=>setShareClinicalNotes(e.target.checked)} className="mt-1"/> <span><b>Dossier clinique partagé</b><span className="block text-slate-500">Autoriser le professionnel à ouvrir et tenir le dossier clinique de suivi.</span></span></label>
+        </div>
+        {!selectedConsent&&<p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Vous devez d'abord accepter explicitement le traitement de la famille « {families.find(f=>f.key===typeInfo.family)?.label} » dans les consentements de suivi.</p>}
+        <div className="mt-3 flex flex-wrap gap-2"><button disabled={busy||!professionalId||directoryLoading||!selectedConsent} onClick={()=>void shareSelectedType()} className="min-h-11 rounded-xl bg-[#0A6B3A] px-4 font-bold text-white disabled:opacity-40">Enregistrer les autorisations</button><button disabled={busy||!professionalId} onClick={()=>void revokeShare()} className="min-h-11 rounded-xl border border-slate-300 px-4 font-bold text-slate-700">Révoquer ce type</button></div>
+        {professionalLinks.length>0&&<div className="mt-5 border-t pt-4"><h3 className="font-extrabold">Professionnels connectés</h3><div className="mt-2 space-y-2">{professionalLinks.filter(link=>link.active).map(link=><article key={link.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><b>{professionalDirectory.find(p=>p.user_id===link.professional_user_id)?.display_name??("Professionnel "+link.professional_user_id.slice(0,8))}</b><p className="text-xs text-slate-500">Historique : {link.history_access?"oui":"non"} · Temps réel : {link.realtime_access?"oui":"non"} · Alertes : {link.alerts_access?"oui":"non"}</p></div><button type="button" disabled={busy} onClick={()=>void disconnectProfessional(link.professional_user_id)} className="min-h-10 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700">Supprimer la connexion</button></article>)}</div></div>}
       </section>
       <section className={(activeTab==="Alertes"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] transition duration-300 hover:-translate-y-0.5"}><h2 className="text-xl font-extrabold">Alertes personnelles</h2><p className="mt-1 text-sm leading-6 text-slate-600">Définissez vos propres plages de rappel. NAXA ne fournit aucun seuil clinique recommandé; demandez conseil à un professionnel de santé pour interpréter les résultats.</p><p className="mt-3 text-sm font-semibold">Type sélectionné : {typeInfo.label}</p>{!typeInfo.numeric?<p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Ce type de note ne prend pas en charge les plages numériques.</p>:<div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">Limite minimale personnelle<input type="number" step="any" value={minThreshold} onChange={e=>setMinThreshold(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder="Facultatif"/></label><label className="text-sm font-semibold">Limite maximale personnelle<input type="number" step="any" value={maxThreshold} onChange={e=>setMaxThreshold(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder="Facultatif"/></label><button disabled={busy||!selectedConsent} onClick={()=>void saveAlertRule()} className="min-h-11 rounded-xl bg-[#0A6B3A] px-4 font-bold text-white disabled:opacity-40 sm:col-span-2">Enregistrer les limites personnelles</button></div>}<h3 className="mt-5 font-extrabold">Mes plages configurées</h3>{!alertRules.length?<p className="mt-2 text-sm text-slate-500">Aucune alerte personnalisée configurée.</p>:<ul className="mt-2 space-y-2">{alertRules.map(r=><li key={r.id} className="rounded-xl border p-3 text-sm"><strong>{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type}</strong><p className="mt-1 text-slate-600">Minimum : {r.min_value??"—"} · Maximum : {r.max_value??"—"}</p></li>)}</ul>}<h3 className="mt-5 font-extrabold">Alertes déclenchées</h3>{!alerts.length?<p className="mt-2 text-sm text-slate-500">Aucune alerte déclenchée.</p>:<ul className="mt-2 space-y-2">{alerts.map(a=><li key={a.id} className={a.read_at?"rounded-xl border p-3 text-sm":"rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm"}><div className="flex flex-wrap items-center justify-between gap-2"><strong>{types.find(t=>t.key===a.measurement_type)?.label??a.measurement_type}</strong><time className="text-sm">{new Date(a.created_at).toLocaleString("fr-FR")}</time></div><p className="mt-1">Valeur {a.observed_value} {a.alert_kind==="below_user_range"?"inférieure à votre limite minimale":"supérieure à votre limite maximale"}.</p>{!a.read_at&&<button onClick={()=>void markAlertRead(a.id)} className="mt-2 min-h-10 rounded-lg border px-3 font-bold">Marquer comme lue</button>}</li>)}</ul>}<p className="mt-3 text-sm leading-5 text-slate-500">Ces alertes signalent uniquement un écart par rapport à vos paramètres. Elles ne constituent pas un avis médical et ne remplacent pas une urgence médicale.</p></section>
       <section className={(activeTab==="Options" && optionsPage==="historique"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] transition duration-300 hover:-translate-y-0.5"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button><h2 className="text-xl font-extrabold">Historique privé</h2><div className="mt-4"><SuiviHistoryChart measurements={history} title="Variation de mes mesures"/></div>{history.length===0?<p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Aucune mesure enregistrée. Si une erreur de lecture est apparue plus haut, réessayez avant de conclure que l’historique est vide.</p>:<ul className="mt-3 space-y-2">{history.map(m=><li key={m.id} className="rounded-xl border p-3"><div className="flex flex-wrap justify-between gap-2"><p className="font-bold">{types.find(t=>t.key===m.measurement_type)?.label??m.measurement_type}</p><time className="text-sm text-slate-500">{new Date(m.measured_at).toLocaleString("fr-FR")}</time></div><p className="mt-1 text-sm">{m.value_numeric??m.value_text} {m.unit??""}</p>{m.note&&<p className="mt-1 text-sm text-slate-600">{m.note}</p>}<p className="mt-1 text-sm text-slate-500">Source : {m.source==="bluetooth"?"Bluetooth":m.source==="photo_ocr_local"?"OCR local":"saisie manuelle"}</p></li>)}</ul>}</section>
