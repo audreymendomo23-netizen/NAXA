@@ -119,18 +119,26 @@ function parseTemperature(data) {
   return result("temperature", celsius, "°C", measuredAt);
 }
 
-function parsePulseOximeter(data) {
+function parsePulseOximeter(data, continuous = false) {
   requireBytes(data, 5, "Pulse Oximeter");
   const flags = data.getUint8(0);
   let offset = 1;
   const spo2 = decodeSfloat(data.getUint16(offset, true)); offset += 2;
   const pulse = decodeSfloat(data.getUint16(offset, true)); offset += 2;
   let measuredAt = null;
-  if (flags & 1) { measuredAt = readDateTime(data, offset); offset += 7; }
-  if (flags & 2) offset += 2;
-  if (flags & 4) offset += 3;
-  if (flags & 8) offset += 2;
-  requireBytes(data, Math.min(offset, data.byteLength), "Pulse Oximeter");
+  if (!continuous && (flags & 1)) { measuredAt = readDateTime(data, offset); offset += 7; }
+  if (continuous) {
+    if (flags & 1) offset += 4; // Fast SpO2 and pulse rate
+    if (flags & 2) offset += 4; // Slow SpO2 and pulse rate
+    if (flags & 4) offset += 2; // Measurement status
+    if (flags & 8) offset += 3; // Device and sensor status
+    if (flags & 16) offset += 2; // Pulse amplitude index
+  } else {
+    if (flags & 2) { requireBytes(data, offset + 2, "Pulse Oximeter measurement status"); offset += 2; }
+    if (flags & 4) { requireBytes(data, offset + 3, "Pulse Oximeter device/sensor status"); offset += 3; }
+    if (flags & 8) { requireBytes(data, offset + 2, "Pulse Oximeter pulse amplitude"); offset += 2; }
+  }
+  requireBytes(data, offset, "Pulse Oximeter optional fields");
   if (spo2 < 50 || spo2 > 100 || pulse < 0 || pulse > 300) throw new Error("Invalid pulse oximeter result");
   return [
     ...result("saturation_oxygene", spo2, "%", measuredAt),
@@ -147,7 +155,6 @@ function parseGlucose(data) {
   if (flags & 1) offset += 2; // optional time offset
   if (!(flags & 2)) throw new Error("Glucose concentration missing from packet");
   requireBytes(data, offset + 3, "Glucose concentration/type");
-  const unit = flags & 4 ? "mol/L" : "kg/L";
   const concentration = decodeSfloat(data.getUint16(offset, true));
   offset += 2;
   offset += 1; // type and sample location
@@ -238,7 +245,7 @@ function parseRunningSpeedCadence(data) {
   if (cadence <= 250) values.push({ measurement_type:"cadence_course", value_numeric:cadence, unit:"pas/min", measured_at:null });
   if (flags & 1 && data.byteLength >= 6) {
     const stride = data.getUint16(4, true);
-    if (stride <= 300) values.push({ measurement_type:"longueur_foulee", value_numeric:stride, unit:"cm", measured_at:null });
+    if (stride <= 300) values.push({ measurement_type:"longueur_foulee", value_numeric:Number((stride * 100).toFixed(2)), unit:"cm", measured_at:null });
   }
   return values;
 }
@@ -249,7 +256,7 @@ export function decodeStandardGattMeasurement(serviceId, characteristicId, data)
   if (service === "180d" || service === "heart_rate") if (characteristic === "2a37" || characteristic === "heart_rate_measurement") return parseHeartRate(data);
   if (service === "1810" || service === "blood_pressure") if (characteristic === "2a35" || characteristic === "blood_pressure_measurement") return parseBloodPressure(data);
   if (service === "1809" || service === "health_thermometer") if (characteristic === "2a1c" || characteristic === "temperature_measurement") return parseTemperature(data);
-  if (service === "1822" || service === "pulse_oximeter") if (characteristic === "2a5e" || characteristic === "plx_spot_check_measurement" || characteristic === "2a5f" || characteristic === "plx_continuous_measurement") return parsePulseOximeter(data);
+  if (service === "1822" || service === "pulse_oximeter") { if (characteristic === "2a5e" || characteristic === "plx_spot_check_measurement") return parsePulseOximeter(data, false); if (characteristic === "2a5f" || characteristic === "plx_continuous_measurement") return parsePulseOximeter(data, true); }
   if (service === "1808" || service === "glucose") if (characteristic === "2a18" || characteristic === "glucose_measurement") return parseGlucose(data);
   if ((service === "1826" || service === "fitness_machine" || service === "181d" || service === "respiratory_rate") && (characteristic === "2aab" || characteristic === "respiration_rate_measurement")) return parseRespiratoryRate(data);
   if (service === "1814" || service === "running_speed_cadence") if (characteristic === "2a53" || characteristic === "rsc_measurement") return parseRunningSpeedCadence(data);
