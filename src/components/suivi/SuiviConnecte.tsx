@@ -176,6 +176,22 @@ export function SuiviConnecte() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
+    if(allowed!==true)return;
+    let channel:any=null;
+    let cancelled=false;
+    void sb.auth.getUser().then(({data})=>{
+      if(cancelled||!data.user)return;
+      channel=sb.channel("suivi-patient-live-"+data.user.id)
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_user_devices",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_consents",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .subscribe();
+    });
+    return()=>{cancelled=true;if(channel)void sb.removeChannel(channel);};
+  },[allowed,sb,load]);
+
+  useEffect(()=>{
     let cancelled=false;
     if(!("serviceWorker" in navigator)||!("PushManager" in window)){setPushEnabled(false);return;}
     void navigator.serviceWorker.getRegistration("/").then(async registration=>{
