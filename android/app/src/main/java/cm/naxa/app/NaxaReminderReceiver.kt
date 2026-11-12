@@ -55,6 +55,13 @@ object NaxaReminderScheduler {
         prefs.all.keys.filter { it.startsWith("schedule_") }.forEach { scheduleNext(context, it.removePrefix("schedule_")) }
     }
 
+    fun clearAll(context: Context) {
+        val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+        val ids=prefs.all.keys.filter { it.startsWith("schedule_") }.map { it.removePrefix("schedule_") }
+        ids.forEach { remove(context,it) }
+        prefs.edit().clear().apply()
+    }
+
     fun scheduleNext(context: Context, id: String) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val raw = prefs.getString("schedule_" + id, null) ?: return
