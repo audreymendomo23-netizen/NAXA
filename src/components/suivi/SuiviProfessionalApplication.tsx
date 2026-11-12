@@ -46,6 +46,7 @@ export function SuiviProfessionalApplication(){
     if(!userId){setNotice("Connexion requise.");return;}
     if(accreditationIsCurrent){setNotice("Votre agrément est toujours valide. Contactez l'administration pour toute modification.");return;}
     if(displayName.trim().length<2||registration.trim().length<3||authority.trim().length<2){setNotice("Renseignez le nom, le numéro d'inscription et l'autorité émettrice.");return;}
+    if(expiry&&new Date(expiry+"T23:59:59").getTime()<=Date.now()){setNotice("La date d’expiration est déjà passée. Joignez un justificatif en cours de validité ou laissez ce champ vide si l’agrément n’expire pas.");return;}
     if(!file&&(!existing?.credential_storage_path||accreditationIsExpired)){setNotice(accreditationIsExpired?"Votre agrément est expiré : joignez un justificatif officiel renouvelé.":"Joignez le justificatif officiel d'agrément (PDF, JPG ou PNG).");return;}
     if(file&&(file.size>10*1024*1024||!["application/pdf","image/jpeg","image/png"].includes(file.type))){setNotice("Le justificatif doit être un PDF, JPG ou PNG de 10 Mo maximum.");return;}
     setBusy(true);setNotice("");
