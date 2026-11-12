@@ -377,7 +377,7 @@ export default function Accueil() {
               {t.pharmacienCta}
             </a>
           </div>
-          <p className="pt-1 text-center font-semibold">{t.builtWith}</p>
+          <p className="pt-1 text-center font-semibold text-white">{t.builtWith} <span className="text-red-500">❤️</span> by Team <span className="text-naxa-canari">M</span></p>
         </div>
       </footer>
     </main>}
