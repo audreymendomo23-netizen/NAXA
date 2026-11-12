@@ -131,8 +131,8 @@ begin
       select 1 from public.naxa_professional_assignments a
       where a.profile_id=new.profile_id and a.id is distinct from new.id
         and a.statut='active'
-        and a.commence_at<=greatest(now(),new.commence_at)
-        and (a.expire_at is null or a.expire_at>greatest(now(),new.commence_at))
+        and a.commence_at<coalesce(new.expire_at,'infinity'::timestamptz)
+        and (a.expire_at is null or a.expire_at>new.commence_at)
         and a.role_code<>'livreur'
     ) then
       raise exception 'Ce compte possède déjà un autre poste professionnel : le compte Livreur doit rester exclusif';
@@ -141,8 +141,8 @@ begin
     select 1 from public.naxa_professional_assignments a
     where a.profile_id=new.profile_id and a.id is distinct from new.id
       and a.role_code='livreur' and a.statut='active'
-      and a.commence_at<=now()
-      and (a.expire_at is null or a.expire_at>now())
+      and a.commence_at<coalesce(new.expire_at,'infinity'::timestamptz)
+      and (a.expire_at is null or a.expire_at>new.commence_at)
   ) then
     raise exception 'Un compte Livreur ne peut pas recevoir un autre poste professionnel';
   end if;
