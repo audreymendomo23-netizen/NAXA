@@ -27,6 +27,7 @@ export function ComptaPlanManager({ pharmacies, initialPharmacy, initialData, in
   const [pharmacyId, setPharmacyId] = useState(initialPharmacy);
   const [data, setData] = useState<PlanData | null>(initialData);
   const [config, setConfig] = useState<ConfigData | null>(initialConfig);
+  const [configAvailable, setConfigAvailable] = useState(initialConfig !== null);
   const [journalEvent, setJournalEvent] = useState<string>("vente_encaissee");
   const [journalCode, setJournalCode] = useState("");
   const [journalFrom, setJournalFrom] = useState("");
@@ -57,9 +58,14 @@ export function ComptaPlanManager({ pharmacies, initialPharmacy, initialData, in
       supabaseBrowser().rpc("compta_config_lire", { p_pharmacie: id }),
     ]);
     if (planResult.error) throw planResult.error;
-    if (configResult.error) throw configResult.error;
     setData(planResult.data as PlanData);
-    setConfig(configResult.data as ConfigData);
+    if (configResult.error) {
+      setConfig(null);
+      setConfigAvailable(false);
+    } else {
+      setConfig(configResult.data as ConfigData);
+      setConfigAvailable(true);
+    }
   }
 
   useEffect(() => {
@@ -181,7 +187,8 @@ export function ComptaPlanManager({ pharmacies, initialPharmacy, initialData, in
         <h2 className="text-lg font-extrabold">Journaux comptables</h2>
         <span className="text-xs text-slate-500">Codes à définir et valider par pharmacie</span>
       </div>
-      {canWrite && <form onSubmit={saveJournal} className="mt-4 grid gap-3 sm:grid-cols-2">
+      {!configAvailable && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">La configuration des journaux et périodes sera disponible après application de la migration comptable correspondante sur cette base.</p>}
+      {canWrite && configAvailable && <form onSubmit={saveJournal} className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-semibold">Événement
           <select required className="mt-1 w-full rounded-lg border p-3" value={journalEvent} onChange={e => setJournalEvent(e.target.value)}>
             {ACCOUNTING_EVENTS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
@@ -209,7 +216,7 @@ export function ComptaPlanManager({ pharmacies, initialPharmacy, initialData, in
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4">
       <h2 className="text-lg font-extrabold">Périodes comptables</h2>
-      {canWrite && <form onSubmit={openPeriod} className="mt-4 grid gap-3 sm:grid-cols-2">
+      {canWrite && configAvailable && <form onSubmit={openPeriod} className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Date de début<input required type="date" className="mt-1 w-full rounded-lg border p-3" value={periodFrom} onChange={e => setPeriodFrom(e.target.value)} /></label>
         <label className="text-sm">Date de fin<input required type="date" min={periodFrom || undefined} className="mt-1 w-full rounded-lg border p-3" value={periodUntil} onChange={e => setPeriodUntil(e.target.value)} /></label>
         <button disabled={busy || !periodFrom || !periodUntil || periodUntil < periodFrom} className="rounded-lg bg-naxa-green-900 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:col-span-2">Ouvrir la période</button>
