@@ -75,6 +75,7 @@ async function findAuthUserByEmail(admin:ReturnType<typeof supabaseAdmin>,email:
 }
 
 async function sendExamStaffActivationEmail(email:string,token:string){
+  if(process.env.VERCEL_ENV!=="production") throw new Error("Envoi automatique réservé à Production ; transmettre le lien manuellement depuis cet environnement.");
   const endpoint=process.env.GOOGLE_APPS_SCRIPT_URL;
   const secret=process.env.GOOGLE_APPS_SCRIPT_SECRET;
   const configuredSiteUrl=process.env.NEXT_PUBLIC_SITE_URL;
