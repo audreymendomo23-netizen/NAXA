@@ -20,7 +20,19 @@ type TicketPayment = {
   montant: number;
   montant_percu: number | null;
   monnaie_rendue: number | null;
+  reference: string | null;
   created_at: string;
+};
+type TicketAssurance = {
+  assureur_nom: string | null;
+  montant_brut_fcfa: number;
+  montant_assureur_fcfa: number;
+  montant_client_fcfa: number;
+  valide_client: boolean;
+  controle_documents_statut: string;
+  statut_dossier: string;
+  montant_rembourse_fcfa: number;
+  statut_remboursement: string;
 };
 type Ticket = {
   receipt_type: string;
@@ -42,6 +54,7 @@ type Ticket = {
   };
   items: TicketItem[];
   payments: TicketPayment[];
+  assurance: TicketAssurance | null;
   reservation: {
     reservation_id: string;
     ticket_numero_snapshot: string | null;
@@ -91,12 +104,20 @@ export default function Recu() {
       const itemsTotal = ticket.items.reduce((sum, item) => sum + Number(item.total_ligne), 0);
       const paymentsTotal = ticket.payments.reduce((sum, payment) => sum + Number(payment.montant), 0);
       const saleTotal = Number(ticket.sale.total_net);
+      const insurerPayments = ticket.payments.filter(payment => (payment.reference ?? "").startsWith("ASSURANCE:")).reduce((sum, payment) => sum + Number(payment.montant), 0);
+      const clientPayments = paymentsTotal - insurerPayments;
       if (
         !Number.isFinite(itemsTotal) ||
         !Number.isFinite(paymentsTotal) ||
         !Number.isFinite(saleTotal) ||
         Math.abs(itemsTotal - Number(ticket.sale.total_brut)) > 1 ||
-        Math.abs(paymentsTotal - saleTotal) > 1
+        Math.abs(paymentsTotal - saleTotal) > 1 ||
+        (ticket.assurance && (
+          Math.abs(Number(ticket.assurance.montant_brut_fcfa) - Number(ticket.sale.total_brut)) > 1 ||
+          Math.abs(Number(ticket.assurance.montant_assureur_fcfa) - insurerPayments) > 1 ||
+          Math.abs(Number(ticket.assurance.montant_client_fcfa) - clientPayments) > 1 ||
+          Math.abs(Number(ticket.assurance.montant_assureur_fcfa) + Number(ticket.assurance.montant_client_fcfa) - Number(ticket.assurance.montant_brut_fcfa)) > 1
+        ))
       ) {
         throw new Error("Les montants du ticket, des lignes et des paiements ne concordent pas. Le reçu est bloqué pour vérification.");
       }
@@ -171,17 +192,30 @@ export default function Recu() {
               </tbody>
             </table>
             <dl className="mt-3 space-y-1 text-sm">
-              <div className="flex justify-between gap-3"><dt>Sous-total</dt><dd>{fcfa(Number(ticket.sale.total_brut))}</dd></div>
+              <div className="flex justify-between gap-3"><dt>Montant brut</dt><dd>{fcfa(Number(ticket.sale.total_brut))}</dd></div>
               <div className="flex justify-between gap-3"><dt>Remise</dt><dd>{fcfa(Number(ticket.sale.remise))}</dd></div>
-              <div className="flex justify-between gap-3 text-lg font-extrabold"><dt>Total vente</dt><dd>{fcfa(Number(ticket.sale.total_net))}</dd></div>
-              <div className="flex justify-between gap-3 font-bold"><dt>Total paiements enregistrés</dt><dd>{fcfa(totalPaye)}</dd></div>
+              {ticket.assurance ? <>
+                <div className="flex justify-between gap-3"><dt>Part assureur — créance, non encaissée</dt><dd>{fcfa(Number(ticket.assurance.montant_assureur_fcfa))}</dd></div>
+                <div className="flex justify-between gap-3 font-bold"><dt>Part client à régler</dt><dd>{fcfa(Number(ticket.assurance.montant_client_fcfa))}</dd></div>
+                <div className="flex justify-between gap-3 text-lg font-extrabold"><dt>Total brut réparti</dt><dd>{fcfa(Number(ticket.assurance.montant_brut_fcfa))}</dd></div>
+              </> : <div className="flex justify-between gap-3 text-lg font-extrabold"><dt>Total vente</dt><dd>{fcfa(Number(ticket.sale.total_net))}</dd></div>}
+              <div className="flex justify-between gap-3 font-bold"><dt>Règlements client enregistrés</dt><dd>{fcfa(ticket.assurance ? totalPaye - Number(ticket.assurance.montant_assureur_fcfa) : totalPaye)}</dd></div>
             </dl>
           </section>
+          {ticket.assurance && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm">
+            <h2 className="mb-2 font-bold">Prise en charge Assurance · {ticket.assurance.assureur_nom ?? "Assureur"}</h2>
+            <p>Accord client : {ticket.assurance.valide_client ? "accepté" : "non confirmé"}</p>
+            <p>Justificatifs : {ticket.assurance.controle_documents_statut === "conforme" ? "contrôlés et conformes" : ticket.assurance.controle_documents_statut === "non_conforme" ? "non conformes" : "à contrôler"}</p>
+            <p>Décision pharmacie : {ticket.assurance.statut_dossier === "accepte" || ticket.assurance.statut_dossier === "clos" ? "prise en charge confirmée" : ticket.assurance.statut_dossier}</p>
+            <p>Remboursement réellement reçu : {fcfa(Number(ticket.assurance.montant_rembourse_fcfa))} · {ticket.assurance.statut_remboursement}</p>
+            <p className="mt-2 font-semibold">La part assureur est une créance. Elle n’est pas un paiement reçu par la caisse.</p>
+          </section>}
           <section className="rounded-xl border p-4 text-sm">
             <h2 className="mb-2 font-bold">Détail du paiement enregistré</h2>
             {ticket.payments.map((payment, index) => (
               <div key={payment.created_at + "-" + index} className="border-b py-2 last:border-b-0">
-                <p><strong>Mode :</strong> {payment.mode ?? "—"}</p>
+                <p><strong>Nature :</strong> {(payment.reference ?? "").startsWith("ASSURANCE:") ? "Part assureur · créance, non encaissée en caisse" : "Règlement client reçu par la pharmacie"}</p>
+                <p><strong>Mode :</strong> {(payment.reference ?? "").startsWith("ASSURANCE:") ? "Prise en charge assureur" : payment.mode ?? "—"}</p>
                 <p><strong>Montant affecté :</strong> {fcfa(Number(payment.montant))}</p>
                 {payment.montant_percu != null && <p><strong>Montant perçu :</strong> {fcfa(Number(payment.montant_percu))}</p>}
                 {payment.monnaie_rendue != null && <p><strong>Monnaie rendue :</strong> {fcfa(Number(payment.monnaie_rendue))}</p>}
