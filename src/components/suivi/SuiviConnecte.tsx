@@ -379,7 +379,17 @@ export function SuiviConnecte() {
       if(cancelled||!data.user)return;
       channel=sb.channel("suivi-patient-live-"+data.user.id)
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements",filter:"user_id=eq."+data.user.id},()=>{void load();})
-        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"suivi_alerts",filter:"user_id=eq."+data.user.id},(payload)=>{
+          const alert=payload.new as {id?:string;alert_kind?:string};
+          if(alert.id){
+            (window as any).NaxaAndroid?.showLocalNotification?.(
+              "NAXA · Alerte de mesure",
+              "Une mesure a franchi votre seuil personnel. Ouvrez votre suivi pour consulter l'alerte.",
+              "/suivi","suivi-alert-"+alert.id
+            );
+          }
+          void load();
+        })
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_user_devices",filter:"user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_shares",filter:"owner_user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_care_links",filter:"patient_user_id=eq."+data.user.id},()=>{void load();})
