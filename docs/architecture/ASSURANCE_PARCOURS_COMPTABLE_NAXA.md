@@ -112,7 +112,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Le job `naxa-compta-worker` est actif toutes les 5 minutes, exécuté sous le rôle PostgreSQL `postgres`. Il ne dépend pas d'un endpoint HTTP, d'une Edge Function ou d'un secret supplémentaire.
 - La fonction interne est inaccessible à `anon`, `authenticated` et `service_role` ; seul `postgres` peut l'exécuter. Elle pose un claim service-role transactionnel puis appelle les RPC existantes, qui conservent les contrôles métier, les périodes, les mappings, les journaux et l'idempotence.
 - Test de contrat `202611121_compta_worker_cron_contract.sql` : vérifie le job, sa fréquence, son propriétaire et les ACL. Test positif Assurance modifié pour passer par le worker planifié lui-même et traiter prise en charge 10 000 FCFA + remboursements 4 000 et 6 000 FCFA, avec rollback des fixtures.
-- Replay : appel manuel du worker à vide retournant `ok=true, reclames=0, traite=0, erreurs=0`. Le job est programmé ; l'exécution périodique réelle sera confirmée par les logs `cron.job_run_details` après son premier cycle.
+- Replay : appel manuel du worker à vide retournant `ok=true, reclames=0, traite=0, erreurs=0`. Premier cycle périodique confirmé dans `cron.job_run_details` le 12 novembre à 18:40:00 UTC : `succeeded`, durée 12 ms. La file ne contenait aucun événement métier persistant.
 - Aucun compte, mapping, journal, période, événement ou écriture de démonstration n'est conservé.
 
 
