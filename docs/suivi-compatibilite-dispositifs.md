@@ -79,7 +79,13 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 - La PWA conserve le parcours Web Push et son service worker.
 - L’APK utilise les rappels locaux Android et une notification persistante de service Bluetooth.
-- Les notifications distantes Firebase Cloud Messaging ne sont pas activées : aucun fichier `google-services.json` ni identifiant de projet Firebase n’est présent dans le dépôt. Ne pas présenter FCM comme opérationnel avant raccordement du projet et de ses identifiants.
+- Le socle Firebase Cloud Messaging est intégré à l’APK : initialisation Firebase conditionnelle, réception Android des messages data-only, canal de notification dédié, ouverture de la route NAXA, récupération et enregistrement du jeton FCM.
+- Les jetons FCM sont liés au compte authentifié dans `naxa_fcm_tokens`; l’API valide le bearer Supabase avant l’écriture serveur. RLS limite les lectures/écritures directes au propriétaire et le service_role est réservé au serveur.
+- Le dispatcher de suivi envoie les rappels H-5, rappels personnels et alertes de suivi via FCM en complément de Web Push. Les notifications de messagerie utilisent également FCM.
+- Configuration serveur requise : variable Vercel `FIREBASE_SERVICE_ACCOUNT_JSON` contenant le JSON du compte de service Firebase avec le rôle d’envoi FCM. `FIREBASE_PROJECT_ID` est facultative si le projet est déjà renseigné dans ce JSON.
+- Configuration de compilation APK requise : `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_PROJECT_ID` et `FIREBASE_SENDER_ID`, fournies comme propriétés Gradle ou variables d’environnement. Aucun secret de compte de service ne doit être embarqué dans l’APK.
+- Sans ces identifiants client, FCM reste désactivé sans bloquer les rappels locaux ni le Bluetooth. Sans le compte de service côté serveur, les notifications distantes ne sont pas envoyées.
+- L’intégration est codée mais non certifiée : la migration SQL doit être appliquée, la configuration Firebase fournie, puis l’APK compilé et un push réel testé sur appareil.
 
 ## Vérifications
 
