@@ -43,6 +43,10 @@ begin
   if position('compta_ecriture_autorisee' in v_fn)=0 or position('daterange' in v_fn)=0 or position('compta_auditer' in v_fn)=0 then
     raise exception 'Validation mapping sans garde, anti-chevauchement ou audit';
   end if;
+  v_fn:=pg_get_functiondef('public.compta_plan_valider_plan(uuid)'::regprocedure);
+  if position('compta_ecriture_autorisee' in v_fn)=0 or position('compta_auditer' in v_fn)=0 then
+    raise exception 'Validation globale du plan non protégée ou non auditée';
+  end if;
   v_fn:=pg_get_functiondef('public.compta_plan_lire(uuid)'::regprocedure);
   if position('compta_scope_autorise' in v_fn)=0 or position('ecriture_autorisee' in v_fn)=0 then
     raise exception 'Lecture partagée ou état du droit manquant';
