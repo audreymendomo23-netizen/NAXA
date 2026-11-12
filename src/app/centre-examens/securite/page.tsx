@@ -10,9 +10,9 @@ export default async function SecuriteExamensPage({searchParams}:{searchParams:{
   const centerId=searchParams.centre||context.activeAssignments[0]?.center_id||"";
   const {sb,assignment}=await requireExamCapability(centerId,"incident_report");
   const {data:incidents,error}=await sb.from("exam_security_incidents").select("id,category,severity,state,title,description,opened_by,created_at,updated_at,resolution_summary").eq("center_id",centerId).order("created_at",{ascending:false}).limit(100);
-  const auditRows = audit ?? [];
   const canManage=examRoleHas(assignment.role_key,"security_manage");
   const {data:audit}=canManage?await sb.from("exam_security_audit_log").select("id,incident_id,action_key,from_state,to_state,created_at").eq("center_id",centerId).order("created_at",{ascending:false}).limit(100):{data:[] as any[]};
+  const auditRows = audit ?? [];
   return <div className="space-y-4">
     <header><p className="text-xs font-bold uppercase tracking-widest text-blue-700">Protection du centre</p><h2 className="mt-1 text-2xl font-black">Sécurité et incidents</h2><p className="mt-1 text-sm text-slate-600">Déclaration, qualification, confinement, correction, surveillance puis clôture avec journal des changements.</p></header>
     {searchParams.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">Action enregistrée.</p>}
