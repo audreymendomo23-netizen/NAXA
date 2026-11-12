@@ -419,7 +419,6 @@ export function SuiviConnecte() {
     if (!grant) {
       const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
       const familyMeasurementTypes=types.filter(type=>type.family===family).map(type=>type.key);
-      const familyDeviceIds=devices.filter(device=>keys.includes(device.device_key)).map(device=>device.id);
       for(const [deviceId,session] of bluetoothSessions.current.entries()){
         const saved=devices.find(device=>device.platform_device_id===deviceId);
         if(!saved||!keys.includes(saved.device_key)) continue;
@@ -432,15 +431,23 @@ export function SuiviConnecte() {
         .update({active:false,auto_reconnect:false,connection_state:"disconnected",updated_at:new Date().toISOString()})
         .eq("user_id", userData.user.id)
         .in("device_key", keys);
-      let scheduleQuery=sb.from("suivi_measurement_schedules")
-        .update({enabled:false,updated_at:new Date().toISOString()})
-        .eq("user_id",userData.user.id);
-      if(familyMeasurementTypes.length) scheduleQuery=scheduleQuery.in("measurement_type",familyMeasurementTypes);
-      await scheduleQuery;
+      const scheduleResult=familyMeasurementTypes.length
+        ? await sb.from("suivi_measurement_schedules").update({enabled:false,updated_at:new Date().toISOString()})
+            .eq("user_id",userData.user.id).in("measurement_type",familyMeasurementTypes)
+        : {error:null};
+      const reminderResult=familyMeasurementTypes.length
+        ? await sb.from("suivi_reminders").update({enabled:false,updated_at:new Date().toISOString()})
+            .eq("user_id",userData.user.id).in("measurement_type",familyMeasurementTypes)
+        : {error:null};
+      const alertResult=familyMeasurementTypes.length
+        ? await sb.from("suivi_alert_rules").update({enabled:false,updated_at:new Date().toISOString()})
+            .eq("user_id",userData.user.id).in("measurement_type",familyMeasurementTypes)
+        : {error:null};
       await load();
-      setNotice(deviceError
-        ? "Consentement retiré, sessions locales arrêtées et nouvelles saisies bloquées. Certains enregistrements d’appareils restent à désactiver."
-        : "Consentement retiré. Les sessions Bluetooth sont arrêtées, les reconnexions coupées et les programmations liées aux appareils désactivées.");
+      const cleanupFailed=!!deviceError||!!scheduleResult.error||!!reminderResult.error||!!alertResult.error;
+      setNotice(cleanupFailed
+        ? "Consentement retiré, sessions locales arrêtées et saisies nouvelles bloquées. Une partie des programmations ou alertes reste à désactiver."
+        : "Consentement retiré. Sessions Bluetooth arrêtées, reconnexions coupées, programmations H-5, rappels personnels et seuils d'alerte désactivés pour cette famille.");
     }
     setBusy(false);
   }
