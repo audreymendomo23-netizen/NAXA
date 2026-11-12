@@ -10,8 +10,7 @@ const bearer = fs.readFileSync(bearerPath, "utf8");
 const session = fs.readFileSync(sessionPath, "utf8");
 
 test("l'authentification API lit uniquement un jeton Bearer", () => {
-  assert.match(bearer, /headers\.get\(["']authorization["']\)/i);
-  assert.match(bearer, /Bearer\\s\+/);
+  assert.ok(bearer.includes('const match = /^Bearer\\s+([^\\s]+)$/i.exec(authorization.trim());'));
   assert.doesNotMatch(bearer, /next\/headers|createServerClient|cookies\(/);
 });
 
@@ -24,7 +23,7 @@ test("le jeton est validé par Supabase Auth avant d'être accepté", () => {
 test("le client de requête utilise la clé publique et conserve le JWT pour RLS", () => {
   assert.match(bearer, /NEXT_PUBLIC_SUPABASE_URL/);
   assert.match(bearer, /NEXT_PUBLIC_SUPABASE_ANON_KEY/);
-  assert.match(bearer, /Authorization:\s*\`Bearer \${token}\`/);
+  assert.ok(bearer.includes("headers: { Authorization: `Bearer ${token}` },"));
   assert.match(bearer, /persistSession:\s*false/);
   assert.match(bearer, /autoRefreshToken:\s*false/);
   assert.doesNotMatch(bearer, /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY/);
