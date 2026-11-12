@@ -142,6 +142,8 @@ export function SuiviConnecte() {
   const [measurementSheetOpen, setMeasurementSheetOpen] = useState(false);
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
   const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
+  const nativeDeviceRows=useRef(new Map<string,{id:string;deviceKey:string;name:string}>());
+  const nativeDevicePromises=useRef(new Map<string,Promise<string>>());
   const measurementRefreshTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const load = useCallback(async () => {
@@ -175,6 +177,91 @@ export function SuiviConnecte() {
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(()=>{
+    const onNativeBle=(raw:Event)=>{
+      const detail=(raw as CustomEvent).detail??{};
+      const deviceId=String(detail.deviceId??"");
+      const deviceKey=String(detail.deviceKey??nativeDeviceRows.current.get(deviceId)?.deviceKey??"");
+      if(detail.type==="scanning"){setNotice(String(detail.message??"Recherche Bluetooth…"));return;}
+      if(detail.type==="cancelled"){setNotice("Connexion Bluetooth annulée.");return;}
+      if(detail.type==="error"){setNotice(String(detail.message??"Erreur Bluetooth."));return;}
+      if(detail.type==="connecting"){setNotice("Connexion à "+String(detail.deviceName??"l'appareil")+"…");return;}
+      if(detail.type==="connected"&&deviceId&&deviceKey){
+        const item=deviceCatalog.find(entry=>entry.key===deviceKey);
+        if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setNotice("Consentement requis pour cette famille de mesures.");return;}
+        const task=(async()=>{
+          const {data:authData}=await sb.auth.getUser();
+          if(!authData.user)throw new Error("Session expirée.");
+          const name=String(detail.deviceName??item.name).slice(0,120);
+          const existing=await sb.from("suivi_user_devices").select("id")
+            .eq("user_id",authData.user.id).eq("platform_device_id",deviceId).maybeSingle();
+          if(existing.error)throw existing.error;
+          const payload={platform_device_id:deviceId,device_model:name,connection_state:"connected",
+            auto_reconnect:true,background_supported:false,last_seen_at:new Date().toISOString(),
+            last_error:null,updated_at:new Date().toISOString()};
+          const saved=existing.data?.id
+            ? await sb.from("suivi_user_devices").update(payload).eq("id",existing.data.id).eq("user_id",authData.user.id).select("id").single()
+            : await sb.from("suivi_user_devices").insert({user_id:authData.user.id,device_key:deviceKey,
+                device_name:name,connection_mode:"bluetooth",active:true,capabilities:["bluetooth","manual","scan"],
+                ...payload}).select("id").single();
+          if(saved.error||!saved.data?.id)throw saved.error??new Error("Enregistrement de l'appareil impossible.");
+          nativeDeviceRows.current.set(deviceId,{id:saved.data.id,deviceKey,name});
+          await load();
+          setNotice("Appareil connecté par Bluetooth Android. Les mesures compatibles sont synchronisées dans NAXA.");
+          return saved.data.id as string;
+        })();
+        nativeDevicePromises.current.set(deviceId,task);
+        void task.catch(error=>setNotice(error instanceof Error?error.message:"Connexion Android impossible."));
+        return;
+      }
+      if(detail.type==="measurement"&&deviceId){
+        void (async()=>{
+          let row=nativeDeviceRows.current.get(deviceId);
+          if(!row){
+            const pending=nativeDevicePromises.current.get(deviceId);
+            if(pending){await pending;row=nativeDeviceRows.current.get(deviceId);}
+          }
+          if(!row)throw new Error("L'appareil Android n'est pas encore associé au compte.");
+          const item=deviceCatalog.find(entry=>entry.key===row!.deviceKey);
+          if(!item||!consents[item.family])throw new Error("Consentement retiré : mesure Bluetooth ignorée.");
+          const hex=String(detail.payloadHex??"");
+          if(!hex||hex.length%2!==0)throw new Error("Trame Bluetooth invalide.");
+          const bytes=Uint8Array.from(hex.match(/.{2}/g)??[],part=>parseInt(part,16));
+          const decoded=decodeStandardGattMeasurement(bluetoothShortUuid(String(detail.serviceUuid??"")),bluetoothShortUuid(String(detail.characteristicUuid??"")),new DataView(bytes.buffer));
+          const allowed=decoded.filter(measurement=>{
+            const family=types.find(type=>type.key===measurement.measurement_type)?.family;
+            return !!family&&!!consents[family];
+          });
+          if(!allowed.length)return;
+          const {data:authData}=await sb.auth.getUser();
+          if(!authData.user)throw new Error("Session expirée.");
+          const receivedAt=new Date().toISOString();
+          const rows=allowed.map(measurement=>({
+            user_id:authData.user!.id,device_id:row!.id,measurement_type:measurement.measurement_type,
+            value_numeric:measurement.value_numeric,value_text:null,
+            unit:measurement.unit,measured_at:measurement.measured_at??receivedAt,
+            received_at:receivedAt,device_event_id:crypto.randomUUID(),sync_origin:"android_native",
+            source:"bluetooth",device_model_snapshot:row!.name,note:null
+          }));
+          const {error}=await sb.from("suivi_measurements").insert(rows);
+          if(error)throw error;
+          await sb.from("suivi_user_devices").update({last_measurement_at:receivedAt,last_seen_at:receivedAt,
+            connection_state:"connected",last_error:null,updated_at:receivedAt}).eq("id",row!.id).eq("user_id",authData.user.id);
+          if(measurementRefreshTimer.current)window.clearTimeout(measurementRefreshTimer.current);
+          measurementRefreshTimer.current=window.setTimeout(()=>void load(),500);
+          setNotice("Nouvelle mesure reçue depuis "+row.name+".");
+        })().catch(error=>setNotice(error instanceof Error?error.message:"Lecture Bluetooth ignorée."));
+      }
+      if(detail.type==="disconnected"&&deviceId){
+        const row=nativeDeviceRows.current.get(deviceId);
+        if(row)void sb.from("suivi_user_devices").update({connection_state:"disconnected",last_error:"Connexion Bluetooth interrompue",updated_at:new Date().toISOString()}).eq("id",row.id);
+        setNotice("Appareil Android déconnecté. Réactivez sa connexion depuis NAXA.");
+      }
+    };
+    window.addEventListener("naxa-android-ble",onNativeBle);
+    return()=>window.removeEventListener("naxa-android-ble",onNativeBle);
+  },[sb,load,consents,devices]);
+
   useEffect(()=>{
     if(allowed!==true)return;
     let channel:any=null;
@@ -1059,8 +1146,10 @@ export function SuiviConnecte() {
     const item=deviceCatalog.find(device=>device.key===deviceKey);
     if(!item || !consents[item.family]) { setNotice("Consentement requis avant la connexion Bluetooth."); return; }
     if(!window.isSecureContext) { setNotice("Le Bluetooth Web exige HTTPS."); return; }
+    const native=(window as any).NaxaAndroid;
+    if(native?.isAvailable?.()){setBusy(true);setNotice("Recherche Bluetooth Android…");native.startScan(deviceKey);return;}
     const bluetooth=(navigator as any).bluetooth;
-    if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez la saisie manuelle ou le scan sur cet appareil."); return; }
+    if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez l’application Android NAXA, la saisie manuelle ou le scan sur cet appareil."); return; }
     setBusy(true); setNotice("Recherche d'un appareil Bluetooth…");
     let selectedDevice:any=null;
     try {
