@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type PatientCase={
@@ -27,38 +27,40 @@ export function SuiviPatientClinicalRecord(){
   const [loading,setLoading]=useState(true);
   const [notice,setNotice]=useState("");
 
-  useEffect(()=>{
-    let cancelled=false;
-    void(async()=>{
-      setLoading(true);setNotice("");
-      const {data:auth,error:authError}=await sb.auth.getUser();
-      if(authError||!auth.user){
-        if(!cancelled){setNotice("Connectez-vous pour consulter votre dossier clinique.");setLoading(false);}
-        return;
+  const load=useCallback(async()=>{
+    setLoading(true);setNotice("");
+    const {data:auth,error:authError}=await sb.auth.getUser();
+    if(authError||!auth.user){
+      setNotice("Connectez-vous pour consulter votre dossier clinique.");setLoading(false);return;
+    }
+    const {data:caseRows,error:caseError}=await sb.from("suivi_patient_cases")
+      .select("id,professional_user_id,initial_diagnosis,monitoring_reason,status,created_at,updated_at")
+      .eq("patient_user_id",auth.user.id).order("updated_at",{ascending:false});
+    if(caseError){
+      setNotice("Le dossier clinique patient n'est pas disponible dans cette version du service.");setLoading(false);return;
+    }
+    const records=(caseRows??[]) as PatientCase[];
+    let history:ClinicalEntry[]=[];
+    if(records.length){
+      const {data:entryRows,error:entryError}=await sb.from("suivi_clinical_entries")
+        .select("id,case_id,entry_type,content,created_at,measurement_id")
+        .in("case_id",records.map(row=>row.id)).order("created_at",{ascending:false}).limit(1000);
+      if(entryError){
+        setCases(records);setNotice("Votre diagnostic est accessible, mais une partie de l'historique n'a pas pu être chargée.");setLoading(false);return;
       }
-      const {data:caseRows,error:caseError}=await sb.from("suivi_patient_cases")
-        .select("id,professional_user_id,initial_diagnosis,monitoring_reason,status,created_at,updated_at")
-        .eq("patient_user_id",auth.user.id).order("updated_at",{ascending:false});
-      if(caseError){
-        if(!cancelled){setNotice("Le dossier clinique patient n'est pas disponible dans cette version du service.");setLoading(false);}
-        return;
-      }
-      const records=(caseRows??[]) as PatientCase[];
-      let history:ClinicalEntry[]=[];
-      if(records.length){
-        const {data:entryRows,error:entryError}=await sb.from("suivi_clinical_entries")
-          .select("id,case_id,entry_type,content,created_at,measurement_id")
-          .in("case_id",records.map(row=>row.id)).order("created_at",{ascending:false}).limit(1000);
-        if(entryError){
-          if(!cancelled){setCases(records);setNotice("Votre diagnostic est accessible, mais une partie de l'historique n'a pas pu être chargée.");setLoading(false);}
-          return;
-        }
-        history=(entryRows??[]) as ClinicalEntry[];
-      }
-      if(!cancelled){setCases(records);setEntries(history);setLoading(false);}
-    })();
-    return ()=>{cancelled=true;};
+      history=(entryRows??[]) as ClinicalEntry[];
+    }
+    setCases(records);setEntries(history);setLoading(false);
   },[sb]);
+
+  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    const channel=sb.channel("suivi-dossier-patient")
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_patient_cases"},()=>{void load();})
+      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_clinical_entries"},()=>{void load();})
+      .subscribe();
+    return ()=>{void sb.removeChannel(channel);};
+  },[sb,load]);
 
   return <section className="mt-5 rounded-2xl border border-indigo-100 bg-white p-4">
     <div>
