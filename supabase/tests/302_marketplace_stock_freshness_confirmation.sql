@@ -11,7 +11,7 @@ end $$;
 -- Vérification dynamique sur une ligne Replay sans historique journalisé :
 -- 47 h 59 min 50 s doit rester visible ; 48 h 10 s doit être masqué.
 -- La valeur updated_at d'origine est restaurée dans la même transaction.
-do $
+do $verify$
 declare
   v_pharmacie uuid;
   v_produit uuid;
@@ -49,6 +49,6 @@ begin
     update public.stocks set updated_at=v_old_updated_at
     where pharmacie_id=v_pharmacie and produit_id=v_produit;
   end if;
-end $;
+end $verify$;
 
 select 'MARKETPLACE_STOCK_VERIFICATION_TIMESTAMP PASS' as result;
