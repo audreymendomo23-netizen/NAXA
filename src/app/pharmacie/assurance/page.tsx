@@ -11,7 +11,7 @@ const money=(v:number)=>new Intl.NumberFormat("fr-FR").format(Math.round(v||0))+
 const labels:Record<string,string>={devis_calcule:"Devis calculé",reservation_assurance_validee:"Devis accepté par le client",documents_controles:"Justificatifs contrôlés",prise_en_charge_confirmee:"Prise en charge confirmée",prise_en_charge_refusee:"Prise en charge refusée",montant_modifie:"Montant modifié",accord_client_obtenu:"Accord client obtenu",vente_assurance_enregistree:"Vente enregistrée",remboursement_recu:"Remboursement reçu",remboursement_partiel:"Remboursement partiel",dossier_solde:"Dossier soldé"};
 
 export default function AssuranceDashboardPage(){
- const [loading,setLoading]=useState(true),[error,setError]=useState(""),[role,setRole]=useState(""),[pharmacies,setPharmacies]=useState<string[]>([]),[dossiers,setDossiers]=useState<Dossier[]>([]),[events,setEvents]=useState<Evenement[]>([]),[assureurs,setAssureurs]=useState<Record<string,string>>({});
+ const [loading,setLoading]=useState(true),[error,setError]=useState(""),[role,setRole]=useState(""),[pharmacies,setPharmacies]=useState<string[]>([]),[dossiers,setDossiers]=useState<Dossier[]>([]),[events,setEvents]=useState<Evenement[]>([]),[assureurs,setAssureurs]=useState<Record<string,string>>({}),[newInsurer,setNewInsurer]=useState(""),[newCode,setNewCode]=useState(""),[savingInsurer,setSavingInsurer]=useState(false),[notice,setNotice]=useState("");
  const load=useCallback(async()=>{
   setLoading(true);setError("");const sb=supabaseBrowser();
   const {data:user}=await sb.auth.getUser();if(!user.user){window.location.replace("/connexion?retour=/pharmacie/assurance");return;}
@@ -35,6 +35,14 @@ export default function AssuranceDashboardPage(){
   setAssureurs(Object.fromEntries(((ins??[]) as Assureur[]).map(x=>[x.id,x.nom])));setLoading(false);
  },[]);
  useEffect(()=>{void load()},[load]);
+ const addInsurer=async()=>{
+  if(role!=="promoteur"||newInsurer.trim().length<2||savingInsurer)return;
+  setSavingInsurer(true);setNotice("");setError("");
+  const {error:e}=await supabaseBrowser().rpc("assurance_ajouter_assureur",{p_nom:newInsurer.trim(),p_code:newCode.trim()||null});
+  if(e)setError("Impossible d’ajouter cet assureur. Le nom est peut-être déjà utilisé ou le compte Promoteur n’est pas actif.");
+  else {setNotice("Assureur ajouté au référentiel partagé. La pharmacie doit encore déclarer sa propre convention.");setNewInsurer("");setNewCode("");}
+  setSavingInsurer(false);
+ };
  const accepted=dossiers.filter(x=>x.statut==="accepte");
  const due=accepted.reduce((s,x)=>s+Math.max(0,Number(x.montant_prise_en_charge)-Number(x.montant_rembourse||0)),0);
  const paid=accepted.reduce((s,x)=>s+Number(x.montant_rembourse||0),0);
@@ -46,7 +54,8 @@ export default function AssuranceDashboardPage(){
   </header>
   {error&&<p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">{error}</p>}
   {loading?<section className="rounded-2xl bg-white p-5">Chargement des événements Assurance…</section>:<>
-   <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+   {role==="promoteur"&&<section className="rounded-2xl bg-white p-4"><h2 className="font-extrabold">Référentiel partagé des assureurs</h2><p className="mb-3 text-xs text-slate-500">L’ajout rend l’assureur disponible dans la recherche. Il ne conventionne aucune pharmacie automatiquement.</p><div className="grid gap-2 sm:grid-cols-[1fr_180px_auto]"><input aria-label="Nom de l’assureur" className="rounded-xl border p-3" placeholder="Nom de l’assureur" value={newInsurer} onChange={e=>setNewInsurer(e.target.value)}/><input aria-label="Code assureur facultatif" className="rounded-xl border p-3" placeholder="Code (facultatif)" value={newCode} onChange={e=>setNewCode(e.target.value)}/><button disabled={savingInsurer||newInsurer.trim().length<2} onClick={()=>void addInsurer()} className="btn btn-vert">{savingInsurer?"Ajout…":"Ajouter l’assureur"}</button></div>{notice&&<p className="mt-2 text-sm text-emerald-700">{notice}</p>}</section>}
+  <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <article className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">Dossiers suivis</p><p className="mt-1 text-2xl font-black">{dossiers.length}</p></article>
     <article className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">À traiter</p><p className="mt-1 text-2xl font-black">{pending}</p></article>
     <article className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">Remboursements encaissés</p><p className="mt-1 text-xl font-black">{money(paid)}</p></article>
