@@ -437,7 +437,7 @@ export function SuiviConnecte() {
         }
       }
       const {data}=await sb.from("suivi_user_devices")
-        .select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at")
+        .select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at,firmware_version,metadata")
         .eq("user_id",userData.user.id).order("created_at",{ascending:true});
       setDevices((data??[]) as UserDevice[]);
       setNotice(instances.length
