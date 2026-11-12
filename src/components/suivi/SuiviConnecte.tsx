@@ -1502,7 +1502,7 @@ export function SuiviConnecte() {
     setBusy(true); setNotice("Recherche d'un appareil Bluetooth…");
     let selectedDevice:any=null;
     try {
-      selectedDevice=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:OPTIONAL_GATT_SERVICES});
+      selectedDevice=await bluetooth.requestDevice({acceptAllDevices: true,optionalServices:OPTIONAL_GATT_SERVICES});
       await startBluetoothSession(selectedDevice,deviceKey,true);
     } catch(error) {
       if(selectedDevice?.gatt?.connected&&!bluetoothSessions.current.has(String(selectedDevice.id))){

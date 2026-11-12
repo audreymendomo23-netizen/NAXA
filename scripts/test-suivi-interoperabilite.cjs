@@ -65,22 +65,22 @@ assert.match(component, /import \{ DeviceIllustration \} from "@\/components\/su
 assert.match(component, /<DeviceIllustration deviceKey=\{device\.key\} label=\{"Illustration : "\+device\.name\}/, "chaque carte de dispositif doit afficher son image sémantique");
 assert.match(deviceIllustrations, /role="img" aria-label=\{label \|\| deviceNames\[deviceKey\]/, "les illustrations doivent être accessibles au lecteur d’écran");
 assert.match(deviceIllustrations, /<svg viewBox="0 0 300 300"/, "chaque illustration doit être un visuel SVG autonome");
-const photoMapMatch = deviceIllustrations.match(/const DEVICE_PHOTOS:[\\s\\S]*?= \\{([\\s\\S]*?)\\n\\};/);
+const photoMapMatch = deviceIllustrations.match(/const DEVICE_PHOTOS:[\s\S]*?= \{([\s\S]*?)\n\};/);
 assert.ok(photoMapMatch, "le catalogue photographique des dispositifs doit exister");
-const photoEntries = [...photoMapMatch[1].matchAll(/^  ([a-z0-9_]+): \\[(.*?)\\]/gm)];
+const photoEntries = [...photoMapMatch[1].matchAll(/^  ([a-z0-9_]+): \[(.*?)\]/gm)];
 assert.equal(photoEntries.length, 21, "les 21 catégories doivent avoir une galerie");
 assert.deepEqual(photoEntries.map(match => match[1]).sort(), [...catalogKeys].sort(), "les galeries doivent correspondre exactement aux catégories du catalogue");
 for (const entry of photoEntries) {
   const category = entry[1];
-  const sources = [...entry[2].matchAll(/"(\\/images\\/suivi-dispositifs\\/[^"]+\\.jpg)"/g)].map(match => match[1]);
+  const sources = [...entry[2].matchAll(/"(\/images\/suivi-dispositifs\/[^"]+\.jpg)"/g)].map(match => match[1]);
   assert.ok(sources.length >= 1, "photo manquante pour " + category);
   for (const source of sources) {
     assert.ok(source.startsWith("/images/suivi-dispositifs/" + category + "/"), "une galerie ne doit jamais mélanger deux catégories : " + category + " / " + source);
     assert.ok(fs.existsSync("public" + source), "fichier photo introuvable : " + source);
   }
 }
-assert.match(deviceIllustrations, /setInterval\\(advance, 4000\\)/, "les modèles d'une même catégorie alternent toutes les 4 secondes");
-assert.match(deviceIllustrations, /getGalleryPhase\\(instanceId\\)/, "chaque galerie possède son propre décalage");
+assert.match(deviceIllustrations, /setInterval\(advance, 4000\)/, "les modèles d'une même catégorie alternent toutes les 4 secondes");
+assert.match(deviceIllustrations, /getGalleryPhase\(instanceId\)/, "chaque galerie possède son propre décalage");
 assert.match(deviceIllustrations, /prefers-reduced-motion/, "la réduction des animations doit être respectée");
 assert.ok(!deviceIllustrations.includes("<button") && !deviceIllustrations.includes("onClick"), "aucune flèche ni vignette de navigation");
 
