@@ -249,6 +249,34 @@ export async function GET(request:Request) {
       continue;
     }
 
+    let inAppDone=!!item.in_app_created_at;
+    if(!inAppDone){
+      const {error:inAppError}=await db.from("notifications").insert({
+        user_id:item.recipient_user_id,
+        type:"suivi_alerte_mesure",
+        titre:"Alerte de suivi NAXA",
+        corps:"Une alerte liée à un suivi autorisé est disponible dans votre espace NAXA. Ouvrez le suivi pour la consulter."
+      });
+      if(inAppError){
+        failed++;
+        await db.from("suivi_push_outbox").update({
+          locked_until:null,last_error:"Création de la notification interne impossible"
+        }).eq("id",item.id);
+        continue;
+      }
+      const {error:markInAppError}=await db.from("suivi_push_outbox")
+        .update({in_app_created_at:now.toISOString(),last_error:null})
+        .eq("id",item.id).is("in_app_created_at",null);
+      if(markInAppError){
+        failed++;
+        await db.from("suivi_push_outbox").update({
+          locked_until:null,last_error:"Notification créée, mais son accusé de création n'a pas pu être enregistré"
+        }).eq("id",item.id);
+        continue;
+      }
+      inAppDone=true;inApp++;
+    }
+
     const {data:subs,error:subError}=pushConfigured
       ? await db.from("naxa_push_subscriptions").select("endpoint,subscription").eq("user_id",item.recipient_user_id)
       : {data:[],error:null};
@@ -280,7 +308,7 @@ export async function GET(request:Request) {
       }
     }
     const {error:finishError}=await db.from("suivi_push_outbox").update({
-      processed_at:inAppDone?now.toISOString():null,
+      processed_at:pushError?null:now.toISOString(),
       locked_until:null,
       last_error:pushError??(pushed?null:pushConfigured?"Aucun abonnement Push actif":"Push désactivé : clés VAPID non configurées")
     }).eq("id",item.id);
