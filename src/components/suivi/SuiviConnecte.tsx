@@ -1168,6 +1168,9 @@ export function SuiviConnecte() {
         setNotice("Mesure reçue, mais son enregistrement serveur a échoué. Vérifiez que la migration de synchronisation multi-appareils est appliquée.");
         return;
       }
+      for(const measurement of measurements){
+        (window as any).NaxaAndroid?.updateMeasurementFreshness?.(measurement.measurement_type,Date.now());
+      }
       await sb.from("suivi_user_devices").update({
         last_sync_at:receivedAt,last_measurement_at:receivedAt,last_seen_at:receivedAt,
         connection_state:"connected",last_error:null,updated_at:receivedAt
