@@ -34,9 +34,15 @@ export async function GET(request:Request) {
   } else if(!process.env.CRON_SECRET||bearer!==process.env.CRON_SECRET) {
     return NextResponse.json({error:"Non autorisé"},{status:401});
   }
+  const {data:feature}=await db.from("feature_flags").select("enabled")
+    .eq("flag_key","suivi_connecte").maybeSingle();
+  if(!feature?.enabled) return NextResponse.json({ok:true,disabled:true,reason:"suivi_connecte_disabled"});
+
   const pub=process.env.NAXA_VAPID_PUBLIC_KEY,priv=process.env.NAXA_VAPID_PRIVATE_KEY;
-  if(!pub||!priv) return NextResponse.json({error:"Configuration Push incomplète"},{status:503});
-  webpush.setVapidDetails(process.env.NAXA_VAPID_SUBJECT||"mailto:naxa.home@gmail.com",pub,priv);
+  const pushConfigured=!!pub&&!!priv;
+  if(pushConfigured) webpush.setVapidDetails(
+    process.env.NAXA_VAPID_SUBJECT||"mailto:naxa.home@gmail.com",pub!,priv!
+  );
 
   const now=new Date();
   const {data:schedules,error}=await db.from("suivi_measurement_schedules")
@@ -75,15 +81,22 @@ export async function GET(request:Request) {
       corps:"Aucune donnée récente n'a été reçue avant l'heure de mesure programmée. Vérifiez votre appareil et sa synchronisation."
     });
     if(!noteError) inApp++; else failed++;
-    const {data:subs,error:subsError}=await db.from("naxa_push_subscriptions").select("endpoint,subscription").eq("user_id",s.user_id);
-    if(subsError){failed++;continue;}
-    for(const sub of subs??[]) try {
-      await webpush.sendNotification(sub.subscription,JSON.stringify({title:"NAXA · Rappel de mesure",body:"Vos données ne sont pas actualisées avant l'heure programmée. Vérifiez votre appareil.",url:"/suivi",tag:`suivi-h5-${s.id}-${key}`}),{TTL:300,urgency:"high"});
-      pushSent++;
-    } catch(e) {
-      failed++;
-      const status=(e as {statusCode?:number}).statusCode;
-      if(status===404||status===410) await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",s.user_id);
+    if(pushConfigured){
+      const {data:subs,error:subsError}=await db.from("naxa_push_subscriptions")
+        .select("endpoint,subscription").eq("user_id",s.user_id);
+      if(subsError){failed++;continue;}
+      for(const sub of subs??[]) try {
+        await webpush.sendNotification(sub.subscription,JSON.stringify({
+          title:"NAXA · Rappel de mesure",
+          body:"Vos données ne sont pas actualisées avant l'heure programmée. Vérifiez votre appareil.",
+          url:"/suivi",tag:`suivi-h5-${s.id}-${key}`
+        }),{TTL:300,urgency:"high"});
+        pushSent++;
+      } catch(e) {
+        failed++;
+        const status=(e as {statusCode?:number}).statusCode;
+        if(status===404||status===410) await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",s.user_id);
+      }
     }
   }
 
@@ -129,32 +142,15 @@ export async function GET(request:Request) {
       continue;
     }
 
-    const {data:subs,error:subError}=await db.from("naxa_push_subscriptions")
-      .select("endpoint,subscription").eq("user_id",item.recipient_user_id);
+    const {data:subs,error:subError}=pushConfigured
+      ? await db.from("naxa_push_subscriptions").select("endpoint,subscription").eq("user_id",item.recipient_user_id)
+      : {data:[],error:null};
     if(subError){
       failed++;
       await db.from("suivi_push_outbox").update({
         locked_until:null,last_error:"Lecture des abonnements Push impossible"
       }).eq("id",item.id);
       continue;
-    }
-
-    let inAppDone=!!item.in_app_created_at;
-    if(!inAppDone){
-      const {error:inAppError}=await db.from("notifications").insert({
-        user_id:item.recipient_user_id,type:"suivi_alerte",
-        titre:"Nouvelle alerte de suivi",
-        corps:"Une alerte issue d'un suivi autorisé nécessite votre consultation."
-      });
-      if(inAppError){
-        failed++;
-        await db.from("suivi_push_outbox").update({
-          locked_until:null,last_error:"Création de la notification interne impossible"
-        }).eq("id",item.id);
-        continue;
-      }
-      inAppDone=true;inApp++;
-      await db.from("suivi_push_outbox").update({in_app_created_at:now.toISOString()}).eq("id",item.id);
     }
 
     let pushed=false;
@@ -179,7 +175,7 @@ export async function GET(request:Request) {
     const {error:finishError}=await db.from("suivi_push_outbox").update({
       processed_at:inAppDone?now.toISOString():null,
       locked_until:null,
-      last_error:pushError??(pushed?null:"Aucun abonnement Push actif")
+      last_error:pushError??(pushed?null:pushConfigured?"Aucun abonnement Push actif":"Push désactivé : clés VAPID non configurées")
     }).eq("id",item.id);
     if(finishError) failed++;
   }
