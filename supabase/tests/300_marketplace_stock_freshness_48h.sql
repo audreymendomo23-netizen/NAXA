@@ -12,7 +12,7 @@ begin
 
   if position('marketplace_stock_last_quantity_update' in v_offer) = 0
      or position('interval ''48 hours''' in v_offer) = 0
-     or position('clock_timestamp()' in v_offer) = 0 then
+     or position('now() - interval ''48 hours''' in v_offer) = 0 then
     raise exception 'MARKETPLACE_STOCK_FRESHNESS_FILTER_MISSING';
   end if;
 
@@ -24,7 +24,7 @@ begin
 
   if position('marketplace_stock_last_quantity_update' in v_reserve) = 0
      or position('marketplace_offre_stock_disponible' in v_reserve) = 0
-     or position('interval ''48 hours''' in v_reserve) = 0
+     or position('now() - interval ''48 hours''' in v_reserve) = 0
      or position('for update' in v_reserve) = 0 then
     raise exception 'RESERVATION_STOCK_FRESHNESS_GUARD_MISSING';
   end if;
