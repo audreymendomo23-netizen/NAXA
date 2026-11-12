@@ -91,7 +91,15 @@ export async function GET(request:Request) {
       user_id:s.user_id,type:"suivi_mesure_non_actualisee",titre:"Rappel de mesure NAXA",
       corps:"Aucune donnée récente n'a été reçue avant l'heure de mesure programmée. Vérifiez votre appareil et sa synchronisation."
     });
-    if(!noteError) inApp++; else failed++;
+    if(!noteError) inApp++;
+    else {
+      failed++;
+      // Autoriser le prochain passage cron à retenter l'alerte interne.
+      await db.from("suivi_measurement_schedules")
+        .update({last_prealert_key:null,updated_at:now.toISOString()})
+        .eq("id",s.id).eq("last_prealert_key",key);
+      continue;
+    }
     if(pushConfigured){
       const {data:subs,error:subsError}=await db.from("naxa_push_subscriptions")
         .select("endpoint,subscription").eq("user_id",s.user_id);
@@ -180,11 +188,23 @@ export async function GET(request:Request) {
       const elapsed=Math.max(0,now.getTime()-new Date(dueAt).getTime());
       const increments=Math.floor(elapsed/intervalMs)+1;
       const nextDue=new Date(new Date(dueAt).getTime()+increments*intervalMs).toISOString();
-      await db.from("suivi_reminders").update({due_at:nextDue,updated_at:now.toISOString()})
+      const {error:advanceError}=await db.from("suivi_reminders")
+        .update({due_at:nextDue,updated_at:now.toISOString()})
         .eq("id",reminder.id).eq("last_notified_due_at",dueAt);
+      if(advanceError){
+        failed++;
+        // Une défaillance de récurrence ne doit pas laisser un rappel actif
+        // bloqué à l'infini sur une échéance déjà notifiée.
+        const {error:fallbackError}=await db.from("suivi_reminders")
+          .update({enabled:false,updated_at:now.toISOString()})
+          .eq("id",reminder.id).eq("last_notified_due_at",dueAt);
+        if(fallbackError) failed++;
+      }
     } else {
-      await db.from("suivi_reminders").update({enabled:false,updated_at:now.toISOString()})
+      const {error:disableError}=await db.from("suivi_reminders")
+        .update({enabled:false,updated_at:now.toISOString()})
         .eq("id",reminder.id).eq("last_notified_due_at",dueAt);
+      if(disableError) failed++;
     }
   }
 
