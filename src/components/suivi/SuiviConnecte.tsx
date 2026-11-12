@@ -283,7 +283,11 @@ export function SuiviConnecte() {
       if(detail.type==="cancelled"){setBusy(false);setNotice("Connexion Bluetooth annulée.");return;}
       if(detail.type==="error"){setBusy(false);setNotice(String(detail.message??"Erreur Bluetooth."));return;}
       if(detail.type==="connecting"){setNotice("Connexion à "+String(detail.deviceName??"l'appareil")+"…");return;}
-      if(detail.type==="reconnecting"){setBusy(false);setNotice(String(detail.message??"Reconnexion Bluetooth…"));return;}
+      if(detail.type==="reconnecting"){
+        const row=deviceId?nativeDeviceRows.current.get(deviceId):undefined;
+        if(row)void sb.from("suivi_user_devices").update({connection_state:"reconnecting",last_error:null,updated_at:new Date().toISOString()}).eq("id",row.id);
+        setBusy(false);setNotice(String(detail.message??"Reconnexion Bluetooth…"));return;
+      }
       if(detail.type==="profiles"){
         setBusy(false);
         if(Number(detail.profileCount)>0){setNotice("Profils de mesure Bluetooth standard détectés.");return;}
