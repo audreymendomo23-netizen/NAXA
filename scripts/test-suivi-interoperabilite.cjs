@@ -15,7 +15,24 @@ const catalogKeys = [...component.matchAll(/\{ key:"([^"]+)", name:/g)].map(matc
 assert.equal(catalogKeys.length, 21, "le catalogue UI doit présenter exactement 21 dispositifs");
 assert.equal(new Set(catalogKeys).size, 21, "les clés du catalogue doivent être uniques");
 const measurementKeys = [...component.matchAll(/\{key:"([^"]+)",label:/g)].map(match => match[1]);
-assert.equal(measurementKeys.length, 30, "30 types de mesure doivent être disponibles pour les appareils");
+const expectedMeasurementKeys = [
+  "tension_systolique", "tension_diastolique", "tension_arterielle_moyenne",
+  "frequence_cardiaque", "temperature", "saturation_oxygene", "frequence_respiratoire",
+  "glycemie", "poids", "taille", "imc", "cholesterol_total", "pas_jour",
+  "activite_minutes", "hydratation_ml", "sommeil_heures", "douleur_score",
+  "humeur_score", "cycle_jour", "medicament_pris", "symptome_note",
+  "debit_expiratoire", "ecg_note", "masse_grasse", "masse_musculaire",
+  "masse_osseuse", "cetonemie", "acide_urique", "cholesterol_hdl",
+  "cholesterol_ldl", "capacite_vitale", "vitesse_course", "cadence_course",
+  "longueur_foulee", "pourcentage_musculaire", "masse_maigre",
+  "masse_maigre_molle", "masse_eau_corporelle", "metabolisme_basal"
+];
+assert.equal(measurementKeys.length, expectedMeasurementKeys.length,
+  "le catalogue doit exposer les 39 types de mesure attendus");
+assert.equal(new Set(measurementKeys).size, expectedMeasurementKeys.length,
+  "les types de mesure doivent être uniques");
+assert.deepEqual(measurementKeys, expectedMeasurementKeys,
+  "les types de mesure doivent correspondre au contrat UI complet");
 for (const key of [
   "tensiometre","thermometre","oxymetre","glucometre","balance",
   "capteur_cardiaque_bluetooth","podometre","ecg","spirometre","peak_flow",
