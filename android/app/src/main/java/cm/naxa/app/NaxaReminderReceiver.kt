@@ -72,7 +72,13 @@ object NaxaReminderScheduler {
                 ))
             }
             prefs.all.keys.filter { it.startsWith("reminder_") }.forEach { id ->
-                removePersonal(context,id.removePrefix("reminder_"))
+                val key=id.removePrefix("reminder_")
+                val intent=Intent(context,NaxaReminderReceiver::class.java)
+                    .putExtra("kind","personal").putExtra("scheduleId",key)
+                context.getSystemService(AlarmManager::class.java).cancel(PendingIntent.getBroadcast(
+                    context,key.hashCode() xor 0x5A17,intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                ))
             }
         }
     }
