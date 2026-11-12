@@ -35,7 +35,7 @@ create table if not exists private.client_product_availability_deliveries (
   pharmacie_id uuid not null references public.pharmacies(id) on delete cascade,
   journal_id bigint not null references public.stock_manager_movement_journal(id) on delete cascade,
   created_at timestamptz not null default now(),
-  unique(alert_id,pharmacie_id)
+  unique(alert_id,pharmacie_id,journal_id)
 );
 alter table private.client_product_availability_deliveries enable row level security;
 revoke all on private.client_product_availability_deliveries from public,anon,authenticated,service_role;
@@ -51,7 +51,7 @@ declare
   v_product_name text;
   v_pharmacy_name text;
   v_pharmacy_address text;
-  v_price text;
+  v_price numeric;
   v_was_available boolean:=false;
   v_alert record;
   v_delivery uuid;
