@@ -79,7 +79,7 @@ function ResultsContent(){
   if(!items.length){setError("Aucun médicament confirmé pour cette pharmacie.");return;}
   const requestedById=new Map(pValues.map(value=>{const [id,q]=value.split(":");return [id,Math.max(1,Math.min(10,Number(q)||1))] as const;}));
   const planned=items.map((item,index)=>{
-   const termIndex=bulkTerms.findIndex(term=>{const a=term.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const b=item.nom.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();return a===b||a.includes(b)||b.includes(a)});
+   const termIndex=bulkTerms.findIndex(term=>{const a=term.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const b=item.nom.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();return a===b||a.includes(b)||b.includes(a)});
    const quantity=basketMode?(requestedById.get(item.produit_id)??1):(bulkQuantities[termIndex>=0?termIndex:index]??1);
    return {item,quantity};
   });
