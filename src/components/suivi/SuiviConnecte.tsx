@@ -848,11 +848,23 @@ export function SuiviConnecte() {
       days_of_week:scheduleDays,lead_minutes:5,freshness_window_minutes:5,
       enabled:true,updated_at:new Date().toISOString()
     };
-    const {error}=scheduleEditingId
-      ? await sb.from("suivi_measurement_schedules").update(payload).eq("id",scheduleEditingId).eq("user_id",userData.user.id)
-      : await sb.from("suivi_measurement_schedules").insert(payload);
-    if(error) setNotice("Programmation non enregistrée. Vérifiez la migration du calendrier de suivi et le consentement.");
-    else {setScheduleDeviceId("");setScheduleEditingId(null);setNotice(scheduleEditingId?"Programmation modifiée. Le contrôle H-5 conserve son échéance.":"Prise programmée. NAXA contrôlera la fraîcheur des données à H-5.");await load();}
+    const {data:savedSchedule,error}=scheduleEditingId
+      ? await sb.from("suivi_measurement_schedules").update(payload).eq("id",scheduleEditingId).eq("user_id",userData.user.id).select("id").single()
+      : await sb.from("suivi_measurement_schedules").insert(payload).select("id").single();
+    if(error||!savedSchedule?.id) setNotice("Programmation non enregistrée. Vérifiez la migration du calendrier de suivi et le consentement.");
+    else {
+      const native=(window as any).NaxaAndroid;
+      if(native?.isAvailable?.()){
+        native.requestNotifications?.();
+        native.scheduleMeasurementReminder?.(JSON.stringify({
+          id:savedSchedule.id,enabled:true,measurementType:selectedType,localTime:scheduleTime,
+          timezone:"Africa/Douala",daysOfWeek:scheduleDays,leadMinutes:5,freshnessWindowMinutes:5
+        }));
+      }
+      setScheduleDeviceId("");setScheduleEditingId(null);
+      setNotice(scheduleEditingId?"Programmation modifiée. Le contrôle H-5 est actualisé sur ce téléphone.":"Prise programmée. NAXA contrôlera la fraîcheur des données à H-5.");
+      await load();
+    }
     setBusy(false);
   }
 
@@ -866,7 +878,21 @@ export function SuiviConnecte() {
       .update({enabled:!schedule.enabled,updated_at:new Date().toISOString()})
       .eq("id",schedule.id);
     setNotice(error?"Impossible de modifier cette programmation.":schedule.enabled?"Programmation désactivée.":"Programmation réactivée.");
-    if(!error) await load();
+    if(!error){
+      const native=(window as any).NaxaAndroid;
+      if(native?.isAvailable?.()){
+        if(schedule.enabled)native.cancelMeasurementReminder?.(schedule.id);
+        else{
+          native.requestNotifications?.();
+          native.scheduleMeasurementReminder?.(JSON.stringify({
+            id:schedule.id,enabled:true,measurementType:schedule.measurement_type,localTime:schedule.local_time,
+            timezone:schedule.timezone,daysOfWeek:schedule.days_of_week,leadMinutes:schedule.lead_minutes,
+            freshnessWindowMinutes:schedule.freshness_window_minutes
+          }));
+        }
+      }
+      await load();
+    }
   }
 
   async function deleteMeasurementSchedule(schedule:MeasurementSchedule){
@@ -875,6 +901,7 @@ export function SuiviConnecte() {
     const {error}=await sb.from("suivi_measurement_schedules").delete().eq("id",schedule.id);
     setNotice(error?"Impossible de supprimer cette programmation.":"Programmation et contrôle H-5 supprimés.");
     if(!error){
+      (window as any).NaxaAndroid?.cancelMeasurementReminder?.(schedule.id);
       if(scheduleEditingId===schedule.id)cancelScheduleEdit();
       await load();
     }
