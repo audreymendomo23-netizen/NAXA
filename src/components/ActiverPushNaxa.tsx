@@ -23,6 +23,8 @@ export function ActiverPushNaxa(){
         const detail=(event as CustomEvent).detail??{};
         if(detail.type==="notificationPermissionGranted"){
           setState("ready");setMessage("Notifications locales Android activées pour les rappels et alertes NAXA.");
+        }else if(detail.type==="error"&&String(detail.message??"").toLowerCase().includes("notification")){
+          setState("error");setMessage(String(detail.message));
         }
       };
       window.addEventListener("naxa-android-ble",receive);
