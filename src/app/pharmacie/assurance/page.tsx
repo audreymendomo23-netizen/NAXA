@@ -17,6 +17,7 @@ export default function AssuranceDashboardPage(){
   setLoading(true);setError("");const sb=supabaseBrowser();
   const {data:user}=await sb.auth.getUser();if(!user.user){window.location.replace("/connexion?retour=/pharmacie/assurance");return;}
   const {data:fn,error:fnError}=await sb.rpc("naxa_business_function");if(fnError||typeof fn!=="string"){setError("Impossible de vérifier le poste actif.");setLoading(false);return;}
+  if(!["promoteur","pharmacien","responsable","caisse","comptable"].includes(fn)){setError("Accès réservé aux Promoteurs et aux postes Pharmacie, Caisse ou Comptable autorisés.");setLoading(false);return;}
   setRole(fn);let ids:string[]=[];
   if(fn==="promoteur"){
    const {data:links,error:e}=await sb.from("promoteur_pharmacies").select("pharmacie_id").eq("promoteur_id",user.user.id).eq("actif",true);
