@@ -22,6 +22,7 @@ with check(
         or exists(
           select 1 from public.suivi_user_devices d
           where d.id=device_id and d.user_id=user_id and d.active=true
+            and public.suivi_device_family(d.device_key)=public.suivi_measurement_family(measurement_type)
         )
       )
     )
