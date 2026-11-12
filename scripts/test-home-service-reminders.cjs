@@ -16,7 +16,7 @@ assert.match(schema, /grant execute on function public\.claim_home_service_remin
 assert.match(schema, /p_scheduled_at < now\(\)\+interval '5 minutes'/, "la confirmation doit exiger un vrai rendez-vous futur");
 
 for (const offset of ["1440", "120", "60", "30", "15", "0"]) {
-  assert.ok(settings.includes(`value:${offset},`), "délai de rappel manquant: " + offset);
+  assert.match(settings, new RegExp(`value:\\s*${offset},`), "délai de rappel manquant: " + offset);
   assert.ok(actions.includes(offset), "le serveur doit accepter le délai de rappel: " + offset);
 }
 
