@@ -52,12 +52,7 @@ for select to authenticated using(
       and s.measurement_type=suivi_alerts.measurement_type
       and s.active=true and s.revoked_at is null and s.allow_alerts=true
   )
-  and exists(
-    select 1 from public.suivi_measurements m
-    where m.id=suivi_alerts.measurement_id
-      and m.user_id=suivi_alerts.user_id
-      and m.measurement_type=suivi_alerts.measurement_type
-  )
+
 );
 
 create or replace function public.queue_suivi_alert_push()
