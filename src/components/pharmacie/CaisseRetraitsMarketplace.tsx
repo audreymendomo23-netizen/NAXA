@@ -63,7 +63,8 @@ export function CaisseRetraitsMarketplace({
   pharmacieId: string | null;
   sessionId: string | null;
 }) {
-  const [rows, setRows] = useState<Reservation[]>([]);\n  const [assuranceByReservation,setAssuranceByReservation]=useState<Record<string,AssuranceInfo>>({});
+  const [rows, setRows] = useState<Reservation[]>([]);
+  const [assuranceByReservation,setAssuranceByReservation]=useState<Record<string,AssuranceInfo>>({});
   const [codeInput, setCodeInput] = useState("");
   const [received, setReceived] = useState<Record<string, string>>({});
   const [channel, setChannel] = useState("especes");
@@ -75,7 +76,25 @@ export function CaisseRetraitsMarketplace({
   const [cameraOpen, setCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const chargerAssurances = useCallback(async (ids:string[]) => {\n    if(!ids.length){setAssuranceByReservation({});return;}\n    const sb=supabaseBrowser();\n    const [{data:snapshots,error:se},{data:dossiers,error:de}]=await Promise.all([\n      sb.from("assurance_reservation_snapshots").select("reservation_id,assureur_id,montant_brut_fcfa,montant_assureur_fcfa,montant_client_fcfa,valide_client,controle_documents_statut").in("reservation_id",ids),\n      sb.from("dossiers_assurance").select("reservation_id,statut").in("reservation_id",ids),\n    ]);\n    if(se||de){setError("Le détail Assurance n’a pas pu être vérifié. Aucun encaissement ne sera proposé.");setAssuranceByReservation({});return;}\n    const insurerIds=[...new Set((snapshots??[]).map(x=>x.assureur_id))];\n    const {data:insurers,error:ie}=insurerIds.length?await sb.from("assureurs").select("id,nom").in("id",insurerIds):{data:[] as {id:string;nom:string}[],error:null};\n    if(ie){setError("Impossible de vérifier le référentiel des assureurs.");setAssuranceByReservation({});return;}\n    const names=new Map((insurers??[]).map(x=>[x.id,x.nom]));\n    const statuses=new Map((dossiers??[]).map(x=>[x.reservation_id,x.statut]));\n    const next:Record<string,AssuranceInfo>={};\n    for(const s of snapshots??[])next[s.reservation_id]={...s,assureur:names.get(s.assureur_id)??"Assureur",statut_dossier:statuses.get(s.reservation_id)??null};\n    setAssuranceByReservation(next);\n  },[]);\n\n  const load = useCallback(async () => {
+  const chargerAssurances = useCallback(async (ids:string[]) => {
+    if(!ids.length){setAssuranceByReservation({});return;}
+    const sb=supabaseBrowser();
+    const [{data:snapshots,error:se},{data:dossiers,error:de}]=await Promise.all([
+      sb.from("assurance_reservation_snapshots").select("reservation_id,assureur_id,montant_brut_fcfa,montant_assureur_fcfa,montant_client_fcfa,valide_client,controle_documents_statut").in("reservation_id",ids),
+      sb.from("dossiers_assurance").select("reservation_id,statut").in("reservation_id",ids),
+    ]);
+    if(se||de){setError("Le détail Assurance n’a pas pu être vérifié. Aucun encaissement ne sera proposé.");setAssuranceByReservation({});return;}
+    const insurerIds=[...new Set((snapshots??[]).map(x=>x.assureur_id))];
+    const {data:insurers,error:ie}=insurerIds.length?await sb.from("assureurs").select("id,nom").in("id",insurerIds):{data:[] as {id:string;nom:string}[],error:null};
+    if(ie){setError("Impossible de vérifier le référentiel des assureurs.");setAssuranceByReservation({});return;}
+    const names=new Map((insurers??[]).map(x=>[x.id,x.nom]));
+    const statuses=new Map((dossiers??[]).map(x=>[x.reservation_id,x.statut]));
+    const next:Record<string,AssuranceInfo>={};
+    for(const s of snapshots??[])next[s.reservation_id]={...s,assureur:names.get(s.assureur_id)??"Assureur",statut_dossier:statuses.get(s.reservation_id)??null};
+    setAssuranceByReservation(next);
+  },[]);
+
+  const load = useCallback(async () => {
     if (!pharmacieId) {
       setRows([]);
       setLoading(false);
@@ -181,7 +200,8 @@ export function CaisseRetraitsMarketplace({
       setError("Aucune réservation Marketplace trouvée pour ce code dans cette pharmacie.");
       return;
     }
-    setRows((current) => [found as Reservation, ...current.filter((row) => row.id !== found?.id)]);\n    await chargerAssurances([found.id]);
+    setRows((current) => [found as Reservation, ...current.filter((row) => row.id !== found?.id)]);
+    await chargerAssurances([found.id]);
     if (found.statut !== "confirmee" && found.statut !== "payee") {
       setError("Transaction retrouvée, mais son statut ne permet pas un règlement au retrait.");
     }
@@ -195,71 +215,52 @@ export function CaisseRetraitsMarketplace({
   }, [normalizedCode, rows]);
 
   async function encaisser(row: Reservation) {
-    if (!sessionId) {
-      setError("Ouvrez une session de caisse avant de valider un paiement Marketplace.");
-      return;
-    }
+    if (!sessionId) { setError("Ouvrez une session de caisse avant de valider un paiement Marketplace."); return; }
     if (busyId) return;
-    const amount = Number(received[row.id]);
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setError("Saisissez le montant réellement reçu, en FCFA.");
-      return;
+    const assurance=assuranceByReservation[row.id]??null;
+    const clientDue=assurance?Number(assurance.montant_client_fcfa):row.total;
+    if(assurance&&(!assurance.valide_client||assurance.controle_documents_statut!=="conforme"||!["accepte","clos"].includes(assurance.statut_dossier??""))){
+      setError("Le devis doit être accepté, les justificatifs contrôlés conformes et la prise en charge confirmée avant encaissement.");return;
     }
-    if (row.statut !== "confirmee" || row.paiement_statut === "effectue") {
-      setError("Cette réservation n’est plus éligible. Actualisez la liste avant toute nouvelle action.");
-      return;
+    const amount=Number(received[row.id]??String(clientDue));
+    if(!Number.isSafeInteger(amount)||amount<0||(clientDue>0&&amount===0)){
+      setError("Saisissez le montant réellement reçu de la part client, en FCFA.");return;
     }
-    if (new Date(row.expires_at).getTime() <= Date.now()) {
-      setError("Cette réservation a expiré. Aucun paiement ne peut être validé.");
-      return;
+    if(row.statut!=="confirmee"||row.paiement_statut==="effectue"){
+      setError("Cette réservation n’est plus éligible. Actualisez la liste avant toute nouvelle action.");return;
     }
-    if (!normalizedCode || normalizedCode !== row.code_paiement.toUpperCase()) {
-      setError("Scannez le QR code ou saisissez le code de paiement exact de cette facture.");
-      return;
+    if(new Date(row.expires_at).getTime()<=Date.now()){setError("Cette réservation a expiré. Aucun paiement ne peut être validé.");return;}
+    if(!normalizedCode||normalizedCode!==row.code_paiement.toUpperCase()){
+      setError("Scannez le QR code ou saisissez le code de paiement exact de cette facture.");return;
     }
-    if (channel !== "especes" && amount !== row.total) {
-      setError("Pour un canal autre que les espèces, confirmez exactement le montant du reçu. NAXA ne vérifie pas le paiement auprès d’un opérateur.");
-      return;
+    if(channel!=="especes"&&amount!==clientDue){
+      setError("Pour ce canal, confirmez exactement le reste à payer du client. La part assureur est une créance, pas un paiement reçu.");return;
     }
-    if (channel === "especes" && amount < row.total) {
-      setError("Le montant reçu est inférieur au montant dû.");
-      return;
-    }
-    const confirmed = window.confirm(
-      "Confirmez-vous avoir réellement reçu " + fcfa(row.total) + " via " + channelLabel(channel) +
-      " pour la réservation " + row.code_paiement + " ? NAXA n’initie et ne traite aucun paiement."
+    if(channel==="especes"&&amount<clientDue){setError("Le montant reçu est inférieur au reste à payer du client.");return;}
+    const confirmed=window.confirm(
+      "Confirmez-vous avoir réellement reçu "+fcfa(clientDue)+" du client via "+channelLabel(channel)+
+      (assurance?". La part assureur de "+fcfa(assurance.montant_assureur_fcfa)+" sera enregistrée comme créance, jamais comme argent reçu.":"")+
+      " Pour la réservation "+row.code_paiement+" ? NAXA n’initie et ne traite aucun paiement."
     );
-    if (!confirmed) return;
-
-    setBusyId(row.id);
-    setError("");
-    setMessage("");
-    setReceipt(null);
-    const { data, error: paymentError } = await supabaseBrowser().rpc("vente_reservation_encaisser", {
-      p_reservation: row.id,
-      p_session: sessionId,
-      p_montant_percu: amount,
-      p_canal: channel,
-      p_code_paiement: normalizedCode,
+    if(!confirmed)return;
+    setBusyId(row.id);setError("");setMessage("");setReceipt(null);
+    const {data,error:paymentError}=await supabaseBrowser().rpc("vente_reservation_encaisser",{
+      p_reservation:row.id,p_session:sessionId,p_montant_percu:amount,p_canal:channel,p_code_paiement:normalizedCode,
     });
-    if (paymentError) {
-      setError(paymentError.message || "Paiement non confirmé. Actualisez la réservation avant de réessayer.");
-    } else {
-      const result = Array.isArray(data) ? data[0] : data;
-      const change = Number(result?.monnaie_rendue ?? (channel === "especes" ? amount - clientDue : 0));
+    if(paymentError){setError(paymentError.message||"Paiement non confirmé. Actualisez la réservation avant de réessayer.");}
+    else{
+      const result=Array.isArray(data)?data[0]:data;
+      const change=Number(result?.monnaie_rendue??(channel==="especes"?amount-clientDue:0));
       setReceipt({
-        transactionId: row.id,
-        code: String(result?.code_paiement ?? row.code_paiement),
-        numero: String(result?.numero_vente ?? "à consulter dans l’historique"),
-        total: Number(result?.total ?? row.total),
-        montantRecu: amount,
-        monnaie: change,
-        canal: channelLabel(channel),
-        date: new Date().toLocaleString("fr-FR"),
-        items: row.reservation_items ?? [],
+        transactionId:row.id,code:String(result?.code_paiement??row.code_paiement),
+        numero:String(result?.numero_vente??"à consulter dans l’historique"),
+        total:Number(result?.total??row.total),montantRecu:amount,monnaie:change,
+        canal:channelLabel(channel),date:new Date().toLocaleString("fr-FR"),
+        items:row.reservation_items??[],
+        assurance:assurance?{assureur:assurance.assureur,partAssureur:Number(assurance.montant_assureur_fcfa),partClient:clientDue}:null,
       });
-      setReceived((current) => ({ ...current, [row.id]: "" }));
-      setMessage("Règlement enregistré manuellement par la pharmacie. Le reçu Marketplace est prêt à imprimer.");
+      setReceived(current=>({...current,[row.id]:""}));
+      setMessage("Règlement client enregistré. La part assureur reste une créance et n’est pas présentée comme un encaissement. Le reçu Marketplace est prêt à imprimer.");
       await load();
     }
     setBusyId(null);
@@ -361,7 +362,10 @@ export function CaisseRetraitsMarketplace({
           {rows.map((row) => {
             const expired = new Date(row.expires_at).getTime() <= Date.now() && row.statut !== "payee";
             const isSelected = selected?.id === row.id;
-            const assurance=assuranceByReservation[row.id]??null;\n            const clientDue=assurance?Number(assurance.montant_client_fcfa):row.total;\n            const assuranceReady=!assurance||(assurance.valide_client&&assurance.controle_documents_statut==="conforme"&&["accepte","clos"].includes(assurance.statut_dossier??""));\n            const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired && assuranceReady;
+            const assurance=assuranceByReservation[row.id]??null;
+            const clientDue=assurance?Number(assurance.montant_client_fcfa):row.total;
+            const assuranceReady=!assurance||(assurance.valide_client&&assurance.controle_documents_statut==="conforme"&&["accepte","clos"].includes(assurance.statut_dossier??""));
+            const canPay = !row.credit_request_id && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired && assuranceReady;
             const canCredit = Boolean(row.credit_request_id) && row.statut === "confirmee" && row.paiement_statut !== "effectue" && !expired;
             const paid = row.statut === "payee" && (row.paiement_statut === "effectue" || Boolean(row.credit_request_id));
             return (
@@ -381,7 +385,8 @@ export function CaisseRetraitsMarketplace({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-extrabold">{row.credit_request_id ? "Montant du crédit approuvé : " : "Total produits : "}{fcfa(row.total)}</p>\n                    {assurance&&<div className="mt-1 text-xs text-slate-700"><p>Assureur · {assurance.assureur} : {fcfa(assurance.montant_assureur_fcfa)} (créance non encaissée)</p><p>Reste à payer client : <strong>{fcfa(clientDue)}</strong></p>{!assuranceReady&&<p className="mt-1 font-semibold text-amber-800">Paiement bloqué : accord client, contrôle documentaire conforme et confirmation de prise en charge requis.</p>}</div>}
+                    <p className="font-extrabold">{row.credit_request_id ? "Montant du crédit approuvé : " : "Total produits : "}{fcfa(row.total)}</p>
+                    {assurance&&<div className="mt-1 text-xs text-slate-700"><p>Assureur · {assurance.assureur} : {fcfa(assurance.montant_assureur_fcfa)} (créance non encaissée)</p><p>Reste à payer client : <strong>{fcfa(clientDue)}</strong></p>{!assuranceReady&&<p className="mt-1 font-semibold text-amber-800">Paiement bloqué : accord client, contrôle documentaire conforme et confirmation de prise en charge requis.</p>}</div>}
                     <p className="text-xs text-slate-600">Canal enregistré : {row.paiement_mode ?? "à sélectionner au retrait"}</p>
                   </div>
                   {canCredit && isSelected && <button type="button" className="btn btn-vert" disabled={!sessionId || !!busyId || !normalizedCode} onClick={() => void validerRetraitCredit(row)}>{busyId === row.id ? "Enregistrement…" : "Valider le retrait à crédit"}</button>}
