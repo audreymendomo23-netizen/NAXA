@@ -68,6 +68,7 @@ declare
   v_invite_id uuid;
   v_new_token uuid;
   v_result jsonb;
+  v_direct jsonb;
   v_count integer;
   v_rejected boolean;
 begin
@@ -83,6 +84,36 @@ begin
   where center_id=f.center_id and user_id=f.owner_id and role_key='directeur'
     and is_active and active_role and revoked_at is null;
   if v_count<>1 then raise exception 'Partner/center director synchronization failed'; end if;
+
+  v_direct:=public.exam_assign_existing_staff(
+    f.center_id,'invitee_'||replace(f.invitee_id::text,'-',''),'accueil'
+  );
+  if coalesce((v_direct->>'assigned')::boolean,false) is not true
+    or (v_direct->>'user_id')::uuid<>f.invitee_id then
+    raise exception 'Direct assignment of an existing NAXA account failed';
+  end if;
+
+  select count(*) into v_count
+  from public.exam_staff_assignments
+  where center_id=f.center_id and user_id=f.invitee_id
+    and role_key='accueil' and is_active and revoked_at is null;
+  if v_count<>1 then raise exception 'Direct assignment was not persisted'; end if;
+
+  v_rejected:=false;
+  begin
+    perform public.exam_assign_existing_staff(
+      f.center_id,'invitee_'||replace(f.invitee_id::text,'-',''),'accueil'
+    );
+  exception when unique_violation then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Duplicate direct assignment was not rejected'; end if;
+
+  v_rejected:=false;
+  begin
+    perform public.exam_assign_existing_staff(f.center_id,'missing-account','accueil');
+  exception when no_data_found then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Unknown direct-assignment account was not rejected'; end if;
 
   v_rejected:=false;
   begin
