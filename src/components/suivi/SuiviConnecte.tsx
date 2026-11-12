@@ -183,9 +183,11 @@ export function SuiviConnecte() {
       const deviceId=String(detail.deviceId??"");
       const deviceKey=String(detail.deviceKey??nativeDeviceRows.current.get(deviceId)?.deviceKey??"");
       if(detail.type==="scanning"){setNotice(String(detail.message??"Recherche Bluetooth…"));return;}
-      if(detail.type==="cancelled"){setNotice("Connexion Bluetooth annulée.");return;}
-      if(detail.type==="error"){setNotice(String(detail.message??"Erreur Bluetooth."));return;}
+      if(detail.type==="cancelled"){setBusy(false);setNotice("Connexion Bluetooth annulée.");return;}
+      if(detail.type==="error"){setBusy(false);setNotice(String(detail.message??"Erreur Bluetooth."));return;}
       if(detail.type==="connecting"){setNotice("Connexion à "+String(detail.deviceName??"l'appareil")+"…");return;}
+      if(detail.type==="reconnecting"){setBusy(false);setNotice(String(detail.message??"Reconnexion Bluetooth…"));return;}
+      if(detail.type==="profiles"){setBusy(false);setNotice(detail.profileCount>0?"Profils de mesure Bluetooth détectés.":"Appareil connecté, mais aucun flux de mesure standard n’est abonné.");return;}
       if(detail.type==="connected"&&deviceId&&deviceKey){
         const item=deviceCatalog.find(entry=>entry.key===deviceKey);
         if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setNotice("Consentement requis pour cette famille de mesures.");return;}
@@ -211,7 +213,7 @@ export function SuiviConnecte() {
           return saved.data.id as string;
         })();
         nativeDevicePromises.current.set(deviceId,task);
-        void task.catch(error=>setNotice(error instanceof Error?error.message:"Connexion Android impossible."));
+        void task.then(()=>setBusy(false)).catch(error=>{setBusy(false);setNotice(error instanceof Error?error.message:"Connexion Android impossible.");});
         return;
       }
       if(detail.type==="measurement"&&deviceId){
@@ -255,7 +257,7 @@ export function SuiviConnecte() {
       if(detail.type==="disconnected"&&deviceId){
         const row=nativeDeviceRows.current.get(deviceId);
         if(row)void sb.from("suivi_user_devices").update({connection_state:"disconnected",last_error:"Connexion Bluetooth interrompue",updated_at:new Date().toISOString()}).eq("id",row.id);
-        setNotice("Appareil Android déconnecté. Réactivez sa connexion depuis NAXA.");
+        setBusy(false);setNotice("Appareil Android déconnecté. NAXA a tenté les reconnexions automatiques autorisées.");
       }
     };
     window.addEventListener("naxa-android-ble",onNativeBle);
