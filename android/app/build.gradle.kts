@@ -18,6 +18,10 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         buildConfigField("String", "NAXA_BASE_URL", "\"https://nnaxa.vercel.app\"")
+        buildConfigField("String", "FIREBASE_API_KEY", buildConfigString(firebaseApiKey))
+        buildConfigField("String", "FIREBASE_APP_ID", buildConfigString(firebaseAppId))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", buildConfigString(firebaseProjectId))
+        buildConfigField("String", "FIREBASE_SENDER_ID", buildConfigString(firebaseSenderId))
     }
     buildFeatures { buildConfig = true }
     compileOptions {
