@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import webpush from "web-push";
+import { sendFcmToUser } from "@/lib/firebase/fcm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export async function GET(request:Request) {
     .select("id,user_id,measurement_type,device_id,local_time,timezone,days_of_week,lead_minutes,freshness_window_minutes,last_prealert_key")
     .eq("enabled",true).limit(5000);
   if(error) return NextResponse.json({error:"Lecture des programmations impossible"},{status:500});
-  let checked=0,stale=0,inApp=0,pushSent=0,failed=0;
+  let checked=0,stale=0,inApp=0,pushSent=0,fcmSent=0,fcmFailed=0,failed=0;
   for(const s of schedules??[]) {
     checked++;
     const group=family(s.measurement_type);
@@ -117,6 +118,12 @@ export async function GET(request:Request) {
         if(status===404||status===410) await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",s.user_id);
       }
     }
+    const h5Fcm=await sendFcmToUser(db,s.user_id,{
+      title:"NAXA · Rappel de mesure",
+      body:"Vos données ne sont pas actualisées avant l'heure programmée. Vérifiez votre appareil.",
+      url:"/suivi",tag:`suivi-h5-${s.id}-${key}`
+    });
+    fcmSent+=h5Fcm.sent;fcmFailed+=h5Fcm.failed;
   }
 
   let remindersChecked=0,remindersSent=0;
@@ -182,6 +189,11 @@ export async function GET(request:Request) {
         }
       }
     }
+    const reminderFcm=await sendFcmToUser(db,reminder.user_id,{
+      title:"NAXA · Rappel personnel",body:reminder.title,url:"/suivi",
+      tag:"suivi-reminder-"+reminder.id+"-"+dueAt
+    });
+    fcmSent+=reminderFcm.sent;fcmFailed+=reminderFcm.failed;
 
     if(reminder.repeat_rule==="daily"||reminder.repeat_rule==="weekly"){
       const intervalMs=(reminder.repeat_rule==="daily"?1:7)*24*60*60*1000;
@@ -307,6 +319,15 @@ export async function GET(request:Request) {
         pushError="Échec d'envoi Push";
       }
     }
+    const alertFcm=await sendFcmToUser(db,item.recipient_user_id,{
+      title:"NAXA · Alerte de suivi",
+      body:"Une nouvelle alerte liée à un suivi autorisé est disponible dans NAXA.",
+      url:item.recipient_user_id===item.patient_user_id?"/suivi":"/suivi/professionnel",
+      tag:"suivi-alert-"+item.id
+    });
+    fcmSent+=alertFcm.sent;fcmFailed+=alertFcm.failed;
+    if(alertFcm.sent>0)pushed=true;
+
     const {error:finishError}=await db.from("suivi_push_outbox").update({
       processed_at:pushError?null:now.toISOString(),
       locked_until:null,
@@ -314,5 +335,5 @@ export async function GET(request:Request) {
     }).eq("id",item.id);
     if(finishError) failed++;
   }
-  return NextResponse.json({ok:true,checked,stale,remindersChecked,remindersSent,inApp,pushSent,failed,at:now.toISOString()});
+  return NextResponse.json({ok:true,checked,stale,remindersChecked,remindersSent,inApp,pushSent,fcmSent,fcmFailed,failed,at:now.toISOString()});
 }
