@@ -17,13 +17,17 @@ export function NativeFcmRegistration() {
       if (disposed || value.length < 100) return;
       const bearer = accessToken || (await supabase.auth.getSession()).data.session?.access_token;
       if (!bearer) return;
-      const response = await fetch("/api/notifications/fcm/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
-        body: JSON.stringify({ token: value }),
-      });
-      if (response.ok && !disposed) {
-        window.dispatchEvent(new CustomEvent("naxa-fcm-registered"));
+      try {
+        const response = await fetch("/api/notifications/fcm/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+          body: JSON.stringify({ token: value }),
+        });
+        if (response.ok && !disposed) {
+          window.dispatchEvent(new CustomEvent("naxa-fcm-registered"));
+        }
+      } catch {
+        // Une indisponibilité réseau sera retentée au prochain retour au premier plan.
       }
     };
 
