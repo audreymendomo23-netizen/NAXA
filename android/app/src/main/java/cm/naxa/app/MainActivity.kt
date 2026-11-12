@@ -141,10 +141,6 @@ class MainActivity : Activity() {
             runOnUiThread {
                 NaxaReminderScheduler.ensureChannel(this@MainActivity)
                 NaxaReminderScheduler.save(this@MainActivity, raw.take(4000))
-                if (Build.VERSION.SDK_INT >= 33 &&
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 704)
-                else NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,true)
             }
         }
         @JavascriptInterface fun cancelMeasurementReminder(id: String) {
