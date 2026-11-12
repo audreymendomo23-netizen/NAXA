@@ -35,6 +35,11 @@ begin
     raise exception 'TWO_ACTIVE_UNLOTTED_STOCK_FIXTURES_REQUIRED';
   end if;
 
+  -- Le Replay utilise des pharmacies de démonstration ; neutraliser ce drapeau
+  -- uniquement dans la transaction de test afin d'exercer la règle de fraîcheur.
+  update public.pharmacies set est_demo=false
+  where id in (v_pharmacie,v_pharmacie_stale);
+
   perform set_config('naxa.stock_occurred_at',(now()-interval '48 hours')::text,true);
   update public.stocks set quantite=v_quantite+1
     where pharmacie_id=v_pharmacie and produit_id=v_produit;
