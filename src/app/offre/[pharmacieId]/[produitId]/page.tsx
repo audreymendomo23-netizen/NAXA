@@ -35,7 +35,7 @@ type Stock = { prix: number | null; quantite: number };
 export default function OffrePage() {
   const { pharmacieId, produitId } = useParams<{ pharmacieId: string; produitId: string }>();
   const router = useRouter();
-  const { lignes, ajouter } = usePanier();
+  const { lignes, ajouter, changerQuantite } = usePanier();
   const [produit, setProduit] = useState<Produit | null>(null);
   const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null);
   const [stock, setStock] = useState<Stock | null>(null);
@@ -149,16 +149,35 @@ export default function OffrePage() {
       setErreur("Ce médicament n'est pas disponible dans le stock communiqué par cette pharmacie.");
       return;
     }
+    if (lignes.some((ligne) => ligne.produit_id !== produit.id)) {
+      setErreur("Votre panier contient d’autres produits. Finalisez cette commande avant de démarrer une commande auprès de cette pharmacie.");
+      return;
+    }
     if (panierPlein) {
       setErreur("Votre panier contient déjà le nombre maximal de produits différents. Retirez-en un avant de continuer.");
       return;
     }
     setErreur("");
-    ajouter(
-      { produit_id: produit.id, nom: produit.nom, dosage: produit.dosage || "" },
-      Math.min(quantite, stock.quantite, 10),
-    );
-    router.push("/panier");
+    const qte = Math.min(quantite, stock.quantite, 10);
+    const snapshot = {
+      pharmacie_id: pharmacie.id,
+      pharmacie_nom: pharmacie.nom,
+      prix_unitaire_fcfa: stock.prix ?? undefined,
+      quantite_max: Math.min(10, stock.quantite),
+    };
+    if (dejaAuPanier) {
+      changerQuantite(produit.id, qte, snapshot);
+    } else {
+      const ajoute = ajouter(
+        { produit_id: produit.id, nom: produit.nom, dosage: produit.dosage || "", ...snapshot },
+        qte,
+      );
+      if (!ajoute) {
+        setErreur("Le produit n’a pas pu être ajouté. Vérifiez la limite de votre panier.");
+        return;
+      }
+    }
+    router.push("/commande/nouvelle?pharmacie=" + encodeURIComponent(pharmacie.id));
   }
 
   return (
@@ -285,19 +304,15 @@ export default function OffrePage() {
             <h2 className="font-extrabold text-naxa-green-900">Ajouter au panier</h2>
             <p className="mt-1 text-sm text-slate-600">Choisissez la quantité souhaitée, dans la limite du stock indiqué.</p>
             <div className="mt-4 flex items-center justify-between gap-4">
-              <label htmlFor="quantite-produit" className="text-sm font-semibold text-slate-800">Quantité</label>
-              <select
-                id="quantite-produit"
-                className="champ !w-28"
-                value={Math.min(quantite, quantiteMax)}
-                onChange={(event) => setQuantite(Number(event.target.value))}
-                disabled={!disponible}
-              >
-                {Array.from({ length: disponible ? quantiteMax : 1 }, (_, index) => index + 1).map((nombre) => (
-                  <option key={nombre} value={nombre}>{nombre}</option>
-                ))}
-              </select>
+              <span className="text-sm font-semibold text-slate-800">Quantité</span>
+              <div className="flex items-center gap-3">
+                <button type="button" aria-label="Diminuer la quantité" onClick={() => setQuantite((value) => Math.max(1, value - 1))} disabled={!disponible || quantite <= 1} className="h-11 w-11 rounded-xl border text-xl font-black disabled:opacity-40">−</button>
+                <output aria-live="polite" className="min-w-8 text-center text-xl font-extrabold">{quantite}</output>
+                <button type="button" aria-label="Augmenter la quantité" onClick={() => setQuantite((value) => Math.min(quantiteMax, value + 1))} disabled={!disponible || quantite >= quantiteMax} className="h-11 w-11 rounded-xl border text-xl font-black disabled:opacity-40">+</button>
+              </div>
             </div>
+            <p className="mt-2 text-right text-xs text-slate-500">Maximum disponible dans cette pharmacie : {stock?.quantite ?? 0} unité(s)</p>
+            {disponible && stock?.prix !== null && stock?.prix !== undefined && <p className="mt-2 text-right font-extrabold text-naxa-green-900">Sous-total : {fcfa(stock.prix * quantite)}</p>}
             {panierPlein && (
               <p className="mt-3 text-sm font-semibold text-amber-800" role="status">
                 Le panier a atteint sa limite de {MAX_LIGNES} produits différents.
