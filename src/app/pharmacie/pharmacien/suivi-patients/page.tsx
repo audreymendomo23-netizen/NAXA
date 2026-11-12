@@ -128,6 +128,7 @@ export default function PharmacienSuiviPatientsPage() {
   },[sb,recipientId,loadSharedData]);
   const owners = [...new Set(shares.map(item => item.owner_user_id))];
   const types = [...new Set(shares.map(item => item.measurement_type))].sort();
+  const selectedPatient = selectedPatientId && owners.includes(selectedPatientId) ? selectedPatientId : null;
   const periodNow=new Date();
   let periodStart:Date|null=null;
   let periodEnd:Date|null=null;
@@ -163,7 +164,6 @@ export default function PharmacienSuiviPatientsPage() {
     const periodMatch=!selectedPatient||row.user_id!==selectedPatient||inReportPeriod(row.measured_at);
     return patientMatch && typeMatch && periodMatch;
   });
-  const selectedPatient = selectedPatientId && owners.includes(selectedPatientId) ? selectedPatientId : null;
   const trendTypes = selectedPatient
     ? [...new Set(patientPeriodMeasurements.filter(row => row.value_numeric !== null).map(row => row.measurement_type))].sort()
     : [];
