@@ -111,6 +111,83 @@ export async function GET(request:Request) {
     }
   }
 
+  let remindersChecked=0,remindersSent=0;
+  const {data:dueReminders,error:reminderReadError}=await db.from("suivi_reminders")
+    .select("id,user_id,measurement_type,title,due_at,repeat_rule,last_notified_due_at")
+    .eq("enabled",true).lte("due_at",now.toISOString())
+    .order("due_at",{ascending:true}).limit(1000);
+  if(reminderReadError) failed++;
+  else for(const reminder of dueReminders??[]) {
+    remindersChecked++;
+    const group=family(reminder.measurement_type);
+    if(!group) {
+      await db.from("suivi_reminders").update({enabled:false,updated_at:now.toISOString()}).eq("id",reminder.id);
+      continue;
+    }
+    const [accountResult,consentResult]=await Promise.all([
+      db.from("profiles").select("actif").eq("id",reminder.user_id).maybeSingle(),
+      db.from("suivi_consents").select("granted,revoked_at").eq("user_id",reminder.user_id).eq("family_key",group).maybeSingle()
+    ]);
+    if(accountResult.data?.actif!==true||!consentResult.data?.granted||consentResult.data.revoked_at){
+      await db.from("suivi_reminders").update({enabled:false,updated_at:now.toISOString()}).eq("id",reminder.id);
+      continue;
+    }
+    const dueAt=new Date(reminder.due_at).toISOString();
+    if(reminder.last_notified_due_at&&new Date(reminder.last_notified_due_at).toISOString()===dueAt) continue;
+    const {data:claimed}=await db.from("suivi_reminders")
+      .update({last_notified_due_at:dueAt,updated_at:now.toISOString()})
+      .eq("id",reminder.id).eq("enabled",true).eq("due_at",dueAt)
+      .or("last_notified_due_at.is.null,last_notified_due_at.neq."+dueAt)
+      .select("id").maybeSingle();
+    if(!claimed) continue;
+
+    const {error:notificationError}=await db.from("notifications").insert({
+      user_id:reminder.user_id,type:"suivi_rappel_personnel",
+      titre:"Rappel personnel NAXA",
+      corps:reminder.title+" · "+(reminder.repeat_rule==="none"?"Rappel arrivé à échéance.":"Rappel récurrent arrivé à échéance.")
+    });
+    if(notificationError){
+      failed++;
+      await db.from("suivi_reminders").update({last_notified_due_at:null,updated_at:now.toISOString()})
+        .eq("id",reminder.id).eq("due_at",dueAt);
+      continue;
+    }
+    remindersSent++;inApp++;
+
+    if(pushConfigured){
+      const {data:subscriptions,error:subscriptionError}=await db.from("naxa_push_subscriptions")
+        .select("endpoint,subscription").eq("user_id",reminder.user_id);
+      if(subscriptionError) failed++;
+      else for(const sub of subscriptions??[]) try {
+        await webpush.sendNotification(sub.subscription,JSON.stringify({
+          title:"NAXA · Rappel personnel",
+          body:reminder.title,
+          url:"/suivi",
+          tag:"suivi-reminder-"+reminder.id+"-"+dueAt
+        }),{TTL:300,urgency:"normal"});
+        pushSent++;
+      } catch(e) {
+        failed++;
+        const status=(e as {statusCode?:number}).statusCode;
+        if(status===404||status===410) {
+          await db.from("naxa_push_subscriptions").delete().eq("endpoint",sub.endpoint).eq("user_id",reminder.user_id);
+        }
+      }
+    }
+
+    if(reminder.repeat_rule==="daily"||reminder.repeat_rule==="weekly"){
+      const intervalMs=(reminder.repeat_rule==="daily"?1:7)*24*60*60*1000;
+      const elapsed=Math.max(0,now.getTime()-new Date(dueAt).getTime());
+      const increments=Math.floor(elapsed/intervalMs)+1;
+      const nextDue=new Date(new Date(dueAt).getTime()+increments*intervalMs).toISOString();
+      await db.from("suivi_reminders").update({due_at:nextDue,updated_at:now.toISOString()})
+        .eq("id",reminder.id).eq("last_notified_due_at",dueAt);
+    } else {
+      await db.from("suivi_reminders").update({enabled:false,updated_at:now.toISOString()})
+        .eq("id",reminder.id).eq("last_notified_due_at",dueAt);
+    }
+  }
+
   const {data:outbox,error:outboxError}=await db.from("suivi_push_outbox")
     .select("id,patient_user_id,recipient_user_id,measurement_type,attempt_count,in_app_created_at")
     .is("processed_at",null).lt("attempt_count",8)
@@ -190,5 +267,5 @@ export async function GET(request:Request) {
     }).eq("id",item.id);
     if(finishError) failed++;
   }
-  return NextResponse.json({ok:true,checked,stale,inApp,pushSent,failed,at:now.toISOString()});
+  return NextResponse.json({ok:true,checked,stale,remindersChecked,remindersSent,inApp,pushSent,failed,at:now.toISOString()});
 }
