@@ -58,7 +58,7 @@ function ResultsContent(){
  const [favoriIds,setFavoriIds]=useState<Set<string>>(new Set());
  const derniereNotification=useRef("");
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
- useEffect(()=>{let active=true;void supabaseBrowser().from("assureurs").select("id,nom,code").eq("actif",true).order("nom").then(({data,error})=>{if(active&&!error)setAssureurs((data??[]) as Assureur[])});return()=>{active=false}},[]);
+ useEffect(()=>{let active=true;void supabaseBrowser().from("marketplace_assureurs").select("id,nom,code").order("nom").then(({data,error})=>{if(active&&!error)setAssureurs((data??[]) as Assureur[])});return()=>{active=false}},[]);
  const toggleFavori=(item:{id:string;nom:string;dosage?:string|null;photo_url?:string|null;prix?:number|null;pharmacie?:string;demo:boolean})=>{const suivants=basculerFavori({id:item.id,nom:item.nom,dosage:item.dosage??"",photo_url:item.photo_url??null,prix:typeof item.prix==="number"?item.prix:0,pharmacie:item.pharmacie??"Prix et pharmacie à confirmer",demo:item.demo});setFavoriIds(new Set(suivants.map(f=>f.id)));notifierNAXA(suivants.some(f=>f.id===item.id)?item.nom+" ajouté aux favoris.":item.nom+" retiré des favoris.")};
  const actualiserPosition=useCallback(async()=>{setLocationStatus("pending");try{const position=await obtenirPositionGPS();setCoords({lat:position.lat,lng:position.lng});const villeGPS=villeDepuisPosition(position.lat,position.lng);setCity(villeGPS);setVilleFiltre(villeGPS==="Douala"||villeGPS==="Yaoundé"?villeGPS:"");setLocationStatus("gps");return true}catch{setLocationStatus("fallback");return false}},[]);
  useEffect(()=>{
