@@ -179,6 +179,13 @@ class MainActivity : Activity() {
         catch (_: Exception) { emit("error", deviceId = address, message = "Appareil mémorisé indisponible. Relancez une recherche Bluetooth."); }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val path=intent.getStringExtra("openPath") ?: "/suivi"
+        if(::web.isInitialized) web.loadUrl(BuildConfig.NAXA_BASE_URL + path)
+    }
+
     @Deprecated("Android activity result compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
