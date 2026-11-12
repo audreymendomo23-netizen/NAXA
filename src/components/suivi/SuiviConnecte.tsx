@@ -65,6 +65,7 @@ type Reminder = { id:string; measurement_type:string; title:string; due_at:strin
 type MeasurementSchedule = { id:string; measurement_type:string; device_id:string|null; local_time:string; timezone:string; days_of_week:number[]; lead_minutes:number; freshness_window_minutes:number; enabled:boolean };
 type DirectoryProfessional = { user_id:string; professional_role:"medecin"|"pharmacien"|"infirmier"|"sage_femme"|"chirurgien_dentiste"|"kinesitherapeute"|"technicien_laboratoire"|"autre_sante"; display_name:string; specialty:string|null };
 type CareLink = { id:string; patient_user_id:string; professional_user_id:string; active:boolean; history_access:boolean; realtime_access:boolean; alerts_access:boolean; clinical_notes_access:boolean; revoked_at:string|null };
+type PatientShare = { recipient_user_id:string; measurement_type:string; allow_history:boolean; allow_realtime:boolean; allow_alerts:boolean; active:boolean; revoked_at:string|null };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
 type TrackingAlert = { id:string; measurement_type:string; observed_value:number; alert_kind:string; created_at:string; read_at:string|null };
 
@@ -101,8 +102,9 @@ export function SuiviConnecte() {
   const [measurementSchedules, setMeasurementSchedules] = useState<MeasurementSchedule[]>([]);
   const [professionalDirectory, setProfessionalDirectory] = useState<DirectoryProfessional[]>([]);
   const [professionalLinks, setProfessionalLinks] = useState<CareLink[]>([]);
+  const [patientShares,setPatientShares]=useState<PatientShare[]>([]);
   const [directoryLoading, setDirectoryLoading] = useState(false);
-  const [shareHistory, setShareHistory] = useState(true);
+  const [shareHistory, setShareHistory] = useState(false);
   const [shareRealtime, setShareRealtime] = useState(false);
   const [shareAlerts, setShareAlerts] = useState(false);
   const [shareClinicalNotes, setShareClinicalNotes] = useState(false);
@@ -145,7 +147,7 @@ export function SuiviConnecte() {
     const { data: userData } = await sb.auth.getUser();
     if (!userData.user) { setAllowed(false); return; }
     setAllowed(true);
-    const [p, c, m, r, ar, al, d, schedules, links] = await Promise.all([
+    const [p, c, m, r, ar, al, d, schedules, links, shares] = await Promise.all([
       sb.from("suivi_profiles").select("preferred_name,birth_year").eq("user_id",userData.user.id).maybeSingle(),
       sb.from("suivi_consents").select("family_key,granted").eq("user_id",userData.user.id),
       sb.from("suivi_measurements").select("id,measurement_type,value_numeric,value_text,unit,measured_at,source,note").eq("user_id",userData.user.id).order("measured_at",{ascending:false}).limit(1000),
@@ -155,8 +157,9 @@ export function SuiviConnecte() {
       sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at").eq("user_id",userData.user.id).order("created_at",{ascending:true}),
       sb.from("suivi_measurement_schedules").select("id,measurement_type,device_id,local_time,timezone,days_of_week,lead_minutes,freshness_window_minutes,enabled").eq("user_id",userData.user.id).order("local_time",{ascending:true}),
       sb.from("suivi_care_links").select("id,patient_user_id,professional_user_id,active,history_access,realtime_access,alerts_access,clinical_notes_access,revoked_at").eq("patient_user_id",userData.user.id).order("created_at",{ascending:false}),
+      sb.from("suivi_shares").select("recipient_user_id,measurement_type,allow_history,allow_realtime,allow_alerts,active,revoked_at").eq("owner_user_id",userData.user.id),
     ]);
-    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error || links.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
+    if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error || schedules.error || links.error || shares.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
     setPreferredName(p.data?.preferred_name ?? "");
     setBirthYear(p.data?.birth_year ? String(p.data.birth_year) : "");
     setConsents(Object.fromEntries((c.data??[]).map((x:any)=>[x.family_key,!!x.granted])));
@@ -167,14 +170,22 @@ export function SuiviConnecte() {
     setDevices((d.data??[]) as UserDevice[]);
     setMeasurementSchedules((schedules.data??[]) as MeasurementSchedule[]);
     setProfessionalLinks((links.data??[]) as CareLink[]);
+    setPatientShares((shares.data??[]) as PatientShare[]);
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (!professionalId) { setShareClinicalNotes(false); return; }
-    const current = professionalLinks.find(link => link.professional_user_id === professionalId);
-    setShareClinicalNotes(!!current?.clinical_notes_access);
-  }, [professionalId, professionalLinks]);
+    if (!professionalId) {
+      setShareHistory(false);setShareRealtime(false);setShareAlerts(false);setShareClinicalNotes(false);
+      return;
+    }
+    const current=patientShares.find(share=>share.recipient_user_id===professionalId&&share.measurement_type===selectedType&&share.active&&!share.revoked_at);
+    const link=professionalLinks.find(item=>item.professional_user_id===professionalId&&item.active&&!item.revoked_at);
+    setShareHistory(!!current?.allow_history);
+    setShareRealtime(!!current?.allow_realtime);
+    setShareAlerts(!!current?.allow_alerts);
+    setShareClinicalNotes(!!link?.clinical_notes_access);
+  },[professionalId,selectedType,patientShares,professionalLinks]);
   useEffect(() => {
     if(activeTab!=="Options" || optionsPage!=="partage") return;
     let cancelled=false;
