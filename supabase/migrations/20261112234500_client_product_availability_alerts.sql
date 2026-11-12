@@ -98,7 +98,7 @@ begin
     v_delivery:=null;
     insert into private.client_product_availability_deliveries(alert_id,pharmacie_id,journal_id)
     values(v_alert.id,new.pharmacie_id,new.id)
-    on conflict(alert_id,pharmacie_id) do nothing
+    on conflict(alert_id,pharmacie_id,journal_id) do nothing
     returning id into v_delivery;
 
     if v_delivery is not null then
