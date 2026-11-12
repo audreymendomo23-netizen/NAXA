@@ -39,7 +39,7 @@ Le détecteur explore les services GATT médicaux standards et conserve le nom d
 - Glycémie : `glucose / glucose_measurement`
 - Poids : `weight_scale / weight_measurement`
 - Composition corporelle : `body_composition / body_composition_measurement`
-- Vélo d’intérieur / ergomètre : `fitness_machine / indoor_bike_data` (vitesse instantanée, cadence et fréquence cardiaque lorsque les champs sont présents dans la trame).
+- Vélo d’intérieur / ergomètre : `fitness_machine / indoor_bike_data` (vitesse cycliste en km/h, cadence et fréquence cardiaque lorsque les champs sont présents dans la trame).
 - Capteur de cadence cycliste : `cycling_speed_cadence / csc_measurement` (cadence calculée à partir des révolutions de pédalier et des horodatages Bluetooth successifs; vitesse non déduite sans circonférence de roue configurée).
 
 Les montres et bracelets qui exposent le profil cardiaque standard peuvent alimenter la fréquence cardiaque. Les vélos d’intérieur exposant le profil Fitness Machine standard peuvent fournir la vitesse, la cadence et la fréquence cardiaque. Les capteurs CSC peuvent fournir la cadence après réception de deux trames successives; la vitesse n’est pas inventée sans dimension de roue connue. Les champs absents, incomplets ou hors plage sont ignorés; les protocoles propriétaires ne sont jamais assimilés à ce profil. Les autres appareils restent détectables, mais leur mesure n'est pas décodée tant qu'un adaptateur de protocole vérifié n'existe pas. Les protocoles propriétaires ne doivent jamais être interprétés comme des valeurs standard par simple heuristique.
