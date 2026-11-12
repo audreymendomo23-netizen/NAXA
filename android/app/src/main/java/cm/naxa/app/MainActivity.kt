@@ -123,8 +123,19 @@ class MainActivity : Activity() {
                 if (Build.VERSION.SDK_INT >= 33 &&
                     checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 704)
-                else NaxaReminderScheduler.ensureChannel(this@MainActivity)
+                else {
+                    NaxaReminderScheduler.ensureChannel(this@MainActivity)
+                    NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,true)
+                }
             }
+        }
+        @JavascriptInterface fun hasNotificationPermission(): Boolean =
+            Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        @JavascriptInterface fun areLocalRemindersEnabled(): Boolean =
+            NaxaReminderScheduler.notificationsEnabled(this@MainActivity)
+        @JavascriptInterface fun disableLocalReminders() {
+            runOnUiThread { NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,false) }
         }
         @JavascriptInterface fun scheduleMeasurementReminder(raw: String) {
             runOnUiThread {
@@ -133,6 +144,7 @@ class MainActivity : Activity() {
                 if (Build.VERSION.SDK_INT >= 33 &&
                     checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 704)
+                else NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,true)
             }
         }
         @JavascriptInterface fun cancelMeasurementReminder(id: String) {
@@ -208,7 +220,10 @@ class MainActivity : Activity() {
         } else if (requestCode == 704) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 NaxaReminderScheduler.ensureChannel(this)
+                NaxaReminderScheduler.setNotificationsEnabled(this,true)
+                emit("notificationPermissionGranted",message="Notifications Android activées.")
             } else {
+                NaxaReminderScheduler.setNotificationsEnabled(this,false)
                 emit("error", message = "Les notifications Android sont refusées. Autorisez-les dans les réglages pour recevoir les rappels H-5.")
             }
         }
