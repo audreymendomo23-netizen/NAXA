@@ -17,7 +17,8 @@ begin
   end if;
 
   if position('stock_manager_movement_journal' in pg_get_functiondef('private.marketplace_stock_last_quantity_update(uuid,uuid)'::regprocedure)) = 0
-     or position('event_type in (''creation'', ''quantite'', ''suppression'')' in pg_get_functiondef('private.marketplace_stock_last_quantity_update(uuid,uuid)'::regprocedure)) = 0 then
+     or position('event_type in (''creation'', ''quantite'', ''suppression'')' in pg_get_functiondef('private.marketplace_stock_last_quantity_update(uuid,uuid)'::regprocedure)) = 0
+     or position('s.updated_at' in pg_get_functiondef('private.marketplace_stock_last_quantity_update(uuid,uuid)'::regprocedure)) = 0 then
     raise exception 'MARKETPLACE_FRESHNESS_MUST_USE_PHYSICAL_QUANTITY_JOURNAL';
   end if;
 
