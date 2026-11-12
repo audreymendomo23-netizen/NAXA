@@ -53,6 +53,7 @@ object NaxaReminderScheduler {
     fun scheduleAll(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.all.keys.filter { it.startsWith("schedule_") }.forEach { scheduleNext(context, it.removePrefix("schedule_")) }
+        prefs.all.keys.filter { it.startsWith("reminder_") }.forEach { schedulePersonalNext(context, it.removePrefix("reminder_")) }
     }
 
     fun notificationsEnabled(context: Context): Boolean =
@@ -70,6 +71,9 @@ object NaxaReminderScheduler {
                     context,key.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 ))
             }
+            prefs.all.keys.filter { it.startsWith("reminder_") }.forEach { id ->
+                removePersonal(context,id.removePrefix("reminder_"))
+            }
         }
     }
 
@@ -77,6 +81,8 @@ object NaxaReminderScheduler {
         val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
         val ids=prefs.all.keys.filter { it.startsWith("schedule_") }.map { it.removePrefix("schedule_") }
         ids.forEach { remove(context,it) }
+        val reminderIds=prefs.all.keys.filter { it.startsWith("reminder_") }.map { it.removePrefix("reminder_") }
+        reminderIds.forEach { removePersonal(context,it) }
         prefs.edit().clear().apply()
     }
 
@@ -89,6 +95,63 @@ object NaxaReminderScheduler {
             val item=schedules.optJSONObject(index) ?: continue
             save(context,item.toString())
         }
+    }
+
+    fun savePersonal(context: Context, raw: String) {
+        val json=try { JSONObject(raw) } catch (_: Exception) { return }
+        val id=json.optString("id")
+        if(id.isBlank())return
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+            .putString("reminder_"+id,json.toString()).apply()
+        schedulePersonalNext(context,id)
+    }
+
+    fun removePersonal(context: Context,id:String) {
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().remove("reminder_"+id).apply()
+        val intent=Intent(context,NaxaReminderReceiver::class.java)
+            .putExtra("kind","personal").putExtra("scheduleId",id)
+        context.getSystemService(AlarmManager::class.java).cancel(PendingIntent.getBroadcast(
+            context,id.hashCode() xor 0x5A17,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        ))
+    }
+
+    fun syncPersonal(context: Context,raw:String) {
+        val reminders=try { org.json.JSONArray(raw) } catch (_: Exception) { return }
+        val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+        val ids=prefs.all.keys.filter { it.startsWith("reminder_") }.map { it.removePrefix("reminder_") }
+        ids.forEach { removePersonal(context,it) }
+        for(index in 0 until reminders.length()){
+            val item=reminders.optJSONObject(index) ?: continue
+            savePersonal(context,item.toString())
+        }
+    }
+
+    fun schedulePersonalNext(context: Context,id:String) {
+        val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+        val raw=prefs.getString("reminder_"+id,null) ?: return
+        if(!prefs.getBoolean("notifications_enabled",false))return
+        try {
+            val json=JSONObject(raw)
+            if(!json.optBoolean("enabled",true)){removePersonal(context,id);return}
+            val zone=ZoneId.of(json.optString("timezone","Africa/Douala"))
+            val due=java.time.Instant.parse(json.getString("dueAt")).atZone(zone)
+            val now=ZonedDateTime.now(zone)
+            val repeat=json.optString("repeatRule","none")
+            var next=due
+            while(!next.isAfter(now)&&repeat=="daily")next=next.plusDays(1)
+            while(!next.isAfter(now)&&repeat=="weekly")next=next.plusWeeks(1)
+            if(!next.isAfter(now)){removePersonal(context,id);return}
+            val intent=Intent(context,NaxaReminderReceiver::class.java)
+                .putExtra("kind","personal").putExtra("scheduleId",id)
+            val pending=PendingIntent.getBroadcast(
+                context,id.hashCode() xor 0x5A17,intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarms=context.getSystemService(AlarmManager::class.java)
+            val at=next.toInstant().toEpochMilli()
+            if(Build.VERSION.SDK_INT>=31&&alarms.canScheduleExactAlarms())alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,at,pending)
+            else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,at,pending)
+        }catch(_:Exception){/* Rappel invalide : aucune alarme locale. */}
     }
 
     fun scheduleNext(context: Context, id: String) {
