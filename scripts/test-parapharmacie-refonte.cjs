@@ -14,7 +14,7 @@ test("les deux univers partagent le gabarit photo 4:3 et les cartes descriptives
   assert.match(grid, /object-contain p-3 sm:p-4/);
   assert.match(grid, /line-clamp-2 min-h-12/);
   assert.match(grid, /line-clamp-3 min-h-\[3\.75rem\]/);
-  assert.match(grid, /Prix affiché par le partenaire/);
+  assert.match(grid, /Prix renseigné par (?:la pharmacie|le professionnel)/);
 });
 
 test("Parapharmacie conserve son identité turquoise et Bébé & Maman sa palette rose", () => {
