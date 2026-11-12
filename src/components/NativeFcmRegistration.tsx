@@ -11,6 +11,7 @@ export function NativeFcmRegistration() {
 
     const supabase = supabaseBrowser();
     let token = "";
+    let lastAccessToken = "";
     let disposed = false;
 
     const register = async (value: string, accessToken?: string) => {
@@ -24,10 +25,24 @@ export function NativeFcmRegistration() {
           body: JSON.stringify({ token: value }),
         });
         if (response.ok && !disposed) {
+          lastAccessToken = bearer;
           window.dispatchEvent(new CustomEvent("naxa-fcm-registered"));
         }
       } catch {
         // Une indisponibilité réseau sera retentée au prochain retour au premier plan.
+      }
+    };
+
+    const unregister = async (value: string, accessToken: string) => {
+      if (disposed || value.length < 100 || !accessToken) return;
+      try {
+        await fetch("/api/notifications/fcm/register", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ token: value }),
+        });
+      } catch {
+        // Le serveur purge également les jetons invalides lors d'un envoi FCM.
       }
     };
 
@@ -40,8 +55,16 @@ export function NativeFcmRegistration() {
       if (detail.type === "notificationPermissionGranted") native.refreshFcmToken?.();
     };
     const refresh = () => {
-      if (native.hasNotificationPermission?.() !== true) return;
       const saved = String(native.getFcmToken?.() ?? "");
+      if (native.hasNotificationPermission?.() !== true) {
+        if (saved.length >= 100) {
+          token = saved;
+          void supabase.auth.getSession().then(({ data }) => {
+            if (data.session?.access_token) void unregister(saved, data.session.access_token);
+          });
+        }
+        return;
+      }
       if (saved.length >= 100) {
         token = saved;
         void register(saved);
@@ -52,8 +75,14 @@ export function NativeFcmRegistration() {
     window.addEventListener("naxa-fcm-token", receiveToken);
     window.addEventListener("naxa-android-ble", receiveNative);
     document.addEventListener("visibilitychange", refresh);
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.access_token && token.length >= 100) void register(token, session.access_token);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.access_token) {
+        lastAccessToken = session.access_token;
+        if (token.length >= 100) void register(token, session.access_token);
+      } else if (event === "SIGNED_OUT" && token.length >= 100 && lastAccessToken) {
+        void unregister(token, lastAccessToken);
+        lastAccessToken = "";
+      }
     });
     refresh();
 
