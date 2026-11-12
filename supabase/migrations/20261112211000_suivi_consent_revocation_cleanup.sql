@@ -1,6 +1,37 @@
 -- NAXA — fermeture cohérente des automatismes lors du retrait d'un consentement.
 begin;
 
+-- Référentiel complet des types de mesure réellement proposés par l'interface.
+create or replace function public.suivi_measurement_family(p_type text)
+returns text
+language sql immutable
+set search_path=''
+as $
+  select case
+    when p_type in (
+      'tension_systolique','tension_diastolique','tension_arterielle_moyenne',
+      'frequence_cardiaque','temperature','saturation_oxygene','frequence_respiratoire',
+      'debit_expiratoire','ecg_note','capacite_vitale'
+    ) then 'constantes'
+    when p_type in (
+      'glycemie','poids','taille','imc','cholesterol_total','masse_grasse',
+      'masse_musculaire','masse_osseuse','cetonemie','acide_urique',
+      'cholesterol_hdl','cholesterol_ldl','pourcentage_musculaire','masse_maigre',
+      'masse_maigre_molle','masse_eau_corporelle','metabolisme_basal'
+    ) then 'metabolisme'
+    when p_type in (
+      'pas_jour','activite_minutes','hydratation_ml','vitesse_course',
+      'cadence_course','longueur_foulee'
+    ) then 'activite'
+    when p_type='sommeil_heures' then 'sommeil'
+    when p_type in ('douleur_score','humeur_score','cycle_jour','symptome_note') then 'bien_etre'
+    when p_type='medicament_pris' then 'traitements'
+    else null
+  end;
+$;
+revoke all on function public.suivi_measurement_family(text) from public,anon;
+grant execute on function public.suivi_measurement_family(text) to authenticated,service_role;
+
 -- Correspondance explicite entre les familles d'appareils et de mesures.
 -- Une clé inconnue ne donne aucun droit de partage ni de programmation.
 create or replace function public.suivi_device_family(p_device_key text)
