@@ -57,6 +57,10 @@ begin
     or position('plafond=null' in pg_get_functiondef('public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)'::regprocedure))=0 then
     raise exception 'ASSURANCE_PHARMACY_RATE_SOURCE_INVALID';
   end if;
+  if position('assurance' in pg_get_functiondef('public.get_client_reservation_ticket(uuid)'::regprocedure))=0
+    or position('reference' in pg_get_functiondef('public.get_client_reservation_ticket(uuid)'::regprocedure))=0 then
+    raise exception 'ASSURANCE_CLIENT_RECEIPT_SPLIT_MISSING';
+  end if;
   if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='dossiers_assurance' and column_name='montant_rembourse')
     or not exists(select 1 from information_schema.columns where table_schema='public' and table_name='dossiers_assurance' and column_name='reservation_id') then
     raise exception 'DOSSIER_ASSURANCE_FINANCIAL_COLUMNS_MISSING';
