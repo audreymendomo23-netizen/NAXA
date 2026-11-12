@@ -217,6 +217,34 @@ export function SuiviConnecte() {
         void task.then(()=>setBusy(false)).catch(error=>{setBusy(false);setNotice(error instanceof Error?error.message:"Connexion Android impossible.");});
         return;
       }
+      if(detail.type==="deviceInfo"&&deviceId){
+        void (async()=>{
+          let row=nativeDeviceRows.current.get(deviceId);
+          if(!row){
+            const pending=nativeDevicePromises.current.get(deviceId);
+            if(pending){await pending;row=nativeDeviceRows.current.get(deviceId);}
+          }
+          if(!row)return;
+          const key=String(detail.metadataKey??"");
+          const value=String(detail.metadataValue??"").trim();
+          if(!value)return;
+          const current=devices.find(device=>device.id===row!.id);
+          const metadata:Record<string,unknown>={...(current?.metadata??{})};
+          const patch:Record<string,unknown>={updated_at:new Date().toISOString()};
+          if(key==="manufacturer"){metadata.manufacturer=value;patch.device_brand=value;}
+          else if(key==="model"){metadata.model=value;patch.device_model=value;nativeDeviceRows.current.set(deviceId,{...row!,name:value});}
+          else if(key==="firmware"){metadata.firmware=value;patch.firmware_version=value;}
+          else if(key==="battery_level"){
+            const level=Number(value);
+            if(!Number.isFinite(level)||level<0||level>100)return;
+            metadata.battery_level=level;
+          }else return;
+          patch.metadata=metadata;
+          const {error}=await sb.from("suivi_user_devices").update(patch).eq("id",row!.id);
+          if(error)setNotice("Les métadonnées de l'appareil n'ont pas pu être actualisées.");
+          else await load();
+        })().catch(()=>setNotice("Lecture des informations techniques de l'appareil impossible."));
+      }
       if(detail.type==="measurement"&&deviceId){
         void (async()=>{
           let row=nativeDeviceRows.current.get(deviceId);
