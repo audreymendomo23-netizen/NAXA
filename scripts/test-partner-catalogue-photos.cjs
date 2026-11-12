@@ -75,7 +75,7 @@ test("le parcours partenaire charge la provenance via la table protégée", () =
   assert.match(productGrid, /UniverseProductImage/);
   assert.match(productGrid, /aspect-\[4\/3\]/);
   assert.match(productGrid, /Photo non chargée/);
-  assert.match(productGrid, /Prix affiché par le partenaire/);
+  assert.match(productGrid, /Prix renseigné par \{universe === "bebe-maman" \? "la pharmacie" : "le professionnel"\}/);
   assert.match(productGrid, /Présentation neutre/);
   assert.match(productGrid, /Aucun produit sponsorisé, classement publicitaire ni avantage promotionnel/);
   assert.doesNotMatch(productGrid, /prix barré|remise spéciale|sponsorisé par|mise en avant/i);
