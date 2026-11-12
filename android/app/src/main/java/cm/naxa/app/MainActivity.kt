@@ -107,11 +107,24 @@ class MainActivity : Activity() {
             runOnUiThread { ensureBluetoothPermissionsAndScan() }
         }
         @JavascriptInterface fun disconnect(address: String) {
+            val intent = Intent(this@MainActivity, NaxaBleForegroundService::class.java)
+                .setAction(NaxaBleForegroundService.ACTION_DISCONNECT)
+                .putExtra(NaxaBleForegroundService.EXTRA_ADDRESS, address.take(80))
+            try { startService(intent) } catch (_: Exception) { }
             runOnUiThread {
                 deviceKeys.remove(address)
                 retryCounts.remove(address)
                 gatts.remove(address)?.disconnect()
             }
+        }
+        @JavascriptInterface fun getPendingBleEvents(): String =
+            NaxaBleForegroundService.pendingEvents(this@MainActivity)
+        @JavascriptInterface fun acknowledgeBleEvents(rawIds: String) {
+            try {
+                val ids = org.json.JSONArray(rawIds)
+                val values = (0 until ids.length()).mapNotNull { ids.optString(it).takeIf(String::isNotBlank) }.toSet()
+                NaxaBleForegroundService.acknowledgeEvents(this@MainActivity, values)
+            } catch (_: Exception) { }
         }
         @JavascriptInterface fun reconnect(address: String, deviceKey: String) {
             pendingDeviceKey = deviceKey.take(80)
@@ -289,10 +302,16 @@ class MainActivity : Activity() {
         val address = device.address
         deviceKeys[address] = deviceKey
         emit("connecting", deviceId = address, deviceName = safeName(device))
-        gatts.remove(address)?.close()
-        val gatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
-        if (gatt == null) emit("error", deviceId = address, message = "Connexion Bluetooth impossible.")
-        else gatts[address] = gatt
+        val intent = Intent(this, NaxaBleForegroundService::class.java)
+            .setAction(NaxaBleForegroundService.ACTION_CONNECT)
+            .putExtra(NaxaBleForegroundService.EXTRA_ADDRESS, address)
+            .putExtra(NaxaBleForegroundService.EXTRA_KEY, deviceKey)
+            .putExtra(NaxaBleForegroundService.EXTRA_NAME, safeName(device))
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+        } catch (_: Exception) {
+            emit("error", deviceId = address, message = "Le service Bluetooth en arrière-plan n'a pas pu démarrer.")
+        }
     }
 
     @Suppress("MissingPermission")
