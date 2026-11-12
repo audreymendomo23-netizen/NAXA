@@ -58,6 +58,88 @@ export async function setExamActiveRole(form:FormData){
   redirect(BASE+"?centre="+encodeURIComponent(centerId)+"&ok=poste");
 }
 
+
+function escapeEmailHtml(value:string){
+  return value.replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]??char));
+}
+
+async function findAuthUserByEmail(admin:ReturnType<typeof supabaseAdmin>,email:string){
+  for(let page=1;page<=100;page++){
+    const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});
+    if(error) throw error;
+    const found=(data.users??[]).find(user=>user.email?.trim().toLowerCase()===email);
+    if(found) return found;
+    if((data.users??[]).length<1000) return null;
+  }
+  throw new Error("Recherche du compte incomplète");
+}
+
+async function sendExamStaffActivationEmail(email:string,token:string){
+  const endpoint=process.env.GOOGLE_APPS_SCRIPT_URL;
+  const secret=process.env.GOOGLE_APPS_SCRIPT_SECRET;
+  const siteUrl=(process.env.NEXT_PUBLIC_SITE_URL||"https://naxa-naxa3.vercel.app").replace(/\\/$/,"");
+  if(!endpoint||!secret) throw new Error("Passerelle e-mail non configurée");
+  const base=new URL(siteUrl);
+  if(base.protocol!=="https:") throw new Error("URL publique HTTPS requise");
+  const destination="/creation-compte?retour="+encodeURIComponent("/invitation/personnel-examen?token="+encodeURIComponent(token));
+  const link=base.origin+destination;
+  const safeEmail=escapeEmailHtml(email);
+  const safeLink=escapeEmailHtml(link);
+  const html=`<!doctype html><html lang="fr"><body style="font-family:Arial,sans-serif;color:#102a43;line-height:1.65;max-width:640px;margin:auto;padding:24px"><h1>Votre accès au centre d’examens NAXA</h1><p>Le responsable d’un centre d’examens vous a ajouté à son équipe.</p><p>Pour activer votre compte, confirmez votre adresse e-mail, renseignez vous-même vos informations, vérifiez votre majorité et acceptez les conditions NAXA.</p><p><a href="${safeLink}" style="display:inline-block;padding:12px 18px;background:#123b70;color:#fff;text-decoration:none;border-radius:8px">Activer mon compte et accepter l’affectation</a></p><p>Ce lien est personnel, à usage unique et expire après 7 jours. Il est lié à l’adresse ${safeEmail}.</p><p>Si vous n’attendez pas cette invitation, ignorez ce message.</p><p>L’équipe NAXA</p></body></html>`;
+  const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    secret,to:email,subject:"Activation de votre accès au centre d’examens NAXA",html,
+    text:"Un responsable de centre d’examens vous a ajouté à son équipe. Ouvrez ce lien pour activer votre compte NAXA : "+link,
+    idempotencyKey:"naxa-exam-staff-"+token
+  }),cache:"no-store"});
+  let result:{sent?:boolean}|null=null;
+  try{result=await response.json()}catch{}
+  if(!response.ok||result?.sent!==true) throw new Error("Envoi e-mail non confirmé");
+}
+
+export async function createExamStaffAccount(form:FormData){
+  const centerId=textValue(form,"center_id",64);
+  const email=textValue(form,"email",254).toLowerCase();
+  const roleKey=textValue(form,"role_key",80);
+  const path=BASE+"/personnel";
+  const {sb}=await requireActor(centerId,["staff_manage"],path);
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||!ROLE_KEYS.includes(roleKey as typeof ROLE_KEYS[number])) fail(path,centerId);
+
+  const admin=supabaseAdmin();
+  let existing;
+  try{existing=await findAuthUserByEmail(admin,email)}catch{fail(path,centerId)}
+
+  if(existing){
+    const {data:profile,error:profileError}=await admin.from("profiles").select("id,username,role,actif").eq("id",existing.id).maybeSingle();
+    if(profileError) fail(path,centerId);
+    if(profile?.username&&profile.role==="client"&&profile.actif===true){
+      const {data,error}=await sb.rpc("exam_assign_existing_staff",{p_center_id:centerId,p_identifier:profile.username,p_role_key:roleKey});
+      if(!error&&data?.assigned&&data.center_id===centerId) finish(path,centerId,"affectation");
+    }
+  }
+
+  const {data:token,error:inviteError}=await sb.rpc("exam_create_staff_invite",{
+    p_center_id:centerId,p_email:email,p_role_key:roleKey
+  });
+  if(inviteError||typeof token!=="string"||!UUID.test(token)) fail(path,centerId);
+
+  if(!existing){
+    const {error:createError}=await admin.auth.admin.createUser({
+      email,email_confirm:false,user_metadata:{naxa_signup_pending:true,exam_staff_direct_pending:true}
+    });
+    if(createError){
+      await sb.rpc("exam_revoke_staff_invite",{p_center_id:centerId,p_invite_id:token}).catch(()=>undefined);
+      redirect(path+"?centre="+encodeURIComponent(centerId)+"&erreur=creation-compte");
+    }
+  }
+
+  try{
+    await sendExamStaffActivationEmail(email,token);
+  }catch{
+    redirect(path+"?centre="+encodeURIComponent(centerId)+"&erreur=envoi-email");
+  }
+  finish(path,centerId,"compte-invite");
+}
+
 export async function assignExamStaff(form:FormData){
   const centerId=textValue(form,"center_id",64);
   const identifier=textValue(form,"identifier",120);
