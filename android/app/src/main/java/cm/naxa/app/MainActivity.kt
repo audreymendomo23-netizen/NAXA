@@ -17,10 +17,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.ValueCallback
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -29,6 +31,7 @@ import java.util.UUID
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private val handler = Handler(Looper.getMainLooper())
     private val discovered = linkedMapOf<String, BluetoothDevice>()
     private val gatts = linkedMapOf<String, BluetoothGatt>()
@@ -55,7 +58,30 @@ class MainActivity : Activity() {
         web.settings.domStorageEnabled = true
         web.settings.databaseEnabled = true
         web.settings.mediaPlaybackRequiresUserGesture = true
-        web.webChromeClient = WebChromeClient()
+        web.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                view: WebView?,
+                callback: ValueCallback<Array<Uri>>?,
+                params: FileChooserParams?
+            ): Boolean {
+                filePathCallback?.onReceiveValue(null)
+                filePathCallback = callback
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "application/pdf"))
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+                }
+                return try {
+                    startActivityForResult(intent, 703)
+                    true
+                } catch (_: Exception) {
+                    filePathCallback?.onReceiveValue(null)
+                    filePathCallback = null
+                    false
+                }
+            }
+        }
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
@@ -120,6 +146,17 @@ class MainActivity : Activity() {
         if (adapter?.isEnabled != true) { emit("error", deviceId = address, message = "Activez le Bluetooth Android pour reconnecter l'appareil."); return }
         try { connect(adapter!!.getRemoteDevice(address)) }
         catch (_: Exception) { emit("error", deviceId = address, message = "Appareil mémorisé indisponible. Relancez une recherche Bluetooth."); }
+    }
+
+    @Deprecated("Android activity result compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 703) {
+            val callback = filePathCallback
+            filePathCallback = null
+            val uri = if (resultCode == RESULT_OK) data?.data else null
+            callback?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
