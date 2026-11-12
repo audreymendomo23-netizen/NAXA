@@ -188,7 +188,27 @@ export function SuiviConnecte() {
       if(detail.type==="error"){setBusy(false);setNotice(String(detail.message??"Erreur Bluetooth."));return;}
       if(detail.type==="connecting"){setNotice("Connexion à "+String(detail.deviceName??"l'appareil")+"…");return;}
       if(detail.type==="reconnecting"){setBusy(false);setNotice(String(detail.message??"Reconnexion Bluetooth…"));return;}
-      if(detail.type==="profiles"){setBusy(false);setNotice(detail.profileCount>0?"Profils de mesure Bluetooth détectés.":"Appareil connecté, mais aucun flux de mesure standard n’est abonné.");return;}
+      if(detail.type==="profiles"){
+        setBusy(false);
+        if(Number(detail.profileCount)>0){setNotice("Profils de mesure Bluetooth standard détectés.");return;}
+        void(async()=>{
+          let row=deviceId?nativeDeviceRows.current.get(deviceId):undefined;
+          if(!row&&deviceId){
+            const pending=nativeDevicePromises.current.get(deviceId);
+            if(pending){await pending;row=nativeDeviceRows.current.get(deviceId);}
+          }
+          if(row){
+            await sb.from("suivi_user_devices").update({
+              connection_state:"unsupported",auto_reconnect:false,
+              last_error:"Aucun profil GATT standard décodable par NAXA",updated_at:new Date().toISOString()
+            }).eq("id",row.id);
+            await load();
+          }
+          if(deviceId)(window as any).NaxaAndroid?.disconnect(deviceId);
+          setNotice("Appareil appairé, mais aucun profil Bluetooth standard décodable n'a été trouvé. Utilisez la saisie manuelle ou le scan.");
+        })();
+        return;
+      }
       if(detail.type==="connected"&&deviceId&&deviceKey){
         const item=deviceCatalog.find(entry=>entry.key===deviceKey);
         if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setBusy(false);setNotice("Consentement requis pour cette famille de mesures.");return;}
