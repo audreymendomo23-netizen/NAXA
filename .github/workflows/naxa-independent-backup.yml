@@ -58,13 +58,19 @@ jobs:
           if raw != raw.strip():
               fail("NAXA_DATABASE_URL contains leading or trailing whitespace. Store only the connection URI, without spaces or line breaks.")
 
-          # Diagnose literal '#' by its position, without assuming it belongs to the password.
+          # A URI fragment starts at the first literal '#' after the host separator.
+          # Fragments are not part of PostgreSQL connection parameters, so discard
+          # only that suffix and pass the normalized URI to pg_dump.
+          fragment_removed = False
           hash_index = raw.find("#")
-          at_index = raw.find("@")
+          at_index = raw.rfind("@")
           if hash_index >= 0:
               if at_index < 0 or hash_index < at_index:
-                  fail("NAXA_DATABASE_URL contains a literal # before the host separator (@). The URI credentials section or separators are malformed; this does not establish that the database password itself is incorrect.")
-              fail("NAXA_DATABASE_URL contains a literal # after the host separator (@), so the server/path portion includes a URI fragment. Check for an extra suffix or comment in the stored connection string.")
+                  fail("NAXA_DATABASE_URL contains a literal # in the credentials section. Check the URI separators and percent-encoding; the database password has not been tested.")
+              raw = raw[:hash_index]
+              fragment_removed = True
+              if not raw:
+                  fail("NAXA_DATABASE_URL is empty after removing its URI fragment.")
 
           # Parse the expected Supabase PostgreSQL URI shape explicitly. Reserved
           # delimiters inside credentials must be percent-encoded in a URI.
@@ -99,13 +105,13 @@ jobs:
               fail("NAXA_DATABASE_URL has no actual database password.")
           if port != 5432:
               fail("Use a Supabase direct connection or shared Session pooler on port 5432 for pg_dump; do not use the Transaction pooler on port 6543.")
-          print(f"PostgreSQL URI preflight passed: host={host}, port={port}, mode={'Session pooler' if is_pooler else 'Direct'}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
+              github_env.write(f"SUPABASE_DATABASE_URL={raw}\n")
+          print(f"PostgreSQL URI preflight passed: host={host}, port={port}, mode={'Session pooler' if is_pooler else 'Direct'}, fragment_suffix_removed={'yes' if fragment_removed else 'no'}")
           PY
 
       - name: Dump PostgreSQL 17 database
         shell: bash
-        env:
-          SUPABASE_DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
         run: |
           set -euo pipefail
           mkdir -p backup
