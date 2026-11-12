@@ -350,7 +350,7 @@ export function CaisseRetraitsMarketplace({
           <h2 className="text-lg font-extrabold">Retrait Marketplace · règlement au comptoir</h2>
           <p className="text-sm text-slate-600">Scannez le QR code avec un lecteur compatible ou saisissez le code de paiement. NAXA relie la facture à la pharmacie ; le paiement est reçu et constaté par la pharmacie, jamais par NAXA.</p>
         </div>
-        <button type="button" className="btn btn-clair" disabled={loading || !!busyId} onClick={() => void load()}>Actualiser</button>
+        <div className="flex gap-2"><a href="/pharmacie/assurance" className="btn btn-clair">Suivi Assurance</a><button type="button" className="btn btn-clair" disabled={loading || !!busyId} onClick={() => void load()}>Actualiser</button></div>
       </div>
       {!sessionId && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 print:hidden">Ouvrez une session de caisse pour enregistrer un règlement ou confirmer un retrait.</p>}
       <div className="grid gap-2 sm:grid-cols-[1fr_auto] print:hidden">
