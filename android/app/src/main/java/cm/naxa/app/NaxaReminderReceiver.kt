@@ -200,8 +200,51 @@ class NaxaReminderReceiver : AndroidBroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getStringExtra("scheduleId") ?: return
         val prefs = context.getSharedPreferences("naxa_suivi_reminders", Context.MODE_PRIVATE)
-        val raw = prefs.getString("schedule_" + id, null) ?: return
         if(!NaxaReminderScheduler.notificationsEnabled(context))return
+        if(intent.getStringExtra("kind")=="personal"){
+            val reminderRaw=prefs.getString("reminder_"+id,null) ?: return
+            try {
+                val reminder=JSONObject(reminderRaw)
+                if(!reminder.optBoolean("enabled",true))return
+                val zone=ZoneId.of(reminder.optString("timezone","Africa/Douala"))
+                val due=java.time.Instant.parse(reminder.getString("dueAt")).atZone(zone)
+                val now=ZonedDateTime.now(zone)
+                if(due.isAfter(now)){NaxaReminderScheduler.schedulePersonalNext(context,id);return}
+                NaxaReminderScheduler.ensureChannel(context)
+                val open=Intent(context,MainActivity::class.java).apply{
+                    flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("openPath","/suivi")
+                }
+                val pending=PendingIntent.getActivity(context,id.hashCode() xor 0x5A17,open,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                val notification=android.app.Notification.Builder(context,"naxa_suivi_measurements")
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setContentTitle(reminder.optString("title","Rappel NAXA"))
+                    .setContentText("Votre rappel personnel arrive à échéance.")
+                    .setStyle(android.app.Notification.BigTextStyle().bigText("Ouvrez NAXA pour consulter votre rappel de suivi."))
+                    .setContentIntent(pending).setAutoCancel(true).build()
+                context.getSystemService(NotificationManager::class.java).notify(id.hashCode() xor 0x5A17,notification)
+                when(reminder.optString("repeatRule","none")){
+                    "daily" -> {
+                        var nextDue=due.plusDays(1)
+                        while(!nextDue.isAfter(now))nextDue=nextDue.plusDays(1)
+                        reminder.put("dueAt",nextDue.toInstant().toString())
+                        prefs.edit().putString("reminder_"+id,reminder.toString()).apply()
+                        NaxaReminderScheduler.schedulePersonalNext(context,id)
+                    }
+                    "weekly" -> {
+                        var nextDue=due.plusWeeks(1)
+                        while(!nextDue.isAfter(now))nextDue=nextDue.plusWeeks(1)
+                        reminder.put("dueAt",nextDue.toInstant().toString())
+                        prefs.edit().putString("reminder_"+id,reminder.toString()).apply()
+                        NaxaReminderScheduler.schedulePersonalNext(context,id)
+                    }
+                    else -> NaxaReminderScheduler.removePersonal(context,id)
+                }
+            }catch(_:Exception){NaxaReminderScheduler.schedulePersonalNext(context,id)}
+            return
+        }
+        val raw = prefs.getString("schedule_" + id, null) ?: return
         try {
             val json = JSONObject(raw)
             if (!json.optBoolean("enabled", true)) return
