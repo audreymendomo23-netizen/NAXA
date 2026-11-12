@@ -50,7 +50,7 @@ export default function AssuranceDashboardPage(){
   const conventionRows=(conv??[]) as Convention[];const ruleData=(ruleRows??[]) as ConventionRule[];
   setConventions(conventionRows);setConventionRules(ruleData.filter(x=>conventionRows.some(c=>c.id===x.convention_id)));
   setProducts((productRows??[]) as ProductOption[]);
-  setSelectedConventionId(old=>conventionRows.some(x=>x.id===old)?old:(conventionRows.find(x=>x.pharmacie_id===ids[0]&&x.statut==="active")?.id??conventionRows[0]?.id??""));
+  setSelectedConventionId(old=>conventionRows.some(x=>x.id===old&&x.statut==="active")?old:(conventionRows.find(x=>x.pharmacie_id===ids[0]&&x.statut==="active")?.id??conventionRows.find(x=>x.statut==="active")?.id??""));
   setSelectedInsurer(old=>(ins??[]).some(x=>x.id===old)?old:((ins??[])[0]?.id??""));setLoading(false);
  },[]);
  useEffect(()=>{void load()},[load]);
@@ -101,7 +101,7 @@ export default function AssuranceDashboardPage(){
    <div><p className="text-xs font-bold uppercase tracking-widest text-white/70">NAXA · Assurance</p><h1 className="mt-1 text-2xl font-black">Suivi des prises en charge</h1><p className="mt-1 text-sm text-white/75">{role==="promoteur"?"Vue consolidée des pharmacies de votre réseau":"Vue de la pharmacie active"}</p></div>
    <nav className="flex gap-2"><Link className="btn btn-clair" href="/pharmacie">Espace pharmacie</Link><button className="btn btn-canari" onClick={()=>void load()}>Actualiser</button></nav>
   </header>
-  {error&&<p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">{error}</p>}
+  {error&&<p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">{error}</p>}{notice&&<p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">{notice}</p>}
   {loading?<section className="rounded-2xl bg-white p-5">Chargement des événements Assurance…</section>:<>
    {(role==="promoteur"||role==="pharmacien"||role==="responsable")&&<section className="rounded-2xl bg-white p-4"><h2 className="font-extrabold">Conventions et taux de prise en charge</h2><p className="mb-3 text-xs text-slate-500">Déclarez la convention de la pharmacie et son taux général. Une convention n’est jamais créée par le simple ajout d’un assureur au référentiel.</p><div className="grid gap-2 sm:grid-cols-2">
    <label className="text-sm font-semibold">Pharmacie<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedPharmacy} onChange={e=>setSelectedPharmacy(e.target.value)}>{pharmacyOptions.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
@@ -115,7 +115,7 @@ export default function AssuranceDashboardPage(){
   </div><button disabled={savingConvention||!selectedPharmacy||!selectedInsurer||!ruleRate.trim()||!conventionStart||(conventionEnd&&conventionEnd<conventionStart)} onClick={()=>void saveConvention()} className="btn btn-vert mt-3 w-full">{savingConvention?"Enregistrement…":"Enregistrer la convention et le taux général"}</button></section>
    <section className="space-y-3 rounded-2xl bg-white p-4">
     <div><h2 className="font-extrabold">Règles détaillées de prise en charge</h2><p className="text-xs text-slate-500">Une règle produit prévaut sur une règle catégorie, qui prévaut sur la règle générale. Les versions antérieures restent traçables et les devis déjà acceptés ne sont pas recalculés.</p></div>
-    <label className="block text-sm font-semibold">Convention à paramétrer<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedConventionId} onChange={e=>setSelectedConventionId(e.target.value)}><option value="">Sélectionner une convention</option>{conventions.map(c=><option key={c.id} value={c.id}>{pharmacyOptions.find(p=>p.id===c.pharmacie_id)?.nom||"Pharmacie"} · {assureurs[c.assureur_id]||"Assureur"} · {c.statut} · {c.date_debut}{c.date_fin?" → "+c.date_fin:""}</option>)}</select></label>
+    <label className="block text-sm font-semibold">Convention à paramétrer<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedConventionId} onChange={e=>setSelectedConventionId(e.target.value)}><option value="">Sélectionner une convention</option>{conventions.filter(c=>c.statut==="active").map(c=><option key={c.id} value={c.id}>{pharmacyOptions.find(p=>p.id===c.pharmacie_id)?.nom||"Pharmacie"} · {assureurs[c.assureur_id]||"Assureur"} · {c.date_debut}{c.date_fin?" → "+c.date_fin:""}</option>)}</select></label>
     {selectedConvention&&<p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Référence : {selectedConvention.reference_convention||"Non renseignée"} · Validité : {selectedConvention.date_debut} → {selectedConvention.date_fin||"sans date de fin"}</p>}
     <div className="grid gap-2 sm:grid-cols-2">
      <label className="text-sm font-semibold">Portée de la règle<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={ruleScope} onChange={e=>setRuleScope(e.target.value)}><option value="tout">Tous les produits</option><option value="categorie">Catégorie</option><option value="produit">Produit précis</option></select></label>
