@@ -81,7 +81,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 
 - Migration Replay : `20261112180000_compta_plan_mappings_management`, versionnée dans `supabase/migrations/20261112180000_compta_plan_mappings_management.sql`.
 - Route partagée : `/pharmacie/comptabilite/plan`, accessible au Promoteur actif sur son réseau et au Comptable affecté à sa pharmacie.
-- Le plan permet de créer les comptes (code, libellé, classe 1 à 9) avec état initial `a_valider`, puis de valider chaque compte. Un compte déjà validé n'est pas modifiable par le formulaire de création.
+- Le plan permet de créer et modifier les comptes encore en brouillon (code, libellé, classe 1 à 9), puis de valider chaque compte individuellement ou tout le plan en une action dédiée. Un compte déjà validé n'est pas modifiable par le formulaire de création.
 - Les mappings enregistrent type d'événement, sens débit/crédit, compte de destination et dates de validité. Un mapping ne peut être créé qu'avec un compte déjà validé. La validation refuse les périodes qui chevauchent un mapping déjà validé pour le même événement et le même sens.
 - Les RPC de lecture, écriture et validation sont isolées, avec `SECURITY DEFINER`, `search_path` vide, droits d'exécution réservés à `authenticated`, contrôle de périmètre et de `compta_ecriture_autorisee`. Chaque création et validation écrit dans le journal comptable d'audit.
 - La lecture du plan reste disponible après retrait de la délégation au Comptable ; la création et validation restent masquées dans l'interface et refusées par la base. Le Promoteur conserve son autorité permanente dans le réseau.
