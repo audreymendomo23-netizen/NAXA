@@ -103,6 +103,8 @@ class MainActivity : Activity() {
 
     inner class NaxaBridge {
         @JavascriptInterface fun isAvailable(): Boolean = true
+        @JavascriptInterface fun isFcmAvailable(): Boolean =
+            com.google.firebase.FirebaseApp.getApps(this@MainActivity).isNotEmpty()
         @JavascriptInterface fun getFcmToken(): String =
             getSharedPreferences(NaxaFirebaseMessagingService.PREFS, MODE_PRIVATE)
                 .getString(NaxaFirebaseMessagingService.TOKEN_KEY, "").orEmpty()
