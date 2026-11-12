@@ -47,6 +47,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Aucun parcours E2E avec comptes client/pharmacie/Promoteur/Comptable n'a encore été exécuté.
 - Le POS fractionné et les reçus sont raccordés dans le code et la migration Replay ; aucun test E2E réel de retrait Assurance n'a encore été exécuté.
 - Le Replay consulté ne contient aucun mapping comptable Assurance ni mapping vente validé ; la preuve d'une écriture débit/crédit réellement postée n'est donc pas disponible.
+- Le contrat SQL vérifie également que `compta_emettre_evenement_metier` exclut les lignes `ASSURANCE:%` du montant de vente encaissé et que la clôture de caisse ne retient que les paiements en espèces. Ces garde-fous structurels ne remplacent pas un test de rapprochement avec une vente réelle.
 - La recherche publique n'est pas encore raccordée au filtre Assurance.
 - Le mécanisme de proposition d'un nouveau montant par la pharmacie et d'accord client en cas d'écart de droits reste à construire.
 - La recette UI/build TypeScript, les scénarios de remboursement partiel/total et le parcours de modification du devis restent à exécuter.
