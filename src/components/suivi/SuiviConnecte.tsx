@@ -191,7 +191,7 @@ export function SuiviConnecte() {
       if(detail.type==="profiles"){setBusy(false);setNotice(detail.profileCount>0?"Profils de mesure Bluetooth détectés.":"Appareil connecté, mais aucun flux de mesure standard n’est abonné.");return;}
       if(detail.type==="connected"&&deviceId&&deviceKey){
         const item=deviceCatalog.find(entry=>entry.key===deviceKey);
-        if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setNotice("Consentement requis pour cette famille de mesures.");return;}
+        if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setBusy(false);setNotice("Consentement requis pour cette famille de mesures.");return;}
         const task=(async()=>{
           const {data:authData}=await sb.auth.getUser();
           if(!authData.user)throw new Error("Session expirée.");
