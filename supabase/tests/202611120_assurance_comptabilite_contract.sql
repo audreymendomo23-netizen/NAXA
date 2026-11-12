@@ -57,6 +57,17 @@ begin
     or position('plafond=null' in pg_get_functiondef('public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)'::regprocedure))=0 then
     raise exception 'ASSURANCE_PHARMACY_RATE_SOURCE_INVALID';
   end if;
+  if not has_function_privilege('authenticated','public.assurance_enregistrer_regle(uuid,text,text,uuid,numeric,bigint,bigint,jsonb,jsonb,date,date)','EXECUTE')
+    or has_function_privilege('anon','public.assurance_enregistrer_regle(uuid,text,text,uuid,numeric,bigint,bigint,jsonb,jsonb,date,date)','EXECUTE')
+    or has_table_privilege('authenticated','public.assurance_regles_convention','INSERT')
+    or (select relrowsecurity from pg_class where oid='public.assurance_regles_convention'::regclass) is not true then
+    raise exception 'ASSURANCE_RULES_ACCESS_CONTROL_INVALID';
+  end if;
+  if position('private.naxa_scope_allows' in pg_get_functiondef('public.assurance_enregistrer_regle(uuid,text,text,uuid,numeric,bigint,bigint,jsonb,jsonb,date,date)'::regprocedure))=0
+    or position('p_portee not in' in pg_get_functiondef('public.assurance_enregistrer_regle(uuid,text,text,uuid,numeric,bigint,bigint,jsonb,jsonb,date,date)'::regprocedure))=0
+    or position('jsonb_typeof' in pg_get_functiondef('public.assurance_enregistrer_regle(uuid,text,text,uuid,numeric,bigint,bigint,jsonb,jsonb,date,date)'::regprocedure))=0 then
+    raise exception 'ASSURANCE_RULES_VALIDATION_GUARD_MISSING';
+  end if;
   if position('coalesce(vp.reference,' in pg_get_functiondef('public.compta_emettre_evenement_metier()'::regprocedure))=0
     or position('not like ''ASSURANCE:%''' in pg_get_functiondef('public.compta_emettre_evenement_metier()'::regprocedure))=0 then
     raise exception 'ASSURANCE_RECEIVABLE_COUNTED_AS_CASH';
