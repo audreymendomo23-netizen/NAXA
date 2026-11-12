@@ -121,6 +121,7 @@ export function SuiviConnecte() {
   const [measuredAt, setMeasuredAt] = useState(new Date().toISOString().slice(0,16));
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderAt, setReminderAt] = useState(new Date(Date.now()+86400000).toISOString().slice(0,16));
+  const [reminderEditingId,setReminderEditingId]=useState<string|null>(null);
   const [repeatRule, setRepeatRule] = useState("none");
   const [professionalId, setProfessionalId] = useState("");
   const [notice, setNotice] = useState("");
@@ -530,10 +531,35 @@ export function SuiviConnecte() {
     setBusy(true);
     const {data:userData}=await sb.auth.getUser();
     if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
-    const {error}=await sb.from("suivi_reminders").insert({user_id:userData.user.id,measurement_type:selectedType,title:reminderTitle.trim(),due_at:new Date(reminderAt).toISOString(),repeat_rule:repeatRule,enabled:true});
+    const payload={user_id:userData.user.id,measurement_type:selectedType,title:reminderTitle.trim(),due_at:new Date(reminderAt).toISOString(),repeat_rule:repeatRule,enabled:true,updated_at:new Date().toISOString()};
+    const {error}=reminderEditingId
+      ? await sb.from("suivi_reminders").update({...payload,last_notified_due_at:null}).eq("id",reminderEditingId).eq("user_id",userData.user.id)
+      : await sb.from("suivi_reminders").insert(payload);
     if(error)setNotice("Rappel non enregistré. Vérifiez le consentement.");
-    else {setReminderTitle("");setNotice("Rappel enregistré. Les notifications dépendent des capacités actives de votre appareil.");await load();}
+    else {setReminderTitle("");setReminderEditingId(null);setNotice(reminderEditingId?"Rappel modifié.":"Rappel enregistré. Le service planifié gère les notifications à échéance.");await load();}
     setBusy(false);
+  }
+
+  function editReminder(reminder:Reminder){
+    setSelectedType(reminder.measurement_type);
+    setReminderTitle(reminder.title);
+    setReminderAt(new Date(new Date(reminder.due_at).getTime()-new Date(reminder.due_at).getTimezoneOffset()*60000).toISOString().slice(0,16));
+    setRepeatRule(reminder.repeat_rule);
+    setReminderEditingId(reminder.id);
+  }
+
+  async function toggleReminder(reminder:Reminder){
+    const {error}=await sb.from("suivi_reminders")
+      .update({enabled:!reminder.enabled,updated_at:new Date().toISOString()})
+      .eq("id",reminder.id);
+    setNotice(error?"Impossible de modifier le rappel.":reminder.enabled?"Rappel désactivé.":"Rappel réactivé.");
+    if(!error)await load();
+  }
+
+  function cancelReminderEdit(){
+    setReminderEditingId(null);setReminderTitle("");
+    setReminderAt(new Date(Date.now()+86400000).toISOString().slice(0,16));
+    setRepeatRule("none");
   }
 
   async function saveMeasurementSchedule() {
@@ -989,9 +1015,9 @@ export function SuiviConnecte() {
           <label className="mt-3 block text-sm font-semibold">Titre<input value={reminderTitle} onChange={e=>setReminderTitle(e.target.value)} maxLength={160} className="mt-1 min-h-11 w-full rounded-xl border px-3" placeholder={"Ex. Relever ma mesure"}/></label>
           <label className="mt-3 block text-sm font-semibold">Échéance<input type="datetime-local" value={reminderAt} onChange={e=>setReminderAt(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"/></label>
           <label className="mt-3 block text-sm font-semibold">Répétition<select value={repeatRule} onChange={e=>setRepeatRule(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3"><option value="none">Une fois</option><option value="daily">Chaque jour</option><option value="weekly">Chaque semaine</option></select></label>
-          <button disabled={busy||!selectedConsent} onClick={()=>void saveReminder()} className="mt-3 min-h-11 w-full rounded-xl bg-[#0A6B3A] px-4 font-bold text-white disabled:opacity-40">Enregistrer le rappel</button>
+          <button disabled={busy||!selectedConsent} onClick={()=>void saveReminder()} className="mt-3 min-h-11 w-full rounded-xl bg-[#0A6B3A] px-4 font-bold text-white disabled:opacity-40">{reminderEditingId?"Enregistrer les modifications":"Enregistrer le rappel"}</button>{reminderEditingId&&<button type="button" onClick={cancelReminderEdit} className="mt-2 min-h-10 w-full rounded-xl border px-4 text-sm font-bold">Annuler la modification</button>}
           <button type="button" onClick={()=>void enableReminderNotifications()} className="mt-2 min-h-11 w-full rounded-xl border border-emerald-200 px-4 font-bold text-[#0A6B3A]">Activer les notifications de rappel</button>
-          <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="rounded-xl border p-3"><p className="font-bold">{r.title}</p><p className="mt-1 text-sm text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"}</p></li>)}</ul>
+          <ul className="mt-4 space-y-2">{reminders.map(r=><li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><p className="font-bold">{r.title}</p><p className="mt-1 text-sm text-slate-600">{types.find(t=>t.key===r.measurement_type)?.label??r.measurement_type} · {new Date(r.due_at).toLocaleString("fr-FR")} · {r.repeat_rule==="none"?"une fois":r.repeat_rule==="daily"?"quotidien":"hebdomadaire"} · {r.enabled?"Actif":"Désactivé"}</p></div><div className="flex gap-2"><button type="button" onClick={()=>editReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">Modifier</button><button type="button" onClick={()=>void toggleReminder(r)} className="min-h-9 rounded-lg border px-3 text-xs font-bold">{r.enabled?"Désactiver":"Réactiver"}</button></div></li>)}</ul>
         </div>
       </section>
       <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button>
