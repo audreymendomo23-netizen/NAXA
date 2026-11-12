@@ -1,11 +1,11 @@
-export const OPTIONAL_GATT_SERVICES = [
+const OPTIONAL_GATT_SERVICES = [
   "heart_rate", "blood_pressure", "health_thermometer", "pulse_oximeter",
   "glucose", "weight_scale", "body_composition", "running_speed_cadence",
   "cycling_speed_cadence", "fitness_machine", "device_information",
   "battery_service"
 ];
 
-export const STANDARD_GATT_CHARACTERISTICS = {
+const STANDARD_GATT_CHARACTERISTICS = {
   heart_rate: { service: "heart_rate", characteristic: "heart_rate_measurement" },
   blood_pressure: { service: "blood_pressure", characteristic: "blood_pressure_measurement" },
   temperature: { service: "health_thermometer", characteristic: "temperature_measurement" },
@@ -20,7 +20,7 @@ function requireBytes(data, length, label) {
   if (!(data instanceof DataView) || data.byteLength < length) throw new Error(label + ": payload too short");
 }
 
-export function decodeSfloat(raw) {
+function decodeSfloat(raw) {
   const value = raw & 0xffff;
   if (value === 0x07ff || value === 0x0800 || value === 0x0801 || value === 0x0802 || value === 0x0803) {
     throw new Error("Bluetooth SFLOAT is not a finite measurement");
@@ -34,7 +34,7 @@ export function decodeSfloat(raw) {
   return decoded;
 }
 
-export function decodeFloat11073(data, offset) {
+function decodeFloat11073(data, offset) {
   requireBytes(data, offset + 4, "IEEE-11073 FLOAT");
   const raw = data.getUint32(offset, true);
   let mantissa = raw & 0x00ffffff;
@@ -145,10 +145,10 @@ function parseGlucose(data) {
     if (measuredAt && Number.isFinite(offsetMinutes)) measuredAt = new Date(new Date(measuredAt).getTime() + offsetMinutes * 60_000).toISOString();
   }
   if (!(flags & 2)) throw new Error("Glucose concentration missing from packet");
-  requireBytes(data, offset + 3, "Glucose concentration/type");
+  requireBytes(data, offset + 4, "Glucose concentration/type");
   const concentration = decodeSfloat(data.getUint16(offset, true));
   offset += 2;
-  offset += 1; // type and sample location
+  offset += 2; // type and sample location
   if (flags & 8) offset += 2; // sensor status annunciation
   if (!Number.isFinite(concentration) || concentration <= 0) throw new Error("Invalid glucose concentration");
   const unit = flags & 4 ? "mol/L" : "kg/L";
@@ -193,7 +193,8 @@ function parseBodyComposition(data) {
       values.push({ measurement_type: type, value_numeric: Number(value.toFixed(4)), unit, measured_at: measuredAt });
     }
   };
-  if (flags & 8) { const basal = data.getUint16(offset, true); offset += 2; add("metabolisme_basal", basal, "kJ", 0, 50000); }
+  if (measuredAt && values.length) values[0].measured_at=measuredAt;
+  if (flags & 8) { requireBytes(data,offset+2,"Basal metabolism"); const basal = data.getUint16(offset, true); offset += 2; add("metabolisme_basal", basal, "kJ", 0, 50000); }
   const readU16 = (label) => {
     requireBytes(data, offset + 2, label);
     const raw = data.getUint16(offset, true);
@@ -223,20 +224,17 @@ function parseRunningSpeedCadence(data) {
   const flags = data.getUint8(0);
   const speed = data.getUint16(1, true) / 256;
   const cadence = data.getUint8(3);
-  let offset = 4;
-  if (flags & 1) offset += 2;
-  if (flags & 2) offset += 4;
   const values = [];
   if (speed >= 0 && speed <= 25) values.push({ measurement_type:"vitesse_course", value_numeric:Number(speed.toFixed(3)), unit:"m/s", measured_at:null });
   if (cadence <= 250) values.push({ measurement_type:"cadence_course", value_numeric:cadence, unit:"pas/min", measured_at:null });
   if (flags & 1 && data.byteLength >= 6) {
     const stride = data.getUint16(4, true);
-    if (stride <= 300) values.push({ measurement_type:"longueur_foulee", value_numeric:Number((stride * 100).toFixed(2)), unit:"cm", measured_at:null });
+    if (stride <= 300) values.push({ measurement_type:"longueur_foulee", value_numeric:stride, unit:"cm", measured_at:null });
   }
   return values;
 }
 
-export function decodeStandardGattMeasurement(serviceId, characteristicId, data) {
+function decodeStandardGattMeasurement(serviceId, characteristicId, data) {
   const service = String(serviceId || "").toLowerCase().replace(/^0x/, "");
   const characteristic = String(characteristicId || "").toLowerCase().replace(/^0x/, "");
   if (service === "180d" || service === "heart_rate") if (characteristic === "2a37" || characteristic === "heart_rate_measurement") return parseHeartRate(data);
@@ -244,13 +242,20 @@ export function decodeStandardGattMeasurement(serviceId, characteristicId, data)
   if (service === "1809" || service === "health_thermometer") if (characteristic === "2a1c" || characteristic === "temperature_measurement") return parseTemperature(data);
   if (service === "1822" || service === "pulse_oximeter") { if (characteristic === "2a5e" || characteristic === "plx_spot_check_measurement") return parsePulseOximeter(data, false); if (characteristic === "2a5f" || characteristic === "plx_continuous_measurement") return parsePulseOximeter(data, true); }
   if (service === "1808" || service === "glucose") if (characteristic === "2a18" || characteristic === "glucose_measurement") return parseGlucose(data);
-  if ((service === "1826" || service === "fitness_machine" || service === "181d" || service === "respiratory_rate") && (characteristic === "2aab" || characteristic === "respiration_rate_measurement")) return parseRespiratoryRate(data);
+  
   if (service === "1814" || service === "running_speed_cadence") if (characteristic === "2a53" || characteristic === "rsc_measurement") return parseRunningSpeedCadence(data);
   if (service === "181b" || service === "body_composition") if (characteristic === "2a9c" || characteristic === "body_composition_measurement") return parseBodyComposition(data);
   if (service === "181d" || service === "weight_scale") if (characteristic === "2a9d" || characteristic === "weight_measurement") return parseWeight(data);
   throw new Error("No verified decoder for GATT " + service + "/" + characteristic);
 }
 
-export function supportsNotifications(characteristic) {
+function supportsNotifications(characteristic) {
   return !!(characteristic && characteristic.properties && (characteristic.properties.notify || characteristic.properties.indicate));
 }
+
+exports.OPTIONAL_GATT_SERVICES = OPTIONAL_GATT_SERVICES;
+exports.STANDARD_GATT_CHARACTERISTICS = STANDARD_GATT_CHARACTERISTICS;
+exports.decodeSfloat = decodeSfloat;
+exports.decodeFloat11073 = decodeFloat11073;
+exports.decodeStandardGattMeasurement = decodeStandardGattMeasurement;
+exports.supportsNotifications = supportsNotifications;
