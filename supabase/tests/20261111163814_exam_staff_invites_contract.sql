@@ -197,6 +197,19 @@ begin
     and role_key='technicien_laboratoire' and is_active;
   if not found then raise exception 'Assignment revocation failed'; end if;
 
+  select count(*) into v_count from public.profiles
+  where id=f.invitee_id and actif is true;
+  if v_count<>1 then raise exception 'Revoking an assignment must preserve the active NAXA profile'; end if;
+
+  select count(*) into v_count from auth.users where id=f.invitee_id;
+  if v_count<>1 then raise exception 'Revoking an assignment must never delete the Auth account'; end if;
+
+  select count(*) into v_count from public.exam_staff_assignments
+  where center_id=f.center_id and user_id=f.invitee_id
+    and role_key='technicien_laboratoire' and is_active is false
+    and active_role is false and revoked_at is not null;
+  if v_count<>1 then raise exception 'Revoked assignment history must be retained'; end if;
+
   v_new_token:=public.exam_create_staff_invite(f.center_id,v_email,'technicien_laboratoire');
   perform set_config('request.jwt.claim.sub',f.invitee_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',f.invitee_id,'role','authenticated')::text,true);
