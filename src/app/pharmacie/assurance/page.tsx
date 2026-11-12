@@ -25,6 +25,9 @@ export default function AssuranceDashboardPage(){
   }
   if(!ids.length){setPharmacies([]);setDossiers([]);setEvents([]);setLoading(false);return;}
   setPharmacies(ids);
+  const {data:pharmacyRows}=await sb.from("pharmacies").select("id,nom").in("id",ids);
+  setPharmacyOptions((pharmacyRows??[]) as PharmacyOption[]);
+  setSelectedPharmacy(old=>ids.includes(old)?old:(ids[0]??""));
   const [{data:ds,error:de},{data:ev,error:ee},{data:ins,error:ie}]=await Promise.all([
    sb.from("dossiers_assurance").select("id,pharmacie_id,reservation_id,couverture_id,statut,montant_total,montant_prise_en_charge,montant_client,montant_rembourse,statut_remboursement,created_at").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(1000),
    sb.from("assurance_evenements").select("id,pharmacie_id,reservation_id,dossier_id,assureur_id,type,montant_fcfa,reference,created_at").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(1000),
