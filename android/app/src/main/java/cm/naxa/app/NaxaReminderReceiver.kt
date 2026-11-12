@@ -117,7 +117,7 @@ class NaxaReminderReceiver : AndroidBroadcastReceiver() {
             val freshnessKey = if (deviceId.isNotBlank()) "last_" + type + "_" + deviceId else "last_" + type
             val last = prefs.getLong(freshnessKey, 0L)
             val age = System.currentTimeMillis() - last
-            val fresh = last > 0L && age in 0..freshness
+            val fresh = last > 0L && age >= 0L && age <= freshness
             if (!fresh) {
                 NaxaReminderScheduler.ensureChannel(context)
                 val open = Intent(context, MainActivity::class.java).apply {
