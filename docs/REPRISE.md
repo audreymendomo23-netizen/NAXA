@@ -110,3 +110,25 @@ Cette consolidation est **une intégration de fichiers sur une branche isolée**
 - **Contrôles lus dans le fichier** : les invocations `psql` utilisent déjà `-v ON_ERROR_STOP=1`; les listes de migrations/tests utilisent `LC_ALL=C sort`; le filtre rejette une sortie vide et les valeurs booléennes fausses (`f`/`false`). Ces contrôles structurels ne prouvent pas l'exécution des jobs.
 - **Prouvé par exécution** : aucun job CI n'est encore déclaré vert à ce stade; attendre les statuts et logs du pipeline déclenché par la PR.
 - **Prochaine action** : ouvrir une PR `fix/ci-main` → `main`, puis relever le pipeline CircleCI, `quality` et `sql_tests`, avec le premier message d'erreur exact si échec.
+
+## Point C — Photos médicaments CIMA/AEMPS et provenance (12/11/2026)
+
+### Corrections intégrées sur `main`
+- `src/lib/medicaments/photos-externes.ts` : une photo CIMA n'est plus considérée réutilisable au seul motif que les données CIMA sont ouvertes. La photo doit porter une licence explicite autorisant la réutilisation commerciale; les mentions NC, ND, non-commercial, no-derivatives et droits réservés sont rejetées. L'URL reste limitée à l'hôte officiel HTTPS `cima.aemps.es` et au chemin photos CIMA; NAXA ne copie ni ne modifie le fichier.
+- `src/components/Recherche.tsx` : les visuels CIMA sont explicitement signalés comme références espagnoles indicatives, sans valeur de preuve d'AMM ni de présentation camerounaise.
+- `scripts/test-catalogue-medicaments.cjs` : assertions ajoutées pour l'exigence de licence explicite, le rejet des droits réservés et l'avertissement de provenance étrangère.
+
+### Fondement et preuve
+- La page officielle AEMPS « Datos abiertos » décrit les données publiques réutilisables sous réserve d'attribution : https://sede.aemps.gob.es/datos-abiertos/.
+- La note officielle AEMPS sur les photographies précise que les images sont chargées volontairement par les titulaires d'AMM puis validées par l'AEMPS avant affichage dans CIMA : https://www.aemps.gob.es/informa/carga-de-fotografias-de-la-forma-farmaceutica-acondicionamiento-primario-y-embalaje-exterior-del-medicamento/.
+- Contrôle statique des trois fichiers sur `main` : PASS (licence explicite obligatoire, restrictions bloquées, URL CIMA limitée, avertissement Espagne présent, assertions de test présentes).
+- Replay `pwfftcsjyeibxxqhwysw` : table `medicaments_referentiel_sources` présente, mais 0 référence BDPM, 0 photo, 0 licence, 0 attribution et 0 photo vérifiée. La couverture effective des 15 883 références ne peut donc pas être mesurée sur cet environnement.
+- Les outils disponibles ne permettent pas d'exécuter `npm test`, TypeScript, lint, build ou navigateur sur le dépôt GitHub. Aucun statut GitHub CI n'est retourné pour le commit de correction; le miroir GitLab disponible n'est pas synchronisé avec le HEAD courant et ne constitue pas une preuve valide.
+
+### État de clôture
+- Sécurité des droits et avertissement de provenance : corrigés et vérifiés statiquement.
+- Correspondance des variantes, appel CIMA et attribution : présents dans le code, mais pas validés par exécution API/runtime dans cette session.
+- Couverture photos BDPM/CIMA sur 15 883 références, tests Node, TypeScript, lint, build et rendu navigateur : non prouvés.
+- Aucun déploiement ni aucune migration Production effectués.
+
+**Décision : POINT C NON VERT — correction de la cause de droits intégrée, mais exécution et couverture runtime non prouvées.**
