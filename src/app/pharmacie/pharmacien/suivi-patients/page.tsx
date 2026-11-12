@@ -10,6 +10,7 @@ type Share = { id: string; owner_user_id: string; measurement_type: string; gran
 type Measurement = { id: string; user_id: string; measurement_type: string; value_numeric: number | null; value_text: string | null; unit: string | null; measured_at: string; source: string; note: string | null };
 type SharedAlert = { id: string; user_id: string; measurement_id: string; measurement_type: string; observed_value: number; alert_kind: "below_user_range" | "above_user_range"; created_at: string; read_at: string | null };
 type ViewTab = "patients" | "mesures" | "alertes" | "partages";
+type ReportPeriod = "day" | "month" | "year" | "custom";
 type TrendPoint = { id: string; measured_at: string; value_numeric: number; unit: string | null };
 const labels: Record<string, string> = {
   tension_systolique: "Tension systolique", tension_diastolique: "Tension diastolique",
@@ -38,6 +39,9 @@ export default function PharmacienSuiviPatientsPage() {
   const [tab, setTab] = useState<ViewTab>("patients");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [trendType, setTrendType] = useState("");
+  const [reportPeriod,setReportPeriod]=useState<ReportPeriod>("month");
+  const [customFrom,setCustomFrom]=useState("");
+  const [customTo,setCustomTo]=useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("tous");
   const [loading, setLoading] = useState(true);
@@ -54,7 +58,7 @@ export default function PharmacienSuiviPatientsPage() {
       .order("granted_at", { ascending: false }).limit(500);
     if (shareError) {
       setShares([]); setMeasurements([]); setAlerts([]);setLastUpdated(new Date().toISOString());
-      setError("Les partages ne sont pas accessibles. Vérifiez la migration 127, la migration 189, la vérification du professionnel et l’autorisation expérimentale du compte.");
+      setError("Les partages ne sont pas accessibles. Vérifiez les migrations du suivi, le statut du professionnel et le consentement du patient.");
       setBusy(false); return;
     }
     const activeShares = (data ?? []) as Share[];
@@ -72,13 +76,13 @@ export default function PharmacienSuiviPatientsPage() {
       .order("measured_at", { ascending: false }).limit(2000);
     if (measurementError) {
       setMeasurements([]);
-      setError("Les partages sont visibles mais les mesures restent bloquées par les droits serveur. Vérifiez la migration 189 et ses tests SQL.");
+      setError("Les partages sont visibles mais les mesures restent bloquées par les droits serveur. Vérifiez les droits RLS et le consentement actif.");
       setBusy(false); return;
     }
     const allowed = new Set(activeShares.map(item => `${item.owner_user_id}:${item.measurement_type}`));
     setMeasurements(((rows ?? []) as Measurement[]).filter(row => allowed.has(`${row.user_id}:${row.measurement_type}`)));
     const {data:alertRows,error:alertQueryError}=await sb.from("suivi_alerts").select("id,user_id,measurement_id,measurement_type,observed_value,alert_kind,created_at,read_at").in("user_id",owners).in("measurement_type",types).order("created_at",{ascending:false}).limit(200);
-    if(alertQueryError){setAlerts([]);setAlertError("Les alertes partagées attendent la migration 192 ou les droits RLS correspondants.");}
+    if(alertQueryError){setAlerts([]);setAlertError("Les alertes partagées ne sont pas accessibles avec les autorisations serveur actuelles.");}
     else{setAlerts(((alertRows??[]) as SharedAlert[]).filter(alert=>allowed.has(`${alert.user_id}:${alert.measurement_type}`)));setAlertError("");}
     setNotice("Données limitées aux autorisations en cours : historique, mesures futures et alertes selon les droits explicites du patient.");
     setLastUpdated(new Date().toISOString());
@@ -124,6 +128,29 @@ export default function PharmacienSuiviPatientsPage() {
   },[sb,recipientId,loadSharedData]);
   const owners = [...new Set(shares.map(item => item.owner_user_id))];
   const types = [...new Set(shares.map(item => item.measurement_type))].sort();
+  const periodNow=new Date();
+  let periodStart:Date|null=null;
+  let periodEnd:Date|null=null;
+  if(reportPeriod==="day"){
+    periodStart=new Date(periodNow);periodStart.setHours(0,0,0,0);
+    periodEnd=new Date(periodNow);periodEnd.setHours(23,59,59,999);
+  }else if(reportPeriod==="month"){
+    periodStart=new Date(periodNow.getFullYear(),periodNow.getMonth(),1,0,0,0,0);
+    periodEnd=new Date(periodNow.getFullYear(),periodNow.getMonth()+1,0,23,59,59,999);
+  }else if(reportPeriod==="year"){
+    periodStart=new Date(periodNow.getFullYear(),0,1,0,0,0,0);
+    periodEnd=new Date(periodNow.getFullYear(),11,31,23,59,59,999);
+  }else{
+    if(customFrom)periodStart=new Date(customFrom+"T00:00:00");
+    if(customTo)periodEnd=new Date(customTo+"T23:59:59.999");
+  }
+  const inReportPeriod=(value:string)=>{
+    const date=new Date(value);
+    return (!periodStart||date>=periodStart)&&(!periodEnd||date<=periodEnd);
+  };
+  const patientPeriodMeasurements=selectedPatient
+    ? measurements.filter(row=>row.user_id===selectedPatient&&inReportPeriod(row.measured_at))
+    : [];
   const filteredAlerts=alerts.filter(alert=>{
     const q=search.trim().toLowerCase();
     const patientMatch=!q||patientLabel(alert.user_id).toLowerCase().includes(q)||alert.user_id.toLowerCase().includes(q);
@@ -133,16 +160,17 @@ export default function PharmacienSuiviPatientsPage() {
     const query = search.trim().toLowerCase();
     const patientMatch = !query || patientLabel(row.user_id).toLowerCase().includes(query) || row.user_id.toLowerCase().includes(query);
     const typeMatch = typeFilter === "tous" || row.measurement_type === typeFilter;
-    return patientMatch && typeMatch;
+    const periodMatch=!selectedPatient||row.user_id!==selectedPatient||inReportPeriod(row.measured_at);
+    return patientMatch && typeMatch && periodMatch;
   });
   const selectedPatient = selectedPatientId && owners.includes(selectedPatientId) ? selectedPatientId : null;
   const trendTypes = selectedPatient
-    ? [...new Set(measurements.filter(row => row.user_id === selectedPatient && row.value_numeric !== null).map(row => row.measurement_type))].sort()
+    ? [...new Set(patientPeriodMeasurements.filter(row => row.value_numeric !== null).map(row => row.measurement_type))].sort()
     : [];
   const activeTrendType = trendTypes.includes(trendType) ? trendType : (trendTypes[0] ?? "");
   const trendPoints: TrendPoint[] = selectedPatient && activeTrendType
-    ? measurements
-        .filter((row): row is Measurement & { value_numeric: number } => row.user_id === selectedPatient && row.measurement_type === activeTrendType && row.value_numeric !== null)
+    ? patientPeriodMeasurements
+        .filter((row): row is Measurement & { value_numeric: number } => row.measurement_type === activeTrendType && row.value_numeric !== null)
         .sort((a, b) => a.measured_at.localeCompare(b.measured_at))
         .slice(-20)
     : [];
@@ -182,7 +210,7 @@ export default function PharmacienSuiviPatientsPage() {
           {selectedPatient && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold text-emerald-950">Dossier partagé · {patientLabel(selectedPatient)}</h2><p className="text-sm text-emerald-900">Évolution des valeurs numériques partagées, triées par date. Les graphiques décrivent les données reçues et ne constituent pas une interprétation médicale.</p></div><button type="button" className="btn btn-clair" onClick={() => setSelectedPatientId(null)}>Fermer le dossier</button></div>
             <SuiviClinicalCasePanel patientId={selectedPatient} professionalId={recipientId}/>
-            <SuiviHistoryChart measurements={measurements.filter(row=>row.user_id===selectedPatient)} title={"Historique de "+patientLabel(selectedPatient)}/>{trendTypes.length > 0 ? <>
+            <div className="grid gap-3 rounded-xl border border-emerald-100 bg-white p-3 sm:grid-cols-2"><label className="text-sm font-semibold">Période à consulter<select className="champ mt-1 w-full" value={reportPeriod} onChange={event=>setReportPeriod(event.target.value as ReportPeriod)}><option value="day">Jour en cours</option><option value="month">Mois en cours</option><option value="year">Année en cours</option><option value="custom">Période personnalisée</option></select></label>{reportPeriod==="custom"&&<div className="grid grid-cols-2 gap-2"><label className="text-sm font-semibold">Du<input type="date" className="champ mt-1 w-full" value={customFrom} onChange={event=>setCustomFrom(event.target.value)}/></label><label className="text-sm font-semibold">Au<input type="date" className="champ mt-1 w-full" value={customTo} onChange={event=>setCustomTo(event.target.value)}/></label></div>}<p className="text-xs text-slate-500 sm:col-span-2">Graphiques et mesures du dossier limités à la période choisie. Le filtre utilise le fuseau horaire du navigateur.</p></div><SuiviHistoryChart measurements={patientPeriodMeasurements} title={"Historique de "+patientLabel(selectedPatient)}/>{trendTypes.length > 0 ? <>
               <label className="block text-sm font-semibold">Mesure à visualiser<select className="champ mt-1 w-full sm:max-w-sm" value={activeTrendType} onChange={event => setTrendType(event.target.value)}>{trendTypes.map(type => <option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>
               {trendPoints.length > 1 ? <div className="rounded-xl border border-emerald-100 bg-white p-3">
                 <div className="flex flex-wrap justify-between gap-2 text-sm"><span>Minimum observé : <b>{trendMin}</b></span><span>Maximum observé : <b>{trendMax}</b></span><span>{trendPoints.length} dernières valeurs</span></div>
@@ -202,6 +230,6 @@ export default function PharmacienSuiviPatientsPage() {
         {tab==="partages" && (shares.length ? <div className="space-y-2">{shares.map(share=><article key={share.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><b>{patientLabel(share.owner_user_id)}</b><p className="text-sm text-slate-600">{labels[share.measurement_type] ?? share.measurement_type}</p><p className="text-xs text-slate-500">Partage accordé le {dateLabel(share.granted_at)}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Actif</span></article>)}</div> : <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Aucun partage actif. Le patient conserve le contrôle de son consentement et peut révoquer le partage depuis son compte.</p>)}
       </>}
     </section>
-    <p className="px-1 text-xs text-slate-500">Le module reste soumis à la vérification professionnelle et à l’autorisation expérimentale existante du suivi connecté. Les données se rafraîchissent via Realtime lorsque disponible et par vérification périodique toutes les 30 secondes. Les alertes affichées sont uniquement celles qui sont liées à des mesures partagées et restent soumises à la migration 192. Le suivi des prescriptions patient exige encore un consentement distinct et un raccordement dédié.</p>
+    <p className="px-1 text-xs text-slate-500">Le module reste soumis à la vérification professionnelle et à l’autorisation expérimentale existante du suivi connecté. Les données se rafraîchissent via Realtime lorsque disponible et par vérification périodique toutes les 30 secondes. Les alertes affichées restent soumises aux autorisations actives du patient. Le suivi des prescriptions patient exige encore un consentement distinct et un raccordement dédié.</p>
   </SuiviProfessionalWorkspaceShell>;
 }
