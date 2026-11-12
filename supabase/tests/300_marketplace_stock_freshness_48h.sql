@@ -22,6 +22,7 @@ begin
   end if;
 
   if position('marketplace_stock_last_quantity_update' in v_reserve) = 0
+     or position('marketplace_offre_stock_disponible' in v_reserve) = 0
      or position('interval ''48 hours''' in v_reserve) = 0
      or position('for update' in v_reserve) = 0 then
     raise exception 'RESERVATION_STOCK_FRESHNESS_GUARD_MISSING';
