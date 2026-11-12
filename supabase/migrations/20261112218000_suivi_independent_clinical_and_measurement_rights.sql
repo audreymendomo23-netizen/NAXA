@@ -72,6 +72,7 @@ for select to authenticated using(
         and (
           (s.allow_history=true and suivi_measurements.measured_at<=s.granted_at)
           or (s.allow_realtime=true and s.realtime_from_at is not null
+            and suivi_measurements.measured_at>=s.realtime_from_at
             and suivi_measurements.received_at>=s.realtime_from_at)
         )
     )
