@@ -143,6 +143,7 @@ export function SuiviConnecte() {
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
   const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
   const nativeDeviceRows=useRef(new Map<string,{id:string;deviceKey:string;name:string}>());
+  const nativeReconnectRequested=useRef(new Set<string>());
   const nativeDevicePromises=useRef(new Map<string,Promise<string>>());
   const measurementRefreshTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
@@ -316,6 +317,15 @@ export function SuiviConnecte() {
 
   useEffect(() => {
     if (!allowed || !devices.some(device=>device.active && device.auto_reconnect && device.platform_device_id)) return;
+    const native=(window as any).NaxaAndroid;
+    if(native?.isAvailable?.()){
+      for(const saved of devices.filter(device=>device.active&&device.auto_reconnect&&device.platform_device_id&&consents[deviceCatalogFamily(device.device_key)])){
+        if(nativeReconnectRequested.current.has(saved.platform_device_id!))continue;
+        nativeReconnectRequested.current.add(saved.platform_device_id!);
+        native.reconnect(saved.platform_device_id,saved.device_key);
+      }
+      return;
+    }
     const bluetooth=(navigator as any).bluetooth;
     if (!bluetooth?.getDevices) return;
     let cancelled=false;
