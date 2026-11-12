@@ -80,3 +80,14 @@ Commencer le lot Paiements Promoteur en portant les fonctions et migrations requ
 - **Résultat :** aucun fichier du lot Paiements n'a été intégré à main ; aucune migration n'a été appliquée ; aucun déploiement n'a été déclenché par cette tentative.
 - **Reprise obligatoire :** repartir du HEAD actuel `f072e3331b8b2adb896b57cf0d86f470d3324aec`, refaire l'inventaire des changements intervenus depuis `6e44fb7`, puis recréer le commit candidat sur le nouvel arbre. Ne jamais rattacher le commit candidat à l'ancien parent.
 - **Blocage Android restant :** la documentation Replay indique que `RECEIVE_SMS` est hard-restricted et que l'installation directe depuis le site peut être bloquée par Play Protect ; APK et test sur téléphone/SIM non disponibles. La capture Android ne peut pas être déclarée verte.
+
+
+## Journal d'exécution — fusion de l'historique Replay vers main (2026-11-12, 20:10 UTC)
+
+- Dernier déploiement Production READY vérifié dans Vercel : commit `8ebe45267b97c3b0c666b1df3f9e73df0b08c005`, URL `https://naxa-ko30zjkga-naxa3.vercel.app` (alias de production également présents).
+- Tête Replay intégrée : `f4edd8579971347aa090bf810e4357eca1ea26f8`.
+- Commit de fusion publié sur `main` : `626e67e7029bcce2b74cb646f505945506ebd7e3`. Ses deux parents sont l'ancien HEAD de main et la tête Replay. La comparaison GitHub `f4edd857...main` confirme `behind_by=0` et l'ancêtre commun égal à la tête Replay : l'historique Replay est donc entièrement accessible depuis main.
+- Réconciliation de l'arbre : 362 changements de fichiers non conflictuels intégrés depuis Replay. 41 fichiers ayant divergé des deux côtés ont conservé la version main afin de ne pas écraser des évolutions main plus récentes ; ils restent à examiner pour fusion sémantique si des éléments Replay uniques y subsistent.
+- Fichiers volontairement préservés côté main pour compatibilité Next 14 / PWA : `AGENTS.md`, `next.config.mjs`, `package-lock.json`. Replay utilise Next 15 / React 19 / Serwist, tandis que main conserve Next 14 / React 18 / next-pwa ; aucune copie globale de ces fichiers n'a été faite.
+- CI GitHub Actions `NAXA quality` déclenchée sur le commit de fusion : run `43297547242`, en attente au dernier relevé.
+- Aucun déploiement Vercel ni aucune migration Supabase Production n'a été exécuté.
