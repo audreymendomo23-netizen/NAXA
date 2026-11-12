@@ -783,7 +783,7 @@ export function SuiviConnecte() {
         ? await sb.from("suivi_user_devices").update(metadata).eq("id",unpaired.id).eq("user_id",authData.user.id).select("id").maybeSingle()
         : await sb.from("suivi_user_devices").insert({user_id:authData.user.id,device_key:deviceKey,device_name:String(connected.name ?? item.name).slice(0,120),connection_mode:"bluetooth",active:true,capabilities:["bluetooth","manual","scan"],...metadata}).select("id").single();
       if (saved.error || !saved.data?.id) throw saved.error ?? new Error("Impossible d'enregistrer cet appareil");
-      deviceRow = { id:saved.data.id, device_key:deviceKey, device_name:String(connected.name ?? item.name), connection_mode:"bluetooth", active:true, device_brand:null, device_model:String(connected.name ?? item.name), protocol:metadata.protocol, last_sync_at:null,last_error:null,capabilities:["bluetooth"],platform_device_id:String(connected.id),auto_reconnect:true,connection_state:"connected",last_measurement_at:null };
+      deviceRow = { id:saved.data.id, device_key:deviceKey, device_name:String(connected.name ?? item.name), connection_mode:"bluetooth", active:true, device_brand:deviceInfo.manufacturer, device_model:String(deviceInfo.model??connected.name??item.name), protocol:metadata.protocol, last_sync_at:null,last_error:null,capabilities:["bluetooth"],platform_device_id:String(connected.id),auto_reconnect:true,connection_state:"connected",last_measurement_at:null };
     }
     if (!deviceRow) throw new Error("Activez d'abord cette catégorie d'appareil dans votre catalogue.");
     await sb.from("suivi_user_devices").update({
