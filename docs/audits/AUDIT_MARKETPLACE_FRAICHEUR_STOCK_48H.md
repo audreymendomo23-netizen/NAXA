@@ -34,9 +34,9 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 
 ## Fichiers livrés
 
-- `supabase/migrations/20261112195700_marketplace_stock_freshness_48h.sql`
-- `supabase/migrations/20261112201500_marketplace_search_freshness_gate.sql`
-- `supabase/migrations/20261112210000_marketplace_stock_freshness_confirmation.sql`
+- `supabase/migrations/20261112190943_marketplace_stock_freshness_48h.sql`
+- `supabase/migrations/20261112191030_marketplace_search_freshness_gate.sql`
+- `supabase/migrations/20261112191133_marketplace_stock_freshness_confirmation.sql`
 - `supabase/tests/300_marketplace_stock_freshness_48h.sql`
 - `supabase/tests/301_marketplace_search_freshness_gate.sql`
 - `supabase/tests/302_marketplace_stock_freshness_confirmation.sql`
