@@ -44,7 +44,7 @@ jobs:
           import os
           import re
           import sys
-          from urllib.parse import urlsplit, unquote
+          from urllib.parse import unquote
 
           raw = os.environ.get("DATABASE_URL", "")
           project_ref = os.environ["PROJECT_REF"]
@@ -53,21 +53,40 @@ jobs:
               print(f"::error::{message} No credential or raw URI was printed.")
               sys.exit(1)
 
-          try:
-              parsed = urlsplit(raw)
-              host = parsed.hostname
-              port = parsed.port
-              username = unquote(parsed.username or "")
-              password = parsed.password
-          except ValueError:
-              fail("NAXA_DATABASE_URL is not a valid PostgreSQL URI. Check separators and percent-encode reserved characters in the password.")
+          if not raw:
+              fail("NAXA_DATABASE_URL is empty.")
+          if raw != raw.strip():
+              fail("NAXA_DATABASE_URL contains leading or trailing whitespace. Store only the connection URI, without spaces or line breaks.")
 
-          if parsed.scheme not in ("postgres", "postgresql"):
+          # Diagnose literal '#' by its position, without assuming it belongs to the password.
+          hash_index = raw.find("#")
+          at_index = raw.find("@")
+          if hash_index >= 0:
+              if at_index < 0 or hash_index < at_index:
+                  fail("NAXA_DATABASE_URL contains a literal # before the host separator (@). The URI credentials section or separators are malformed; this does not establish that the database password itself is incorrect.")
+              fail("NAXA_DATABASE_URL contains a literal # after the host separator (@), so the server/path portion includes a URI fragment. Check for an extra suffix or comment in the stored connection string.")
+
+          # Parse the expected Supabase PostgreSQL URI shape explicitly. Reserved
+          # delimiters inside credentials must be percent-encoded in a URI.
+          match = re.fullmatch(
+              r"(?P<scheme>postgres(?:ql)?)://(?P<userinfo>[^/@?#]+)@(?P<host>[^/:?#]+):(?P<port>[0-9]+)(?P<path>/[^?#]*)?(?:\?(?P<query>[^#]*))?",
+              raw,
+          )
+          if not match:
+              fail("NAXA_DATABASE_URL does not match the expected PostgreSQL URI structure. Verify the user:password@host:port separators; do not change a valid password merely because this check fails.")
+
+          userinfo = match.group("userinfo")
+          if userinfo.count(":") != 1:
+              fail("NAXA_DATABASE_URL must contain one user/password separator before the @host section.")
+          encoded_username, encoded_password = userinfo.split(":", 1)
+          username = unquote(encoded_username)
+          password = unquote(encoded_password)
+          scheme = match.group("scheme")
+          host = match.group("host").lower()
+          port = int(match.group("port"))
+
+          if scheme not in ("postgres", "postgresql"):
               fail("NAXA_DATABASE_URL must use postgres:// or postgresql://.")
-          if parsed.fragment:
-              fail("NAXA_DATABASE_URL contains a URI fragment. A reserved character in the password may not be percent-encoded.")
-          if not host:
-              fail("NAXA_DATABASE_URL has no parseable database host. Check the @ separator and percent-encoding.")
           is_pooler = bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com", host))
           is_direct = host == f"db.{project_ref}.supabase.co"
           if not (is_pooler or is_direct):
