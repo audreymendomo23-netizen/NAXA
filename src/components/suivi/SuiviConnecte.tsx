@@ -736,12 +736,41 @@ export function SuiviConnecte() {
     }
     if (!discovered.length) throw new Error("Aucun profil GATT standard décodable n'a été trouvé sur cet appareil.");
 
+    // Identification du fabricant, du modèle, du firmware et de la batterie
+    // lorsque le périphérique expose les services Bluetooth standards.
+    const deviceInfo:{manufacturer:string|null;model:string|null;firmware:string|null;battery:number|null}={
+      manufacturer:null,model:null,firmware:null,battery:null
+    };
+    try{
+      const infoService=await connected.gatt.getPrimaryService("device_information");
+      const readText=async(characteristicName:string)=>{
+        try{
+          const characteristic=await infoService.getCharacteristic(characteristicName);
+          const raw=await characteristic.readValue();
+          return new TextDecoder().decode(new Uint8Array(raw.buffer,raw.byteOffset,raw.byteLength)).replace(/\0/g,"").trim().slice(0,120)||null;
+        }catch{return null;}
+      };
+      deviceInfo.manufacturer=await readText("manufacturer_name_string");
+      deviceInfo.model=await readText("model_number_string");
+      deviceInfo.firmware=await readText("firmware_revision_string");
+    }catch{/* Service d'identification non exposé par le fabricant. */}
+    try{
+      const batteryService=await connected.gatt.getPrimaryService("battery_service");
+      const batteryCharacteristic=await batteryService.getCharacteristic("battery_level");
+      const batteryValue=await batteryCharacteristic.readValue();
+      const level=batteryValue.getUint8(0);
+      if(level>=0&&level<=100)deviceInfo.battery=level;
+    }catch{/* Le niveau de batterie est facultatif. */}
+
     let deviceRow = devices.find(entry => entry.device_key === deviceKey && entry.platform_device_id === String(connected.id));
     if (!deviceRow && shouldRegister) {
       const unpaired = devices.find(entry => entry.device_key === deviceKey && !entry.platform_device_id && entry.active);
       const metadata = {
         platform_device_id:String(connected.id),
-        device_model:String(connected.name ?? item.name).slice(0,120),
+        device_brand:deviceInfo.manufacturer,
+        device_model:String(deviceInfo.model??connected.name??item.name).slice(0,120),
+        firmware_version:deviceInfo.firmware,
+        metadata:{manufacturer:deviceInfo.manufacturer,firmware:deviceInfo.firmware,battery_level:deviceInfo.battery},
         protocol:discovered.map(entry=>bluetoothShortUuid(entry.service.uuid)+"/"+bluetoothShortUuid(entry.characteristic.uuid)).join(",").slice(0,80),
         connection_state:"connected",
         auto_reconnect:true,
@@ -760,7 +789,10 @@ export function SuiviConnecte() {
     await sb.from("suivi_user_devices").update({
       connection_state:"connected", platform_device_id:String(connected.id),
       auto_reconnect:true, background_supported:false,
-      device_model:String(connected.name ?? deviceRow.device_model ?? item.name).slice(0,120),
+      device_brand:deviceInfo.manufacturer??deviceRow.device_brand,
+      device_model:String(deviceInfo.model??connected.name??deviceRow.device_model??item.name).slice(0,120),
+      firmware_version:deviceInfo.firmware,
+      metadata:{manufacturer:deviceInfo.manufacturer,firmware:deviceInfo.firmware,battery_level:deviceInfo.battery},
       protocol:discovered.map(entry=>bluetoothShortUuid(entry.service.uuid)+"/"+bluetoothShortUuid(entry.characteristic.uuid)).join(",").slice(0,80),
       last_seen_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()
     }).eq("id",deviceRow.id).eq("user_id",authData.user.id);
