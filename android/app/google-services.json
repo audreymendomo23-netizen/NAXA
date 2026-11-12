@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "497666067668",
+    "project_id": "naxatechnologie",
+    "storage_bucket": "naxatechnologie.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:497666067668:android:f0c1f2e801828ac3577f41",
+        "android_client_info": {
+          "package_name": "cm.naxa.app"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8gvRqlgsN57wIJ6uF0tREFeKt3pC93tk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
