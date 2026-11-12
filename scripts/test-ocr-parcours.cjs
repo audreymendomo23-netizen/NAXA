@@ -47,6 +47,12 @@ test("Commande : les transactions sont créées côté serveur avec les quantit�
   assert.match(checkout, /Le stock a changé\. Revérifiez les disponibilités\./);
 });
 
+test("Recherche groupée : une pharmacie partielle ne peut pas être ajoutée comme sélection complète", () => {
+  assert.match(results, /\$\{r\.trouves\}\/\$\{r\.demandes\} médicaments demandés disponibles/);
+  assert.match(results, /bulkTerms\.length>0&&r\.trouves!==r\.demandes/);
+  assert.match(results, /Sélection incomplète : quantité insuffisante ou médicament non trouvé/);
+});
+
 test("Sécurité : le scan OCR ne valide jamais une prescription automatiquement", () => {
   assert.match(results, /soumis à ordonnance/);
   assert.match(results, /aucune validation médicale automatique/);
