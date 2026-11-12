@@ -43,7 +43,7 @@ declare
   v_delivery uuid;
 begin
   if new.source_table not in ('stocks','stocks_lots')
-     or new.event_type not in ('creation','quantite','suppression') then
+     or new.event_type not in ('creation','quantite','suppression','blocage','peremption') then
     return new;
   end if;
 
