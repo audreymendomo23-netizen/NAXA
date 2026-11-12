@@ -57,8 +57,12 @@ begin
   )
   on conflict(owner_user_id,recipient_user_id,measurement_type) do update set
     active=true,
-    granted_at=case when current_share.active and current_share.revoked_at is null
-      then current_share.granted_at else v_now end,
+    granted_at=case
+      when current_share.active and current_share.revoked_at is null
+        and current_share.allow_history=coalesce(p_allow_history,false)
+      then current_share.granted_at
+      else v_now
+    end,
     revoked_at=null,
     allow_history=coalesce(p_allow_history,false),
     allow_realtime=coalesce(p_allow_realtime,false),
@@ -130,9 +134,11 @@ begin
   where s.owner_user_id=v_patient and s.recipient_user_id=p_recipient_user_id
     and s.active=true and s.revoked_at is null;
 
-  select coalesce(l.clinical_notes_access,false) into v_clinical
-  from public.suivi_care_links l
-  where l.patient_user_id=v_patient and l.professional_user_id=p_recipient_user_id;
+  select coalesce((
+    select l.clinical_notes_access
+    from public.suivi_care_links l
+    where l.patient_user_id=v_patient and l.professional_user_id=p_recipient_user_id
+  ),false) into v_clinical;
 
   update public.suivi_care_links
   set history_access=v_history,realtime_access=v_realtime,alerts_access=v_alerts,
@@ -255,6 +261,33 @@ begin
 end;
 $$;
 
+-- Le flux en temps réel se fonde sur l'instant de réception serveur.
+-- measured_at reste réservé au cadrage de l'historique déjà existant.
+drop policy if exists suivi_measurements_owner_select on public.suivi_measurements;
+create policy suivi_measurements_owner_select on public.suivi_measurements
+for select to authenticated using(
+  (user_id=(select auth.uid()) and public.suivi_is_enabled_user((select auth.uid())))
+  or (
+    public.suivi_is_enabled_user((select auth.uid()))
+    and public.suivi_is_verified_professional((select auth.uid()))
+    and public.suivi_has_consent(user_id,public.suivi_measurement_family(measurement_type))
+    and exists(
+      select 1 from public.suivi_shares s
+      where s.owner_user_id=suivi_measurements.user_id
+        and s.recipient_user_id=(select auth.uid())
+        and s.measurement_type=suivi_measurements.measurement_type
+        and s.active=true and s.revoked_at is null
+        and (
+          (s.allow_history and suivi_measurements.measured_at<=s.granted_at)
+          or
+          (s.allow_realtime and s.realtime_from_at is not null and suivi_measurements.received_at>=s.realtime_from_at)
+        )
+    )
+  )
+);
+
+-- Les mesures sont ajoutées à la chronologie à leur réception, même si l'appareil
+-- fournit un timestamp de mesure antérieur à l'activation du flux.
 -- Les mesures réellement autorisées en temps réel deviennent des éléments de la chronologie clinique.
 alter table public.suivi_clinical_entries
   add column if not exists measurement_id uuid references public.suivi_measurements(id) on delete set null;
@@ -304,7 +337,7 @@ begin
     and l.active=true and l.revoked_at is null and l.clinical_notes_access=true
     and s.active=true and s.revoked_at is null
     and s.allow_realtime=true and s.realtime_from_at is not null
-    and new.measured_at>=s.realtime_from_at
+    and new.received_at>=s.realtime_from_at
     and public.suivi_is_verified_professional(l.professional_user_id)
   on conflict do nothing;
   return new;
