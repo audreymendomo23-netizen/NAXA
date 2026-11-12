@@ -796,6 +796,8 @@ export function SuiviConnecte() {
       protocol:discovered.map(entry=>bluetoothShortUuid(entry.service.uuid)+"/"+bluetoothShortUuid(entry.characteristic.uuid)).join(",").slice(0,80),
       last_seen_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()
     }).eq("id",deviceRow.id).eq("user_id",authData.user.id);
+    deviceRow.device_brand=deviceInfo.manufacturer??deviceRow.device_brand;
+    deviceRow.device_model=String(deviceInfo.model??connected.name??deviceRow.device_model??item.name).slice(0,120);
 
     const session = { device:connected, retries:0 as number, retryTimer:undefined as ReturnType<typeof setTimeout>|undefined };
     bluetoothSessions.current.set(String(connected.id),session);
