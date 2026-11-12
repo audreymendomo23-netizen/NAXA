@@ -1,7 +1,6 @@
 package cm.naxa.app
 
 import android.app.AlarmManager
-import android.app.BroadcastReceiver
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,12 +8,10 @@ import android.content.BroadcastReceiver as AndroidBroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.core.app.NotificationCompat
 import org.json.JSONObject
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.LocalTime
-import java.util.Calendar
 
 object NaxaReminderScheduler {
     private const val PREFS = "naxa_suivi_reminders"
@@ -119,14 +116,14 @@ class NaxaReminderReceiver : AndroidBroadcastReceiver() {
                     context, id.hashCode(), open,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                val notification = NotificationCompat.Builder(context, "naxa_suivi_measurements")
+                val notification = android.app.Notification.Builder(context, "naxa_suivi_measurements")
                     .setSmallIcon(android.R.drawable.ic_dialog_info)
                     .setContentTitle("NAXA · Mesure à actualiser")
                     .setContentText("Aucune donnée récente n'a été reçue. Vérifiez votre appareil et sa synchronisation.")
-                    .setStyle(NotificationCompat.BigTextStyle().bigText(
+                    .setStyle(android.app.Notification.BigTextStyle().bigText(
                         "La mesure programmée approche et aucune donnée récente n'a été reçue. Ouvrez NAXA pour vérifier votre appareil."
                     ))
-                    .setContentIntent(pending).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setContentIntent(pending).setAutoCancel(true)
                     .build()
                 context.getSystemService(NotificationManager::class.java)
                     .notify(id.hashCode(), notification)
