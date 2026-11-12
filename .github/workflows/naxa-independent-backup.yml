@@ -56,7 +56,11 @@ jobs:
           raw = os.environ.get("DATABASE_URL", "")
           password_override = os.environ.get("DATABASE_PASSWORD", "")
           project_ref = os.environ["PROJECT_REF"]
-          production_host = f"db.{project_ref}.supabase.co"
+          # GitHub-hosted runners are not guaranteed to have IPv6 egress.
+          # Supabase shared Session pooler is IPv4 reachable and supports
+          # long-lived PostgreSQL sessions needed by pg_dump.
+          production_host = "aws-0-eu-west-1.pooler.supabase.com"
+          production_username = f"postgres.{project_ref}"
 
           def fail(message):
               print(f"::error::{message} No credential or raw URI was printed.")
@@ -92,7 +96,7 @@ jobs:
 
           encoded_password = quote(database_password, safe="")
           target_url = (
-              f"postgresql://postgres:{encoded_password}"
+              f"postgresql://{production_username}:{encoded_password}"
               f"@{production_host}:5432/postgres?sslmode=require"
           )
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
