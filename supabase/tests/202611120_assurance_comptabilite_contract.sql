@@ -57,6 +57,13 @@ begin
     or position('plafond=null' in pg_get_functiondef('public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)'::regprocedure))=0 then
     raise exception 'ASSURANCE_PHARMACY_RATE_SOURCE_INVALID';
   end if;
+  if position('coalesce(vp.reference,' in pg_get_functiondef('public.compta_emettre_evenement_metier()'::regprocedure))=0
+    or position('not like ''ASSURANCE:%''' in pg_get_functiondef('public.compta_emettre_evenement_metier()'::regprocedure))=0 then
+    raise exception 'ASSURANCE_RECEIVABLE_COUNTED_AS_CASH';
+  end if;
+  if position('vp2.mode=''especes''' in pg_get_functiondef('public.caisse_cloturer(uuid,integer,text)'::regprocedure))=0 then
+    raise exception 'ASSURANCE_RECEIVABLE_COUNTED_IN_CASH_CLOSING';
+  end if;
   if position('assurance' in pg_get_functiondef('public.get_client_reservation_ticket(uuid)'::regprocedure))=0
     or position('reference' in pg_get_functiondef('public.get_client_reservation_ticket(uuid)'::regprocedure))=0 then
     raise exception 'ASSURANCE_CLIENT_RECEIPT_SPLIT_MISSING';
