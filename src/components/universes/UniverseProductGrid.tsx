@@ -245,7 +245,7 @@ const eligibleProducts = useMemo(() => products.filter(p => {
 
     {visibleProducts.length === 0 ? <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
       <p className="font-bold">{eligibleProducts.length === 0 ? "Aucun produit n’est actuellement publié dans cet univers." : "Aucun produit ne correspond à votre recherche."}</p>
-      <p className="mt-1 text-sm text-slate-600">{eligibleProducts.length === 0 ? "Les articles apparaîtront ici lorsque {universe === "bebe-maman" ? "les pharmacies auront publié" : "les professionnels Parapharmacie auront publié"} leurs références avec leur prix et leur disponibilité." : "Modifiez le mot-clé ou choisissez une autre catégorie."}</p>
+      <p className="mt-1 text-sm text-slate-600">{eligibleProducts.length === 0 ? `Les articles apparaîtront ici lorsque ${universe === "bebe-maman" ? "les pharmacies auront publié" : "les professionnels Parapharmacie auront publié"} leurs références avec leur prix et leur disponibilité.` : "Modifiez le mot-clé ou choisissez une autre catégorie."}</p>
       {(query || category !== "Toutes les catégories" || sort !== (universe === "bebe-maman" ? "name" : "recommended")) && (
         <button
           type="button"
