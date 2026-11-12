@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef, type CSSProperties } from "react";
 import Link from "next/link";
 import { DeviceIllustration } from "@/components/suivi/DeviceIllustration";
 import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
+import { OPTIONAL_GATT_SERVICES, decodeStandardGattMeasurement } from "@/lib/suivi/ble-protocols";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Family = "constantes" | "metabolisme" | "activite" | "sommeil" | "bien_etre" | "traitements";
@@ -48,7 +49,7 @@ const types: TrackType[] = [
   {key:"cholesterol_ldl",label:"Cholestérol LDL",unit:"unité du résultat",family:"metabolisme",numeric:true},
   {key:"capacite_vitale",label:"Capacité vitale",unit:"L",family:"constantes",numeric:true},
 ];
-type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"|"scan"|"hybrid"; active:boolean; device_brand:string|null; device_model:string|null; protocol:string|null; last_sync_at:string|null; last_error:string|null; capabilities:string[] };
+type UserDevice = { id:string; device_key:string; device_name:string; connection_mode:"manual"|"bluetooth"|"scan"|"hybrid"; active:boolean; device_brand:string|null; device_model:string|null; protocol:string|null; last_sync_at:string|null; last_error:string|null; capabilities:string[]; platform_device_id?:string|null; auto_reconnect?:boolean; connection_state?:string; last_measurement_at?:string|null };
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
 type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
@@ -108,6 +109,7 @@ export function SuiviConnecte() {
   const [selectedDeviceKey, setSelectedDeviceKey] = useState<string | null>(null);
   const [measurementSheetOpen, setMeasurementSheetOpen] = useState(false);
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
+  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number }>());
 
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
@@ -120,7 +122,7 @@ export function SuiviConnecte() {
       sb.from("suivi_reminders").select("id,measurement_type,title,due_at,repeat_rule,enabled").eq("user_id",userData.user.id).order("due_at",{ascending:true}).limit(100),
       sb.from("suivi_alert_rules").select("id,measurement_type,min_value,max_value,enabled").eq("user_id",userData.user.id),
       sb.from("suivi_alerts").select("id,measurement_type,observed_value,alert_kind,created_at,read_at").eq("user_id",userData.user.id).order("created_at",{ascending:false}).limit(100),
-      sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities").eq("user_id",userData.user.id).order("created_at",{ascending:true}),
+      sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at").eq("user_id",userData.user.id).order("created_at",{ascending:true}),
     ]);
     if (p.error || c.error || m.error || r.error || ar.error || al.error || d.error) setNotice("Certaines informations n’ont pas pu être chargées. Réessayez; aucune donnée n’est inventée.");
     setPreferredName(p.data?.preferred_name ?? "");
@@ -390,213 +392,179 @@ export function SuiviConnecte() {
   }
 
   async function connectHeartRate() {
-    setNotice("");
-    const bluetoothDevice = devices.find(device => device.device_key === "capteur_cardiaque_bluetooth");
-    if (!consents.constantes) {
-      setNotice("Acceptez d’abord le consentement « Constantes » pour connecter un capteur.");
-      return;
+    await connectDeviceBluetooth("capteur_cardiaque_bluetooth");
+  }
+
+  function bluetoothShortUuid(uuid: string) {
+    const value = String(uuid).toLowerCase();
+    const match = value.match(/0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/);
+    return match ? match[1] : value;
+  }
+
+  async function startBluetoothSession(device: any, deviceKey: string, shouldRegister = true) {
+    const bluetooth = (navigator as any).bluetooth;
+    const { data: authData } = await sb.auth.getUser();
+    if (!authData.user || !device?.gatt) throw new Error("Compte ou service Bluetooth indisponible");
+    if (bluetoothSessions.current.has(String(device.id))) return;
+    const item = deviceCatalog.find(entry => entry.key === deviceKey);
+    if (!item || !consents[item.family]) throw new Error("Consentement requis pour cette famille");
+    const connected = device.gatt.connected ? device : await device.gatt.connect();
+    const discovered: Array<{service:any;characteristic:any}> = [];
+    const pairs = [
+      ["heart_rate","heart_rate_measurement"],
+      ["blood_pressure","blood_pressure_measurement"],
+      ["health_thermometer","temperature_measurement"],
+      ["pulse_oximeter","plx_spot_check_measurement"],
+      ["pulse_oximeter","plx_continuous_measurement"],
+      ["glucose","glucose_measurement"],
+      ["weight_scale","weight_measurement"],
+      ["body_composition","body_composition_measurement"],
+      ["running_speed_cadence","rsc_measurement"]
+    ];
+    for (const [serviceName, characteristicName] of pairs) {
+      try {
+        const service = await connected.gatt.getPrimaryService(serviceName);
+        const characteristic = await service.getCharacteristic(characteristicName);
+        discovered.push({service,characteristic});
+      } catch { /* Service ou caractéristique absent sur ce modèle. */ }
     }
-    if (!bluetoothDevice?.active) {
-      setNotice("Activez d’abord le dispositif « Capteur cardiaque Bluetooth » dans le catalogue.");
-      return;
+    if (!discovered.length) throw new Error("Aucun profil GATT standard décodable n'a été trouvé sur cet appareil.");
+
+    let deviceRow = devices.find(entry => entry.device_key === deviceKey && entry.platform_device_id === String(connected.id));
+    if (!deviceRow && shouldRegister) {
+      const unpaired = devices.find(entry => entry.device_key === deviceKey && !entry.platform_device_id && entry.active);
+      const metadata = {
+        platform_device_id:String(connected.id),
+        device_model:String(connected.name ?? item.name).slice(0,120),
+        protocol:discovered.map(entry=>bluetoothShortUuid(entry.service.uuid)+"/"+bluetoothShortUuid(entry.characteristic.uuid)).join(",").slice(0,80),
+        connection_state:"connected",
+        auto_reconnect:true,
+        background_supported:false,
+        last_seen_at:new Date().toISOString(),
+        last_error:null,
+        updated_at:new Date().toISOString()
+      };
+      const saved = unpaired
+        ? await sb.from("suivi_user_devices").update(metadata).eq("id",unpaired.id).eq("user_id",authData.user.id).select("id").maybeSingle()
+        : await sb.from("suivi_user_devices").insert({user_id:authData.user.id,device_key:deviceKey,device_name:String(connected.name ?? item.name).slice(0,120),connection_mode:"bluetooth",active:true,capabilities:["bluetooth","manual","scan"],...metadata}).select("id").single();
+      if (saved.error || !saved.data?.id) throw saved.error ?? new Error("Impossible d'enregistrer cet appareil");
+      deviceRow = { id:saved.data.id, device_key:deviceKey, device_name:String(connected.name ?? item.name), connection_mode:"bluetooth", active:true, device_brand:null, device_model:String(connected.name ?? item.name), protocol:metadata.protocol, last_sync_at:null,last_error:null,capabilities:["bluetooth"],platform_device_id:String(connected.id),auto_reconnect:true,connection_state:"connected",last_measurement_at:null };
     }
-    try {
-      if (!window.isSecureContext) {
-        setNotice("Le Bluetooth nécessite une connexion sécurisée HTTPS. Vous pouvez saisir la mesure manuellement.");
+    if (!deviceRow) throw new Error("Activez d'abord cette catégorie d'appareil dans votre catalogue.");
+    await sb.from("suivi_user_devices").update({
+      connection_state:"connected", platform_device_id:String(connected.id),
+      auto_reconnect:true, background_supported:false,
+      device_model:String(connected.name ?? deviceRow.device_model ?? item.name).slice(0,120),
+      protocol:discovered.map(entry=>bluetoothShortUuid(entry.service.uuid)+"/"+bluetoothShortUuid(entry.characteristic.uuid)).join(",").slice(0,80),
+      last_seen_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()
+    }).eq("id",deviceRow.id).eq("user_id",authData.user.id);
+
+    const session = { device:connected, retries:0 as number, retryTimer:undefined as ReturnType<typeof setTimeout>|undefined };
+    bluetoothSessions.current.set(String(connected.id),session);
+    const persist = async (service:any, characteristic:any, data:DataView) => {
+      const measurements = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data);
+      if (!measurements.length) return;
+      const receivedAt = new Date().toISOString();
+      const payloadId = Array.from(new Uint8Array(data.buffer,data.byteOffset,data.byteLength)).map(v=>v.toString(16).padStart(2,"0")).join("");
+      const rows = measurements.map((measurement,index)=>({
+        user_id:authData.user.id,
+        measurement_type:measurement.measurement_type,
+        value_numeric:measurement.value_numeric,
+        value_text:null,
+        unit:measurement.unit,
+        measured_at:measurement.measured_at ?? receivedAt,
+        received_at:receivedAt,
+        source:"bluetooth",
+        sync_origin:"pwa",
+        device_id:deviceRow!.id,
+        device_event_id:receivedAt+":"+bluetoothShortUuid(characteristic.uuid)+":"+index+":"+payloadId,
+        device_model_snapshot:String(connected.name ?? item.name).slice(0,120),
+        device_brand_snapshot:deviceRow!.device_brand,
+        note:null
+      }));
+      const {error:insertError}=await sb.from("suivi_measurements").insert(rows);
+      if(insertError) {
+        setNotice("Mesure reçue, mais son enregistrement serveur a échoué. Vérifiez que la migration de synchronisation multi-appareils est appliquée.");
         return;
       }
-      const bluetooth = (navigator as any).bluetooth;
-      if (!bluetooth?.requestDevice) {
-        setNotice("Bluetooth non pris en charge ici. Utilisez Chrome sur Android avec un capteur compatible, ou saisissez la mesure manuellement.");
-        return;
+      await sb.from("suivi_user_devices").update({
+        last_sync_at:receivedAt,last_measurement_at:receivedAt,last_seen_at:receivedAt,
+        connection_state:"connected",last_error:null,updated_at:receivedAt
+      }).eq("id",deviceRow!.id).eq("user_id",authData.user.id);
+      setNotice("Mesure synchronisée automatiquement depuis "+String(connected.name ?? item.name)+".");
+      await load();
+    };
+    for (const entry of discovered) {
+      const {service,characteristic}=entry;
+      const onValue = (event:Event) => {
+        const value=(event.target as any).value as DataView|undefined;
+        if(value) void persist(service,characteristic,value).catch(()=>setNotice("Erreur de décodage Bluetooth; aucune valeur non vérifiée n'a été enregistrée."));
+      };
+      if ((characteristic as any).properties?.notify || (characteristic as any).properties?.indicate) {
+        characteristic.addEventListener("characteristicvaluechanged",onValue);
+        try {
+          await characteristic.startNotifications();
+          if ((characteristic as any).properties?.read) {
+            try { const initial=await characteristic.readValue(); await persist(service,characteristic,initial); } catch { /* Une lecture initiale n'est pas obligatoire si le flux notifie. */ }
+          }
+        } catch {
+          characteristic.removeEventListener("characteristicvaluechanged",onValue);
+          if ((characteristic as any).properties?.read) {
+            const initial=await characteristic.readValue();
+            await persist(service,characteristic,initial);
+          }
+        }
+      } else if ((characteristic as any).properties?.read) {
+        const initial=await characteristic.readValue();
+        await persist(service,characteristic,initial);
       }
-      const device = await bluetooth.requestDevice({ filters: [{ services: ["heart_rate"] }] });
-      if (!device?.gatt) {
-        setNotice("Cet appareil ne propose pas de connexion Bluetooth GATT compatible. Aucune donnée n’a été enregistrée.");
-        return;
-      }
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService("heart_rate");
-      const characteristic = await service.getCharacteristic("heart_rate_measurement");
-      if (typeof characteristic.startNotifications !== "function" || typeof characteristic.addEventListener !== "function") {
-        device.gatt.disconnect();
-        setNotice("Ce capteur ne permet pas la lecture Bluetooth attendue. Aucune donnée n’a été enregistrée.");
-        return;
-      }
-      const reading = await new Promise<DataView>((resolve, reject) => {
-        let timeout: ReturnType<typeof setTimeout>;
-        const cleanup = () => {
-          clearTimeout(timeout);
-          characteristic.removeEventListener("characteristicvaluechanged", onValue);
-        };
-        const onValue = (event: Event) => {
-          const data = (event.target as any).value as DataView | undefined;
-          if (!data || data.byteLength < 2) return;
-          cleanup();
-          resolve(data);
-        };
-        characteristic.addEventListener("characteristicvaluechanged", onValue);
-        timeout = setTimeout(() => {
-          cleanup();
-          reject(new Error("Bluetooth reading timeout"));
-        }, 12000);
-        characteristic.startNotifications().catch((error: unknown) => {
-          cleanup();
-          reject(error);
-        });
-      });
-      const flags = reading.getUint8(0);
-      const bpm = flags & 1 ? reading.getUint16(1, true) : reading.getUint8(1);
-      if (!Number.isFinite(bpm) || bpm <= 0) {
-        device.gatt.disconnect();
-        setNotice("La valeur reçue est invalide. Aucune donnée n’a été enregistrée.");
-        return;
-      }
-      const { data: authData } = await sb.auth.getUser();
-      if (!authData.user) throw new Error("Session expired");
-      const syncAt = new Date().toISOString();
-      const { error: syncError } = await sb.from("suivi_user_devices").update({
-        device_model: String(device.name ?? "Capteur cardiaque").slice(0,120),
-        protocol: "heart_rate/heart_rate_measurement",
-        last_sync_at: syncAt,
-        last_error: null,
-        updated_at: syncAt
-      }).eq("user_id",authData.user.id).eq("device_key","capteur_cardiaque_bluetooth");
-      if (syncError) throw syncError;
-      setSelectedType("frequence_cardiaque");
-      setValue(String(bpm));
-      setPendingMeasurementSource("bluetooth");
-      setMeasuredAt(new Date().toISOString().slice(0, 16));
-      setNotice("Mesure Bluetooth reçue. Vérifiez la valeur ci-dessous, puis confirmez une seule fois avec « Confirmer et enregistrer la mesure Bluetooth ». Rien n’a encore été enregistré.");
-      device.gatt.disconnect();
-    } catch {
-      setNotice("Connexion Bluetooth annulée, refusée ou indisponible. Aucune donnée n’a été enregistrée; vous pouvez saisir la mesure manuellement.");
     }
+    const onDisconnected = () => {
+      void sb.from("suivi_user_devices").update({connection_state:"disconnected",last_error:"Connexion Bluetooth interrompue",updated_at:new Date().toISOString()}).eq("id",deviceRow!.id).eq("user_id",authData.user.id);
+      setNotice("Appareil déconnecté. NAXA tentera une reconnexion automatique tant que cet espace reste ouvert.");
+      const current=bluetoothSessions.current.get(String(connected.id));
+      if(!current) return;
+      const retry=async()=>{
+        if(!bluetoothSessions.current.has(String(connected.id))) return;
+        try {
+          await connected.gatt.connect();
+          current.retries=0;
+          await sb.from("suivi_user_devices").update({connection_state:"connected",last_seen_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()}).eq("id",deviceRow!.id);
+          setNotice("Connexion Bluetooth rétablie : "+String(connected.name ?? item.name)+".");
+          for(const entry of discovered) {
+            if((entry.characteristic as any).properties?.notify || (entry.characteristic as any).properties?.indicate) {
+              await entry.characteristic.startNotifications();
+            }
+          }
+        } catch {
+          current.retries++;
+          if(current.retries<=6) current.retryTimer=window.setTimeout(()=>void retry(),Math.min(30000,1000*Math.pow(2,current.retries)));
+          else setNotice("Reconnexion automatique suspendue après plusieurs échecs. Réactivez l'appareil depuis NAXA.");
+        }
+      };
+      current.retryTimer=window.setTimeout(()=>void retry(),1000);
+    };
+    connected.addEventListener("gattserverdisconnected",onDisconnected);
+    await load();
+    setNotice("Appareil connecté. Les nouvelles mesures compatibles sont synchronisées automatiquement tant que le système maintient la connexion.");
   }
 
   async function connectDeviceBluetooth(deviceKey: string) {
-    if (deviceKey === "capteur_cardiaque_bluetooth") {
-      await connectHeartRate();
-      return;
-    }
-    const item = deviceCatalog.find(device => device.key === deviceKey);
-    if (!item) return;
-    if (!consents[item.family]) { setNotice("Consentement requis avant la connexion Bluetooth."); return; }
-    if (!devices.some(device => device.device_key === deviceKey && device.active)) {
-      setNotice("Activez d’abord ce dispositif dans votre catalogue privé.");
-      return;
-    }
-    if (!window.isSecureContext) { setNotice("Le Bluetooth exige HTTPS. Vous pouvez utiliser la saisie ou le scan local."); return; }
-    const bluetooth = (navigator as any).bluetooth;
-    if (!bluetooth?.requestDevice) {
-      setNotice("Ce navigateur ne fournit pas Web Bluetooth. Utilisez la saisie manuelle ou le scan local, ou un export de l’application du fabricant.");
-      return;
-    }
-    setBusy(true);
-    setNotice("Recherche d’un appareil Bluetooth compatible…");
-    let connected: any = null;
+    const item=deviceCatalog.find(device=>device.key===deviceKey);
+    if(!item || !consents[item.family]) { setNotice("Consentement requis avant la connexion Bluetooth."); return; }
+    if(!window.isSecureContext) { setNotice("Le Bluetooth Web exige HTTPS."); return; }
+    const bluetooth=(navigator as any).bluetooth;
+    if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez l'APK compagnon ou une saisie/connexion prise en charge."); return; }
+    setBusy(true); setNotice("Recherche d'un appareil Bluetooth…");
     try {
-      connected = await bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ["heart_rate","blood_pressure","health_thermometer","pulse_oximeter","glucose","weight_scale","body_composition","battery_service"]
-      });
-      if (!connected?.gatt) throw new Error("GATT unavailable");
-      const server = await connected.gatt.connect();
-      const profileByDevice: Record<string, { service: string; characteristic: string; type: string; unit: string; parse: (data: DataView) => number }> = {
-        tensiometre: {
-          service:"blood_pressure", characteristic:"blood_pressure_measurement", type:"tension_systolique", unit:"mmHg",
-          parse:(data)=>{ if(data.byteLength<5) throw new Error("BP payload too short"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; let value=mantissa*Math.pow(10,exponent); if(data.getUint8(0)&1)value*=7.50062; if(!Number.isFinite(value)||value<=0)throw new Error("Invalid BP"); return value; }
-        },
-        thermometre: {
-          service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
-          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; let value=mantissa*Math.pow(10,exponent); if(data.getUint8(0)&1)value=(value-32)*5/9; if(!Number.isFinite(value)||value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
-        },
-        thermometre_infrarouge: {
-          service:"health_thermometer", characteristic:"temperature_measurement", type:"temperature", unit:"°C",
-          parse:(data)=>{ if(data.byteLength<5)throw new Error("Temperature payload too short"); const raw=data.getUint32(1,true); let mantissa=raw&0x00ffffff; if(mantissa&0x00800000)mantissa-=0x01000000; let exponent=(raw>>>24)&255; if(exponent&128)exponent-=256; let value=mantissa*Math.pow(10,exponent); if(data.getUint8(0)&1)value=(value-32)*5/9; if(!Number.isFinite(value) || value < 25 || value > 45)throw new Error("Invalid temperature"); return value; }
-        },
-        oxymetre: {
-          service:"pulse_oximeter", characteristic:"plx_spot_check_measurement", type:"saturation_oxygene", unit:"%",
-          parse:(data)=>{ if(data.byteLength<3)throw new Error("SpO2 payload too short"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<50||value>100)throw new Error("Invalid SpO2"); return value; }
-        },
-        balance: {
-          service:"weight_scale", characteristic:"weight_measurement", type:"poids", unit:"kg",
-          parse:(data)=>{ if(data.byteLength<3)throw new Error("Weight payload too short"); const flags=data.getUint8(0); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; let value=mantissa*Math.pow(10,exponent); if(flags&1)value*=0.45359237; if(!Number.isFinite(value)||value<=0||value>500)throw new Error("Invalid weight"); return value; }
-        },
-        glucometre: {
-          service:"glucose", characteristic:"glucose_measurement", type:"glycemie", unit:"unité Bluetooth standard",
-          parse:(data)=>{ if(data.byteLength<12)throw new Error("Glucose payload too short"); const offset=10; const raw=data.getUint16(offset,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<=0)throw new Error("Invalid glucose"); return value; }
-        },
-        balance_impedance: {
-          service:"body_composition", characteristic:"body_composition_measurement", type:"masse_grasse", unit:"%",
-          parse:(data)=>{ if(data.byteLength<3 || !(data.getUint8(0)&1))throw new Error("Body fat value unavailable"); const raw=data.getUint16(1,true); const m=raw&0x0fff; let mantissa=m>=0x0800?m-0x1000:m; let exponent=(raw>>12)&15; if(exponent>=8)exponent-=16; const value=mantissa*Math.pow(10,exponent); if(!Number.isFinite(value)||value<0||value>100)throw new Error("Invalid body fat percentage"); return value; }
-        },
-        montre_connectee: {
-          service:"heart_rate", characteristic:"heart_rate_measurement", type:"frequence_cardiaque", unit:"bpm",
-          parse:(data)=>{ if(data.byteLength<2)throw new Error("Heart rate payload too short"); const flags=data.getUint8(0); const value=flags&1?data.getUint16(1,true):data.getUint8(1); if(!Number.isFinite(value)||value<=0||value>300)throw new Error("Invalid heart rate"); return value; }
-        },
-        bracelet_activite: {
-          service:"heart_rate", characteristic:"heart_rate_measurement", type:"frequence_cardiaque", unit:"bpm",
-          parse:(data)=>{ if(data.byteLength<2)throw new Error("Heart rate payload too short"); const flags=data.getUint8(0); const value=flags&1?data.getUint16(1,true):data.getUint8(1); if(!Number.isFinite(value)||value<=0||value>300)throw new Error("Invalid heart rate"); return value; }
-        }
-      };
-      const profile = profileByDevice[deviceKey];
-      let serviceIds: string[] = [];
-      for (const serviceId of ["heart_rate","blood_pressure","health_thermometer","pulse_oximeter","glucose","weight_scale","body_composition"]) {
-        try { await server.getPrimaryService(serviceId); serviceIds.push(serviceId); } catch { /* Service standard absent. */ }
-      }
-      const matchedService = profile && serviceIds.includes(profile.service) ? profile.service : null;
-      const { data: authData } = await sb.auth.getUser();
-      if (!authData.user) throw new Error("Session expired");
-      const { error: metadataError } = await sb.from("suivi_user_devices").update({
-        device_model: String(connected.name ?? "Appareil Bluetooth").slice(0,120),
-        protocol: serviceIds.join(",").slice(0,80) || "BLE-GATT",
-        last_error: matchedService ? null : "Aucun décodeur standard vérifié pour ce modèle",
-        updated_at: new Date().toISOString()
-      }).eq("user_id",authData.user.id).eq("device_key",deviceKey);
-      if (metadataError) throw metadataError;
-
-      if (profile && matchedService) {
-        const service = await server.getPrimaryService(profile.service);
-        const characteristic = await service.getCharacteristic(profile.characteristic);
-        let reading: DataView;
-        try {
-          reading = await characteristic.readValue();
-        } catch {
-          reading = await new Promise<DataView>((resolve,reject)=>{
-            const timeout=window.setTimeout(()=>reject(new Error("Bluetooth reading timeout")),12000);
-            const onValue=(event:Event)=>{ const data=(event.target as any).value as DataView|undefined; if(!data)return; window.clearTimeout(timeout); characteristic.removeEventListener("characteristicvaluechanged",onValue); resolve(data); };
-            characteristic.addEventListener("characteristicvaluechanged",onValue);
-            characteristic.startNotifications().catch((error:unknown)=>{window.clearTimeout(timeout);characteristic.removeEventListener("characteristicvaluechanged",onValue);reject(error);});
-          });
-        }
-        const parsed = profile.parse(reading);
-        const verifiedSyncAt = new Date().toISOString();
-        const { error: syncError } = await sb.from("suivi_user_devices").update({
-          last_sync_at: verifiedSyncAt,
-          last_error: null,
-          updated_at: verifiedSyncAt
-        }).eq("user_id",authData.user.id).eq("device_key",deviceKey);
-        if (syncError) throw syncError;
-        setSelectedType(profile.type);
-        setValue(String(Number(parsed.toFixed(3))));
-        setPendingMeasurementSource("bluetooth");
-        setMeasuredAt(new Date().toISOString().slice(0,16));
-        setNotice("Mesure Bluetooth décodée ("+profile.type+", "+profile.unit+"). Vérifiez la valeur puis confirmez son enregistrement. Le décodage est disponible uniquement pour ce profil standard.");
-      } else {
-        setNotice(serviceIds.length
-          ? "Appareil détecté ("+String(connected.name ?? "Bluetooth")+") avec profils : "+serviceIds.join(", ")+". Aucun décodeur vérifié n’est associé à ce couple appareil/type; aucune mesure brute n’a été enregistrée."
-          : "Appareil détecté, mais aucun profil médical GATT standard reconnu. Utilisez le scan local ou la saisie manuelle.");
-      }
-      await load();
-      connected.gatt.disconnect();
-    } catch {
-      setNotice("Connexion annulée, refusée ou lecture incompatible. Aucune mesure n’a été enregistrée; réessayez ou utilisez le scan/saisie.");
-      try { connected?.gatt?.disconnect(); } catch { /* ignore disconnect cleanup */ }
-    } finally {
-      setBusy(false);
-    }
+      const device=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:OPTIONAL_GATT_SERVICES});
+      await startBluetoothSession(device,deviceKey,true);
+    } catch(error) {
+      const message=error instanceof Error ? error.message : "Connexion Bluetooth impossible";
+      setNotice(message);
+    } finally { setBusy(false); }
   }
+
 
   function applyScannedValue() {
     if (scanKind !== "ocr" || !typeInfo.numeric) { setNotice("Pour éviter une erreur, choisissez manuellement la valeur à utiliser dans ce scan."); return; }
