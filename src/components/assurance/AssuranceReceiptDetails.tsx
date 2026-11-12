@@ -12,7 +12,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
  const [data,setData]=useState<Snapshot|null>(null),[name,setName]=useState("Assureur");
  const [coverages,setCoverages]=useState<Coverage[]>([]),[insurers,setInsurers]=useState<Insurer[]>([]);
  const [selected,setSelected]=useState(""),[newInsurer,setNewInsurer]=useState(""),[member,setMember]=useState(""),[policy,setPolicy]=useState("");
- const [start,setStart]=useState(new Date().toISOString().slice(0,10)),[end,setEnd]=useState(""),[limit,setLimit]=useState(""),[rate,setRate]=useState("");
+ const [start,setStart]=useState(new Date().toISOString().slice(0,10)),[end,setEnd]=useState("");
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
 
  const load=useCallback(async()=>{
@@ -47,15 +47,13 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
 
  const saveCoverage=async()=>{
   if(busy||!newInsurer||member.trim().length<2)return;
-  const parsedRate=rate.trim()?Number(rate):NaN,parsedLimit=limit.trim()?Number(limit):null;
-  if(!Number.isFinite(parsedRate)||parsedRate<0||parsedRate>100||(parsedLimit!==null&&(!Number.isSafeInteger(parsedLimit)||parsedLimit<0))){setError("Taux ou plafond invalide.");return;}
   setBusy(true);setError("");
   const {error:e}=await sb.rpc("assurance_enregistrer_couverture",{
    p_assureur:newInsurer,p_numero_adherent:member.trim(),p_numero_police:policy.trim()||null,
-   p_date_debut:start,p_date_fin:end||null,p_plafond:parsedLimit,p_taux:parsedRate
+   p_date_debut:start,p_date_fin:end||null,p_plafond:null,p_taux:100
   });
   if(e)setError("Enregistrement de la couverture impossible : vérifiez les informations.");
-  else {setMember("");setPolicy("");setLimit("");await load();}
+  else {setMember("");setPolicy("");await load();}
   setBusy(false);
  };
  const quote=async()=>{
@@ -87,13 +85,11 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
     <label className="text-sm font-semibold">Assureur<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={newInsurer} onChange={e=>setNewInsurer(e.target.value)}>{insurers.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
     <label className="text-sm font-semibold">N° adhérent<input className="mt-1 w-full rounded-xl border p-3 font-normal" value={member} onChange={e=>setMember(e.target.value)} /></label>
     <label className="text-sm font-semibold">N° police (facultatif)<input className="mt-1 w-full rounded-xl border p-3 font-normal" value={policy} onChange={e=>setPolicy(e.target.value)} /></label>
-    <label className="text-sm font-semibold">Taux de couverture (%)<input type="number" min="0" max="100" step="0.01" className="mt-1 w-full rounded-xl border p-3 font-normal" value={rate} onChange={e=>setRate(e.target.value)} /></label>
     <label className="text-sm font-semibold">Début de validité<input type="date" className="mt-1 w-full rounded-xl border p-3 font-normal" value={start} onChange={e=>setStart(e.target.value)} /></label>
     <label className="text-sm font-semibold">Fin de validité<input type="date" className="mt-1 w-full rounded-xl border p-3 font-normal" value={end} onChange={e=>setEnd(e.target.value)} /></label>
-    <label className="text-sm font-semibold sm:col-span-2">Plafond FCFA (facultatif)<input type="number" min="0" step="1" className="mt-1 w-full rounded-xl border p-3 font-normal" value={limit} onChange={e=>setLimit(e.target.value)} /></label>
    </div>
    <button disabled={!newInsurer||member.trim().length<2||busy} onClick={()=>void saveCoverage()} className="btn btn-vert mt-3 w-full">{busy?"Enregistrement…":"Enregistrer ma couverture"}</button>
-   <p className="mt-2 text-xs text-slate-500">La saisie ne vaut pas validation des droits. La pharmacie vérifiera la carte et les justificatifs.</p>
+   <p className="mt-2 text-xs text-slate-500">La saisie ne vaut pas validation des droits. Le taux, les plafonds, franchises et exclusions proviennent de la convention déclarée par la pharmacie. Celle-ci vérifiera la carte et les justificatifs.</p>
   </details>
   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
  </section>;
