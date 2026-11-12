@@ -26,7 +26,7 @@ export function SuiviProfessionalWorkspaceShell({children}:{children:ReactNode})
           <button type="button" onClick={()=>void logout()} disabled={busy} className="min-h-10 rounded-xl border border-white/40 px-4 text-sm font-bold disabled:opacity-50">{busy?"Déconnexion…":"Déconnexion"}</button>
         </div>
         <nav aria-label="Navigation professionnel de santé" className="mt-4 flex flex-wrap gap-2">
-          <Link href="/pharmacie/pharmacien/suivi-patients" className="min-h-10 rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#123D68]">Patients suivis</Link>
+          <Link href="/suivi/professionnel/patients" className="min-h-10 rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#123D68]">Patients suivis</Link>
           <Link href="/suivi/professionnel/demande" className="min-h-10 rounded-xl border border-white/40 px-3 py-2 text-sm font-bold text-white">Mon accréditation</Link>
           <Link href="/suivi" className="min-h-10 rounded-xl border border-white/40 px-3 py-2 text-sm font-bold text-white">Retour NAXA</Link>
         </nav>
