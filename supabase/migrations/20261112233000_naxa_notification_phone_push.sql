@@ -71,7 +71,7 @@ after insert on public.notifications
 for each row execute function private.enqueue_notification_phone_push();
 
 create or replace function public.claim_notification_push_outbox(p_limit integer default 50)
-returns table(outbox_id uuid,notification_id uuid,user_id uuid,title text,body text,attempt_count integer)
+returns table(outbox_id uuid,notification_id uuid,user_id uuid,title text,body text,notification_type text,attempt_count integer)
 language plpgsql
 security definer
 set search_path=''
@@ -105,7 +105,7 @@ begin
     from candidates c where o.id=c.id
     returning o.id,o.notification_id,o.recipient_user_id,o.attempt_count
   )
-  select c.id,n.id,c.recipient_user_id,n.titre,n.corps,c.attempt_count
+  select c.id,n.id,c.recipient_user_id,n.titre,n.corps,n.type,c.attempt_count
   from claimed c join public.notifications n on n.id=c.notification_id
   join public.profiles p on p.id=c.recipient_user_id and p.actif=true;
 end;
