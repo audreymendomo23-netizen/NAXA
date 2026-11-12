@@ -258,6 +258,13 @@ begin
   if coalesce((v_result->>'accepted')::boolean,false) is not true then
     raise exception 'Valid invitation was not accepted';
   end if;
+  if coalesce((v_result->>'active_role')::boolean,true) is not false then
+    raise exception 'A second assignment replaced the existing active role unexpectedly';
+  end if;
+  select count(*) into v_count from public.exam_staff_assignments
+  where center_id=f.center_id and user_id=f.invitee_id
+    and is_active and active_role and revoked_at is null;
+  if v_count<>1 then raise exception 'More than one active role exists for the same center/user'; end if;
 
   v_rejected:=false;
   begin
