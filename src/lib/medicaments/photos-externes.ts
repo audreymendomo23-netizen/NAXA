@@ -216,11 +216,11 @@ function cimaNameMatches(query: string, candidateName: string): boolean {
   const actual = new Set(candidateTokens);
   if (!wanted.length || !wanted.every((token) => actual.has(token))) return false;
 
-  // Pour toute recherche d'un seul terme (marque ou DCI), exiger une identité
-  // stricte après retrait de la forme et du dosage : aucun ajout de marque ou association.
+  // Pour un terme unique, le premier token doit être exactement le nom recherché.
+  // CIMA ajoute souvent un suffixe de marque, de dosage ou de forme (ex. ASPIRINA C).
+  // Les associations de principes actifs restent filtrées séparément.
   if (wanted.length !== 1) return true;
-  const strictTokens = strictImageIdentityTokens(candidateName).map((token) => CIMA_NAME_ALIASES[token] ?? token);
-  return strictTokens.length === 1 && strictTokens[0] === wanted[0];
+  return candidateTokens[0] === wanted[0];
 }
 
 function cimaIngredients(medicine: CimaMedicine): string {
