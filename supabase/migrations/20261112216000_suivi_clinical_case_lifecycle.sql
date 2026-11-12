@@ -6,7 +6,11 @@ begin;
 drop policy if exists suivi_patient_cases_patient_select on public.suivi_patient_cases;
 create policy suivi_patient_cases_patient_select on public.suivi_patient_cases
 for select to authenticated
-using(patient_user_id=(select auth.uid()));
+using(
+  patient_user_id=(select auth.uid())
+  and public.suivi_is_enabled_user((select auth.uid()))
+  and exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.actif=true)
+);
 
 drop policy if exists suivi_clinical_entries_patient_select on public.suivi_clinical_entries;
 create policy suivi_clinical_entries_patient_select on public.suivi_clinical_entries
