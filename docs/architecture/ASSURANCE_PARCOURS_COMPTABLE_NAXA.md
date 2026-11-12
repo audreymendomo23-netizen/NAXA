@@ -37,13 +37,15 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Tableau de bord /pharmacie/assurance : dossiers, créances, remboursements réellement reçus et journal d'événements.
 - Accès depuis l'espace Promoteur, Caisse et Comptable.
 - Reçu client : déclaration/choix de couverture, calcul du devis, acceptation par le client, montant brut, part assureur (créance, non encaissée), part client et état du contrôle des justificatifs.
-- Ticket Caisse : montant brut, part assureur, part client, règlements reçus et solde de créance.
+- Ticket Caisse : montant brut, part assureur, part client, règlements reçus et solde de créance, lorsque le dossier est relié à la vente POS.
+- Garde POS : une vente adossée à une assurance est refusée si le montant encaissé n'est pas exactement égal à la part client figée. Le calcul du net à encaisser dans le parcours POS reste à raccorder ; la garde évite donc un encaissement erroné plutôt que de laisser passer le montant brut.
 
 ## Limites de validation à ne pas masquer
 
 - Les migrations sont appliquées sur le projet Replay uniquement.
 - Le test SQL structurel 202611120_assurance_comptabilite_contract.sql a été exécuté sur Replay avec succès.
 - Aucun parcours E2E avec comptes client/pharmacie/Promoteur/Comptable n'a encore été exécuté.
+- Le POS n'applique pas encore le montant client comme total net dans son flux de paiement ; la garde SQL bloque le paiement incohérent jusqu'à cette intégration.
 - Le plan comptable Replay consulté ne contient aucun compte validé ; la preuve d'une écriture débit/crédit Assurance réellement postée n'est donc pas disponible.
 - La recherche publique n'est pas encore raccordée au filtre Assurance.
 - Le taux et le plafond déclarés par le client sont des données déclaratives : la pharmacie doit confirmer les droits réels et toute différence doit passer par un mécanisme de modification/accord client avant la finalisation. Ce mécanisme de modification est encore à construire.
