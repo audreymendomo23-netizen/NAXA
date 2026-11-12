@@ -198,7 +198,7 @@ returns void
 language plpgsql
 security definer
 set search_path=''
-as $
+as $$
 declare
   v_patient uuid:=auth.uid();
   v_now timestamptz:=now();
