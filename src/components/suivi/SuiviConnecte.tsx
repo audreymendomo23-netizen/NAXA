@@ -334,6 +334,8 @@ export function SuiviConnecte() {
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements",filter:"user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts",filter:"user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_user_devices",filter:"user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_shares",filter:"owner_user_id=eq."+data.user.id},()=>{void load();})
+        .on("postgres_changes",{event:"*",schema:"public",table:"suivi_care_links",filter:"patient_user_id=eq."+data.user.id},()=>{void load();})
         .on("postgres_changes",{event:"*",schema:"public",table:"suivi_consents",filter:"user_id=eq."+data.user.id},(payload)=>{
           const consent=payload.new as {family_key?:string;granted?:boolean;revoked_at?:string|null};
           if(consent.family_key&&(consent.granted!==true||!!consent.revoked_at)){
