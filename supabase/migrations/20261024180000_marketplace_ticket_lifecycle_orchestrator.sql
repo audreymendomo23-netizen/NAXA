@@ -229,6 +229,140 @@ grant select on public.vente_paiements to authenticated;
 
 
 
+-- Preview bootstrap: restore the canonical authorization helper required by the reservation-item RLS policy.
+-- Keep Promoteur validity tied to an active convention and subscription before granting pharmacy scope.
+create schema if not exists private;
+
+create or replace function private.naxa_promoteur_valide(p_promoteur uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $validity$
+  select exists (
+    select 1
+    from public.profiles p
+    join public.conventions_promoteurs c on c.promoteur_id=p.id
+    join public.abonnements_promoteurs a
+      on a.promoteur_id=p.id and a.convention_id=c.id
+    where p.id=p_promoteur
+      and p.role::text='promoteur'
+      and p.actif=true
+      and c.statut='active'
+      and c.date_expiration>=current_date
+      and c.architecture_code is not null
+      and a.statut='actif'
+      and a.echeance>=current_date
+      and exists (
+        select 1 from public.promoteur_pharmacies pp
+        join public.pharmacies ph on ph.id=pp.pharmacie_id and ph.actif=true
+        where pp.promoteur_id=p.id and pp.actif=true
+      )
+      and not exists (
+        select 1
+        from public.promoteur_pharmacies pp
+        left join public.pharmacies ph on ph.id=pp.pharmacie_id
+        where pp.promoteur_id=p.id
+          and pp.actif=true
+          and (ph.id is null or ph.actif is not true)
+      )
+  );
+$validity$;
+
+revoke all on function private.naxa_promoteur_valide(uuid) from public, anon, authenticated, service_role;
+
+create or replace function public.naxa_scope_allows(
+  p_profile uuid,
+  p_pharmacie uuid,
+  p_scope text default 'PHARMACIE'
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $scope$
+  with recursive ancestors(id,parent_profile_id,role,actif,depth) as (
+    select p.id,p.parent_profile_id,p.role::text,p.actif,0
+    from public.profiles p
+    where p.id=p_profile
+    union all
+    select parent.id,parent.parent_profile_id,parent.role::text,parent.actif,a.depth+1
+    from ancestors a
+    join public.profiles parent on parent.id=a.parent_profile_id
+    where a.depth<3
+  )
+  select case
+    when p_profile is null then false
+    when p_scope='RESEAU' then
+      exists (
+        select 1 from public.profiles p
+        where p.id=p_profile and p.role::text='promoteur' and p.actif
+          and private.naxa_promoteur_valide(p.id)
+      )
+      and (
+        p_pharmacie is null
+        or exists (
+          select 1 from public.promoteur_pharmacies pp
+          join public.pharmacies ph on ph.id=pp.pharmacie_id and ph.actif=true
+          where pp.promoteur_id=p_profile and pp.pharmacie_id=p_pharmacie and pp.actif
+        )
+      )
+    when p_scope='PHARMACIE' then
+      p_pharmacie is not null
+      and (
+        exists (
+          select 1 from public.profiles p
+          join public.pharmacies ph on ph.id=p_pharmacie and ph.actif=true
+          where p.id=p_profile and p.role::text='admin' and p.actif
+        )
+        or exists (
+          select 1 from public.profiles p
+          join public.promoteur_pharmacies pp
+            on pp.promoteur_id=p.id and pp.pharmacie_id=p_pharmacie and pp.actif
+          where p.id=p_profile and p.role::text='promoteur' and p.actif
+            and private.naxa_promoteur_valide(p.id)
+        )
+        or (
+          exists (
+            select 1 from public.profiles actor
+            where actor.id=p_profile and actor.actif
+              and actor.pharmacie_id=p_pharmacie
+              and actor.role::text in ('pharmacie','caisse')
+          )
+          and exists (
+            select 1
+            from ancestors a
+            join public.promoteur_pharmacies pp
+              on pp.promoteur_id=a.id and pp.pharmacie_id=p_pharmacie and pp.actif
+            where a.role='promoteur' and a.actif
+              and private.naxa_promoteur_valide(a.id)
+          )
+        )
+      )
+    when p_scope='POSTE_CAISSE' then
+      p_pharmacie is not null
+      and exists (
+        select 1 from public.profiles actor
+        where actor.id=p_profile and actor.role::text='caisse' and actor.actif
+          and actor.pharmacie_id=p_pharmacie
+      )
+      and exists (
+        select 1
+        from ancestors a
+        join public.promoteur_pharmacies pp
+          on pp.promoteur_id=a.id and pp.pharmacie_id=p_pharmacie and pp.actif
+        where a.role='promoteur' and a.actif
+          and private.naxa_promoteur_valide(a.id)
+      )
+    else false
+  end;
+$scope$;
+
+revoke all on function public.naxa_scope_allows(uuid,uuid,text) from public, anon, authenticated;
+grant execute on function public.naxa_scope_allows(uuid,uuid,text) to authenticated;
+
 -- Le client peut relire le ticket exact de sa vente Marketplace, mais jamais un ticket
 -- obtenu uniquement à partir d'un identifiant fourni sans contrôle de propriété.
 create or replace function public.get_client_reservation_ticket(p_reservation_id uuid)
