@@ -6,7 +6,7 @@ export type LectureOrdonnance = {
   candidats: string[];
 };
 
-const BRUIT = /^(?:dr\\.?|docteur|date|nom|pr[ée]nom|âge?|ordonnance|signature|cachet|le\\s|n°|tél?)/i;
+const BRUIT = /^(?:dr\.?|docteur|date|nom|pr[ée]nom|âge?|ordonnance|signature|cachet|le\s|n°|tél?)/i;
 
 export async function lireOrdonnance(image: File | Blob): Promise<LectureOrdonnance> {
   const { createWorker } = await import("tesseract.js");
@@ -28,11 +28,11 @@ export async function lireOrdonnance(image: File | Blob): Promise<LectureOrdonna
     const candidats = Array.from(
       new Set(
         data.text
-          .split(/\\r?\\n/)
+          .split(/\r?\n/)
           .map((ligne: string) =>
             ligne
-              .replace(/^[\\s\\-•*\\d.)]+/, "")
-              .replace(/\\s+/g, " ")
+              .replace(/^[\s\-•*\d.)]+/, "")
+              .replace(/\s+/g, " ")
               .trim()
           )
           .filter(
@@ -40,7 +40,7 @@ export async function lireOrdonnance(image: File | Blob): Promise<LectureOrdonna
               ligne.length >= 3 &&
               /[a-zA-ZÀ-ÿ]{3,}/.test(ligne) &&
               !BRUIT.test(ligne) &&
-              !/\\b(?:prendre|posologie|matin|midi|soir|fois par jour|\\d+\\s*(?:cp|comprim[eé]s?|g[eé]lules?|ml|mg))\\b/i.test(ligne)
+              !/\b(?:prendre|posologie|matin|midi|soir|fois par jour|\d+\s*(?:cp|comprim[eé]s?|g[eé]lules?|ml|mg))\b/i.test(ligne)
           )
       )
     ).slice(0, 12);
