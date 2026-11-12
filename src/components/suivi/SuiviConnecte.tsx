@@ -651,11 +651,9 @@ export function SuiviConnecte() {
     setBusy(true); setNotice("");
     const { data:userData } = await sb.auth.getUser();
     if (!userData.user) { setNotice("Connectez-vous pour continuer."); setBusy(false); return; }
-    const { error } = await sb.from("suivi_consents").upsert({
-      user_id:userData.user.id, family_key:family, granted:grant,
-      consent_version:"1.0", granted_at:grant?new Date().toISOString():null,
-      revoked_at:grant?null:new Date().toISOString(), updated_at:new Date().toISOString()
-    }, { onConflict:"user_id,family_key" });
+    const { error } = await sb.rpc("suivi_set_family_consent",{
+      p_family:family,p_granted:grant
+    });
     if (error) {
       setNotice("Le consentement n’a pas été enregistré. Réessayez.");
       setBusy(false);
@@ -663,6 +661,9 @@ export function SuiviConnecte() {
     }
 
     setConsents(p=>({...p,[family]:grant}));
+    if (grant) {
+      setNotice("Consentement activé. Aucun ancien partage professionnel n'est réactivé automatiquement : choisissez à nouveau les droits dans Options > Partage.");
+    }
     if (!grant) {
       const keys = deviceCatalog.filter(device => device.family === family).map(device => device.key);
       const familyMeasurementTypes=types.filter(type=>type.family===family).map(type=>type.key);
