@@ -173,10 +173,11 @@ export async function revokeExamStaff(form:FormData){
   const path=BASE+"/personnel";
   const {sb}=await requireActor(centerId,["staff_manage"],path);
   if(!validUuid(assignmentId)) fail(path,centerId);
-  const {error}=await sb.from("exam_staff_assignments").update({
-    is_active:false,active_role:false,revoked_at:new Date().toISOString()
-  }).eq("id",assignmentId).eq("center_id",centerId).eq("is_active",true);
-  if(error) fail(path,centerId);
+  const {data,error}=await sb.rpc("exam_revoke_staff_assignment",{
+    p_center_id:centerId,
+    p_assignment_id:assignmentId
+  });
+  if(error||data!==true) fail(path,centerId);
   finish(path,centerId,"retrait");
 }
 
