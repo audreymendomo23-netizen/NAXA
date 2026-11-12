@@ -63,10 +63,10 @@ object NaxaReminderScheduler {
     }
 
     fun sync(context: Context, raw: String) {
+        val schedules=try { org.json.JSONArray(raw) } catch (_: Exception) { return }
         val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
         val ids=prefs.all.keys.filter { it.startsWith("schedule_") }.map { it.removePrefix("schedule_") }
         ids.forEach { remove(context,it) }
-        val schedules=org.json.JSONArray(raw)
         for(index in 0 until schedules.length()){
             val item=schedules.optJSONObject(index) ?: continue
             save(context,item.toString())
