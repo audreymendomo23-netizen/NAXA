@@ -855,7 +855,7 @@ export function SuiviConnecte() {
     if(!item || !consents[item.family]) { setNotice("Consentement requis avant la connexion Bluetooth."); return; }
     if(!window.isSecureContext) { setNotice("Le Bluetooth Web exige HTTPS."); return; }
     const bluetooth=(navigator as any).bluetooth;
-    if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez l'APK compagnon ou une saisie/connexion prise en charge."); return; }
+    if(!bluetooth?.requestDevice) { setNotice("Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez la saisie manuelle ou le scan sur cet appareil."); return; }
     setBusy(true); setNotice("Recherche d'un appareil Bluetooth…");
     try {
       const device=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:OPTIONAL_GATT_SERVICES});
