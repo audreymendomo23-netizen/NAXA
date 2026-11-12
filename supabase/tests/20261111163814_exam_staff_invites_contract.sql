@@ -90,6 +90,7 @@ declare
   v_email text;
   v_pending_email text;
   v_pending_token uuid;
+  v_expired_token uuid;
   v_pending_result jsonb;
   v_token uuid;
   v_token_again uuid;
@@ -277,6 +278,20 @@ begin
   if coalesce((v_pending_result->>'accepted')::boolean,false) is not true then
     raise exception 'Directly provisioned pending account could not accept after completing signup';
   end if;
+
+  -- A completed account must still be refused when the invitation has expired.
+  v_expired_token:=public.exam_create_staff_invite(
+    f.center_id,'expired-'||left(f.owner_id::text,8)||'@example.invalid','accueil'
+  );
+  update public.exam_staff_invites
+     set expires_at=now()-interval '1 second'
+   where token=v_expired_token;
+  v_rejected:=false;
+  begin
+    perform public.exam_accept_staff_invite(v_expired_token);
+  exception when insufficient_privilege then v_rejected:=true;
+  end;
+  if not v_rejected then raise exception 'Expired invitation was accepted'; end if;
 end
 $test$;
 
