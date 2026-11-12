@@ -8,6 +8,12 @@ for select to authenticated
 using(
   public.suivi_is_enabled_user((select auth.uid()))
   and public.suivi_is_verified_professional((select auth.uid()))
+  and exists(
+    select 1 from public.suivi_patient_cases c
+    where c.patient_user_id=suivi_user_devices.user_id
+      and c.professional_user_id=(select auth.uid())
+      and c.status='active'
+  )
   and public.suivi_device_family(device_key) is not null
   and exists(
     select 1 from public.suivi_shares s
