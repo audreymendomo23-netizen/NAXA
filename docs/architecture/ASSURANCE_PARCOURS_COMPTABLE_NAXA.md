@@ -46,9 +46,20 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Le test SQL structurel 202611120_assurance_comptabilite_contract.sql a été exécuté sur Replay avec succès.
 - Aucun parcours E2E avec comptes client/pharmacie/Promoteur/Comptable n'a encore été exécuté.
 - Le POS fractionné et les reçus sont raccordés dans le code et la migration Replay ; aucun test E2E réel de retrait Assurance n'a encore été exécuté.
-- Le Replay consulté ne contient aucun mapping comptable Assurance ni mapping vente validé ; la preuve d'une écriture débit/crédit réellement postée n'est donc pas disponible.
+- Le Replay ne contient aucun compte, mapping, paramètre ni période comptable configuré ; aucune écriture métier réelle n'a donc été postée. Le test positif ci-dessous utilise exclusivement des comptes synthétiques dans une transaction annulée.
 - Le contrat SQL vérifie également que `compta_emettre_evenement_metier` exclut les lignes `ASSURANCE:%` du montant de vente encaissé et que la clôture de caisse ne retient que les paiements en espèces. Ces garde-fous structurels ne remplacent pas un test de rapprochement avec une vente réelle.
 - La recherche publique n'est pas encore raccordée au filtre Assurance.
 - Le mécanisme de proposition d'un nouveau montant par la pharmacie et d'accord client en cas d'écart de droits reste à construire.
-- La recette UI/build TypeScript, les scénarios de remboursement partiel/total et le parcours de modification du devis restent à exécuter.
+- La recette UI/build TypeScript, les scénarios métier authentifiés de remboursement partiel/total et le parcours de modification du devis restent à exécuter.
 - Aucune migration ni écriture sur Supabase Production ; aucun déploiement Vercel.
+
+
+## Reprise du verrou comptable — 12 novembre 2026
+
+- Dérive corrigée dans le dépôt : la migration `20261112160000_assurance_compta_worker_support.sql` versionne la fonction active du worker, qui accepte `assurance_prise_en_charge` et `assurance_remboursement_recu` ainsi que la contrepassation de vente. Elle a été appliquée uniquement sur Replay ; entrée d'historique observée : `20261112154710 / assurance_compta_worker_support`.
+- Test positif ajouté : `supabase/tests/202611121_assurance_compta_worker_positive.sql`. Résultat Replay : `202611121_assurance_compta_worker_positive PASS`.
+- Le test transactionnel a traité une prise en charge synthétique de 10 000 FCFA, puis deux remboursements synthétiques de 4 000 et 6 000 FCFA. Il a vérifié trois écritures équilibrées, le débit de trésorerie de 10 000 FCFA, le rapprochement de la créance (débit 10 000 / crédits cumulés 10 000) et l'idempotence de l'outbox. Le `ROLLBACK` final a supprimé toutes les fixtures : aucune donnée comptable n'a été conservée.
+- Contrôle du parcours de paramétrage : `/pharmacie/comptable/referentiels` est strictement en lecture seule (assureurs, fournisseurs, commandes). Le tableau Promoteur affiche les périodes, événements et écritures en lecture seule. Aucune interface ni RPC de gestion du plan comptable, des mappings débit/crédit ou des journaux n'a été trouvée dans le dépôt/base.
+- Le cahier Comptable maintient le poste Comptable en lecture seule. Le rôle autorisé à proposer puis valider le plan/mappings au nom de la pharmacie reste à formaliser avant d'ouvrir des RPC d'écriture ; aucun droit n'a été ajouté et aucun compte SYSCOHADA n'a été prérempli.
+- État après test Replay : 0 compte, 0 mapping, 0 paramètre, 0 période, 0 événement en file et 0 écriture persistante. Le test valide le moteur sur fixtures, pas la comptabilité réelle d'une pharmacie.
+
