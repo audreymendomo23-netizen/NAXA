@@ -87,6 +87,12 @@ begin
   where request_id=v_request and recipient_id=v_owner and state='pending';
   if v_count<>3 then raise exception 'Confirmation expected 3 pending reminders; got %',v_count; end if;
 
+  insert into public.notifications(user_id,type,titre,corps,related_entity_id)
+  select v_owner,'home_service_appointment_reminder','Rendez-vous dans 24 heures',
+    'Notification synthétique du test',d.id
+  from public.home_service_reminder_dispatches d
+  where d.request_id=v_request and d.recipient_id=v_owner and d.offset_minutes=1440;
+
   update public.home_service_reminder_preferences
   set offsets_minutes=array[60,30]::integer[],updated_at=now()
   where partner_id=v_partner and user_id=v_owner;
@@ -98,10 +104,23 @@ begin
   if v_count<>2 then raise exception 'Removed offsets must be cancelled; got %/2',v_count; end if;
 
   select count(*) into v_count
+  from public.notifications n
+  join public.home_service_reminder_dispatches d on d.id=n.related_entity_id
+  where d.request_id=v_request and n.user_id=v_owner
+    and n.type='home_service_appointment_reminder';
+  if v_count<>0 then raise exception 'Removing an offset must delete its in-app reminder; got %',v_count; end if;
+
+  select count(*) into v_count
   from public.home_service_reminder_dispatches
   where request_id=v_request and recipient_id=v_owner
     and offset_minutes in (60,30) and state='pending';
   if v_count<>2 then raise exception 'Updated offsets must be pending; got %/2',v_count; end if;
+
+  insert into public.notifications(user_id,type,titre,corps,related_entity_id)
+  select v_owner,'home_service_appointment_reminder','Rendez-vous dans 1 heure',
+    'Notification synthétique du test',d.id
+  from public.home_service_reminder_dispatches d
+  where d.request_id=v_request and d.recipient_id=v_owner and d.offset_minutes=60;
 
   update public.home_service_reminder_preferences
   set enabled=false,updated_at=now()
@@ -111,6 +130,13 @@ begin
   from public.home_service_reminder_dispatches
   where request_id=v_request and recipient_id=v_owner and state in ('pending','processing');
   if v_count<>0 then raise exception 'Disabling reminders must cancel all pending dispatches; got %',v_count; end if;
+
+  select count(*) into v_count
+  from public.notifications n
+  join public.home_service_reminder_dispatches d on d.id=n.related_entity_id
+  where d.request_id=v_request and n.user_id=v_owner
+    and n.type='home_service_appointment_reminder';
+  if v_count<>0 then raise exception 'Disabling reminders must remove existing in-app reminder notices; got %',v_count; end if;
 
   update public.home_service_reminder_preferences
   set enabled=true,updated_at=now()
@@ -201,11 +227,24 @@ begin
   from public.naxa_notification_push_outbox where id=v_outbox;
   if v_state<>'failed' then raise exception 'Global Push max attempts must be terminal failed; got %',v_state; end if;
 
+  insert into public.notifications(user_id,type,titre,corps,related_entity_id)
+  select v_owner,'home_service_appointment_reminder','Rendez-vous dans 1 heure',
+    'Notification synthétique du test',d.id
+  from public.home_service_reminder_dispatches d
+  where d.request_id=v_request and d.recipient_id=v_owner and d.offset_minutes=60;
+
   update public.home_service_requests set status='cancelled',updated_at=now() where id=v_request;
   select count(*) into v_count
   from public.home_service_reminder_dispatches
   where request_id=v_request and state in ('pending','processing');
   if v_count<>0 then raise exception 'Cancelled appointment must have no pending dispatches; got %',v_count; end if;
+
+  select count(*) into v_count
+  from public.notifications n
+  join public.home_service_reminder_dispatches d on d.id=n.related_entity_id
+  where d.request_id=v_request and n.user_id=v_owner
+    and n.type='home_service_appointment_reminder';
+  if v_count<>0 then raise exception 'Cancelled appointment must remove all in-app reminder notices; got %',v_count; end if;
 end
 $test$;
 
