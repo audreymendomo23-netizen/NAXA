@@ -179,6 +179,22 @@ export function SuiviConnecte() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
+    let cancelled=false;
+    void(async()=>{
+      if(!("serviceWorker" in navigator)||!("PushManager" in window))return;
+      const {data:auth}=await sb.auth.getUser();
+      if(!auth.user)return;
+      const registration=await navigator.serviceWorker.getRegistration("/naxa-push/");
+      const subscription=await registration?.pushManager.getSubscription();
+      if(!subscription)return;
+      const {data}=await sb.from("naxa_push_subscriptions").select("endpoint")
+        .eq("endpoint",subscription.endpoint).eq("user_id",auth.user.id).maybeSingle();
+      if(!cancelled)setPushEnabled(!!data);
+    })().catch(()=>{if(!cancelled)setPushEnabled(false);});
+    return()=>{cancelled=true;};
+  },[sb]);
+
+  useEffect(()=>{
     const {data}=sb.auth.onAuthStateChange(event=>{
       if(event==="SIGNED_OUT"){
         (window as any).NaxaAndroid?.clearMeasurementReminders?.();
@@ -371,7 +387,7 @@ export function SuiviConnecte() {
     void (async()=>{
       try{
         const {data:authData}=await sb.auth.getUser();
-        const registration=await navigator.serviceWorker.getRegistration("/");
+        const registration=await navigator.serviceWorker.getRegistration("/naxa-push/");
         const subscription=await registration?.pushManager.getSubscription();
         if(!authData.user||!subscription){if(!cancelled)setPushEnabled(false);return;}
         const {data}=await sb.from("naxa_push_subscriptions").select("endpoint")
@@ -521,7 +537,7 @@ export function SuiviConnecte() {
         setNotice("Autorisation refusée. Les rappels restent enregistrés dans votre espace NAXA.");
         return;
       }
-      const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/" });
+      const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/naxa-push/" });
       const keyResponse = await fetch("/api/posologie/push-key", { cache: "no-store" });
       if (!keyResponse.ok) throw new Error("Push public key unavailable");
       const { publicKey } = await keyResponse.json() as { publicKey: string };
