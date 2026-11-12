@@ -328,7 +328,8 @@ export function SuiviConnecte() {
   ];
 
   const selectedDevice = deviceCatalog.find(device => device.key === selectedDeviceKey) ?? null;
-  const selectedSavedDevice = selectedDevice ? devices.find(device => device.device_key === selectedDevice.key && device.active) : undefined;
+  const selectedDeviceInstances = selectedDevice ? devices.filter(device => device.device_key === selectedDevice.key && device.active) : [];
+  const selectedSavedDevice = selectedDeviceInstances[0];
 
   async function toggleDevice(device: typeof deviceCatalog[number]) {
     const existing = devices.find(d => d.device_key === device.key && d.active) ?? devices.find(d => d.device_key === device.key);
@@ -344,7 +345,7 @@ export function SuiviConnecte() {
       : await sb.from("suivi_user_devices").insert({user_id:userData.user.id,device_key:device.key,device_name:device.name,connection_mode:device.mode,capabilities:["manual","bluetooth","scan"],active:true});
     if (error) setNotice("Activation impossible. Vérifiez le consentement et réessayez.");
     else {
-      const { data } = await sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities").eq("user_id",userData.user.id).order("created_at",{ascending:true});
+      const { data } = await sb.from("suivi_user_devices").select("id,device_key,device_name,connection_mode,active,device_brand,device_model,protocol,last_sync_at,last_error,capabilities,platform_device_id,auto_reconnect,connection_state,last_measurement_at").eq("user_id",userData.user.id).order("created_at",{ascending:true});
       setDevices((data??[]) as UserDevice[]);
       setNotice(existing ? (existing.active ? "Dispositif désactivé." : "Dispositif réactivé.") : "Dispositif activé dans votre espace privé.");
     }
@@ -486,7 +487,7 @@ export function SuiviConnecte() {
     const now=new Date().toISOString();
     const {error:shareError}=await sb.from("suivi_shares").upsert({
       owner_user_id:userData.user.id,recipient_user_id:recipient,measurement_type:selectedType,
-      active:true,revoked_at:null,allow_history:shareHistory,allow_realtime:shareRealtime,
+      active:true,granted_at:now,revoked_at:null,allow_history:shareHistory,allow_realtime:shareRealtime,
       allow_alerts:shareAlerts,realtime_from_at:shareRealtime?now:null
     },{onConflict:"owner_user_id,recipient_user_id,measurement_type"});
     if(shareError){setNotice("Partage refusé. Le professionnel doit être agréé et votre consentement actif.");setBusy(false);return;}
@@ -515,7 +516,7 @@ export function SuiviConnecte() {
       .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true).is("revoked_at",null);
     const link=professionalLinks.find(item=>item.professional_user_id===recipient);
     const rights={history_access:(remaining??[]).some(x=>x.allow_history),realtime_access:(remaining??[]).some(x=>x.allow_realtime),alerts_access:(remaining??[]).some(x=>x.allow_alerts)};
-    await sb.from("suivi_care_links").update({...rights,active:!!(rights.history_access||rights.realtime_access||rights.alerts_access||link?.clinical_notes_access),revoked_at:undefined})
+    await sb.from("suivi_care_links").update({...rights,active:!!(rights.history_access||rights.realtime_access||rights.alerts_access||link?.clinical_notes_access),revoked_at:(rights.history_access||rights.realtime_access||rights.alerts_access||link?.clinical_notes_access)?null:new Date().toISOString()})
       .eq("patient_user_id",userData.user.id).eq("professional_user_id",recipient);
     setNotice("Droit de consultation révoqué pour ce type. Les autres autorisations distinctes sont conservées.");
     await load();
@@ -843,7 +844,8 @@ export function SuiviConnecte() {
           <p className="mt-3 text-sm font-semibold">Saisie manuelle · Bluetooth · Scan</p>
           <p className="mt-2 text-sm"><span className={"inline-flex rounded-full px-3 py-1 font-bold "+(selectedSavedDevice?.active?"bg-[#E5F4E9] text-[#064B2A]":"bg-slate-100 text-slate-600")}>{selectedSavedDevice?.active?"Actif":"Inactif"}</span></p>
           <button type="button" disabled={busy} onClick={async()=>{await toggleDevice(selectedDevice);}} className={"mt-4 min-h-11 w-full rounded-xl px-4 font-bold text-white disabled:opacity-40 "+(selectedSavedDevice?.active?"bg-slate-700":"bg-[#0A6B3A]")}>{selectedSavedDevice?.active?"Désactiver":"Activer ce dispositif"}</button>
-          {selectedSavedDevice?.active&&<button type="button" disabled={busy||!consents[selectedDevice.family]} onClick={()=>void connectDeviceBluetooth(selectedDevice.key)} className="mt-2 min-h-11 w-full rounded-xl border border-[#0A6B3A] px-4 font-bold text-[#0A6B3A] disabled:opacity-40">Détecter via Bluetooth</button>}
+          {selectedSavedDevice?.active&&<button type="button" disabled={busy||!consents[selectedDevice.family]} onClick={()=>void connectDeviceBluetooth(selectedDevice.key)} className="mt-2 min-h-11 w-full rounded-xl border border-[#0A6B3A] px-4 font-bold text-[#0A6B3A] disabled:opacity-40">{selectedDeviceInstances.length>0?"Connecter / ajouter un autre appareil Bluetooth":"Connecter un appareil Bluetooth"}</button>}
+          {selectedDeviceInstances.length>0&&<div className="mt-3 space-y-2"><p className="text-sm font-bold">Appareils associés ({selectedDeviceInstances.length})</p>{selectedDeviceInstances.map(instance=><article key={instance.id} className="rounded-xl border bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm">{instance.device_model||instance.device_name}</b><span className={"rounded-full px-2 py-1 text-xs font-bold "+(instance.connection_state==="connected"?"bg-emerald-100 text-emerald-800":"bg-slate-200 text-slate-700")}>{instance.connection_state==="connected"?"Connecté":instance.connection_state==="error"?"Erreur":instance.connection_state==="unsupported"?"Non compatible":"Déconnecté"}</span></div><p className="mt-1 text-xs text-slate-500">{instance.protocol||"Protocole non identifié"} · Reconnexion auto : {instance.auto_reconnect?"activée":"désactivée"}</p><p className="mt-1 text-xs text-slate-500">Dernière mesure : {instance.last_measurement_at?new Date(instance.last_measurement_at).toLocaleString("fr-FR"):"aucune mesure reçue"}</p></article>)}</div>}
           <button type="button" onClick={()=>{setSelectedType(types.find(type=>type.family===selectedDevice.family)?.key??selectedType);setSelectedDeviceKey(null);setActiveTab("Configurations");setConfigurationPage("mesures");setMeasurementSheetOpen(true);}} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-4 font-bold">Ajouter une mesure</button>
         </section>
       </div>}
