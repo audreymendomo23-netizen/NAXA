@@ -2,6 +2,13 @@
 -- Port de la fondation canonique univers/partenaires dans le dossier rejoué par Supabase Preview.
 begin;
 
+-- Public pharmacy catalogue visibility fields referenced by later partner/universe migrations.
+-- Existing pharmacies remain visible by default; demo and archived records can be explicitly hidden.
+alter table public.pharmacies
+  add column if not exists visible_recherche boolean not null default true,
+  add column if not exists est_demo boolean not null default false,
+  add column if not exists archivee_le timestamptz;
+
 create table if not exists public.universes (
   slug text primary key check (slug in ('parapharmacie','bebe-maman','examens','suivi','prestations','aide')),
   name text not null,
