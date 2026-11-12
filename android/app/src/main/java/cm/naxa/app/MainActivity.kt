@@ -210,6 +210,7 @@ class MainActivity : Activity() {
                 val service = gatt.getService(uuid(serviceShort)) ?: continue
                 val characteristic = service.getCharacteristic(uuid(characteristicShort)) ?: continue
                 val properties = characteristic.properties
+                if (properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_INDICATE or BluetoothGattCharacteristic.PROPERTY_READ) != 0) subscribed++
                 if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0 ||
                     properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) {
                     if (gatt.setCharacteristicNotification(characteristic, true)) {
@@ -225,7 +226,6 @@ class MainActivity : Activity() {
                                 @Suppress("DEPRECATION")
                                 gatt.writeDescriptor(descriptor)
                             }
-                            subscribed++
                         }
                     }
                 }
