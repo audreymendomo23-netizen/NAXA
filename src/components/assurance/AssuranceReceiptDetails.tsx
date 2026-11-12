@@ -1,0 +1,11 @@
+"use client";
+import { useEffect,useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase/client";
+type Snapshot={id:string;assureur_id:string;montant_brut_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;valide_client:boolean;controle_documents_statut:string;calcule_le:string;};
+export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
+ const [data,setData]=useState<Snapshot|null>(null),[name,setName]=useState("Assureur"),[loading,setLoading]=useState(true);
+ useEffect(()=>{let active=true;void(async()=>{const sb=supabaseBrowser();const {data:s}=await sb.from("assurance_reservation_snapshots").select("id,assureur_id,montant_brut_fcfa,montant_assureur_fcfa,montant_client_fcfa,valide_client,controle_documents_statut,calcule_le").eq("reservation_id",reservationId).maybeSingle();if(!active)return;if(s){setData(s as Snapshot);const {data:a}=await sb.from("assureurs").select("nom").eq("id",s.assureur_id).maybeSingle();if(active&&a?.nom)setName(a.nom);}setLoading(false)})();return()=>{active=false}},[reservationId]);
+ if(loading||!data)return null;
+ const money=(v:number)=>new Intl.NumberFormat("fr-FR").format(Number(v||0))+" FCFA";
+ return <section className="carte space-y-2"><h2 className="font-extrabold">Détail de la prise en charge assurance</h2><p className="text-sm text-slate-600">{name} · Devis du {new Date(data.calcule_le).toLocaleString("fr-FR")}</p><div className="flex justify-between gap-3 text-sm"><span>Montant brut</span><strong>{money(data.montant_brut_fcfa)}</strong></div><div className="flex justify-between gap-3 text-sm"><span>Part assureur (créance, non encaissée)</span><strong>{money(data.montant_assureur_fcfa)}</strong></div><div className="flex justify-between gap-3 border-t pt-2"><span className="font-bold">Reste à payer client</span><strong>{money(data.montant_client_fcfa)}</strong></div><p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{data.valide_client?"Devis accepté par le client.":"Devis en attente de l’accord du client."} Justificatifs : {data.controle_documents_statut==="conforme"?"contrôlés et conformes":data.controle_documents_statut==="non_conforme"?"non conformes":"à présenter et contrôler au retrait"}. La part assureur ne constitue pas un paiement reçu.</p></section>;
+}
