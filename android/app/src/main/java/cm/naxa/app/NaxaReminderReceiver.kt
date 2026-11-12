@@ -43,9 +43,11 @@ object NaxaReminderScheduler {
         ))
     }
 
-    fun updateFreshness(context: Context, measurementType: String, timestamp: Long) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong("last_" + measurementType, timestamp).apply()
+    fun updateFreshness(context: Context, measurementType: String, timestamp: Long, deviceId: String) {
+        val edit = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong("last_" + measurementType, timestamp)
+        if (deviceId.isNotBlank()) edit.putLong("last_" + measurementType + "_" + deviceId, timestamp)
+        edit.apply()
     }
 
     fun scheduleAll(context: Context) {
@@ -104,8 +106,11 @@ class NaxaReminderReceiver : AndroidBroadcastReceiver() {
             if (!json.optBoolean("enabled", true)) return
             val type = json.optString("measurementType", "mesure")
             val freshness = json.optInt("freshnessWindowMinutes", 5).coerceIn(1, 1440) * 60_000L
-            val last = prefs.getLong("last_" + type, 0L)
-            val fresh = last > 0L && System.currentTimeMillis() - last <= freshness
+            val deviceId = json.optString("deviceId", "")
+            val freshnessKey = if (deviceId.isNotBlank()) "last_" + type + "_" + deviceId else "last_" + type
+            val last = prefs.getLong(freshnessKey, 0L)
+            val age = System.currentTimeMillis() - last
+            val fresh = last > 0L && age in 0..freshness
             if (!fresh) {
                 NaxaReminderScheduler.ensureChannel(context)
                 val open = Intent(context, MainActivity::class.java).apply {
