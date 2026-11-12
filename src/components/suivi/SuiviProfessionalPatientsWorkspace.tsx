@@ -148,7 +148,17 @@ export function SuiviProfessionalPatientsWorkspace() {
     if (!recipientId) return;
     const channel=sb.channel("professionnel-suivi-partages")
       .on("postgres_changes",{event:"*",schema:"public",table:"suivi_measurements"},()=>{void loadSharedData(recipientId);})
-      .on("postgres_changes",{event:"*",schema:"public",table:"suivi_alerts"},()=>{void loadSharedData(recipientId);})
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"suivi_alerts"},(payload)=>{
+        const alert=payload.new as {id?:string;user_id?:string};
+        if(alert.id){
+          (window as any).NaxaAndroid?.showLocalNotification?.(
+            "NAXA · Alerte de suivi",
+            "Une alerte liée à un patient suivi est disponible dans votre espace professionnel.",
+            "/suivi/professionnel/patients","professional-alert-"+alert.id
+          );
+        }
+        void loadSharedData(recipientId);
+      })
       .on("postgres_changes",{event:"*",schema:"public",table:"suivi_shares"},()=>{void loadSharedData(recipientId);})
       .on("postgres_changes",{event:"*",schema:"public",table:"suivi_care_links"},()=>{void loadSharedData(recipientId);})
       .on("postgres_changes",{event:"*",schema:"public",table:"suivi_patient_cases"},()=>{void loadSharedData(recipientId);})
