@@ -67,5 +67,5 @@ Gouvernance : branche `main` uniquement ; aucun déploiement Production.
 - L'ancien RPC privé de disponibilité brute est révoqué pour `anon` et `authenticated` ; le RPC public contrôlé reste accessible.
 - La fiche `/offre` conserve pharmacie, prix et quantité maximale dans le panier, et propose `− / +` ainsi qu'un sous-total ; le checkout recalcule encore le total côté serveur.
 - Le Replay contient 100 lignes de stock de démonstration, toutes âgées de plus de 48 h : le Marketplace n'en publie donc aucune, conformément à la règle. Le RPC d'offre exclut également explicitement les pharmacies démo et archivées. Ces données de démonstration ne sont pas rafraîchies artificiellement.
-- La compilation TypeScript et le parcours navigateur complet restent à confirmer. Le statut CI GitHub du dernier commit n'a retourné aucun contrôle exploitable.
-- Aucune migration Production et aucun déploiement Vercel n'ont été effectués.
+- La compilation TypeScript et le parcours navigateur complet restent à confirmer : les exécutions GitHub Actions qualité ont été annulées avant l'étape TypeScript/lint/build, pendant l'installation des dépendances, à la suite de pushes successifs. Aucun résultat de compilation ne peut donc être revendiqué.
+- Les migrations ont été appliquées uniquement sur Replay. Aucun déploiement Vercel n'a été lancé manuellement dans ce chantier ; un éventuel déploiement automatique lié aux pushes `main` n'a pas été vérifié.
