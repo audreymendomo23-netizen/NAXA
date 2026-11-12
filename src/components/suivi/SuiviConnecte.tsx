@@ -838,12 +838,12 @@ export function SuiviConnecte() {
     bluetoothSessions.current.set(String(connected.id),session);
     const persist = async (service:any, characteristic:any, data:DataView) => {
       const decoded = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data);
-      const measurements=decoded.filter(measurement=>
-        deviceCatalogFamily(deviceKey)===types.find(type=>type.key===measurement.measurement_type)?.family
-        && !!consents[deviceCatalogFamily(deviceKey)]
-      );
+      const measurements=decoded.filter(measurement=>{
+        const measurementFamily=types.find(type=>type.key===measurement.measurement_type)?.family;
+        return !!measurementFamily&&!!consents[measurementFamily];
+      });
       if (!measurements.length) {
-        setNotice("Mesure ignorée : son type ne correspond pas à la famille autorisée pour cet appareil.");
+        setNotice("Mesure ignorée : le consentement de sa famille n'est pas actif.");
         return;
       }
       const receivedAt = new Date().toISOString();
