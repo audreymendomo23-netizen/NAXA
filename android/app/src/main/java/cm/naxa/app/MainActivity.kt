@@ -35,6 +35,7 @@ class MainActivity : Activity() {
     private val retryCounts = linkedMapOf<String, Int>()
     private var scanning = false
     private var pendingDeviceKey = "montre_connectee"
+    private var pendingReconnectAddress: String? = null
     private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
     private val adapter: BluetoothAdapter? get() = bluetoothManager?.adapter
     private val scanner get() = adapter?.bluetoothLeScanner
@@ -77,6 +78,11 @@ class MainActivity : Activity() {
                 gatts.remove(address)?.disconnect()
             }
         }
+        @JavascriptInterface fun reconnect(address: String, deviceKey: String) {
+            pendingDeviceKey = deviceKey.take(80)
+            pendingReconnectAddress = address.take(80)
+            runOnUiThread { ensureBluetoothPermissionsAndReconnect() }
+        }
         @JavascriptInterface fun stopScan() { runOnUiThread { stopBleScan() } }
     }
 
@@ -97,11 +103,27 @@ class MainActivity : Activity() {
         handler.postDelayed({ showDiscoveredDevices() }, 10000)
     }
 
+    @Suppress("MissingPermission")
+    private fun ensureBluetoothPermissionsAndReconnect() {
+        val required = if (Build.VERSION.SDK_INT >= 31) arrayOf(
+            Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT
+        ) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        val missing = required.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) { requestPermissions(missing.toTypedArray(), 702); return }
+        val address = pendingReconnectAddress ?: return
+        if (adapter?.isEnabled != true) { emit("error", deviceId = address, message = "Activez le Bluetooth Android pour reconnecter l'appareil."); return }
+        try { connect(adapter!!.getRemoteDevice(address)) }
+        catch (_: Exception) { emit("error", deviceId = address, message = "Appareil mémorisé indisponible. Relancez une recherche Bluetooth."); }
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 701) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) ensureBluetoothPermissionsAndScan()
             else emit("error", message = "Autorisation Bluetooth nécessaire pour détecter les appareils.")
+        } else if (requestCode == 702) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) ensureBluetoothPermissionsAndReconnect()
+            else emit("error", deviceId = pendingReconnectAddress, message = "Autorisation Bluetooth nécessaire pour reconnecter l'appareil.")
         }
     }
 
