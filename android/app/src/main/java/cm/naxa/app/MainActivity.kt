@@ -13,6 +13,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -57,7 +58,11 @@ class MainActivity : Activity() {
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
-                return uri.scheme != "https" || uri.host != "nnaxa.vercel.app"
+                if (uri.scheme == "https" && uri.host == "nnaxa.vercel.app") return false
+                if (uri.scheme == "https") {
+                    try { startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (_: Exception) { }
+                }
+                return true
             }
         }
         web.addJavascriptInterface(NaxaBridge(), "NaxaAndroid")
