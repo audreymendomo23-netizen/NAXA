@@ -6,6 +6,7 @@ const test = require("node:test");
 const root = path.join(__dirname, "..");
 const page = fs.readFileSync(path.join(root, "src/app/resultats/page.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261112050000_marketplace_assurance_search_read_models.sql"), "utf8");
+const migrationAssureurActif = fs.readFileSync(path.join(root, "supabase/migrations/20261112051000_marketplace_assurance_active_insurer_guard.sql"), "utf8");
 
 test("GPS : aucune demande intrusive au chargement ; activation explicite du filtre Distance", () => {
   assert.match(page, /useState<"pending"\|"gps"\|"fallback">\("fallback"\)/);
@@ -46,6 +47,8 @@ test("Assurance : le catalogue utilise une vue publique minimale et les conventi
   assert.match(migration, /c\.date_fin >= current_date/);
   assert.match(migration, /p\.visible_recherche = true/);
   assert.match(migration, /p\.est_demo = false/);
+  assert.match(migration, /p\.archivee_le is null/);
+  assert.match(migrationAssureurActif, /join public\.assureurs a on a\.id = c\.assureur_id and a\.actif = true/);
   assert.doesNotMatch(migration, /reference_convention|cree_par/);
 });
 
