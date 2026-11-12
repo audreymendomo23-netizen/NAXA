@@ -50,6 +50,14 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - L'image n'est pas téléversée par cette fonction OCR.
 - Le scan d'un code d'identification n'est pas considéré comme une mesure clinique.
 
+## Connexion Bluetooth native Android
+
+- Les appareils sélectionnés depuis l’APK sont confiés à un service Android de premier plan de type `connectedDevice`.
+- Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native.
+- L’interface reprend les événements persistés à son retour et les transmet au même parcours de consentement et d’enregistrement que les mesures reçues pendant que l’application est ouverte.
+- Android affiche une notification persistante pendant le maintien des connexions. Le retrait d’un appareil arrête sa session de fond.
+- La continuité Bluetooth en arrière-plan n’est pas disponible dans une PWA de navigateur; elle dépend du cycle de vie du navigateur et de ses autorisations.
+
 ## Synchronisation hors connexion
 
 - Les mesures Bluetooth reçues mais non envoyées sont conservées dans une file IndexedDB locale, limitée à 500 événements par navigateur.
@@ -64,6 +72,12 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - L'échéance est revendiquée par mise à jour conditionnelle pour éviter les envois concurrents.
 - Le consentement de la famille est revérifié côté serveur; un consentement retiré désactive le rappel et bloque les enregistrements concernés.
 - RLS et la propriété de compte restent obligatoires. Aucune intégration de fabricant ne doit contourner le consentement.
+
+## Notifications mobiles
+
+- La PWA conserve le parcours Web Push et son service worker.
+- L’APK utilise les rappels locaux Android et une notification persistante de service Bluetooth.
+- Les notifications distantes Firebase Cloud Messaging ne sont pas activées : aucun fichier `google-services.json` ni identifiant de projet Firebase n’est présent dans le dépôt. Ne pas présenter FCM comme opérationnel avant raccordement du projet et de ses identifiants.
 
 ## Vérifications
 
