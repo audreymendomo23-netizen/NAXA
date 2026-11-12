@@ -195,6 +195,8 @@ class MainActivity : Activity() {
         } else if (requestCode == 704) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 NaxaReminderScheduler.ensureChannel(this)
+            } else {
+                emit("error", message = "Les notifications Android sont refusées. Autorisez-les dans les réglages pour recevoir les rappels H-5.")
             }
         }
     }
