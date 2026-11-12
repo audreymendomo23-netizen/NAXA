@@ -135,3 +135,13 @@ Le test ajouté est un contrôle structurel du code source ; il ne remplace pas 
 - L'authentification native complète, le flux pharmacie par code, l'OAuth natif, les API métier, le hors-ligne multi-appareils et la recette réelle restent ouverts.
 
 **Statut :** préparation d'architecture intégrée ; non certifiée verte avant exécution des tests et recette. Web/PWA restent le chantier prioritaire ; Android natif reste planifié après leur recette.
+
+
+## Preuves au checkpoint final — 12 novembre 2026
+
+- Tête GitHub `main` après cette passe : `2a930b37dd8ce5cb0859ea028b45111a91c6a59f`.
+- Relecture structurelle indépendante des fichiers enregistrés : **7/7 contrôles PASS** (lecture Bearer, validation Auth, clé publique seulement, JWT transmis à RLS, lecture du profil propre, absence de cache privé et inclusion du test dans le glob `npm test`).
+- Le script `scripts/test-native-bearer-api-contract.cjs` est découvert automatiquement par `npm test` via `scripts/test-*.cjs`. La commande Node, le TypeScript, le lint et le build n'ont pas été exécutés dans cet environnement ; aucun PASS de runner n'est revendiqué.
+- Le statut combiné GitHub de la tête observée ne montre que `ci/circleci: quality = pending`. CircleCI n'a pas été relancé.
+- Le miroir GitLab `main` est au commit `61afc7c2983157bbcaa814587db280cedc0e8e51` du 5 novembre 2026, antérieur aux changements GitHub du 12 novembre. Aucun pipeline GitLab n'a été déclenché sur ce miroir obsolète.
+- Aucun déploiement, aucune migration ou écriture Production, aucune modification de secret et aucun projet Android n'ont été effectués.
