@@ -62,7 +62,7 @@ type UserDevice = { id:string; device_key:string; device_name:string; connection
 type Measurement = { id:string; measurement_type:string; value_numeric:number|null; value_text:string|null; unit:string|null; measured_at:string; source:string; note:string|null };
 type Reminder = { id:string; measurement_type:string; title:string; due_at:string; repeat_rule:string; enabled:boolean };
 type MeasurementSchedule = { id:string; measurement_type:string; device_id:string|null; local_time:string; timezone:string; days_of_week:number[]; lead_minutes:number; freshness_window_minutes:number; enabled:boolean };
-type DirectoryProfessional = { user_id:string; professional_role:"medecin"|"pharmacien"; display_name:string; specialty:string|null };
+type DirectoryProfessional = { user_id:string; professional_role:"medecin"|"pharmacien"|"infirmier"|"sage_femme"|"chirurgien_dentiste"|"kinesitherapeute"|"technicien_laboratoire"|"autre_sante"; display_name:string; specialty:string|null };
 type CareLink = { id:string; patient_user_id:string; professional_user_id:string; active:boolean; history_access:boolean; realtime_access:boolean; alerts_access:boolean; clinical_notes_access:boolean; revoked_at:string|null };
 type AlertRule = { id:string; measurement_type:string; min_value:number|null; max_value:number|null; enabled:boolean };
 type TrackingAlert = { id:string; measurement_type:string; observed_value:number; alert_kind:string; created_at:string; read_at:string|null };
@@ -164,6 +164,11 @@ export function SuiviConnecte() {
   }, [sb]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!professionalId) { setShareClinicalNotes(false); return; }
+    const current = professionalLinks.find(link => link.professional_user_id === professionalId);
+    setShareClinicalNotes(!!current?.clinical_notes_access);
+  }, [professionalId, professionalLinks]);
   useEffect(() => {
     if(activeTab!=="Options" || optionsPage!=="partage") return;
     let cancelled=false;
@@ -477,65 +482,40 @@ export function SuiviConnecte() {
     if (!selectedConsent) { setNotice("Le consentement explicite de cette famille de données est nécessaire avant tout partage."); return; }
     if (!shareHistory && !shareRealtime && !shareAlerts && !shareClinicalNotes) { setNotice("Activez au moins un droit de partage."); return; }
     setBusy(true); setNotice("");
-    const {data:userData}=await sb.auth.getUser();
-    if(!userData.user){setNotice("Session expirée.");setBusy(false);return;}
-    const recipient=professionalId.trim();
-    const {data:existing,error:existingError}=await sb.from("suivi_shares")
-      .select("measurement_type,allow_history,allow_realtime,allow_alerts")
-      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true).neq("measurement_type",selectedType);
-    if(existingError){setNotice("Impossible de vérifier les autorisations existantes.");setBusy(false);return;}
-    const rights=[...(existing??[]),{allow_history:shareHistory,allow_realtime:shareRealtime,allow_alerts:shareAlerts}];
-    const aggregate={history_access:rights.some(x=>x.allow_history),realtime_access:rights.some(x=>x.allow_realtime),alerts_access:rights.some(x=>x.allow_alerts)};
-    const now=new Date().toISOString();
-    const {error:shareError}=await sb.from("suivi_shares").upsert({
-      owner_user_id:userData.user.id,recipient_user_id:recipient,measurement_type:selectedType,
-      active:true,granted_at:now,revoked_at:null,allow_history:shareHistory,allow_realtime:shareRealtime,
-      allow_alerts:shareAlerts,realtime_from_at:shareRealtime?now:null
-    },{onConflict:"owner_user_id,recipient_user_id,measurement_type"});
-    if(shareError){setNotice("Partage refusé. Le professionnel doit être agréé et votre consentement actif.");setBusy(false);return;}
-    const currentLink=professionalLinks.find(link=>link.professional_user_id===recipient);
-    const {error:linkError}=await sb.from("suivi_care_links").upsert({
-      patient_user_id:userData.user.id,professional_user_id:recipient,active:true,revoked_at:null,
-      ...aggregate,clinical_notes_access:shareClinicalNotes || !!currentLink?.clinical_notes_access
-    },{onConflict:"patient_user_id,professional_user_id"});
-    if(linkError){
-      setNotice("Le partage de cette mesure est enregistré, mais le lien de suivi clinique n'a pas pu être synchronisé. Vérifiez les droits du dossier.");
-    } else {
-      setNotice("Droits de partage enregistrés. Le temps réel ne donnera accès qu'aux mesures reçues après cette autorisation.");
+    const {error}=await sb.rpc("suivi_upsert_professional_share",{
+      p_recipient_user_id:professionalId.trim(),
+      p_measurement_type:selectedType,
+      p_allow_history:shareHistory,
+      p_allow_realtime:shareRealtime,
+      p_allow_alerts:shareAlerts,
+      p_clinical_notes_access:shareClinicalNotes
+    });
+    if(error){
+      setNotice(error.message?.includes("agréé")?"Ce professionnel n'est plus agréé ou son compte est désactivé.":error.message?.includes("Consentement")?"Le consentement de cette famille doit être actif.":"Les autorisations n'ont pas été enregistrées. Vérifiez votre session et réessayez.");
+    }else{
+      setNotice("Autorisations enregistrées ensemble. Le temps réel ne donne accès qu'aux mesures reçues après son activation.");
       await load();
     }
     setBusy(false);
   }
 
   async function revokeShare() {
-    const {data:userData}=await sb.auth.getUser();
-    if(!userData.user || !professionalId.trim()) return;
-    const recipient=professionalId.trim();
-    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:new Date().toISOString()})
-      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("measurement_type",selectedType);
-    if(error){setNotice("Impossible de révoquer ce partage.");return;}
-    const {data:remaining}=await sb.from("suivi_shares").select("allow_history,allow_realtime,allow_alerts")
-      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true).is("revoked_at",null);
-    const link=professionalLinks.find(item=>item.professional_user_id===recipient);
-    const rights={history_access:(remaining??[]).some(x=>x.allow_history),realtime_access:(remaining??[]).some(x=>x.allow_realtime),alerts_access:(remaining??[]).some(x=>x.allow_alerts)};
-    await sb.from("suivi_care_links").update({...rights,active:!!(rights.history_access||rights.realtime_access||rights.alerts_access||link?.clinical_notes_access),revoked_at:(rights.history_access||rights.realtime_access||rights.alerts_access||link?.clinical_notes_access)?null:new Date().toISOString()})
-      .eq("patient_user_id",userData.user.id).eq("professional_user_id",recipient);
-    setNotice("Droit de consultation révoqué pour ce type. Les autres autorisations distinctes sont conservées.");
-    await load();
+    if(!professionalId.trim()) return;
+    setBusy(true);setNotice("");
+    const {error}=await sb.rpc("suivi_revoke_professional_share_type",{
+      p_recipient_user_id:professionalId.trim(),p_measurement_type:selectedType
+    });
+    if(error)setNotice("La révocation de ce type de mesure a échoué. Les droits existants sont conservés.");
+    else{setNotice("Partage de ce type révoqué. Les autres types et le dossier clinique restent inchangés.");await load();}
+    setBusy(false);
   }
 
   async function disconnectProfessional(recipient:string) {
-    const {data:userData}=await sb.auth.getUser();
-    if(!userData.user) return;
-    const revokedAt=new Date().toISOString();
-    const {error}=await sb.from("suivi_shares").update({active:false,revoked_at:revokedAt})
-      .eq("owner_user_id",userData.user.id).eq("recipient_user_id",recipient).eq("active",true);
-    if(error){setNotice("La révocation complète du suivi a échoué.");return;}
-    const {error:linkError}=await sb.from("suivi_care_links").update({
-      active:false,history_access:false,realtime_access:false,alerts_access:false,clinical_notes_access:false,revoked_at:revokedAt
-    }).eq("patient_user_id",userData.user.id).eq("professional_user_id",recipient);
-    setNotice(linkError?"Partages révoqués, mais la fermeture du dossier professionnel reste à finaliser.":"Connexion supprimée. Le professionnel perd immédiatement l'accès NAXA aux données et historiques partagés.");
-    await load();
+    setBusy(true);setNotice("");
+    const {error}=await sb.rpc("suivi_disconnect_professional",{p_recipient_user_id:recipient});
+    if(error)setNotice("La déconnexion complète n'a pas abouti. Les autorisations existantes ne sont pas annoncées comme supprimées.");
+    else{setNotice("Connexion supprimée. Tous les partages, alertes, accès temps réel, historiques et droits cliniques de ce professionnel sont révoqués.");await load();}
+    setBusy(false);
   }
 
   async function connectHeartRate() {
@@ -894,12 +874,12 @@ export function SuiviConnecte() {
         </div>
       </section>
       <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button>
-        <h2 className="text-xl font-extrabold">Vous faire suivre par un professionnel de santé agréé par l'État ?</h2>
+        <h2 className="text-xl font-extrabold">Voulez-vous être suivi(e) par un personnel de santé agréé par l’État ?</h2>
         <p className="mt-1 text-sm text-slate-600">Choisissez dans l'annuaire NAXA. Les professionnels non vérifiés, expirés ou désactivés ne sont pas proposés.</p>
         {directoryLoading?<p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm">Chargement de l'annuaire agréé…</p>:<label className="mt-3 block text-sm font-semibold">Professionnel de santé
           <select value={professionalId} onChange={e=>setProfessionalId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">
             <option value="">Choisir un professionnel</option>
-            {professionalDirectory.map(p=><option key={p.user_id} value={p.user_id}>{p.display_name} · {p.professional_role==="medecin"?"Médecin":"Pharmacien"}{p.specialty?" · "+p.specialty:""}</option>)}
+            {professionalDirectory.map(p=><option key={p.user_id} value={p.user_id}>{p.display_name} · {({medecin:"Médecin",pharmacien:"Pharmacien",infirmier:"Infirmier",sage_femme:"Sage-femme",chirurgien_dentiste:"Chirurgien-dentiste",kinesitherapeute:"Kinésithérapeute",technicien_laboratoire:"Technicien de laboratoire",autre_sante:"Autre professionnel de santé"} as Record<string,string>)[p.professional_role]??"Professionnel de santé"}{p.specialty?" · "+p.specialty:""}</option>)}
           </select>
         </label>}
         {!directoryLoading&&!professionalDirectory.length&&<p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Aucun professionnel agréé n'est actuellement disponible dans l'annuaire NAXA.</p>}
