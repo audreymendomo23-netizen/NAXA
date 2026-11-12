@@ -18,7 +18,17 @@ En Production, lorsque `GOOGLE_APPS_SCRIPT_URL`, `GOOGLE_APPS_SCRIPT_SECRET` et 
 
 ## Mode 2 — Invitation par lien personnel
 
-Le responsable crée une invitation liée à une adresse e-mail et à un poste, puis transmet le lien personnel. Le destinataire crée ou connecte lui-même son compte Client, confirme son adresse, finalise son profil et accepte le lien. Le jeton est à usage unique, expire après sept jours et ne peut pas être accepté depuis une autre adresse e-mail.
+Le responsable crée une invitation liée à une adresse e-mail et à un poste, puis transmet le lien personnel. **Le lien reste réutilisable tant que l’invitation est en attente** ; il n’est pas réservé à une nouvelle inscription et n’est pas consommé par sa simple ouverture.
+
+Trois parcours sont pris en charge :
+
+1. **Aucun compte NAXA :** le destinataire choisit « Créer mon compte NAXA ». Le parcours d’inscription, de confirmation OTP et de finalisation du profil ramène ensuite automatiquement vers le même lien d’invitation.
+2. **Compte NAXA existant, sans session ouverte :** le destinataire choisit « Me connecter à mon compte ». Après connexion par identifiant/mot de passe ou Google, NAXA revient vers la même invitation.
+3. **Compte NAXA déjà connecté :** si la session correspond à l’adresse e-mail invitée, le destinataire peut accepter directement, sans se déconnecter.
+
+Si une autre adresse est connectée, l’écran propose « Changer de compte ». Cette action ferme uniquement la session du navigateur courant (elle ne déconnecte pas les autres appareils), puis renvoie à la connexion avec retour vers l’invitation. La base de données reste l’autorité finale : elle refuse toute acceptation lorsque l’adresse confirmée du compte connecté ne correspond pas à l’adresse nominative de l’invitation.
+
+Avant l’acceptation, le compte doit avoir une adresse confirmée et un profil Client NAXA complet, actif et majeur. L’acceptation est atomique : le serveur vérifie l’invitation et le compte, crée l’affectation, marque le jeton accepté et inscrit l’événement d’audit. Le jeton est donc consommé uniquement après une acceptation réussie. Une invitation expire après sept jours ; une invitation révoquée, expirée ou déjà acceptée ne peut plus être utilisée.
 
 ## Règles communes
 
@@ -32,9 +42,10 @@ Le responsable crée une invitation liée à une adresse e-mail et à un poste, 
 
 - Le contrat SQL Examens a été exécuté sur le projet Supabase Replay `pwfftcsjyeibxxqhwysw` et s’est terminé sans exception.
 - Le contrat couvre l’affectation directe d’un compte existant, les refus d’accès non autorisé, les doublons, les rôles interdits, l’invitation, la vérification de l’adresse, l’acceptation unique, la révocation, la conservation du profil et de l’identité Auth, puis la réaffectation.
-- Les permissions RPC ont été contrôlées précédemment : exécution réservée aux utilisateurs authentifiés, pas à `anon`.
-- Aucun test réel d’envoi Gmail ni test navigateur de bout en bout n’est déclaré ici.
-- Le contrôle CircleCI `ci/circleci: quality` était encore `pending` au dernier relevé. Le chantier ne doit donc pas être marqué vert avant résultat CI et vérification fonctionnelle navigateur.
+- Relecture de la définition SQL Replay de `private.exam_accept_staff_invite_impl` : la session authentifiée, l’adresse confirmée identique, le profil Client complet/actif/majeur, la validité du jeton, l’absence de doublon et la consommation atomique sont vérifiés côté serveur.
+- La mise à jour du parcours Web ajoute la reprise après connexion/inscription, le changement de compte local et la conservation du retour d’invitation après OAuth Google.
+- **Non encore démontré dans cette révision :** compilation TypeScript, lint et test navigateur de bout en bout des trois parcours. Aucun résultat vert n’est revendiqué ici.
+- Aucun test réel d’envoi Gmail n’est déclaré.
 
 ## Protection des environnements
 
