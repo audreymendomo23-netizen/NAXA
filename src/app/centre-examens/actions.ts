@@ -105,15 +105,23 @@ export async function createExamStaffAccount(form:FormData){
   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||!ROLE_KEYS.includes(roleKey as typeof ROLE_KEYS[number])) fail(path,centerId);
 
   const admin=supabaseAdmin();
-  let existing;
+  let existing:Awaited<ReturnType<typeof findAuthUserByEmail>>;
   try{existing=await findAuthUserByEmail(admin,email)}catch{fail(path,centerId)}
 
   if(existing){
-    const {data:profile,error:profileError}=await admin.from("profiles").select("id,username,role,actif").eq("id",existing.id).maybeSingle();
+    const {data:profile,error:profileError}=await admin.from("profiles")
+      .select("id,username,role,actif,age_verified,consent_accepted_at,date_of_birth,first_name,last_name,phone")
+      .eq("id",existing.id).maybeSingle();
     if(profileError) fail(path,centerId);
-    if(profile?.username&&profile.role==="client"&&profile.actif===true){
-      const {data,error}=await sb.rpc("exam_assign_existing_staff",{p_center_id:centerId,p_identifier:profile.username,p_role_key:roleKey});
-      if(!error&&data?.assigned&&data.center_id===centerId) finish(path,centerId,"affectation");
+    if(profile&&(profile.role!=="client"||profile.actif!==true)) fail(path,centerId);
+    const complete=Boolean(profile?.username&&profile.age_verified===true&&profile.consent_accepted_at
+      &&profile.date_of_birth&&profile.first_name&&profile.last_name&&profile.phone);
+    if(complete){
+      const {data,error}=await sb.rpc("exam_assign_existing_staff",{
+        p_center_id:centerId,p_identifier:profile!.username,p_role_key:roleKey
+      });
+      if(error||!data?.assigned||data.center_id!==centerId) fail(path,centerId);
+      finish(path,centerId,"affectation");
     }
   }
 
@@ -127,7 +135,8 @@ export async function createExamStaffAccount(form:FormData){
       email,email_confirm:false,user_metadata:{naxa_signup_pending:true,exam_staff_direct_pending:true}
     });
     if(createError){
-      await sb.rpc("exam_revoke_staff_invite",{p_center_id:centerId,p_invite_id:token}).catch(()=>undefined);
+      const {data:invite}=await admin.from("exam_staff_invites").select("id").eq("token",token).maybeSingle();
+      if(invite?.id) await sb.rpc("exam_revoke_staff_invite",{p_center_id:centerId,p_invite_id:invite.id});
       redirect(path+"?centre="+encodeURIComponent(centerId)+"&erreur=creation-compte");
     }
   }
