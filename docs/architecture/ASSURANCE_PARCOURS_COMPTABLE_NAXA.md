@@ -122,3 +122,14 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Le build TypeScript/Next.js n'a donc pas été exécuté ; aucune conclusion de compilation n'est revendiquée pour le module comptable.
 - Le statut CircleCI `ci/circleci: quality` reste `pending`.
 - Ce blocage Bluetooth/suivi est distinct du chantier comptable et n'a pas été modifié dans cette intervention.
+
+## Configuration détaillée des conventions — 12 novembre 2026
+
+- L'interface `/pharmacie/assurance` permet désormais de saisir la référence et les dates de validité de la convention, puis de sélectionner une convention existante pour gérer ses règles.
+- Les règles sont configurables par portée globale, catégorie ou produit ; le moteur applique la priorité produit > catégorie > globale.
+- Chaque règle accepte son taux, son plafond par ligne, sa franchise, ses exclusions, les justificatifs requis et ses propres dates de validité.
+- L'enregistrement passe par la RPC atomique `assurance_configurer_convention` pour la convention et la règle globale initiale, puis par `assurance_enregistrer_regle` pour les règles affinées. Une nouvelle version désactive l'ancienne règle de même portée sans modifier les snapshots de devis déjà figés.
+- Le sélecteur produit n'expose que les produits dont la fiche catalogue est validée (`fiche_validee=true`). Sur Replay au contrôle, 20 produits de démonstration sont présents mais 0 fiche est validée ; aucun produit de test n'est donc proposé pour configurer une règle produit.
+- Contrôle Replay : `assurance_enregistrer_regle` est exécutable par `authenticated`, non exécutable par `anon`; RLS est active sur `assurance_regles_convention`, avec lecture filtrée par le périmètre pharmacie. Les mutations directes restent interdites et passent par la RPC qui vérifie le poste actif et le périmètre.
+- Le test structurel Assurance est complété pour vérifier ces garde-fous. La validation par JWT réel reste à faire : Replay ne dispose toujours pas de comptes Promoteur/Pharmacien affectés permettant de tester l'enregistrement des règles dans l'interface.
+- Aucun changement de schéma ni migration supplémentaire n'a été nécessaire : les tables et RPC de règles existaient déjà sur Replay. Aucun changement Production ni déploiement.
