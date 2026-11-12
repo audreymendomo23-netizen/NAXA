@@ -19,7 +19,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Produit local invalide." }, { status: 400 });
   }
 
-  const db = supabaseAdmin();
+  let db: ReturnType<typeof supabaseAdmin>;
+  try { db = supabaseAdmin(); }
+  catch { return NextResponse.json({ error: "Service de disponibilité indisponible." }, { status: 503 }); }
+
+  const { data: profile, error: profileError } = await db.from("profiles")
+    .select("role,actif").eq("id", auth.user.id).maybeSingle();
+  if (profileError || profile?.actif !== true || profile.role !== "client") {
+    return NextResponse.json({ error: "Cette alerte est réservée aux comptes Client actifs." }, { status: 403 });
+  }
+
   const { data: product, error: productError } = await db.from("produits")
     .select("id,nom,fiche_validee").eq("id", body.produitId).maybeSingle();
   if (productError || !product || product.fiche_validee !== true) {
@@ -82,7 +91,10 @@ export async function DELETE(request: Request) {
   catch { return NextResponse.json({ error: "Corps JSON invalide." }, { status: 400 }); }
   if (!body.produitId || !uuid.test(body.produitId)) return NextResponse.json({ error: "Produit invalide." }, { status: 400 });
 
-  const { error } = await supabaseAdmin().from("client_product_availability_alerts")
+  let db: ReturnType<typeof supabaseAdmin>;
+  try { db = supabaseAdmin(); }
+  catch { return NextResponse.json({ error: "Service de disponibilité indisponible." }, { status: 503 }); }
+  const { error } = await db.from("client_product_availability_alerts")
     .update({ active: false, updated_at: new Date().toISOString() })
     .eq("user_id", auth.user.id).eq("produit_id", body.produitId);
   if (error) return NextResponse.json({ error: "Désactivation de l'alerte impossible." }, { status: 503 });
