@@ -55,6 +55,24 @@ object NaxaReminderScheduler {
         prefs.all.keys.filter { it.startsWith("schedule_") }.forEach { scheduleNext(context, it.removePrefix("schedule_")) }
     }
 
+    fun notificationsEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).getBoolean("notifications_enabled",false)
+
+    fun setNotificationsEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+            .putBoolean("notifications_enabled",enabled).apply()
+        if(enabled) scheduleAll(context) else {
+            val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+            prefs.all.keys.filter { it.startsWith("schedule_") }.forEach { id ->
+                val key=id.removePrefix("schedule_")
+                val intent=Intent(context,NaxaReminderReceiver::class.java).putExtra("scheduleId",key)
+                context.getSystemService(AlarmManager::class.java).cancel(PendingIntent.getBroadcast(
+                    context,key.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                ))
+            }
+        }
+    }
+
     fun clearAll(context: Context) {
         val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
         val ids=prefs.all.keys.filter { it.startsWith("schedule_") }.map { it.removePrefix("schedule_") }
@@ -76,6 +94,7 @@ object NaxaReminderScheduler {
     fun scheduleNext(context: Context, id: String) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val raw = prefs.getString("schedule_" + id, null) ?: return
+        if(!prefs.getBoolean("notifications_enabled",false))return
         try {
             val json = JSONObject(raw)
             if (!json.optBoolean("enabled", true)) { remove(context, id); return }
