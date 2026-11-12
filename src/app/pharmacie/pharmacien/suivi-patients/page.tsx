@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PharmacienWorkspaceShell } from "@/components/pharmacie/PharmacienWorkspaceShell";
+import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Share = { id: string; owner_user_id: string; measurement_type: string; granted_at: string; active: boolean; revoked_at: string | null };
@@ -67,7 +68,7 @@ export default function PharmacienSuiviPatientsPage() {
     const { data: rows, error: measurementError } = await sb.from("suivi_measurements")
       .select("id,user_id,measurement_type,value_numeric,value_text,unit,measured_at,source,note")
       .in("user_id", owners).in("measurement_type", types)
-      .order("measured_at", { ascending: false }).limit(500);
+      .order("measured_at", { ascending: false }).limit(2000);
     if (measurementError) {
       setMeasurements([]);
       setError("Les partages sont visibles mais les mesures restent bloquées par les droits serveur. Vérifiez la migration 189 et ses tests SQL.");
@@ -175,7 +176,7 @@ export default function PharmacienSuiviPatientsPage() {
         {tab==="mesures" && <>
           {selectedPatient && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-extrabold text-emerald-950">Dossier partagé · {patientLabel(selectedPatient)}</h2><p className="text-sm text-emerald-900">Évolution des valeurs numériques partagées, triées par date. Les graphiques décrivent les données reçues et ne constituent pas une interprétation médicale.</p></div><button type="button" className="btn btn-clair" onClick={() => setSelectedPatientId(null)}>Fermer le dossier</button></div>
-            {trendTypes.length > 0 ? <>
+            <SuiviHistoryChart measurements={measurements.filter(row=>row.user_id===selectedPatient)} title={"Historique de "+patientLabel(selectedPatient)}/>{trendTypes.length > 0 ? <>
               <label className="block text-sm font-semibold">Mesure à visualiser<select className="champ mt-1 w-full sm:max-w-sm" value={activeTrendType} onChange={event => setTrendType(event.target.value)}>{trendTypes.map(type => <option key={type} value={type}>{labels[type] ?? type}</option>)}</select></label>
               {trendPoints.length > 1 ? <div className="rounded-xl border border-emerald-100 bg-white p-3">
                 <div className="flex flex-wrap justify-between gap-2 text-sm"><span>Minimum observé : <b>{trendMin}</b></span><span>Maximum observé : <b>{trendMax}</b></span><span>{trendPoints.length} dernières valeurs</span></div>
