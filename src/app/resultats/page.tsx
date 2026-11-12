@@ -58,7 +58,7 @@ function ResultsContent(){
  const derniereNotification=useRef("");
  useEffect(()=>{const sync=()=>setFavoriIds(new Set(lireFavoris().map(item=>item.id)));sync();return ecouterFavoris(sync)},[]);
  const toggleFavori=(item:{id:string;nom:string;dosage?:string|null;photo_url?:string|null;prix?:number|null;pharmacie?:string;demo:boolean})=>{const suivants=basculerFavori({id:item.id,nom:item.nom,dosage:item.dosage??"",photo_url:item.photo_url??null,prix:typeof item.prix==="number"?item.prix:0,pharmacie:item.pharmacie??"Prix et pharmacie à confirmer",demo:item.demo});setFavoriIds(new Set(suivants.map(f=>f.id)));notifierNAXA(suivants.some(f=>f.id===item.id)?item.nom+" ajouté aux favoris.":item.nom+" retiré des favoris.")};
- const actualiserPosition=useCallback(async()=>{setLocationStatus("pending");try{const position=await obtenirPositionGPS();setCoords({lat:position.lat,lng:position.lng});setCity(villeDepuisPosition(position.lat,position.lng));setLocationStatus("gps")}catch{setLocationStatus("fallback")}},[]);
+ const actualiserPosition=useCallback(async()=>{setLocationStatus("pending");try{const position=await obtenirPositionGPS();setCoords({lat:position.lat,lng:position.lng});setCity(villeDepuisPosition(position.lat,position.lng));setLocationStatus("gps");return true}catch{setLocationStatus("fallback");return false}},[]);
  useEffect(()=>{
    const q=params.getAll("q").join(" ").trim();
    setQuery(q);setDebounced(q);
@@ -87,7 +87,7 @@ function ResultsContent(){
  useEffect(()=>{if(loading||!debounced.trim()||!filtered.length||!meilleureOffre)return;const key=[debounced,villeFiltre,rayonKm,filtered.length,meilleureOffre.pharmacie_id].join("|");if(derniereNotification.current===key)return;derniereNotification.current=key;const messages:string[]=[];if(villeFiltre)messages.push("Dans "+villeFiltre+", la meilleure offre trouvée est chez "+meilleureOffre.nom+", à "+fcfa(totalPrix(meilleureOffre))+".");if(rayonKm&&locationStatus==="gps"){const nearest=[...filtered].sort((a,b)=>Number(a.distance_km)-Number(b.distance_km))[0];messages.push("La pharmacie la plus proche est "+nearest.nom+", à "+Math.round(Number(nearest.distance_km)*1000)+" mètres de votre position GPS.");}if(sort==="prix")messages.push((basketMode||bulkTerms.length?"Le panier demandé est le moins cher chez ":"Le médicament est proposé au meilleur prix chez ")+meilleureOffre.nom+", à "+fcfa(totalPrix(meilleureOffre))+".");if(messages.length)notifierNAXA(messages.join(" "));},[loading,debounced,filtered,villeFiltre,rayonKm,locationStatus,sort,meilleureOffre]);
  const activeFilterCount=0;
  const toggleQuickFilter=(key:"stock"|"open"|"prescription")=>{const next={...activeFilters,[key]:!activeFilters[key]};setActiveFilters(next);setFilters(v=>({...v,[key]:next[key]}))};
- const activerDistance=async()=>{if(locationStatus!=="gps"){await actualiserPosition();return;}setRayonKm(current=>current===""?"5":current==="5"?"10":current==="10"?"20":"");};
+ const activerDistance=async()=>{if(locationStatus!=="gps"){if(await actualiserPosition()){setRayonKm("5");setSort("distance");setAscending(true);}return;}setRayonKm(current=>{const next=current===""?"5":current==="5"?"10":current==="10"?"20":"";if(next)setSort("distance");return next;});setSort("distance");setAscending(true);};
  const add=(r:Row)=>{
   const items=(basketMode||bulkTerms.length)?r.items:r.items.slice(0,1);
   if(!items.length)return;
