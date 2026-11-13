@@ -162,9 +162,7 @@ begin
   from public.naxa_merchant_payment_destinations d
   where d.partner_id=v_res.partner_id and d.canal=p_canal and d.is_active=true
   limit 1;
-  if not found or coalesce(v_destination.merchant_code,'') !~ '^[0-9]{6}$' then
-    raise exception 'Coordonnées marchandes absentes ou code marchand non conforme (6 chiffres requis)';
-  end if;
+  if not found then raise exception 'Coordonnées marchandes non activées pour cet opérateur'; end if;
   v_expiry:=least(v_res.expires_at,now()+interval '24 hours');
   if v_expiry<=now() then raise exception 'Réservation expirée'; end if;
 
