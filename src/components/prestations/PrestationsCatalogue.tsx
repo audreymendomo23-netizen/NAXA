@@ -16,7 +16,7 @@ type Intent={specialties:string[];keywords:string[];source:"ai"|"local"};
 
 const field="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const money=(value:number)=>new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(value)+" FCFA";
-const days=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+const todayLabel=()=>new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Douala",weekday:"long"}).format(new Date());
 const gpsErrors:Record<ErreurGPS,string>={
   indisponible:"La géolocalisation n’est pas disponible sur cet appareil.",
   refusee:"L’accès à votre position a été refusé. Vous pouvez toujours utiliser les autres filtres.",
@@ -191,7 +191,7 @@ export function PrestationsCatalogue({offers,initialQuery,assistanceMode}:{offer
             <p className="mt-2 text-sm text-slate-700">Zone d’intervention : <strong>{offer.service_area_label}</strong></p>
             {nearbyEnabled&&distances.has(offer.offer_id)&&<p className="mt-2 text-sm font-bold text-[#064B2A]">À environ {distances.get(offer.offer_id)?.toFixed(1)} km (à vol d’oiseau)</p>}
             <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">{days[new Date().getDay()]}</p>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">{todayLabel()}</p>
               {offer.today_opens_at&&offer.today_closes_at
                 ? <p className={"mt-1 text-sm font-bold "+(offer.available_now?"text-emerald-800":offer.available_today?"text-blue-800":"text-slate-600")}>{offer.available_now?"Ouvert maintenant":offer.available_today?"Ouverture prévue aujourd’hui":"Fermé pour aujourd’hui"} · {formatTime(offer.today_opens_at)} – {formatTime(offer.today_closes_at)}</p>
                 : <p className="mt-1 text-sm font-semibold text-slate-600">Fermé aujourd’hui</p>}
