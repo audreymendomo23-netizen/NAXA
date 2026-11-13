@@ -1,0 +1,202 @@
+#!/usr/bin/env node
+/**
+ * DailyMed v2 discovery for NAXA medicine-image queue.
+ *
+ * DailyMed exposes SPL labels and their attached media, but the media endpoint
+ * does not return per-image copyright/license metadata. This importer therefore
+ * records candidates for human rights/identity review and NEVER publishes an
+ * image URL into image_url. Public display remains blocked until rights are
+ * independently verified.
+ *
+ * Usage: node scripts/dailymed-images-candidates.mjs [--limit=25] [--dry-run]
+ * Requires SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and
+ * SUPABASE_SERVICE_ROLE_KEY. Never expose the service key to the browser.
+ */
+import { pathToFileURL } from "node:url";
+
+const BASE = "https://dailymed.nlm.nih.gov/dailymed/services/v2";
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const DRY_RUN = process.argv.includes("--dry-run");
+const LIMIT = Math.max(1, Math.min(100, Number(process.argv.find((x) => x.startsWith("--limit="))?.split("=")[1] ?? 25)));
+const USER_AGENT = "NAXA/1.0 (https://naxa.cm; naxa.home@gmail.com)";
+const DELAY_MS = 1200;
+
+export const normalize = (value = "") => String(value).normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+export const tokens = (value = "") => normalize(value).split(/\s+/).filter((x) =>
+  x.length >= 3 && !/^\d+$/.test(x) &&
+  !/^(?:comprime|comprimés|tablet|tablets|capsule|capsules|gelule|gelules|mg|mcg|ug|ml|iu|ui|oral|solution|injection)$/.test(x)
+);
+
+export function extractSpls(payload) {
+  const candidates = payload?.data?.spls ?? payload?.spls ?? payload?.data?.data?.spls ?? [];
+  return Array.isArray(candidates) ? candidates : [];
+}
+
+export function extractMedia(payload) {
+  const candidates = payload?.data?.media ?? payload?.media ?? payload?.data?.data?.media ?? [];
+  return Array.isArray(candidates) ? candidates.filter((x) =>
+    String(x?.mime_type ?? "").toLowerCase().startsWith("image/") &&
+    typeof x?.url === "string" && x.url.startsWith("https://dailymed.nlm.nih.gov/")
+  ) : [];
+}
+
+export function titleMatches(identity, title) {
+  const wanted = tokens(identity);
+  const actual = new Set(tokens(title));
+  if (!wanted.length || !actual.size) return false;
+  const hits = wanted.filter((token) => actual.has(token));
+  const required = wanted.length <= 2 ? wanted.length : 2;
+  return hits.length >= required;
+}
+
+export function buildCandidateUpdate(row, ref, candidates) {
+  const first = candidates[0];
+  return {
+    image_url: null,
+    image_path: null,
+    source_nom: "DailyMed — National Library of Medicine (SPL)",
+    source_url: first.label_url,
+    licence: "Droits de chaque média non fournis par l'API — validation juridique obligatoire avant toute publication",
+    statut: "correspondance_a_verifier",
+    methode_correspondance: JSON.stringify({
+      provider: "DailyMed v2",
+      match: "nom générique/substance active vers titre SPL; non équivalent à une identité de conditionnement",
+      cis: row.cis,
+      cip_code: row.cip_code,
+      nom_bdpm: ref.nom,
+      spl_candidates: candidates
+    })
+  };
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchJson(url) {
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(12000)
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("DailyMed HTTP " + response.status);
+  return response.json();
+}
+
+export async function searchDailyMed(identity) {
+  const url = new URL(BASE + "/spls.json");
+  url.searchParams.set("drug_name", identity);
+  url.searchParams.set("name_type", "generic");
+  url.searchParams.set("pagesize", "20");
+  const payload = await fetchJson(url);
+  return extractSpls(payload).filter((spl) => titleMatches(identity, spl.title ?? spl.drug_name ?? ""));
+}
+
+export async function getSplMedia(setid) {
+  if (!/^[0-9a-f-]{36}$/i.test(String(setid ?? ""))) return [];
+  const payload = await fetchJson(BASE + "/spls/" + encodeURIComponent(setid) + "/media.json");
+  return extractMedia(payload);
+}
+
+function getRestBase() {
+  if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("Variables requises : SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY.");
+  return SUPABASE_URL.replace(/\/$/, "") + "/rest/v1";
+}
+async function supabase(path, options = {}) {
+  const response = await fetch(getRestBase() + path, {
+    ...options,
+    headers: {
+      apikey: SERVICE_KEY,
+      Authorization: "Bearer " + SERVICE_KEY,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(options.headers ?? {})
+    },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) throw new Error("Supabase REST " + response.status + ": " + (await response.text()).slice(0, 400));
+  return response.status === 204 ? null : response.json();
+}
+
+async function main() {
+  console.log("NAXA — DailyMed v2 | limite=" + LIMIT + " | dry-run=" + DRY_RUN);
+  const queueParams = new URLSearchParams({
+    select: "cis,cip_code,libelle_presentation,statut",
+    statut: "in.(a_traiter,sans_image_source,erreur,correspondance_a_verifier)",
+    order: "updated_at.asc",
+    limit: String(LIMIT)
+  });
+  const queue = await supabase("/medicaments_images?" + queueParams);
+  const cis = [...new Set((queue ?? []).map((x) => x.cis))];
+  const refs = cis.length ? await supabase("/medicaments_referentiel_sources?" + new URLSearchParams({
+    select: "cis,nom,substances_actives",
+    cis: "in.(" + cis.join(",") + ")"
+  })) : [];
+  const byCis = new Map((refs ?? []).map((x) => [x.cis, x]));
+  const report = { queued: queue?.length ?? 0, searched: 0, candidates: 0, media: 0, stored_for_review: 0, no_match: 0, errors: 0, items: [] };
+
+  for (const row of queue ?? []) {
+    const ref = byCis.get(row.cis);
+    if (!ref?.nom) { report.no_match++; continue; }
+    report.searched++;
+    const ingredients = String(ref.substances_actives ?? "").split(/[;,|]/).map((x) => x.trim()).filter(Boolean);
+    const identities = [...new Set([ref.nom, ...ingredients])].slice(0, 4);
+    const found = new Map();
+    try {
+      for (const identity of identities) {
+        const spls = await searchDailyMed(identity);
+        for (const spl of spls) {
+          if (spl.setid) found.set(spl.setid, { ...spl, matched_identity: identity });
+        }
+        await wait(DELAY_MS);
+      }
+      const candidates = [];
+      for (const spl of [...found.values()].slice(0, 5)) {
+        const media = await getSplMedia(spl.setid);
+        if (media.length) {
+          const labelUrl = "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + encodeURIComponent(spl.setid);
+          candidates.push({
+            setid: spl.setid,
+            title: spl.title ?? null,
+            published_date: spl.published_date ?? null,
+            label_url: labelUrl,
+            matched_identity: spl.matched_identity,
+            media: media.map((item) => ({ name: item.name, mime_type: item.mime_type, url: item.url }))
+          });
+          report.media += media.length;
+        }
+        await wait(DELAY_MS);
+      }
+      if (!candidates.length) {
+        report.no_match++;
+        report.items.push({ cis: row.cis, cip_code: row.cip_code, result: "aucun_media_dailymed_correspondant" });
+        continue;
+      }
+      report.candidates += candidates.length;
+      const update = buildCandidateUpdate(row, ref, candidates);
+      if (!DRY_RUN) {
+        const key = new URLSearchParams({ cis: "eq." + row.cis, cip_code: "eq." + row.cip_code });
+        await supabase("/medicaments_images?" + key, {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify(update)
+        });
+      }
+      report.stored_for_review++;
+      report.items.push({
+        cis: row.cis, cip_code: row.cip_code, nom: ref.nom,
+        result: DRY_RUN ? "candidat_simule" : "candidat_enregistre_a_verifier",
+        spl_candidates: candidates
+      });
+    } catch (error) {
+      report.errors++;
+      report.items.push({ cis: row.cis, cip_code: row.cip_code, result: "erreur", error: error.message });
+    }
+  }
+  console.log(JSON.stringify(report, null, 2));
+  if (report.errors) process.exitCode = 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => { console.error(error); process.exit(1); });
+}
