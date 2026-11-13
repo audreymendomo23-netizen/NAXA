@@ -60,7 +60,7 @@ class PharmacyRepositoryTest {
             """.trimIndent()
         )
 
-        val result = repository.parse(payload)
+        val result = parseNearbyPharmacies(payload)
         assertEquals(1, result.size)
         assertNull(result.single().distanceRoadKm)
         assertNull(result.single().distanceStraightKm)
