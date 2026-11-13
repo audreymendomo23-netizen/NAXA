@@ -100,7 +100,9 @@ async function openProductsFacts(barcode, identity) {
   const wanted = tokens(identity);
   if (!wanted.length || !wanted.some((token) => productIdentity.split(" ").includes(token))) return null;
   const imageUrl = safeHttps(product.image_front_url);
-  if (!imageUrl || !/openproductsfacts\.org$/.test(new URL(imageUrl).hostname)) return null;
+  const imageHost = imageUrl ? new URL(imageUrl).hostname.toLowerCase() : "";
+  // OPF partage l'infrastructure officielle d'images Open Facts.
+  if (!imageUrl || !["images.openproductsfacts.org", "images.openfoodfacts.org"].includes(imageHost)) return null;
   return {
     image_url: imageUrl,
     source_nom: "Open Products Facts",
