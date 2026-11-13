@@ -127,9 +127,10 @@ function likelyCombinationMismatch(title: string, queryTokens: string[]): boolea
 
 
 const CIMA_BASE = "https://cima.aemps.es/cima/rest";
-// CIMA expose les URLs des photos mais sa structure documentée ne garantit pas
-// une licence par fichier. Les photos sont soumises par les titulaires d'AMM.
-// Aucune image CIMA n'est affichée sans licence commerciale explicite sur le média.
+// CIMA expose les URLs et la date de mise à jour de chaque photo. À défaut
+// d'une licence individuelle restrictive, la politique officielle de données
+// ouvertes AEMPS s'applique avec attribution et date ; toute restriction explicite
+// au niveau du média reste prioritaire.
 const CIMA_NAME_ALIASES: Record<string, string> = {
   acetaminophen: "paracetamol",
   ibuprofen: "ibuprofeno",
@@ -283,11 +284,25 @@ function allowedCimaImageRights(
   };
 }
 
-function safeCimaImageUrl(raw: string | undefined): string | null {
-  if (!raw) return null;
+function safeCimaImageUrl(
+  raw: string | undefined,
+  registration: string,
+  wantedType: "materialas" | "formafarmac"
+): string | null {
+  if (!raw || !registration) return null;
   try {
     const url = new URL(raw);
-    if (url.protocol !== "https:" || url.hostname !== "cima.aemps.es" || !url.pathname.includes("/cima/fotos/")) return null;
+    const parts = url.pathname.split("/").filter(Boolean);
+    const expectedFile = registration + "_" + wantedType + ".jpg";
+    if (url.protocol !== "https:"
+      || url.hostname !== "cima.aemps.es"
+      || parts.length !== 6
+      || parts[0] !== "cima"
+      || parts[1] !== "fotos"
+      || !["thumbnails", "full"].includes(parts[2])
+      || parts[3] !== wantedType
+      || parts[4] !== registration
+      || parts[5] !== expectedFile) return null;
     return url.toString();
   } catch {
     return null;
@@ -318,23 +333,29 @@ function cimaPhoto(
   if (!cimaNameMatches(query, name)) return null;
   const ingredients = cimaIngredients(medicine);
   if (likelyCombinationMismatch(name + " " + ingredients, identityTokens(query))) return null;
-  const wantedType = kind === "boite" ? "materialas" : "formafarmac";
-  const entry = (medicine.fotos ?? []).find((photo) => photo.tipo?.toLowerCase() === wantedType);
-  const url = safeCimaImageUrl(entry?.url);
-  const rights = entry ? allowedCimaImageRights(entry, medicine) : null;
-  if (!url || !rights) return null;
+
   const registration = (medicine.nregistro ?? "").trim();
-  return {
-    url,
-    sourceUrl: registration
-      ? CIMA_BASE + "/medicamento?nregistro=" + encodeURIComponent(registration)
-      : "https://sede.aemps.gob.es/datos-abiertos/",
-    licence: rights.licence,
-    attribution: rights.attribution,
-    title: name,
-    kind,
-    provider: "cima_aemps"
-  };
+  if (!registration) return null;
+  const wantedType = kind === "boite" ? "materialas" : "formafarmac";
+
+  // Une fiche peut contenir plusieurs photos du même type. Ne pas abandonner
+  // après une première entrée sans date, avec droits restrictifs ou URL invalide.
+  for (const entry of medicine.fotos ?? []) {
+    if (entry.tipo?.toLowerCase() !== wantedType) continue;
+    const url = safeCimaImageUrl(entry.url, registration, wantedType);
+    const rights = allowedCimaImageRights(entry, medicine);
+    if (!url || !rights) continue;
+    return {
+      url,
+      sourceUrl: CIMA_BASE + "/medicamento?nregistro=" + encodeURIComponent(registration),
+      licence: rights.licence,
+      attribution: rights.attribution,
+      title: name,
+      kind,
+      provider: "cima_aemps"
+    };
+  }
+  return null;
 }
 
 /**
@@ -361,28 +382,41 @@ async function searchCima(query: string): Promise<PhotosMedicament> {
     .slice(0, 4);
   if (!matching.length) return { boite: null, comprime: null };
 
-  // Ne pas s'arrêter au premier candidat : il peut avoir des médias absents,
-  // sans date de mise à jour ou assortis d'une restriction explicite.
+  let firstPartial: PhotosMedicament | null = null;
   for (const record of matching) {
-    let candidate = record;
-    if ((!candidate.fotos || candidate.fotos.length === 0) && candidate.nregistro) {
-      const detailParams = new URLSearchParams({ nregistro: candidate.nregistro });
-      const detail = await fetchCimaJson(CIMA_BASE + "/medicamento?" + detailParams.toString());
-      if (detail && typeof detail.nombre === "string" && cimaNameMatches(query, detail.nombre)) {
-        candidate = detail as CimaMedicine;
-      }
-    }
-
-    const photos = {
+    const candidate = record;
+    let photos = {
       boite: cimaPhoto(query, candidate, "boite"),
       comprime: cimaPhoto(query, candidate, "comprime")
     };
-    // Garder les deux vues d'un même médicament uniquement : ne jamais assembler
-    // une boîte d'une marque et une forme pharmaceutique provenant d'une autre.
-    if (photos.boite || photos.comprime) return photos;
+
+    // La liste peut ne contenir qu'un type de photo alors que la fiche détaillée
+    // en expose d'autres. Compléter depuis le même nregistro uniquement.
+    if ((!photos.boite || !photos.comprime) && candidate.nregistro) {
+      const detailParams = new URLSearchParams({ nregistro: candidate.nregistro });
+      const detail = await fetchCimaJson(CIMA_BASE + "/medicamento?" + detailParams.toString());
+      if (detail
+        && detail.nregistro === candidate.nregistro
+        && typeof detail.nombre === "string"
+        && cimaNameMatches(query, detail.nombre)) {
+        const detailPhotos = {
+          boite: cimaPhoto(query, detail as CimaMedicine, "boite"),
+          comprime: cimaPhoto(query, detail as CimaMedicine, "comprime")
+        };
+        photos = {
+          boite: photos.boite ?? detailPhotos.boite,
+          comprime: photos.comprime ?? detailPhotos.comprime
+        };
+      }
+    }
+
+    // Les deux vues proviennent toujours de la même fiche CIMA : aucune boîte
+    // et aucune forme pharmaceutique ne sont combinées entre deux marques.
+    if (photos.boite && photos.comprime) return photos;
+    if ((photos.boite || photos.comprime) && !firstPartial) firstPartial = photos;
   }
 
-  return { boite: null, comprime: null };
+  return firstPartial ?? { boite: null, comprime: null };
 }
 
 /**
