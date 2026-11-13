@@ -1292,3 +1292,12 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - La recherche documentaire RxNorm, openFDA et DailyMed reste distincte et sert uniquement aux métadonnées/notices médicaments; elle ne fournit plus de photos à l'interface.
 - Les enregistrements Supabase historiques ne sont pas supprimés; ils sont conservés mais ne sont plus servis par le parcours photo. Aucune migration ni suppression de données Production n'a été exécutée.
 - Aucun déploiement manuel n'a été lancé. Les contrôles TypeScript, lint et build restent à exécuter; ne pas déclarer ce retrait vert avant preuve.
+
+## Verrouillage des références de paiement Client — contrôle Replay (13/11/2026)
+
+- Les migrations `20261113224519_payment_reference_advisory_locks` et `20261113224605_payment_reference_lock_before_matching` figurent dans l'historique du projet Replay `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`). Aucune migration Production n'a été appliquée dans ce contrôle.
+- Le test `supabase/tests/20261113224519_payment_reference_advisory_locks.sql` a été renforcé sur `main` (commit `d1b1d0b5120293727c6086e1db8aa26f9ef6d6d3`) : il exige la normalisation de la référence, la clé exacte `hashtextextended(v_ref,0)` et la prise du verrou avant le comptage des dossiers pour les moteurs Livraison et Partenaire. Il vérifie aussi les ACL : exécution réservée à `service_role`, refusée à `authenticated` et `anon`.
+- **Exécution Replay : PASS structurel.** Le bloc SQL de test relu depuis `main` s'est exécuté sans exception. Relecture des fonctions actives : le verrou précède bien le `SELECT count(*)` dans les deux moteurs; les privilèges observés correspondent au test.
+- **Limite :** aucun scénario de concurrence réel à deux sessions n'a été exécuté. Le contrôle établit la définition active, l'ordre du verrou et les ACL, mais ne constitue pas une preuve E2E de course concurrente.
+- Aucun changement de données métier, aucune écriture Production et aucun déploiement dans ce contrôle.
+- **Statut : JAUNE probatoire — contrôle SQL structurel Replay PASS; test de concurrence à deux sessions restant à réaliser.**
