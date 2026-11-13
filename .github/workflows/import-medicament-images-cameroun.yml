@@ -40,7 +40,7 @@ jobs:
           test -n "$SUPABASE_SERVICE_ROLE_KEY" || (echo "::error::Secret SUPABASE_SERVICE_ROLE_KEY manquant" && exit 1)
       - name: Importer les images avec licence compatible
         env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: https://eouwtuusnsuxaejsxknf.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           LIMIT="${{ github.event.inputs.limit || '40' }}"
