@@ -69,8 +69,11 @@ export async function POST(request: Request) {
     const fieldSources = {
       amount: payerSms?.amount !== null && payerSms?.amount !== undefined
         ? "sms_extracted"
-        : amount === Number(reservation.total) + Number(reservation.frais_livraison) ? "generated_default" : "manual_entry",
-      paidAt: payerSms?.occurredAt ? "sms_extracted" : "client_declared",
+        : body.fieldSources?.amount === "manual_entry" ? "manual_entry" : "generated_default",
+      paidAt: payerSms?.occurredAt
+        ? "sms_extracted"
+        : body.fieldSources?.paidAt === "manual_entry" ? "manual_entry"
+          : body.fieldSources?.paidAt === "generated_default" ? "generated_default" : "client_declared",
       reference: payerSms?.reference ? "sms_extracted" : "manual_entry",
       payerNumber: payerSms?.payerNumber ? "sms_extracted" : payerNumber ? "manual_entry" : "not_provided",
       sms: !smsText ? "not_shared" : payerSms ? "recognized_payer_debit" : "shared_unrecognized_manual_review",
