@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { archiveHomeServiceOffer, createHomeServiceOffer, transitionHomeServiceRequest } from "./actions";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
+import { GeolocalisationChamps } from "@/components/admin/GeolocalisationChamps";
+import { SuiviProfessionalAvailabilityEditor } from "@/components/suivi/SuiviProfessionalAvailabilityEditor";
 
 const field = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const offerStatus: Record<string, string> = { draft: "Brouillon — en attente de validation", active: "Publié", archived: "Archivé" };
@@ -26,7 +28,7 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/partenaire/prestations");
   const { data: members, error: memberError } = await sb.from("partner_members")
-    .select("partner_id,member_role,partners!inner(id,name,status,partner_type)")
+    .select("partner_id,member_role,partners!inner(id,name,status,partner_type,city,neighborhood,latitude,longitude,provider_latitude,provider_longitude,provider_location_updated_at)")
     .eq("user_id", auth.user.id).in("member_role", ["owner", "manager", "operator"]);
   if (memberError || !members?.length) redirect("/");
   const active = (members as any[]).filter((m) =>
@@ -73,9 +75,40 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
         <nav className="flex flex-wrap items-center gap-3 text-sm font-bold"><BoutonNotifications/><Link href="/promoteur/paiements" className="underline">Abonnement</Link><Link href="/partenaire/prestations/parametres" className="underline">Rappels</Link><Link href="/partenaire/catalogue" className="underline">Catalogue</Link><Link href="/partenaire/reservations" className="underline">Réservations</Link><Link href="/" className="underline">Accueil</Link></nav>
       </header>
       <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Prestations à domicile</p><h1 className="mt-1 text-3xl font-black">Mes prestations et demandes</h1><p className="mt-2 text-sm leading-6 text-slate-600">Les nouvelles prestations restent en brouillon jusqu’à validation administrative. Confirmer une demande signifie désormais retenir un créneau précis. L’adresse exacte du client reste masquée tant que la demande n’est pas confirmée.</p></div>
-      {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "creation" ? "Prestation enregistrée en brouillon." : searchParams.ok === "archive" ? "Prestation archivée." : searchParams.ok === "confirmed" ? "Rendez-vous confirmé et rappels programmables." : "Prestation marquée comme terminée."}</p>}
+      {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "position" ? "Votre position GPS prioritaire est enregistrée." : searchParams.ok === "position_reinitialisee" ? "La position administrative est de nouveau utilisée." : searchParams.ok === "creation" ? "Prestation enregistrée en brouillon." : searchParams.ok === "archive" ? "Prestation archivée." : searchParams.ok === "confirmed" ? "Rendez-vous confirmé et rappels programmables." : "Prestation marquée comme terminée."}</p>}
       {searchParams.erreur && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{searchParams.erreur === "univers" ? "L’univers Prestations doit être ouvert pour ce partenaire." : "Action impossible : vérifie les champs, les droits et le statut actuel."}</p>}
       {broken && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Le suivi des prestations est temporairement indisponible. Les actions sont désactivées jusqu’au retour des données.</p>}
+
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-extrabold">Mon planning de disponibilité</h2>
+        <p className="mt-1 text-sm text-slate-600">Ce planning alimente directement les filtres de disponibilité dans les recherches des clients et de l’assistance connectée.</p>
+        <div className="mt-4"><SuiviProfessionalAvailabilityEditor userId={auth.user.id}/></div>
+      </section>
+
+      <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-extrabold">Ma position de service</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Votre position déclarée ici est prioritaire sur la position de référence renseignée par l’administration. Vous pouvez la modifier à tout moment ou revenir à la position administrative.</p>
+        <div className="mt-4 space-y-4">
+          {active.map((membership:any)=>{
+            const partner=membership.partners;
+            const hasOwn=partner.provider_latitude!=null&&partner.provider_longitude!=null;
+            const effectiveLat=hasOwn?partner.provider_latitude:partner.latitude;
+            const effectiveLng=hasOwn?partner.provider_longitude:partner.longitude;
+            return <article key={partner.id} className="rounded-xl border p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-extrabold">{partner.name}</h3><p className="mt-1 text-xs text-slate-500">{hasOwn?"Position professionnelle prioritaire":"Position administrative de référence"} · {[partner.neighborhood,partner.city].filter(Boolean).join(" · ")}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{effectiveLat!=null&&effectiveLng!=null?"Position renseignée":"Position à définir"}</span></div>
+              {effectiveLat!=null&&effectiveLng!=null&&<p className="mt-2 text-sm text-slate-700">Coordonnées utilisées : {Number(effectiveLat).toFixed(6)} · {Number(effectiveLng).toFixed(6)}</p>}
+              <form action={updateHomeServicePartnerLocation} className="mt-3 space-y-3">
+                <input type="hidden" name="partner_id" value={partner.id}/>
+                <p className="text-sm font-semibold">Définir ou mettre à jour ma position GPS</p>
+                <GeolocalisationChamps className={field} initialLatitude={hasOwn?Number(partner.provider_latitude):null} initialLongitude={hasOwn?Number(partner.provider_longitude):null}/>
+                <button disabled={broken} className="min-h-11 rounded-xl bg-[#064B2A] px-4 font-bold text-white disabled:opacity-40">Enregistrer ma position prioritaire</button>
+              </form>
+              {hasOwn&&<form action={resetHomeServicePartnerLocation} className="mt-2"><input type="hidden" name="partner_id" value={partner.id}/><button disabled={broken} className="min-h-10 rounded-lg border px-3 text-sm font-bold disabled:opacity-40">Revenir à la position administrateur</button></form>}
+            </article>;
+          })}
+        </div>
+      </section>
+
 
       <section className="rounded-2xl border bg-white p-5 shadow-sm">
         <h2 className="text-xl font-extrabold">Créer une prestation</h2>
