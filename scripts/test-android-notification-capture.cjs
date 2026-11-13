@@ -17,8 +17,8 @@ const partnerRoute = read("src/app/api/partenaire/paiements/notification-candida
 const adminShare = read("src/app/api/admin/paiements/share/route.ts");
 const adminCapture = read("src/app/api/admin/paiements/capture/route.ts");
 const parser = read("src/lib/promoteurPaymentSms.ts");
-const promoterMigration = read("supabase/migrations/20261113180500_promoteur_payment_notification_candidates.sql");
-const partnerMigration = read("supabase/migrations/20261113180000_partner_payment_notification_capture.sql");
+const promoterMigration = read("supabase/migrations/20261113170204_promoteur_payment_notification_candidates.sql");
+const partnerMigration = read("supabase/migrations/20261113170158_partner_payment_notification_capture.sql");
 
 assert.match(gate, /role !in setOf\("pharmacie", "partenaire", "admin"\)/);
 assert.doesNotMatch(gate, /"client"|"promoteur"/);
