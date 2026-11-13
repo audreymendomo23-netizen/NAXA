@@ -85,7 +85,11 @@ export function UniverseLanding({ universe, comingSoon = false }: { universe: Un
                 <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
                   <p className="font-extrabold">Vos données restent sous votre contrôle.</p>
                   <p className="mt-1">Les images illustrent les catégories d’appareils. Elles ne représentent pas une marque et ne garantissent pas la compatibilité de votre modèle.</p>
-                  <Link href="/suivi" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-bold text-white hover:bg-blue-800">Ouvrir mon suivi santé</Link>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link href="/suivi" className="inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-bold text-white hover:bg-blue-800">Ouvrir mon suivi santé</Link>
+                    <Link href="/prestations?mode=assistance&origine=dispositifs-connectes" className="inline-flex min-h-11 items-center rounded-xl border border-blue-300 bg-white px-4 font-bold text-blue-900 hover:bg-blue-100">Demander une assistance à domicile</Link>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-blue-900">La position est demandée ponctuellement pour rechercher les professionnels proches ; son partage avec l’intervenant reste facultatif et soumis à votre accord.</p>
                 </div>
               )}
               {universe === "aide" && (
