@@ -193,7 +193,7 @@ test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont int
   assert.match(photoResolver, /if \(!updatedAt\) return null/);
   assert.match(recherche, /AEMPS \/ CIMA \(Espagne\)/);
   assert.match(recherche, /non preuve d’AMM ou de présentation camerounaise/);
-  assert.ok(photoResolver.includes("if (!url || !rights) return null"));
+  assert.match(photoResolver, /if \(!url \|\| !rights\) continue/);
   assert.ok(!photoResolver.includes("CIMA_LICENSE ="));
   assert.match(photoResolver, /materialas/);
   assert.match(photoResolver, /formafarmac/);
