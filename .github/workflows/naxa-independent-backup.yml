@@ -101,7 +101,7 @@ jobs:
           print(f"Supabase {mode} URI syntax validated for project {project_ref}; the actual database dump will perform the authoritative network/authentication test. Credentials were not printed.")
           PY
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: supabase/setup-cli@v3
         with:
@@ -153,7 +153,7 @@ jobs:
             "$PROJECT_REF" "$(date -u +%FT%TZ)" "$GITHUB_SHA" > backup/manifest.json
 
       - name: Store encrypted backup in GitHub Actions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: naxa-db-backup-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -165,7 +165,7 @@ jobs:
 
       - name: Configure external S3-compatible backup destination
         if: ${{ env.NAXA_BACKUP_S3_BUCKET != '' }}
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.NAXA_BACKUP_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.NAXA_BACKUP_AWS_SECRET_ACCESS_KEY }}

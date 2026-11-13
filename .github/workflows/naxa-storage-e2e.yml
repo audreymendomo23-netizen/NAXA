@@ -30,9 +30,9 @@ jobs:
       NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX: ${{ inputs.require_role_matrix && '1' || '0' }}
     steps:
       - name: Checkout QA source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
