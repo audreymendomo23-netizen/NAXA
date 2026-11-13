@@ -27,7 +27,7 @@ L'API de recherche rapproche cette projection par CIS BDPM exact. Les boîtes CI
 
 ## Garde-fous
 
-- CIMA : HTTPS et hôte officiel strict, correspondance du nom requise, type de photo explicite, date `fotos[].fecha` obligatoire, attribution AEMPS/CIMA et titulaire AMM ; réutilisation sous la politique officielle de données ouvertes, avec date de mise à jour visible ; toute restriction explicite est rejetée. Le moteur essaie les candidats suivants si un média est absent, sans date ou non réutilisable.
+- CIMA : HTTPS et hôte officiel strict, chemin et numéro d'enregistrement exacts, type de photo explicite, date `fotos[].fecha` obligatoire, attribution AEMPS/CIMA et titulaire AMM ; réutilisation sous la politique officielle de données ouvertes, avec date de mise à jour visible ; toute restriction explicite est rejetée. Le moteur examine toutes les photos d'un type, puis complète depuis la fiche détaillée du même numéro d'enregistrement avant de passer à un autre candidat.
 - Open Products Facts : code-barres exact, catégorie médicament et licence CC BY-SA ; aucun rapprochement flou par nom.
 - Wikimedia : correspondance textuelle, type boîte/comprimé, détection de combinaisons et licence vérifiée.
 - Une photo absente ou incertaine reste un placeholder ; une image de principe actif ne remplace pas une photo de produit commercial.
