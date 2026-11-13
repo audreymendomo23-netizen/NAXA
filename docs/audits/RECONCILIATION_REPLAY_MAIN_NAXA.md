@@ -91,3 +91,15 @@ Commencer le lot Paiements Promoteur en portant les fonctions et migrations requ
 - Fichiers volontairement préservés côté main pour compatibilité Next 14 / PWA : `AGENTS.md`, `next.config.mjs`, `package-lock.json`. Replay utilise Next 15 / React 19 / Serwist, tandis que main conserve Next 14 / React 18 / next-pwa ; aucune copie globale de ces fichiers n'a été faite.
 - CI GitHub Actions `NAXA quality` déclenchée sur le commit de fusion : run `43297547242`, en attente au dernier relevé.
 - Aucun déploiement Vercel ni aucune migration Supabase Production n'a été exécuté.
+
+
+## Réconciliation des branches post-déploiement — 2026-11-13
+
+- Dernier déploiement Production de référence : `8ebe45267b97c3b0c666b1df3f9e73df0b08c005`, daté du 2026-11-05 14:04:59 UTC.
+- Les branches de fonctionnalités examinées correspondent à des PR historiques déjà fusionnées avant ce déploiement (souvent par squash). Leur code est présent sous des versions plus récentes dans `main`; leurs anciens commits ne doivent pas être recopiés en bloc ni leurs anciens fichiers restaurés.
+- La tête Replay `f4edd8579971347aa090bf810e4357eca1ea26f8`, ainsi que `test/e2e-naxa` et `main-2`, est déjà ancêtre de `main`.
+- Les seules PR ouvertes postérieures au déploiement repérées sont #98 à #106 (Dependabot). Cinq mises à jour non majeures/CI ont été intégrées directement à `main` : actions/checkout v7, actions/setup-node v7, actions/upload-artifact v7, aws-actions/configure-aws-credentials v6 et PostCSS 8.5.32.
+- Commit d'intégration : `a0909abdd8b6b8957116a736254594b636eff420`. Il conserve l'arbre de code courant, applique les changements sur 8 workflows et `package.json`, et référence comme parents supplémentaires les cinq commits source des PR #98, #99, #100, #101 et #103. Les comparaisons GitHub confirment que ces cinq têtes sont désormais ancêtres de `main` (`ahead_by=0`).
+- Quatre mises à jour restent volontairement non intégrées : #102 `@simplewebauthn/server 14.1.0` (majeure, compatibilité API à vérifier), #104 `next 16.4.5` et #106 `eslint-config-next 16.4.5` (incompatibles en l'état avec le socle Next 14 / React 18 / next-pwa), #105 `tesseract.js 7.0.0` (majeure, contrat OCR à vérifier).
+- Les checks des PR Dependabot étaient en échec sur les tests. Le run du commit #103 a exécuté 376 tests : 357 réussis et 19 échoués, dont le test d'interopérabilité du suivi BLE. Le nouveau commit d'intégration a lancé `Tests, TypeScript et lint` (en attente au relevé) ; `Supabase Preview` a été annulé. Aucun déploiement Vercel ni aucune migration Supabase Production n'a été effectué.
+- Prochaine étape : relever le résultat du run sur `a0909ab`, traiter les 19 échecs de tests séparément des mises à jour Dependabot, puis réévaluer les quatre mises à jour majeures sans les intégrer à l'aveugle.
