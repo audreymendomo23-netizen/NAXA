@@ -20,7 +20,7 @@ vm.runInNewContext(compiled, {
   exports: moduleRef.exports,
   require,
 });
-const { isPayerSmsEligibleForAutomaticMatch } = moduleRef.exports;
+const { isPayerSmsEligibleForAutomaticMatch, parsePromoteurPaymentSms } = moduleRef.exports;
 
 assert.equal(typeof isPayerSmsEligibleForAutomaticMatch, "function");
 
@@ -42,6 +42,24 @@ const complete = {
 
 assert.equal(isPayerSmsEligibleForAutomaticMatch(complete), true,
   "un SMS de débit complet doit être éligible");
+
+const parsedCompleteMtn = parsePromoteurPaymentSms(
+  "Votre paiement de 2 500 FCFA à Pharmacie NAXA (237677000000) a été finalisé à 2026-11-13 18:20:00. Identifiant de transaction financière : MTN-REF-2026-12345",
+  "mtn_momo"
+);
+assert.equal(parsedCompleteMtn?.quality, "complete",
+  "le format MTN complet du Cameroun doit fournir une preuve de débit exploitable");
+assert.equal(isPayerSmsEligibleForAutomaticMatch(parsedCompleteMtn), true,
+  "le SMS MTN complet extrait doit être éligible");
+
+const parsedIncompleteMtn = parsePromoteurPaymentSms(
+  "Votre paiement de 2 500 FCFA à Pharmacie NAXA (237677000000) a été finalisé à 2026-11-13 18:20:00.",
+  "mtn_momo"
+);
+assert.equal(parsedIncompleteMtn?.quality, "incomplete",
+  "le SMS MTN sans ID de transaction doit être reconnu comme incomplet");
+assert.equal(isPayerSmsEligibleForAutomaticMatch(parsedIncompleteMtn), false,
+  "le SMS MTN sans ID ne doit jamais déclencher le rapprochement automatique");
 
 assert.equal(isPayerSmsEligibleForAutomaticMatch({ ...complete, quality: "incomplete" }), false,
   "un SMS reconnu mais incomplet ne doit jamais être une preuve automatique");
