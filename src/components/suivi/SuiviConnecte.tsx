@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DeviceIllustration } from "@/components/suivi/DeviceIllustration";
 import { SuiviHistoryChart } from "@/components/suivi/SuiviHistoryChart";
 import { SuiviPatientClinicalRecord } from "@/components/suivi/SuiviPatientClinicalRecord";
+import { SuiviProfessionalDirectorySearch } from "@/components/suivi/SuiviProfessionalDirectorySearch";
 import { OPTIONAL_GATT_SERVICES, decodeStandardGattMeasurement } from "@/lib/suivi/ble-protocols";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { enqueueSuiviMeasurements, listQueuedSuiviMeasurements, removeQueuedSuiviMeasurements } from "@/lib/suivi/measurement-outbox";
@@ -1691,13 +1692,7 @@ export function SuiviConnecte() {
       <section className={(activeTab==="Options" && optionsPage==="partage"?"":"hidden ")+"mt-5 naxa-bento-card rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(10,75,42,0.08)] print:hidden"}><button type="button" onClick={()=>setOptionsPage("home")} className="mb-3 min-h-11 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-[#0A6B3A]">← Options</button>
         <h2 className="text-xl font-extrabold">Voulez-vous être suivi(e) par un personnel de santé agréé par l’État ?</h2>
         <p className="mt-1 text-sm text-slate-600">Choisissez dans l'annuaire NAXA. Les professionnels non vérifiés, expirés ou désactivés ne sont pas proposés.</p>
-        {directoryLoading?<p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm">Chargement de l'annuaire agréé…</p>:<label className="mt-3 block text-sm font-semibold">Professionnel de santé
-          <select value={professionalId} onChange={e=>setProfessionalId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">
-            <option value="">Choisir un professionnel</option>
-            {professionalDirectory.map(p=><option key={p.user_id} value={p.user_id}>{p.display_name} · {({medecin:"Médecin",pharmacien:"Pharmacien",infirmier:"Infirmier",sage_femme:"Sage-femme",chirurgien_dentiste:"Chirurgien-dentiste",kinesitherapeute:"Kinésithérapeute",technicien_laboratoire:"Technicien de laboratoire",autre_sante:"Autre professionnel de santé"} as Record<string,string>)[p.professional_role]??"Professionnel de santé"}{p.specialty?" · "+p.specialty:""}</option>)}
-          </select>
-        </label>}
-        {!directoryLoading&&!professionalDirectory.length&&<p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Aucun professionnel agréé n'est actuellement disponible dans l'annuaire NAXA.</p>}
+        <SuiviProfessionalDirectorySearch selectedId={professionalId} onSelect={setProfessionalId}/>
         <label className="mt-3 block text-sm font-semibold">Type de mesure<select value={selectedType} onChange={e=>setSelectedType(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border px-3">{types.map(t=><option key={t.key} value={t.key}>{t.label}</option>)}</select></label>
         <div className="mt-4 space-y-3 rounded-xl border border-slate-200 p-3">
           <p className="font-bold">Choisissez les autorisations à accorder</p>
