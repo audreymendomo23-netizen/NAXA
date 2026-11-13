@@ -60,7 +60,11 @@ test("le devis routier applique les tranches progressives et les zones tout en c
 });
 
 test("le Client demande la livraison avant paiement et choisit le paiement seulement après confirmation Stock", () => {
-  assert.match(files.checkout, /p_paiement_mode:\s*delivery\s*\?\s*null/);
+  assert.match(files.checkout, /p_paiement_mode:delivery\?"a_convenir":method/);
+  assert.match(files.checkout, /\/api\/livraison\/devis/);
+  assert.match(files.checkout, /delivery_quote_id/);
+  assert.match(files.checkout, /Calculer les frais de livraison/);
+  assert.match(files.checkout, /Choisi.*après confirmation.*Gestionnaire de stock/);
   assert.match(files.checkout, /Demande de livraison envoyée/);
   assert.match(files.stockAction, /gestionnaire_stock_confirmer_demande_livraison/);
   assert.match(files.paymentSelector, /if\s*\(!stockConfirmedAt\)/);

@@ -14,6 +14,7 @@ import { RappelsLotsBanner } from "@/components/pharmacie/RappelsLotsBanner";
 import { CaisseWorkspaceShell } from "@/components/pharmacie/CaisseWorkspaceShell";
 import { pendingCount, terminalCount, getLocalDeviceIdentity } from "@/lib/offline-db";
 import { CaisseHorsLigne } from "@/components/pharmacie/CaisseHorsLigne";
+import { DeliveryPaymentValidationPanel } from "@/components/pharmacie/DeliveryPaymentValidationPanel";
 
 type Produit = {
   produit_id: string;
@@ -655,6 +656,7 @@ export default function CaissePage() {
             </section>
             <a href="/pharmacie/assurance" className="btn btn-vert mb-3 inline-flex">Suivi Assurance et créances</a>
             <RapportsALaDemande variant="comptable" />
+            <DeliveryPaymentValidationPanel pharmacieId={pid} sessionId={session?.id ?? null} />
             <nav aria-label="Onglets du tableau de bord caisse" className="mb-4 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3">
               <button type="button" className={onglet === "caisse" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("caisse"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Encaissement</button>
               <button type="button" className={onglet === "recherche" ? "btn btn-vert shrink-0" : "btn btn-clair shrink-0"} onClick={() => { setOnglet("recherche"); document.getElementById("caisse-encaissement")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Recherche prix</button>

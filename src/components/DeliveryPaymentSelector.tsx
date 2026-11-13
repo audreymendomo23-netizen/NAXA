@@ -20,7 +20,10 @@ export function DeliveryPaymentSelector({
   totalArticles, fraisLivraison,
 }: Props) {
   const [installedPwa, setInstalledPwa] = useState(false);
-  const [mode, setMode] = useState(paymentMode ?? "");
+  const [mode, setMode] = useState(paymentMode && paymentMode !== "a_convenir" ? paymentMode : "");
+  useEffect(() => {
+    setMode(paymentMode && paymentMode !== "a_convenir" ? paymentMode : "");
+  }, [paymentMode]);
   const [reference, setReference] = useState(paymentReference ?? "");
   const [details, setDetails] = useState<PaymentDetails | null>(null);
   const [busy, setBusy] = useState(false);

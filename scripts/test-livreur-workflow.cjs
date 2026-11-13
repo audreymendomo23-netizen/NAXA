@@ -62,10 +62,13 @@ test("l'invitation est à usage unique et exige un compte Client vérifié", () 
 test("la livraison ne peut être publiée qu'après la preuve de préparation physique Stock", () => {
   assert.match(files.stockGate, /v_r\.preparation_statut<>'prete_au_retrait'/);
   assert.match(files.stockGate, /gestionnaire_stock_commande_preparation/);
+  assert.match(files.stockPage, /confirmerDemandeLivraisonStock/);
   assert.match(files.stockPage, /mettreCommandeEnPreparationStock/);
   assert.match(files.stockPage, /marquerCommandePretePourLivraison/);
-  assert.match(files.stockPage, /publierCommandePourLivreurs/);
-  assert.match(files.stockActions, /naxa_delivery_make_available/);
+  assert.match(files.stockPage, /mission est déjà proposée aux livreurs/);
+  assert.match(files.stockActions, /gestionnaire_stock_confirmer_demande_livraison/);
+  assert.match(files.stockActions, /gestionnaire_stock_commande_preparation/);
+  assert.match(files.stockGate, /naxa_delivery_make_available/);
 });
 
 test("les notifications respectent la contrainte de destinataire unique", () => {
@@ -129,7 +132,8 @@ test("le Client voit le parcours et reste le seul à confirmer la réception", (
 });
 
 test("l'interface Pharmacie ne propose plus de simuler les étapes du Livreur", () => {
-  assert.match(files.orderPage, /next:Record<string,string>\s*=\s*\{en_attente_pharmacie:"acceptee",acceptee:"preparation"\}/);
+  assert.match(files.orderPage, /SuiviLivraisonPharmacie/);
+  assert.match(files.orderPage, /commande_statut/);
   assert.doesNotMatch(files.orderPage, /preparation:"livreur_assigne"/);
   assert.doesNotMatch(files.orderPage, /en_livraison:"livree"/);
 });
