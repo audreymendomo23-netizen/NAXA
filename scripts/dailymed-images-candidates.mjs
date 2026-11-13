@@ -250,8 +250,8 @@ async function supabase(path, options = {}) {
 async function main() {
   console.log("NAXA — DailyMed v2 | limite=" + LIMIT + " | dry-run=" + DRY_RUN);
   const queueParams = new URLSearchParams({
-    select: "cis,cip_code,libelle_presentation,statut",
-    statut: "in.(a_traiter,sans_image_source,erreur,correspondance_a_verifier)",
+    select: "cis,cip_code,libelle_presentation,statut,image_url",
+    or: "(statut.in.(a_traiter,sans_image_source,erreur),and(statut.eq.correspondance_a_verifier,image_url.is.null))",
     order: "updated_at.asc",
     limit: String(LIMIT)
   });
