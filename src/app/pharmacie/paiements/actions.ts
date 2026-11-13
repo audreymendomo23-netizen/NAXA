@@ -16,7 +16,7 @@ async function authorizedPharmacy() {
   const { data: businessFunction, error: functionError } = await sb.rpc("naxa_business_function");
   if (
     functionError || !profile || profile.actif !== true ||
-    profile.role !== "pharmacie" ||
+    !["pharmacie", "responsable"].includes(profile.role ?? "") ||
     !["pharmacie", "responsable"].includes(businessFunction ?? "") ||
     !profile.pharmacie_id
   ) redirect("/");
