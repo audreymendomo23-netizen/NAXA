@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { SuiviConnecte } from "@/components/suivi/SuiviConnecte";
 
@@ -14,7 +15,7 @@ export default async function SuiviPage() {
         <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">NAXA · Espace privé</p>
         <h1 className="mt-2 text-2xl font-black">Suivi connecté indisponible</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">Cet espace privé n’est pas activé pour votre compte ou le service est temporairement indisponible. L’univers commercial des dispositifs médicaux reste distinct de cet espace de suivi personnel.</p>
-        <a href="/" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-emerald-800 px-4 font-bold text-white">Retour à NAXA</a>
+        <Link href="/" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-emerald-800 px-4 font-bold text-white">Retour à NAXA</Link>
       </section>
     </main>;
   }

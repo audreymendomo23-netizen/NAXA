@@ -9,9 +9,9 @@ function loadTypeScript(relativePath) {
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
-  const module = { exports: {} };
-  new Function("require", "module", "exports", compiled)(require, module, module.exports);
-  return module.exports;
+  const loadedModule = { exports: {} };
+  new Function("require", "module", "exports", compiled)(require, loadedModule, loadedModule.exports);
+  return loadedModule.exports;
 }
 const calc = loadTypeScript("src/lib/compta/calculs.ts");
 const moteur = loadTypeScript("src/lib/compta/moteur.ts");
