@@ -53,11 +53,11 @@ export async function POST(request: Request) {
     if (reference.length < 5 || reference.length > 120 || !/^[\\p{L}\\p{N}\\s_./-]+$/u.test(reference)) {
       return NextResponse.json({ error: "ID / Référence de transaction obligatoire (5 caractères minimum). Le SMS partagé n'a pas permis de l'extraire automatiquement." }, { status: 400 });
     }
-    const payerNumber = String(parsed?.payerNumber ?? body.payerNumber ?? "").trim().slice(0, 40);
+    const payerNumber = String(payerSms?.payerNumber ?? body.payerNumber ?? "").trim().slice(0, 40);
     if (payerNumber && (digits(payerNumber).length < 8 || digits(payerNumber).length > 15)) {
       return NextResponse.json({ error: "Numéro payeur invalide." }, { status: 400 });
     }
-    const paidAtRaw = parsed?.occurredAt ?? String(body.paidAt ?? new Date().toISOString());
+    const paidAtRaw = payerSms?.occurredAt ?? String(body.paidAt ?? new Date().toISOString());
     const paidAt = new Date(paidAtRaw);
     const now = new Date();
     if (!Number.isFinite(paidAt.getTime()) || paidAt.getTime() > now.getTime() + 5 * 60_000 ||
