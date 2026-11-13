@@ -96,4 +96,7 @@ assert.match(deliveryRoute, /isPayerSmsEligibleForAutomaticMatch/);
 assert.match(partnerRoute, /p_proof_source:completePayerSms\?"shared_sms":"manual_entry"/);
 assert.match(deliveryRoute, /p_proof_source: parsedProof \? "shared_sms" : "manual_entry"/);
 
+assert.match(partnerRoute, /p_payer_number:completePayerSms\?\(extractedPayer\?\.payerNumber\?\?null\):\(payerNumber\|\|null\)/);
+assert.match(deliveryRoute, /p_payer_number: parsedProof \? \(extractedPayer\?\.payerNumber \?\? null\) : \(payerNumber \|\| null\)/);
+
 console.log("PASS — SMS partiel/corrigé bloqué en preuve automatique ; complétude commune appliquée aux parcours Pharmacie et Partenaire.");
