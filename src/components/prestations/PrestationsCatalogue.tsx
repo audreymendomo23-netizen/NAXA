@@ -134,7 +134,7 @@ export function PrestationsCatalogue({offers,initialQuery,assistanceMode}:{offer
   },[offers,query]);
 
   const filtered=useMemo(()=>{
-    const q=normalize(query);
+    const hasQuery=query.trim().length>=2;
     const aiSpecialties=intent.specialties.map(normalize);
     const aiKeywords=intent.keywords.map(normalize);
     const result=offers.filter(offer=>{
