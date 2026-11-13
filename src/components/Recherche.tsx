@@ -14,7 +14,7 @@ type MedicamentPhotoItem = {
   attribution: string | null;
   title: string;
   kind: "boite" | "comprime";
-  provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
+  provider?: "catalogue_local_verifie";
   updatedAt?: string | null;
 };
 type MedicamentRecherche = {
@@ -157,7 +157,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
         if (!response.ok) throw new Error("catalogue indisponible");
         const data = await response.json() as { results?: MedicamentRecherche[] };
         let results = Array.isArray(data.results) ? data.results : [];
-        // Recherche directe par EAN/GTIN : OPF n'est appelé que sur code-barres exact.
+        // Recherche directe par EAN/GTIN dans le catalogue local NAXA.
         if (results.length === 0 && /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(terme)) {
           try {
             const barcodeResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(terme), { signal: controller.signal });
@@ -175,34 +175,11 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 const photoSources = [...new Set(
                   [photos.boite, photos.comprime]
                     .filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
-                    .map((photo) => photo.provider === "cima_aemps"
-                      ? "AEMPS / CIMA"
-                      : photo.provider === "open_products_facts"
-                        ? "Open Products Facts"
-                        : photo.provider === "catalogue_local_verifie"
-                          ? "Catalogue local NAXA"
-                          : "Wikimedia Commons")
+                    .map(() => "Catalogue local NAXA")
                 )];
                 const photoDetails = [photos.boite, photos.comprime]
                   .filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
-                  .map((photo) => ({
-                    name: photo.provider === "cima_aemps"
-                      ? "AEMPS / CIMA"
-                      : photo.provider === "open_products_facts"
-                        ? "Open Products Facts"
-                        : photo.provider === "catalogue_local_verifie"
-                          ? "Catalogue local NAXA"
-                          : "Wikimedia Commons",
-                    role: photo.provider === "cima_aemps"
-                      ? "référence étrangère indicative ; ne confirme pas le conditionnement camerounais"
-                      : photo.provider === "open_products_facts"
-                        ? "photo rattachée au GTIN exact ; licence CC BY-SA"
-                        : photo.provider === "catalogue_local_verifie"
-                          ? "photo locale dont la source et la licence ont été vérifiées"
-                          : "image sous licence vérifiée ; identité contrôlée",
-                    url: photo.sourceUrl,
-                    updatedAt: photo.updatedAt ?? null
-                  }));
+                  .map((photo) => ({ name: "Catalogue local NAXA", role: "photo locale dont la source et la licence ont été vérifiées", url: photo.sourceUrl, updatedAt: photo.updatedAt ?? null }));
                 results = [{
                   id: "barcode-" + terme,
                   name: primary.title || "Médicament — code " + terme,
@@ -242,7 +219,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
         enregistrerCacheRecherche(terme, results);
 
         // Recherche indépendante : une photo ne peut jamais être attribuée à un autre résultat.
-        // Deux workers maximum : ils séquencent les appels externes et protègent les quotas gratuits.
+        // Deux workers maximum pour limiter les requêtes au catalogue local.
         // Rechercher aussi les vues manquantes d'un résultat déjà illustré :
         // une boîte connue ne doit pas empêcher l'ajout de la forme pharmaceutique.
         const ciblesPhoto = results.filter((item) =>
@@ -269,8 +246,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                   comprime: item.imageVariants?.comprime ?? null
                 };
                 for (const photoQuery of photoQueries) {
-                  // Le GTIN fournit généralement la boîte ; la recherche par nom
-                  // complète ensuite la forme pharmaceutique sans remplacer la vue validée.
+                  // Le GTIN ou le nom recherchent uniquement les photos locales vérifiées.
                   if (imageVariants.boite && imageVariants.comprime) break;
                   const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(photoQuery), {
                     signal: controller.signal
@@ -289,31 +265,17 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 const primary = imageVariants.boite ?? imageVariants.comprime;
                 if (!primary || controller.signal.aborted) continue;
 
-                const providerLabel = (provider: MedicamentPhotoItem["provider"]) => provider === "cima_aemps"
-                  ? "AEMPS / CIMA"
-                  : provider === "open_products_facts"
-                    ? "Open Products Facts"
-                    : provider === "catalogue_local_verifie"
-                      ? "Catalogue local NAXA"
-                      : "Wikimedia Commons";
+                const providerLabel = (_provider: MedicamentPhotoItem["provider"]) => "Catalogue local NAXA";
                 const displayedSourceName = [...new Set(
                   [imageVariants.boite, imageVariants.comprime].filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
                     .map((photo) => providerLabel(photo.provider))
                 )].join(" + ");
-                const imageSource = primary.provider === "cima_aemps"
-                  ? "AEMPS / CIMA (Espagne) — référence visuelle indicative, non preuve d’AMM ou de présentation camerounaise"
-                  : displayedSourceName;
+                const imageSource = displayedSourceName;
                 const photoSourceDetails = [imageVariants.boite, imageVariants.comprime]
                   .filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
                   .map((photo) => ({
                     name: providerLabel(photo.provider),
-                    role: photo.provider === "cima_aemps"
-                      ? "référence étrangère indicative ; ne confirme ni la marque, ni le conditionnement camerounais"
-                      : photo.provider === "open_products_facts"
-                        ? "photo rattachée au GTIN exact ; licence CC BY-SA"
-                        : photo.provider === "catalogue_local_verifie"
-                          ? "photo locale dont la source et la licence ont été vérifiées"
-                          : "illustration sous licence vérifiée ; identité contrôlée par titre et catégories",
+                    role: "photo locale dont la source et la licence ont été vérifiées",
                     url: photo.sourceUrl,
                     updatedAt: photo.updatedAt ?? null
                   }));
@@ -468,10 +430,8 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                     {medicament.imageVariants?.comprime?.url && medicament.imageVariants.comprime.url !== medicament.imageUrl && (
                       <img
                         src={medicament.imageVariants.comprime.url}
-                        alt={medicament.imageVariants.comprime.provider === "cima_aemps"
-                          ? "Référence visuelle de la forme pharmaceutique CIMA — vérifier le produit local"
-                          : "Référence visuelle du comprimé — vérifier l'identité avant toute utilisation"}
-                        title={(medicament.imageVariants.comprime.provider === "cima_aemps" ? "Forme pharmaceutique · " : "Comprimé · ") + medicament.imageVariants.comprime.licence}
+                        alt={"Photo de référence du catalogue local NAXA"}
+                        title={"Photo locale · " + medicament.imageVariants.comprime.licence}
                         className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
                         loading="lazy" decoding="async"
                       />
@@ -510,7 +470,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}{medicament.imageAttribution ? " · " + medicament.imageAttribution : ""}{medicament.imageSourceUrl ? <> · <a href={medicament.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">Source photo</a></> : ""}</p>}
                 {medicament.imageVariants && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
                   {medicament.imageVariants.boite && <a href={medicament.imageVariants.boite.sourceUrl} target="_blank" rel="noreferrer" className="underline">Boîte · {medicament.imageVariants.boite.licence}{medicament.imageVariants.boite.attribution ? " · " + medicament.imageVariants.boite.attribution : ""}</a>}
-                  {medicament.imageVariants.comprime && <a href={medicament.imageVariants.comprime.sourceUrl} target="_blank" rel="noreferrer" className="underline">{medicament.imageVariants.comprime.provider === "cima_aemps" ? "Forme pharmaceutique" : "Comprimé"} · {medicament.imageVariants.comprime.licence}{medicament.imageVariants.comprime.attribution ? " · " + medicament.imageVariants.comprime.attribution : ""}</a>}
+                  {medicament.imageVariants.comprime && <a href={medicament.imageVariants.comprime.sourceUrl} target="_blank" rel="noreferrer" className="underline">Photo locale · {medicament.imageVariants.comprime.licence}{medicament.imageVariants.comprime.attribution ? " · " + medicament.imageVariants.comprime.attribution : ""}</a>}
                 </div>}
                 <div className="mt-2 space-y-1">
                   <p className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${medicament.availability === "disponible" ? "bg-emerald-100 text-emerald-800" : medicament.availability === "indisponible" ? "bg-slate-100 text-slate-700" : "bg-amber-100 text-amber-800"}`}>
