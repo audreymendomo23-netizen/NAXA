@@ -57,8 +57,10 @@ begin
   if position('source_level=1' in replace(v_confirm,' ',''))=0
      or position('source_type=''payer_sms''' in v_confirm)=0
      or position('source_level=2' in replace(v_confirm,' ',''))=0
-     or position('source_type=''merchant_sms''' in v_confirm)=0 then
-    raise exception 'La confirmation automatique ne requiert pas explicitement les deux preuves indépendantes';
+     or position('source_type=''merchant_sms''' in v_confirm)=0
+     or position('c.reference_normalisee=e.reference_normalisee' in replace(v_confirm,' ','') )=0
+     or (length(v_confirm)-length(replace(lower(v_confirm),'not exists','')))/length('not exists')<2 then
+    raise exception 'La confirmation automatique doit exiger les deux preuves indépendantes et rattacher la référence crédit à son SMS Admin';
   end if;
 
   select pg_get_functiondef(

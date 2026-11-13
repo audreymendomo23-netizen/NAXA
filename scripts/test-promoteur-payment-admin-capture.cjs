@@ -90,6 +90,16 @@ test("capture Admin : ambiguïté ou payeur non identifiable interdit le renouve
   assert.match(dualProofMigration, /merchant_sms/);
 });
 
+test("les références de débit et de crédit peuvent différer mais doivent prouver le même règlement", () => {
+  assert.match(dualProofMigration, /c\.source_level=1\s+and c\.source_type='payer_sms'/);
+  assert.match(dualProofMigration, /c\.reference_normalisee=e\.reference_normalisee/);
+  assert.match(dualProofMigration, /c\.source_level=2\s+and c\.source_type='merchant_sms'/);
+  assert.doesNotMatch(
+    dualProofMigration,
+    /c\.reference_normalisee=e\.reference_normalisee\s+and c\.canal=e\.canal\s+and c\.source_level=1/
+  );
+});
+
 test("OCR : fichier image/PDF local, limite pages, aucun texte brut persistant", () => {
   const ocr = sources["src/lib/promoteurPaymentProofOcr.ts"];
   const action = sources["src/app/admin/pilotage/reglements/actions.ts"];

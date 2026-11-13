@@ -86,16 +86,23 @@ begin
     raise exception 'Horodatage operateur incompatible avec le paiement declare';
   end if;
 
+  -- Les références de débit et de crédit peuvent différer selon l'opérateur.
+  -- Elles doivent toutefois être deux preuves distinctes rattachées au même règlement/canal.
   if not exists (
     select 1 from public.naxa_promoteur_payment_reference_claims c
-    where c.reglement_id=a.id and c.reference_normalisee=e.reference_normalisee
-      and c.canal=e.canal and c.source_level=1 and c.source_type='payer_sms'
+    where c.reglement_id=a.id
+      and c.canal=e.canal
+      and c.source_level=1
+      and c.source_type='payer_sms'
   ) or not exists (
     select 1 from public.naxa_promoteur_payment_reference_claims c
-    where c.reglement_id=a.id and c.reference_normalisee=e.reference_normalisee
-      and c.canal=e.canal and c.source_level=2 and c.source_type='merchant_sms'
+    where c.reglement_id=a.id
+      and c.reference_normalisee=e.reference_normalisee
+      and c.canal=e.canal
+      and c.source_level=2
+      and c.source_type='merchant_sms'
   ) then
-    raise exception 'Les deux preuves indépendantes (débit Promoteur et crédit Admin) sont obligatoires';
+    raise exception 'Les deux preuves indépendantes (SMS de débit Promoteur et SMS de crédit Admin) sont obligatoires';
   end if;
 
   v_confirmation:=public.admin_confirmer_reglement_promoteur(a.id,d.admin_id);

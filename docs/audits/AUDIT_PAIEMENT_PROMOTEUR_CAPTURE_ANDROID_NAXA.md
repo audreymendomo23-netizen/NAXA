@@ -1,5 +1,25 @@
 # Audit — capture Android du paiement Promoteur NAXA
 
+> **État courant sur `main` — 13 novembre 2026**
+>
+> Le contenu daté du 7 au 11 novembre ci-dessous constitue l'historique des étapes QA ; il ne décrit plus à lui seul l'architecture actuelle.
+>
+> ## Circuit de paiement actuellement intégré
+>
+> - **Promoteur :** le compagnon Android standard prépare le paiement sur le téléphone enrôlé. Après le débit, le Promoteur partage volontairement son SMS à NAXA Paiement (`POST /api/promoteur/paiements/share`). Le montant est comparé au tarif d'abonnement chargé côté serveur. L'ancien endpoint `/api/promoteur/paiements/capture` répond désormais `410` et redirige vers le partage volontaire.
+> - **Administrateur :** la variante Android Admin reçoit le SMS de crédit après consentement explicite et permission Android. Le serveur rapproche canal, montant, destination, payeur et fenêtre horaire. Un cas incomplet, ambigu ou discordant reste en vérification manuelle.
+> - **Double preuve Promoteur :** l'activation automatique exige un SMS de débit Promoteur de niveau 1 et un SMS de crédit Admin de niveau 2, tous deux rattachés au même règlement et au même canal. Les références de transaction du débit et du crédit peuvent être différentes ; la référence du SMS Admin doit correspondre à sa revendication de niveau 2. Les deux preuves doivent aussi passer les contrôles montant, destination, payeur et temps. Le partage manuel seul ne déclenche jamais un renouvellement.
+> - **Client :** après confirmation du stock, le Client choisit MTN Mobile Money ou Orange Money, partage volontairement son SMS ou saisit les champs manuellement. La déclaration est visible dans la Caisse avec montant, numéro payeur, date et source ; la pharmacie contrôle le crédit et confirme via le ticket POS. Le SMS partagé ne vaut jamais encaissement.
+> - **Compagnon Android :** le produit est sous `android/payment-companion/` avec variantes `standard` et `admin`. La variante standard n'écoute pas les SMS ; elle traite le partage volontaire Client/Promoteur. La permission `RECEIVE_SMS` est limitée à la variante Admin.
+>
+> ## État des migrations et de la distribution
+>
+> Les migrations `20261113110000_payment_sms_declarations_and_dual_proof_guard.sql` et `20261113111000_promoteur_payment_require_dual_sms_proofs.sql` sont présentes dans le dépôt. Leur application sur une base Replay n'est pas attestée par le présent audit ; elles ne doivent pas être considérées comme appliquées en Production. Aucun déploiement Production n'est couvert par cette mise à jour.
+>
+> La CI Android avait confirmé la compilation, les tests unitaires et l'assemblage Debug des deux variantes sur le commit antérieur `c7bc186bdfe3ad38db4c2db83c9df1f109e24763`. Les APK Release signés, l'allowlist réelle de la permission SMS sur un téléphone Admin, les SMS Orange/MTN de production et les E2E Client→Caisse / Promoteur→Admin restent à valider sur les environnements/appareils autorisés.
+>
+> ---
+
 Date : 7 novembre 2026  
 Branche : `qa/e2e-stabilisation-20261106`  
 Environnement de données autorisé : Supabase Replay `pwfftcsjyeibxxqhwysw`.
