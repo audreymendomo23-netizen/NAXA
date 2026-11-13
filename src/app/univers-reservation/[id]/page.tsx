@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { annulerReservationUnivers } from "@/app/univers-actions";
 import { ClearReservedGroup } from "@/components/universes/ClearReservedGroup";
+import { PartnerUniversePaymentPanel } from "@/components/PartnerUniversePaymentPanel";
 
 type Item = { product_name: string; unit_price_fcfa: number; quantity: number; line_total_fcfa: number };
 type Receipt = {
@@ -47,10 +48,16 @@ export default async function ReservationUniversPage({ params, searchParams }: P
     {query.ok && <p role="status" className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation annulée.</p>}
     {query.erreur && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">L’annulation n’a pas abouti. Actualisez le statut avant de réessayer.</p>}
     <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">{universe} · Retrait</p><h1 className="mt-1 text-2xl font-black">Mon reçu de réservation</h1>
-    <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-sm text-slate-500">Statut</p><p className="mt-1 font-extrabold">{statusText[receipt.status] ?? receipt.status}</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">Sans paiement en ligne</span></div>
+    <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-sm text-slate-500">Statut</p><p className="mt-1 font-extrabold">{statusText[receipt.status] ?? receipt.status}</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">Réservation Partenaire</span></div>
       <div className="mt-5 rounded-xl bg-[#E6F7F6] p-4 text-center"><p className="text-xs font-bold uppercase tracking-widest text-[#096A6F]">Code de retrait</p><p className="mt-2 font-mono text-3xl font-black tracking-[0.25em] text-[#064B2A]">{receipt.pickup_code}</p><p className="mt-2 text-xs leading-5 text-slate-700">Présentez ce code au partenaire lorsque la réservation sera marquée « Prête pour le retrait ».</p></div>
       <dl className="mt-4 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">Partenaire</dt><dd className="text-right font-semibold">{receipt.partner_name}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Créée le</dt><dd className="text-right font-semibold">{new Date(receipt.created_at).toLocaleString("fr-FR")}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Valable jusqu’au</dt><dd className="text-right font-semibold">{new Date(receipt.expires_at).toLocaleString("fr-FR")}</dd></div></dl>
     </section>
+    <PartnerUniversePaymentPanel
+      reservationId={receipt.reservation_id}
+      reservationStatus={receipt.status}
+      totalFcfa={receipt.total_fcfa}
+      partnerName={receipt.partner_name}
+    />
     <section className="carte mt-4"><h2 className="font-extrabold">Articles réservés</h2><ul className="mt-3 space-y-3">{(receipt.items ?? []).map((item,i)=><li key={i} className="flex justify-between gap-3 border-b border-slate-100 pb-3 last:border-0"><div><p className="font-semibold">{item.product_name}</p><p className="text-sm text-slate-500">{item.quantity} × {money(item.unit_price_fcfa)}</p></div><p className="font-bold">{money(item.line_total_fcfa)}</p></li>)}</ul><div className="mt-3 flex justify-between border-t pt-3"><span className="font-bold">Total indicatif</span><strong>{money(receipt.total_fcfa)}</strong></div></section>
     {canCancel && <form action={annulerReservationUnivers} className="mt-4"><input type="hidden" name="reservation_id" value={receipt.reservation_id}/><button className="min-h-11 w-full rounded-xl border border-red-300 px-4 py-2 font-bold text-red-800">Annuler la réservation</button></form>}
     <p className="mt-4 text-xs leading-5 text-slate-500">Le total est un récapitulatif de la réservation, pas un reçu de paiement. Ne vous déplacez qu’après confirmation de la disponibilité par le partenaire.</p>
