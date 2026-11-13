@@ -584,10 +584,14 @@ export async function GET(request: NextRequest) {
   });
 
   const mergedResults = results.map((item) => {
-    const match = bdpmProducts.find((bdpm) =>
-      normaliserTerme(bdpm.nom) === normaliserTerme(item.name) ||
-      (bdpm.substances_actives && item.activeIngredient && normaliserTerme(bdpm.substances_actives).includes(normaliserTerme(item.activeIngredient)))
+    const exactBdpmMatch = bdpmProducts.find((bdpm) =>
+      normaliserTerme(bdpm.nom) === normaliserTerme(item.name)
     );
+    const ingredientBdpmMatch = bdpmProducts.find((bdpm) =>
+      bdpm.substances_actives && item.activeIngredient
+      && normaliserTerme(bdpm.substances_actives).includes(normaliserTerme(item.activeIngredient))
+    );
+    const match = exactBdpmMatch ?? ingredientBdpmMatch;
     if (!match) return item;
     const bdpmSource = {
       name: match.source_nom || "BDPM",
