@@ -21,6 +21,7 @@ class MainActivity : Activity() {
     private lateinit var roleGroup: RadioGroup
     private lateinit var smsConsent: CheckBox
     private lateinit var connectButton: Button
+    private lateinit var permissionButton: Button
     private lateinit var statusText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,6 +100,11 @@ class MainActivity : Activity() {
             setPadding(0, dp(16), 0, dp(6))
         }
         root.addView(statusText)
+        permissionButton = Button(this).apply {
+            text = "Activer / réessayer l'autorisation SMS"
+            setOnClickListener { requestSmsPermission() }
+        }
+        root.addView(permissionButton)
 
         smsConsent.setOnCheckedChangeListener { _, checked ->
             SecureVault.put(this, "sms_consent_granted", checked.toString())
