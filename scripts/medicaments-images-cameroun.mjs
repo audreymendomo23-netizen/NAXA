@@ -9,6 +9,8 @@
  * Usage : node scripts/medicaments-images-cameroun.mjs [--limit=40] [--dry-run]
  * Nécessite SUPABASE_URL (ou NEXT_PUBLIC_SUPABASE_URL) et SUPABASE_SERVICE_ROLE_KEY.
  */
+import { searchDailyMed, getSplMedia, resolveRxNormTerms, buildCandidateUpdate } from "./dailymed-images-candidates.mjs";
+
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -177,6 +179,58 @@ async function loadNames(cisList) {
   return map;
 }
 
+
+async function saveDailyMedCandidate(row, update) {
+  if (DRY_RUN) return update;
+  const params = new URLSearchParams({ cis: "eq." + row.cis, cip_code: "eq." + row.cip_code });
+  await supabaseRequest("/medicaments_images?" + params.toString(), {
+    method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(update)
+  });
+  return update;
+}
+
+async function findDailyMedCandidates(row, ref) {
+  const ingredients = String(ref.substances_actives ?? "").split(/[;,|]/).map((x) => x.trim()).filter(Boolean);
+  const baseTerms = [...new Set([ref.nom, ...ingredients])].slice(0, 4);
+  const queries = new Set(baseTerms);
+  const rxnormCandidates = [];
+  for (const term of baseTerms.slice(0, 3)) {
+    try {
+      const resolved = await resolveRxNormTerms(term);
+      for (const candidate of resolved.slice(0, 5)) {
+        rxnormCandidates.push({ query: term, ...candidate });
+        queries.add(candidate.name);
+      }
+    } catch (error) {
+      console.warn("RxNorm indisponible", term, error.message);
+    }
+    await delay(1200);
+  }
+  const spls = new Map();
+  for (const term of [...queries].slice(0, 8)) {
+    try {
+      for (const spl of await searchDailyMed(term)) {
+        if (spl.setid) spls.set(spl.setid, { ...spl, matched_identity: term });
+      }
+    } catch (error) {
+      console.warn("DailyMed indisponible", term, error.message);
+    }
+    await delay(1200);
+  }
+  const candidates = [];
+  for (const spl of [...spls.values()].slice(0, 5)) {
+    const media = await getSplMedia(spl.setid).catch(() => []);
+    if (media.length) candidates.push({
+      setid: spl.setid, title: spl.title ?? null, published_date: spl.published_date ?? null,
+      label_url: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + encodeURIComponent(spl.setid),
+      matched_identity: spl.matched_identity,
+      media: media.map((item) => ({ name: item.name, mime_type: item.mime_type, url: item.url }))
+    });
+    await delay(1200);
+  }
+  return candidates.length ? buildCandidateUpdate(row, ref, candidates, rxnormCandidates) : null;
+}
+
 async function savePhoto(row, photo) {
   const update = {
     image_path: null,
@@ -201,7 +255,7 @@ async function main() {
   console.log("NAXA — import images par CIS/CIP | limite=" + LIMIT + " | dry-run=" + DRY_RUN);
   const queue = await loadQueue();
   const names = await loadNames([...new Set(queue.map((row) => row.cis))]);
-  const report = { queued: queue.length, attempted: 0, found: 0, opf: 0, commons: 0, missing: 0, errors: 0, items: [] };
+  const report = { queued: queue.length, attempted: 0, found: 0, dailymed_candidates: 0, opf: 0, commons: 0, missing: 0, errors: 0, items: [] };
   for (const row of queue.slice(0, LIMIT)) {
     report.attempted++;
     const ref = names.get(row.cis);
@@ -212,8 +266,17 @@ async function main() {
     }
     const identity = [ref.nom, ref.substances_actives].filter(Boolean).join(" ");
     try {
+      // DailyMed est la source prioritaire de découverte. Ses médias restent en
+      // correspondance_a_verifier : l'API ne fournit pas les droits par image.
+      const dailyMedUpdate = await findDailyMedCandidates(row, ref);
+      if (dailyMedUpdate) {
+        await saveDailyMedCandidate(row, dailyMedUpdate);
+        report.dailymed_candidates++;
+        report.items.push({ cis: row.cis, cip: row.cip_code, nom: ref.nom, result: DRY_RUN ? "candidat_dailymed_simule" : "candidat_dailymed_a_verifier" });
+        continue;
+      }
       let photo = null;
-      // OPF n'est interrogé que sur le CIP exact, jamais par nom.
+      // Repli OPF uniquement sur le CIP exact, jamais par nom.
       if (barcodeValid(row.cip_code)) {
         try { photo = await openProductsFacts(row.cip_code, ref.nom); }
         catch (error) { console.warn("OPF indisponible", row.cip_code, error.message); }
