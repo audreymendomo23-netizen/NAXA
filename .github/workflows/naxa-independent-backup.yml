@@ -57,7 +57,7 @@ jobs:
               print(f"::error::{message} Credentials and connection URI were not printed.")
               sys.exit(1)
 
-          if not raw or raw != raw.strip() or any(ch in raw for ch in "\\r\\n\\t"):
+          if not raw or raw != raw.strip() or any(ch in raw for ch in "\r\n\t"):
               fail("NAXA_DATABASE_URL is empty or contains whitespace/newlines.")
 
           try:
@@ -120,7 +120,7 @@ jobs:
               fail(f"TCP connectivity test to Supabase port 5432 failed ({type(last_error).__name__ if last_error else 'unknown error'}).")
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
-              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\\n")
+              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
 
           print(f"Supabase {mode} URI validated; DNS and TCP/5432 connectivity passed for project {project_ref}. Credentials were not printed.")
           PY
