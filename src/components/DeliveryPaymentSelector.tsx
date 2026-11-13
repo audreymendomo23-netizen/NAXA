@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { buildTelephoneUri } from "@/lib/merchant-payment";
 
 type Props = {
   reservationId: string;

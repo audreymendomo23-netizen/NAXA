@@ -33,7 +33,7 @@ export default async function HomeServiceReminderSettings({ searchParams }: { se
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900">
     <div className="mx-auto max-w-3xl space-y-5 pt-5">
       <header className="flex items-center justify-between rounded-2xl bg-[#064B2A] px-4 py-3 text-white">
-        <strong>NAXA · Mes préférences</strong>
+        <div className="flex flex-wrap items-center gap-3"><strong>NAXA · Mes préférences</strong>{active.some((m: any) => ["owner", "manager"].includes(m.member_role)) && <Link href="/partenaire/paiements" className="text-sm font-bold underline">Coordonnées marchandes</Link>}</div>
         <Link href="/partenaire/prestations" className="text-sm font-bold underline">Retour aux rendez-vous</Link>
       </header>
       <section className="rounded-3xl border border-[#CDE8E0] bg-white p-5 sm:p-7">
