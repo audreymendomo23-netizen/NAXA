@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: naxa-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Compile and unit tests
