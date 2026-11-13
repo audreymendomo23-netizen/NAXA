@@ -75,8 +75,6 @@ jobs:
               fail("Use PostgreSQL port 5432.")
           if parsed.path.rstrip("/") not in ("", "/postgres"):
               fail("The connection URI must target the postgres database.")
-          if parsed.fragment:
-              fail("The connection URI must not contain a fragment.")
 
           direct_host = f"db.{project_ref}.supabase.co"
           if host == direct_host and username == "postgres":
@@ -118,6 +116,8 @@ jobs:
               fail(f"TCP connectivity test to Supabase port 5432 failed ({type(last_error).__name__ if last_error else 'unknown error'}).")
           if not password or password == "[YOUR-PASSWORD]":
               fail("The connection URI does not contain the real PostgreSQL Database Password.")
+          if parsed.fragment:
+              fail("The connection URI must not contain a fragment.")
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
               github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
