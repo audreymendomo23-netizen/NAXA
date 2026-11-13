@@ -223,6 +223,10 @@ test("CIMA pré-calculé : projection publique strictement filtrée et reliée a
   assert.match(route, /function construirePhotoCima/);
   assert.match(route, /photo mise à jour le/);
   assert.match(route, /marque et présentation pouvant différer/);
+  assert.match(route, /matchExactNom/);
+  assert.match(route, /normaliserTerme\(match\.nom\) === normaliserTerme\(item\.name\)/);
+  assert.match(route, /parts\[4\] !== row\.nregistro/);
+  assert.match(route, /updatedAt,/);
 });
 
 test("photos : le chargement client borne la concurrence et conserve la provenance réelle", () => {

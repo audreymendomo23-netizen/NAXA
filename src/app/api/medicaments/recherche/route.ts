@@ -93,6 +93,7 @@ type CimaPhotoVariant = {
   title: string;
   kind: "boite" | "comprime";
   provider: "cima_aemps";
+  updatedAt: string;
 };
 type BdpmProduct = {
   cis: string; nom: string; forme: string | null; voies_administration: string | null;
@@ -145,12 +146,17 @@ function construirePhotoCima(
   if (!rawUrl || !updatedAt || !row.nregistro) return null;
   try {
     const url = new URL(rawUrl);
-    const expectedPath = kind === "boite"
-      ? /^\\/cima\\/fotos\\/(?:thumbnails|full)\\/materialas\\/\\d+\\/\\d+_materialas\\.jpg$/
-      : /^\\/cima\\/fotos\\/(?:thumbnails|full)\\/formafarmac\\/\\d+\\/\\d+_formafarmac\\.jpg$/;
+    const parts = url.pathname.split("/").filter(Boolean);
+    const expectedType = kind === "boite" ? "materialas" : "formafarmac";
+    const expectedFile = row.nregistro + "_" + expectedType + ".jpg";
     if (url.protocol !== "https:" || url.hostname !== "cima.aemps.es"
-      || !expectedPath.test(url.pathname)
-      || !url.pathname.includes("/" + row.nregistro + "/")) return null;
+      || parts.length !== 6
+      || parts[0] !== "cima"
+      || parts[1] !== "fotos"
+      || !["thumbnails", "full"].includes(parts[2])
+      || parts[3] !== expectedType
+      || parts[4] !== row.nregistro
+      || parts[5] !== expectedFile) return null;
 
     const sourceUrl = "https://cima.aemps.es/cima/rest/medicamento?nregistro="
       + encodeURIComponent(row.nregistro);
@@ -167,7 +173,8 @@ function construirePhotoCima(
       ].filter(Boolean).join(" — "),
       title: row.nom_cima,
       kind,
-      provider: "cima_aemps"
+      provider: "cima_aemps",
+      updatedAt
     };
   } catch {
     return null;
@@ -588,8 +595,9 @@ export async function GET(request: NextRequest) {
       url: match.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
       updatedAt: match.source_dataset_updated_at
     };
-    const cimaImages = !item.imageUrl ? imagesCimaPourRecherche(match.cimaPhotos) : {};
-    const cimaPrimary = match.cimaPhotos?.boite ?? match.cimaPhotos?.comprime;
+    const matchExactNom = normaliserTerme(match.nom) === normaliserTerme(item.name);
+    const cimaImages = !item.imageUrl && matchExactNom ? imagesCimaPourRecherche(match.cimaPhotos) : {};
+    const cimaPrimary = matchExactNom ? match.cimaPhotos?.boite ?? match.cimaPhotos?.comprime : null;
     return {
       ...item,
       ...cimaImages,
@@ -601,7 +609,7 @@ export async function GET(request: NextRequest) {
           name: "AEMPS / CIMA",
           role: "photo de référence étrangère indicative ; ne confirme ni la marque, ni le conditionnement, ni l’AMM au Cameroun",
           url: cimaPrimary.sourceUrl,
-          updatedAt: cimaPrimary.licence.match(/photo mise à jour le (\\d{4}-\\d{2}-\\d{2})/)?.[1]
+          updatedAt: cimaPrimary.updatedAt
         }] : [])
       ]
     };
@@ -629,7 +637,7 @@ export async function GET(request: NextRequest) {
           name: "AEMPS / CIMA",
           role: "photo de référence étrangère indicative ; ne confirme ni la marque, ni le conditionnement, ni l’AMM au Cameroun",
           url: cimaPrimary.sourceUrl,
-          updatedAt: cimaPrimary.licence.match(/photo mise à jour le (\\d{4}-\\d{2}-\\d{2})/)?.[1]
+          updatedAt: cimaPrimary.updatedAt
         }] : [])
       ],
       imageUrl: null,
@@ -639,7 +647,7 @@ export async function GET(request: NextRequest) {
       imageAttribution: null,
       imageTitle: null,
       ...cimaImages,
-      source: [item.source_nom || "BDPM"],
+      source: [item.source_nom || "BDPM", ...(cimaPrimary ? ["AEMPS / CIMA"] : [])],
       sourceUrl: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
       availability: "non_verifiee" as const,
       partnerPharmacyCount: null,
