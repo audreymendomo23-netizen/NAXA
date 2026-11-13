@@ -93,8 +93,9 @@ export async function POST(request: Request) {
           : body.fieldSources?.paidAt === "manual_entry" ? "manual_entry"
             : body.fieldSources?.paidAt === "generated_default" ? "generated_default" : "client_declared",
       reference: extractedPayer?.reference && !referenceWasCorrected ? "sms_extracted" : "manual_entry",
-      payerNumber: extractedPayer?.payerNumber && body.fieldSources?.payerNumber !== "manual_entry"
-        ? "sms_extracted" : payerNumber ? "manual_entry" : "not_provided",
+      payerNumber: parsedProof
+        ? extractedPayer?.payerNumber ? "sms_extracted" : "not_provided"
+        : payerNumber ? "manual_entry" : "not_provided",
       sms: !smsText ? "not_shared" : parsedProof ? "recognized_complete_payer_debit"
         : extractedPayer ? "shared_incomplete_or_corrected_manual_review" : "shared_unrecognized_manual_review",
     };
@@ -103,7 +104,9 @@ export async function POST(request: Request) {
       p_reservation: reservation.id,
       p_client: auth.user.id,
       p_reference: reference,
-      p_payer_number: payerNumber || null,
+      // On an automatically matched SMS, retain only a payer number extracted from that SMS.
+      // A manually entered number remains a declaration and cannot be used as matching evidence.
+      p_payer_number: parsedProof ? (extractedPayer?.payerNumber ?? null) : (payerNumber || null),
       p_declared_amount: amount,
       p_payment_occurred_at: paidAt.toISOString(),
       p_proof_source: parsedProof ? "shared_sms" : "manual_entry",
