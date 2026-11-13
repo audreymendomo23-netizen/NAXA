@@ -99,7 +99,7 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
     finally{setBusyGps(false);}
   }
 
-  const specialtyOptions=useMemo(()=>[...new Set([...professionals.map(p=>p.specialty||roleSpecialtyLabels[p.professional_role]||roleLabels[p.professional_role]).filter(Boolean),...intent.specialties])].sort((a,b)=>a.localeCompare(b,"fr")),[professionals,intent]);
+  const specialtyOptions=useMemo(()=>[...new Set([...professionals.map(p=>p.specialty||roleSpecialtyLabels[p.professional_role]||roleLabels[p.professional_role]).filter((value):value is string=>!!value),...intent.specialties])].sort((a,b)=>a.localeCompare(b,"fr")),[professionals,intent]);
   const suggestions=useMemo(()=>{
     if(query.trim().length<2)return [];
     return [...new Set(professionals.filter(p=>fuzzy(query,p.display_name)).map(p=>p.display_name))].slice(0,7);
