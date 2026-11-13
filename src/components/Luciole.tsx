@@ -15,7 +15,7 @@ export function Luciole() {
   const treeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!night || path === "/scanner") return;
+    if (!night) return;
     const firefly = fireflyRef.current;
     const halo = haloRef.current;
     const tree = treeRef.current;
@@ -140,7 +140,7 @@ export function Luciole() {
     };
 
     const sparks = Array.from(firefly.querySelectorAll<HTMLElement>(".luciole-spark"));
-    const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "reservation", "payment"]);
+    const FAIRY_EVENTS = new Set(["reminder", "search", "scan", "cart", "order", "delivery", "reservation", "payment", "favorite", "language", "offline", "online", "pharmacy", "stock", "baby", "review", "treatment", "welcome", "login", "logout"]);
     const reactToBusinessEvent = (type: string) => {
       if (!FAIRY_EVENTS.has(type)) return;
       firefly.classList.remove(...Array.from(FAIRY_EVENTS, (name) => "luciole-event-" + name));
@@ -163,19 +163,9 @@ export function Luciole() {
       if (type) reactToBusinessEvent(type);
     };
     const reactToClickedControl = (button: HTMLElement) => {
-      const signal = [
-        button.getAttribute("data-naxa-fairy") ?? "",
-        button.getAttribute("aria-label") ?? "",
-        button.getAttribute("href") ?? "",
-        button.textContent ?? "",
-      ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const type =
-        /scanner|scan|ordonnance/.test(signal) ? "scan" :
-        /paiement|payer|checkout|payment/.test(signal) ? "payment" :
-        /panier/.test(signal) ? "cart" :
-        /commande|achat|reservation/.test(signal) ? "order" :
-        /rappel|posologie|traitement/.test(signal) ? "reminder" :
-        /recherche|chercher|search|medicament/.test(signal) ? "search" : null;
+      // Un libellé ou un clic ne prouve jamais un succès métier.
+      // Seul un composant explicitement instrumenté peut demander un geste visuel.
+      const type = button.getAttribute("data-naxa-fairy");
       if (type) reactToBusinessEvent(type);
     };
     const clearRandomSpecial = () => {
