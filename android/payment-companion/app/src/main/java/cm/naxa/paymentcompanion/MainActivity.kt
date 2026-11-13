@@ -107,15 +107,7 @@ class MainActivity : Activity() {
         root.addView(permissionButton)
 
         smsConsent.setOnCheckedChangeListener { _, checked ->
-            SecureVault.put(this, "sms_consent_granted", checked.toString())
-            SecureVault.put(this, "sms_consent_updated_at", System.currentTimeMillis().toString())
-            if (!checked) {
-                statusText.text = "Consentement retiré. La capture automatique est désactivée immédiatement. La permission Android peut être retirée séparément dans les paramètres de l'application."
-            } else if (isDeviceEnrolled()) {
-                requestSmsPermission()
-            } else {
-                statusText.text = "Consentement enregistré sur cet appareil. Connectez et enrôlez le téléphone pour activer la capture automatique."
-            }
+            applySmsConsentChoice(checked)
         }
 
         root.addView(TextView(this).apply {
@@ -185,6 +177,28 @@ class MainActivity : Activity() {
 
     private fun isDeviceEnrolled(): Boolean =
         !SecureVault.get(this, "companion_role").isNullOrBlank()
+
+    private fun applySmsConsentChoice(checked: Boolean) {
+        try {
+            // Persist the revocation/grant before changing the visible state.
+            SecureVault.put(this, "sms_consent_granted", checked.toString())
+        } catch (_: Exception) {
+            val persistedChoice = SecureVault.get(this, "sms_consent_granted") == "true"
+            smsConsent.setOnCheckedChangeListener(null)
+            smsConsent.isChecked = persistedChoice
+            smsConsent.setOnCheckedChangeListener { _, value -> applySmsConsentChoice(value) }
+            statusText.text = "Impossible d'enregistrer votre choix dans le coffre sécurisé. La capture ne change pas tant que le choix n'est pas sauvegardé."
+            return
+        }
+
+        if (!checked) {
+            statusText.text = "Consentement retiré. La capture automatique est désactivée immédiatement. La permission Android peut être retirée séparément dans les paramètres de l'application."
+        } else if (isDeviceEnrolled()) {
+            requestSmsPermission()
+        } else {
+            statusText.text = "Consentement enregistré sur cet appareil. Connectez et enrôlez le téléphone pour activer la capture automatique."
+        }
+    }
 
     private fun requestSmsPermission() {
         if (SecureVault.get(this, "sms_consent_granted") != "true") {
