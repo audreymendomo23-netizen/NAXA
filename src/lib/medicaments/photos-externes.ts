@@ -94,7 +94,6 @@ function plain(value: string | undefined): string {
     .replace(/\s+/g, " ")
     .trim();
 }
-}
 
 function kindOf(page: CommonsPage): "boite" | "comprime" | null {
   const title = normalize(page.title ?? "");
@@ -166,7 +165,6 @@ function allowedCommercialLicense(info: CommonsImageInfo): { licence: string; at
   const attributionRequired = /^(?:true|yes|1)$/i.test(plain(metadata.AttributionRequired?.value));
   if (attributionRequired && !artist) return null;
   return { licence: [short, terms, url].filter(Boolean).join(" — "), attribution: artist || null };
-}
 }
 
 function likelyCombinationMismatch(title: string, queryTokens: string[]): boolean {
@@ -340,7 +338,6 @@ function allowedCimaImageRights(
       "photo mise à jour le " + updatedAt
     ].filter(Boolean).join(" — ")
   };
-}
 }
 
 function safeCimaImageUrl(
