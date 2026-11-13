@@ -16,7 +16,7 @@ type HomeServiceOffer = {
 type SearchParams = { erreur?: string; q?: string; mode?: string; origine?: string };
 
 export default async function PrestationsPage({ searchParams }: { searchParams: SearchParams }) {
-  const { data, error } = await supabasePublic(30).rpc("get_home_service_catalog_for_client", {});
+  const { data, error } = await supabasePublic(0).rpc("get_home_service_catalog_for_client", {});
   if (error) return <><UniverseLanding universe="prestations"/><p role="status" className="mx-auto mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Le catalogue des prestations est temporairement indisponible. Réessayez dans quelques instants.</p></>;
   const offers = (data ?? []) as HomeServiceOffer[];
   if (!offers.length) return <><UniverseLanding universe="prestations"/><section className="mx-auto mt-4 max-w-3xl px-4 pb-8"><div className="rounded-2xl border border-[#FAD0C6] bg-white p-5"><h2 className="font-extrabold text-slate-900">Aucune prestation publiée pour le moment</h2><p className="mt-2 text-sm leading-6 text-slate-600">Les professionnels partenaires n’ont pas encore publié d’offre disponible. Revenez un peu plus tard pour consulter le catalogue.</p><Link href="/suivi" className="mt-3 inline-flex min-h-10 items-center font-bold text-[#B73623] underline">Revenir à mes dispositifs connectés</Link></div></section></>;
