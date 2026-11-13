@@ -102,35 +102,36 @@ class PharmacyRepository(context: Context) {
                     )
                 }
 
-                parsePharmacies(payload)
+                parseNearbyPharmacies(payload)
             }
     }
 
-    internal fun parsePharmacies(payload: JSONObject): List<NearbyPharmacy> {
-        val rows = payload.optJSONArray("pharmacies") ?: return emptyList()
-        return buildList {
-            for (index in 0 until rows.length()) {
-                val item = rows.optJSONObject(index) ?: continue
-                val id = item.optString("id")
-                val name = item.optString("nom")
-                if (id.isBlank() || name.isBlank()) continue
-                add(
-                    NearbyPharmacy(
-                        id = id,
-                        name = name,
-                        city = item.stringOrNull("ville"),
-                        district = item.stringOrNull("quartier"),
-                        address = item.stringOrNull("adresse"),
-                        onDuty = item.optBoolean("de_garde", false),
-                        deliveryAvailable = item.optBoolean("livraison_active", false),
-                        distanceRoadKm = item.doubleOrNull("distanceRoutiereKm"),
-                        distanceStraightKm = item.doubleOrNull("distanceKm")?.takeIf { it >= 0 },
-                        travelMinutes = item.intOrNull("dureeTrajetMinutes"),
-                        openingHours = item.stringOrNull("horaires"),
-                        mapsUrl = item.stringOrNull("googleMapsUrl")
-                    )
+}
+
+internal fun parseNearbyPharmacies(payload: JSONObject): List<NearbyPharmacy> {
+    val rows = payload.optJSONArray("pharmacies") ?: return emptyList()
+    return buildList {
+        for (index in 0 until rows.length()) {
+            val item = rows.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            val name = item.optString("nom")
+            if (id.isBlank() || name.isBlank()) continue
+            add(
+                NearbyPharmacy(
+                    id = id,
+                    name = name,
+                    city = item.stringOrNull("ville"),
+                    district = item.stringOrNull("quartier"),
+                    address = item.stringOrNull("adresse"),
+                    onDuty = item.optBoolean("de_garde", false),
+                    deliveryAvailable = item.optBoolean("livraison_active", false),
+                    distanceRoadKm = item.doubleOrNull("distanceRoutiereKm"),
+                    distanceStraightKm = item.doubleOrNull("distanceKm")?.takeIf { it >= 0 },
+                    travelMinutes = item.intOrNull("dureeTrajetMinutes"),
+                    openingHours = item.stringOrNull("horaires"),
+                    mapsUrl = item.stringOrNull("googleMapsUrl")
                 )
-            }
+            )
         }
     }
 }
