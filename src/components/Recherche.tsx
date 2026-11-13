@@ -374,8 +374,10 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                     {medicament.imageVariants?.comprime?.url && medicament.imageVariants.comprime.url !== medicament.imageUrl && (
                       <img
                         src={medicament.imageVariants.comprime.url}
-                        alt="Référence visuelle du comprimé — vérifier l'identité avant toute utilisation"
-                        title={"Comprimé · " + medicament.imageVariants.comprime.licence}
+                        alt={medicament.imageVariants.comprime.provider === "cima_aemps"
+                          ? "Référence visuelle de la forme pharmaceutique CIMA — vérifier le produit local"
+                          : "Référence visuelle du comprimé — vérifier l'identité avant toute utilisation"}
+                        title={(medicament.imageVariants.comprime.provider === "cima_aemps" ? "Forme pharmaceutique · " : "Comprimé · ") + medicament.imageVariants.comprime.licence}
                         className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain"
                         loading="lazy" decoding="async"
                       />
@@ -414,7 +416,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                 {medicament.imageSource && <p className="mt-2 text-xs text-slate-500">{medicament.imageSource}{medicament.imageAttribution ? " · " + medicament.imageAttribution : ""}{medicament.imageSourceUrl ? <> · <a href={medicament.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">Source photo</a></> : ""}</p>}
                 {medicament.imageVariants && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
                   {medicament.imageVariants.boite && <a href={medicament.imageVariants.boite.sourceUrl} target="_blank" rel="noreferrer" className="underline">Boîte · {medicament.imageVariants.boite.licence}{medicament.imageVariants.boite.attribution ? " · " + medicament.imageVariants.boite.attribution : ""}</a>}
-                  {medicament.imageVariants.comprime && <a href={medicament.imageVariants.comprime.sourceUrl} target="_blank" rel="noreferrer" className="underline">Comprimé · {medicament.imageVariants.comprime.licence}{medicament.imageVariants.comprime.attribution ? " · " + medicament.imageVariants.comprime.attribution : ""}</a>}
+                  {medicament.imageVariants.comprime && <a href={medicament.imageVariants.comprime.sourceUrl} target="_blank" rel="noreferrer" className="underline">{medicament.imageVariants.comprime.provider === "cima_aemps" ? "Forme pharmaceutique" : "Comprimé"} · {medicament.imageVariants.comprime.licence}{medicament.imageVariants.comprime.attribution ? " · " + medicament.imageVariants.comprime.attribution : ""}</a>}
                 </div>}
                 <div className="mt-2 space-y-1">
                   <p className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${medicament.availability === "disponible" ? "bg-emerald-100 text-emerald-800" : medicament.availability === "indisponible" ? "bg-slate-100 text-slate-700" : "bg-amber-100 text-amber-800"}`}>

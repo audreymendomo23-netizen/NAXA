@@ -222,6 +222,8 @@ test("CIMA pré-calculé : projection publique strictement filtrée et reliée a
   assert.match(route, /\.in\("cis", cisList\)/);
   assert.match(route, /function construirePhotoCima/);
   assert.match(route, /photo mise à jour le/);
+  assert.match(recherche, /provider === "cima_aemps" \? "Forme pharmaceutique"/);
+
   assert.match(route, /marque et présentation pouvant différer/);
   assert.match(route, /matchExactNom/);
   assert.match(route, /normaliserTerme\(match\.nom\) === normaliserTerme\(item\.name\)/);

@@ -13,7 +13,7 @@ begin
 end
 $$;
 
-create or replace view public.medicamentos_cima_photos_public
+create or replace view public.medicaments_cima_photos_public
 with (security_barrier = true) as
 select
   j.cis,
