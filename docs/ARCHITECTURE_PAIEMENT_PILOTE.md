@@ -45,19 +45,20 @@ Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paie
 
 ## État d'implémentation constaté — 13 novembre 2026
 
-- Le récepteur Android Professionnel transmet maintenant les SMS entrants filtrés vers `naxa_payment_evidence_intake` avec la provenance `sms_receiver`.
+- Le récepteur Android Professionnel transmet les SMS entrants filtrés vers `naxa_payment_evidence_intake` avec la provenance `sms_receiver`.
 - Le consentement SMS serveur est indépendant du consentement NotificationListener ; Client et Promoteur restent exclus de la capture système.
-- Le SMS reçu est enregistré avec les champs extraits et un hash, sans texte brut. Il demeure en attente de rapprochement.
-- **Le moteur qui relie les SMS débit/crédit par ID commun et qui confirme automatiquement la paire n'est pas encore implémenté.** La Caisse utilise encore son mécanisme actuel de validation manuelle. Cette étape n'est donc pas AU VERT.
+- Le SMS bénéficiaire est enregistré avec les champs extraits et un hash, sans texte brut. Il ne confirme jamais seul.
+- **Pour les règlements Promoteur → NAXA, les preuves débit et crédit sont conservées séparément sous le même ID de transaction ; la confirmation ne dépend plus du libellé expéditeur.**
+- **Pour Client → Pharmacie/Partenaire → Caisse, le moteur générique de rapprochement et le déclenchement Caisse ne sont pas encore raccordés** : l'événement bénéficiaire reste en attente et la Caisse garde son contrôle actuel.
 - La collecte réelle reste conditionnée à l'autorisation Android RECEIVE_SMS ; chaque téléphone/installateur doit être vérifié en pratique.
 
 ## Processus métier
 
 ### Client → Pharmacie
-Le Client partage le SMS de débit. Le téléphone Pharmacie collecte le SMS de crédit reçu sur le compte marchand. NAXA rapproche les deux SMS par ID de transaction et contrôles de cohérence. La paire unique et cohérente confirme le paiement et met à jour la Caisse ; en cas de donnée manquante ou d'écart, le dossier reste en attente / revue manuelle.
+Cible : le Client partage le SMS de débit et le téléphone Pharmacie collecte le SMS de crédit reçu sur le compte marchand. Les messages peuvent venir de téléphones différents. Le rapprochement par ID commun, canal, sens débit/crédit, montant, payeur, bénéficiaire et temps doit confirmer la paire unique, puis alimenter la Caisse. **Ce raccordement générique Client → Pharmacie n'est pas encore implémenté** : aujourd'hui le SMS bénéficiaire est conservé en attente et la Caisse utilise encore le processus manuel. L'absence de SMS dans NAXA n'est pas un verdict d'échec opérateur.
 
 ### Promoteur → NAXA
-Le Promoteur partage le SMS de débit. L'Admin reçoit le SMS de crédit NAXA sur son téléphone. Le rapprochement se fonde sur l'ID de transaction commun et les autres champs de cohérence ; le libellé expéditeur ne sert qu'au filtrage de collecte.
+Le Promoteur partage le SMS de débit. L'Admin reçoit le SMS de crédit NAXA sur son téléphone. Les deux preuves sont stockées séparément sous le même ID de transaction ; la confirmation contrôle aussi canal, sens, montant, destination, payeur et fenêtre horaire. Le libellé expéditeur sert uniquement au filtrage à la collecte.
 
 ### Pharmacie / Partenaire → NAXA
 Le téléphone Partenaire peut recevoir le SMS de crédit du compte marchand et le croiser avec le SMS de débit transmis par le payeur. Les abonnements Pharmacie ont un modèle existant ; il reste à raccorder le registre commun à leurs intentions réelles d'abonnement. Le schéma Replay consulté n'a pas de modèle d'abonnement/tarif Partenaire : aucun montant ni renouvellement Partenaire ne doit être inventé avant définition métier.
@@ -72,6 +73,8 @@ Le montant attendu et la date/heure courante sont générés depuis l'intention 
 - Consentement NAXA et permission Android RECEIVE_SMS sont deux conditions obligatoires pour la réception SMS ; le consentement NotificationListener et l'accès spécial Android restent distincts.
 - Ne jamais persister les SMS/notifications bruts, codes PIN ou secrets.
 - Conserver les empreintes anti-doublon et les données structurées strictement nécessaires.
+- `OrangeMoney` / `MobileMoney` : filtre de collecte uniquement, jamais un critère de confirmation financière.
+- Si un SMS n'arrive pas sur le téléphone surveillé, conserver l'état « preuve bénéficiaire non reçue » / « à vérifier » ; ne pas conclure à un échec de transaction chez l'opérateur.
 - Utiliser RLS et des droits service-role uniquement pour les tables techniques.
 - Les nouvelles collectes restent `manual_review` jusqu'à rapprochement et décision métier.
 - Ne pas déployer en Production ni appliquer une migration Production pendant ce chantier.
