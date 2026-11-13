@@ -59,7 +59,7 @@ private fun NaxaRoot(repository: AuthRepository) {
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = NaxaGreen)
             }
-            profile == null -> LoginScreen(error = error, onLogin = { email, password ->
+            profile == null -> LoginScreen(busy = loading, error = error, onLogin = { email, password ->
                 loading = true
                 error = null
                 scope.launch {
@@ -82,11 +82,9 @@ private fun NaxaRoot(repository: AuthRepository) {
 }
 
 @Composable
-private fun LoginScreen(error: String?, onLogin: (String, String) -> Unit) {
+private fun LoginScreen(busy: Boolean, error: String?, onLogin: (String, String) -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.Center
@@ -108,13 +106,9 @@ private fun LoginScreen(error: String?, onLogin: (String, String) -> Unit) {
             Text(error, color = MaterialTheme.colorScheme.error)
         }
         Spacer(Modifier.height(20.dp))
-        Button(onClick = {
-            busy = true
-            scope.launch {
-                onLogin(email, password)
-                busy = false
-            }
-        }, enabled = !busy && email.contains("@") && password.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) {
+        Button(onClick = { onLogin(email, password) },
+            enabled = !busy && email.contains("@") && password.isNotBlank(),
+            modifier = Modifier.fillMaxWidth().height(52.dp)) {
             if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
             else Text("Se connecter")
         }
