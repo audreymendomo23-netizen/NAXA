@@ -13,6 +13,8 @@ const files = {
   inviteFix: read("supabase/migrations/20261106160000_livreur_invite_acceptance_and_notifications.sql"),
   offers: read("supabase/migrations/20261106163000_livreur_offers_cancellation_metrics.sql"),
   stockGate: read("supabase/migrations/20261106170000_livreur_stock_preparation_gate.sql"),
+  dispatchGate: read("supabase/migrations/20261113100000_delivery_dispatch_after_stock_prepared.sql"),
+  deliveryActions: read("src/app/pharmacie/gestionnaire-stock/livraison-actions.ts"),
   reoffer: read("supabase/migrations/20261106171000_livreur_reoffer_offer_history.sql"),
   clientNotification: read("supabase/migrations/20261106172000_livreur_client_notification_recipient.sql"),
   dispatchNotification: read("supabase/migrations/20261106172100_livreur_dispatch_notification_recipient.sql"),
@@ -59,16 +61,20 @@ test("l'invitation est à usage unique et exige un compte Client vérifié", () 
   assert.match(files.inviteClient, /naxa_accept_livreur_invite/);
 });
 
-test("la livraison ne peut être publiée qu'après la preuve de préparation physique Stock", () => {
-  assert.match(files.stockGate, /v_r\.preparation_statut<>'prete_au_retrait'/);
-  assert.match(files.stockGate, /gestionnaire_stock_commande_preparation/);
+test("les Livreurs ne reçoivent et n'acceptent une mission qu'après paiement requis et préparation Stock", () => {
+  assert.match(files.dispatchGate, /preparation_statut<>'prete_au_retrait'/);
+  assert.match(files.dispatchGate, /paiement_mode<>'especes_livraison' and v_r\.paiement_statut<>'effectue'/);
+  assert.match(files.dispatchGate, /perform public\.naxa_delivery_make_available\(p_reservation\)/);
+  assert.match(files.dispatchGate, /naxa_delivery_my_missions/);
+  assert.match(files.dispatchGate, /naxa_delivery_accept\(p_mission uuid\)/);
+  assert.match(files.dispatchGate, /drop policy if exists naxa_delivery_mission_participant_read/);
   assert.match(files.stockPage, /confirmerDemandeLivraisonStock/);
   assert.match(files.stockPage, /mettreCommandeEnPreparationStock/);
   assert.match(files.stockPage, /marquerCommandePretePourLivraison/);
-  assert.match(files.stockPage, /mission est déjà proposée aux livreurs/);
-  assert.match(files.stockActions, /gestionnaire_stock_confirmer_demande_livraison/);
+  assert.match(files.stockPage, /Les Livreurs ne sont pas encore notifiés/);
+  assert.match(files.deliveryActions, /gestionnaire_stock_confirmer_demande_livraison/);
   assert.match(files.stockActions, /gestionnaire_stock_commande_preparation/);
-  assert.match(files.stockGate, /naxa_delivery_make_available/);
+  assert.match(files.courierUi, /Dès que Stock confirme la préparation physique et le paiement requis/);
 });
 
 test("les notifications respectent la contrainte de destinataire unique", () => {

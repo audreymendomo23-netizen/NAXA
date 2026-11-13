@@ -33,6 +33,7 @@ const files = {
   createSql: read("supabase/migrations/20261107094500_delivery_distance_signature_commission_20261107.sql"),
   quoteSql: read("supabase/migrations/20261107240000_delivery_server_route_quotes_national_tariffs.sql"),
   stockSql: read("supabase/migrations/20261107101500_delivery_stock_acceptance_payment_dispatch_20261107.sql"),
+  dispatchGate: read("supabase/migrations/20261113100000_delivery_dispatch_after_stock_prepared.sql"),
   paymentSql: read("supabase/migrations/20261107105000_delivery_payment_reference_declaration_20261107.sql"),
   trackingSql: read("supabase/migrations/20261107111500_delivery_tracking_both_apps_20261107.sql"),
   reviewSql: read("supabase/migrations/20261107120000_delivery_reviews_and_commission_scope_20261107.sql"),
@@ -64,7 +65,7 @@ test("le Client demande la livraison avant paiement et choisit le paiement seule
   assert.match(files.checkout, /\/api\/livraison\/devis/);
   assert.match(files.checkout, /delivery_quote_id/);
   assert.match(files.checkout, /Calculer les frais de livraison/);
-  assert.match(files.checkout, /Choisi.*après confirmation.*Gestionnaire de stock/);
+  assert.match(files.checkout, /mode de paiement sera choisi après confirmation.*Gestionnaire de stock/i);
   assert.match(files.checkout, /Demande de livraison envoyée/);
   assert.match(files.stockAction, /gestionnaire_stock_confirmer_demande_livraison/);
   assert.match(files.paymentSelector, /if\s*\(!stockConfirmedAt\)/);
@@ -72,11 +73,15 @@ test("le Client demande la livraison avant paiement et choisit le paiement seule
   assert.match(files.stockSql, /delivery_payment_request/);
 });
 
-test("Stock notifie les Livreurs immédiatement, mais le retrait attend paiement et préparation", () => {
-  assert.match(files.stockSql, /naxa_delivery_make_available\(p_reservation\)/);
-  assert.match(files.stockSql, /insert into public.notifications\(user_id,type,titre,corps,reservation_id,related_entity_id\)/);
-  assert.match(files.stockSql, /v_r\.preparation_statut<>'prete_au_retrait'/);
-  assert.match(files.stockSql, /Paiement électronique non vérifié/);
+test("Stock ne notifie les Livreurs qu'après préparation physique et paiement admis", () => {
+  const confirmationStart = files.dispatchGate.indexOf("create or replace function public.gestionnaire_stock_confirmer_demande_livraison");
+  const confirmationEnd = files.dispatchGate.indexOf("$function$;", confirmationStart);
+  const stockConfirmation = files.dispatchGate.slice(confirmationStart, confirmationEnd);
+  assert.doesNotMatch(stockConfirmation, /naxa_delivery_make_available/);
+  assert.match(files.dispatchGate, /preparation_statut<>'prete_au_retrait'/);
+  assert.match(files.dispatchGate, /paiement_mode<>'especes_livraison' and v_r\.paiement_statut<>'effectue'/);
+  assert.match(files.dispatchGate, /perform public\.naxa_delivery_make_available\(p_reservation\)/);
+  assert.match(files.dispatchGate, /drop policy if exists naxa_delivery_mission_participant_read/);
   assert.match(files.courier, /naxa_delivery_accept/);
 });
 

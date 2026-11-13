@@ -201,7 +201,7 @@ export function LivreurWorkspaceClient({pharmacyName}:{pharmacyName:string}){
 
         <section id="missions" className="scroll-mt-4 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-2">
-            <div><h2 className="text-xl font-black">File des missions</h2><p className="mt-1 text-sm text-slate-600">Dès que Stock confirme une demande, la mission est proposée aux livreurs. Le retrait reste bloqué jusqu’au paiement autorisé et à la préparation physique.</p></div>
+            <div><h2 className="text-xl font-black">File des missions</h2><p className="mt-1 text-sm text-slate-600">Dès que Stock confirme la préparation physique et le paiement requis, la mission est proposée aux livreurs. Le retrait reste contrôlé côté serveur.</p></div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600">{available.length} disponible(s)</span>
           </div>
           {available.length===0?<p className="rounded-2xl border bg-white p-5 text-sm text-slate-600">Aucune nouvelle mission prête dans cette pharmacie.</p>:
