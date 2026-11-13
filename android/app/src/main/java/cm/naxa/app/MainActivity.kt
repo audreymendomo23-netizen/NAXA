@@ -1,499 +1,189 @@
 package cm.naxa.app
 
-import android.Manifest
-import android.app.Activity
-import android.app.AlertDialog
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanResult
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
-import android.net.Uri
-import android.os.Handler
-import android.os.Looper
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.ValueCallback
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import org.json.JSONObject
-import java.util.UUID
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
-class MainActivity : Activity() {
-    private lateinit var web: WebView
-    private var filePathCallback: ValueCallback<Array<Uri>>? = null
-    private val handler = Handler(Looper.getMainLooper())
-    private val discovered = linkedMapOf<String, BluetoothDevice>()
-    private val gatts = linkedMapOf<String, BluetoothGatt>()
-    private val deviceKeys = linkedMapOf<String, String>()
-    private val retryCounts = linkedMapOf<String, Int>()
-    private val pendingReads = linkedMapOf<String, ArrayDeque<BluetoothGattCharacteristic>>()
-    private var scanning = false
-    private var pendingDeviceKey = "montre_connectee"
-    private var pendingDeviceOwnerId = ""
-    private var pendingReconnectAddress: String? = null
-    private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
-    private val adapter: BluetoothAdapter? get() = bluetoothManager?.adapter
-    private val scanner get() = adapter?.bluetoothLeScanner
-    private val servicePairs = listOf(
-        "180D" to "2A37", "1810" to "2A35", "1809" to "2A1C",
-        "1822" to "2A5E", "1822" to "2A5F", "1808" to "2A18",
-        "181D" to "2A9D", "181B" to "2A9C", "1814" to "2A53",
-        "1826" to "2AD2", "1816" to "2A5B"
-    )
-    private val cccd = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        web = WebView(this)
-        web.settings.javaScriptEnabled = true
-        web.settings.domStorageEnabled = true
-        web.settings.databaseEnabled = true
-        web.settings.mediaPlaybackRequiresUserGesture = true
-        web.webChromeClient = object : WebChromeClient() {
-            override fun onShowFileChooser(
-                view: WebView?,
-                callback: ValueCallback<Array<Uri>>?,
-                params: FileChooserParams?
-            ): Boolean {
-                filePathCallback?.onReceiveValue(null)
-                filePathCallback = callback
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "*/*"
-                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "application/pdf"))
-                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+        val repository = AuthRepository(SecureTokenStore(this))
+        setContent { NaxaTheme { NaxaRoot(repository) } }
+    }
+}
+
+private val NaxaGreen = Color(0xFF087A55)
+private val NaxaInk = Color(0xFF17342B)
+private val NaxaBackground = Color(0xFFF5F8F6)
+
+@Composable
+private fun NaxaTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = lightColorScheme(
+        primary = NaxaGreen, onPrimary = Color.White, secondary = Color(0xFFF2C94C),
+        background = NaxaBackground, surface = Color.White, onSurface = NaxaInk
+    ), content = content)
+}
+
+@Composable
+private fun NaxaRoot(repository: AuthRepository) {
+    var profile by remember { mutableStateOf<NaxaProfile?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        profile = repository.restoreSession()
+        loading = false
+    }
+    Surface(Modifier.fillMaxSize(), color = NaxaBackground) {
+        when {
+            loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = NaxaGreen)
+            }
+            profile == null -> LoginScreen(error = error, onLogin = { email, password ->
+                loading = true
+                error = null
+                scope.launch {
+                    try { profile = repository.signIn(email, password).profile }
+                    catch (e: Exception) { error = e.message ?: "Connexion impossible." }
+                    finally { loading = false }
                 }
-                return try {
-                    startActivityForResult(intent, 703)
-                    true
-                } catch (_: Exception) {
-                    filePathCallback?.onReceiveValue(null)
-                    filePathCallback = null
-                    false
+            })
+            else -> NativeHome(profile!!, onLogout = {
+                loading = true
+                scope.launch {
+                    repository.signOut()
+                    profile = null
+                    error = null
+                    loading = false
                 }
+            })
+        }
+    }
+}
+
+@Composable
+private fun LoginScreen(error: String?, onLogin: (String, String) -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(Modifier.size(64.dp).background(NaxaGreen, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
+            Text("N", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(24.dp))
+        Text("Bienvenue sur NAXA", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
+        Spacer(Modifier.height(8.dp))
+        Text("Votre espace santé, pharmacie et services de proximité.", color = Color(0xFF60736B))
+        Spacer(Modifier.height(32.dp))
+        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Adresse e-mail") }, singleLine = true)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Mot de passe") },
+            singleLine = true, visualTransformation = PasswordVisualTransformation())
+        if (error != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(error, color = MaterialTheme.colorScheme.error)
+        }
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = {
+            busy = true
+            scope.launch {
+                onLogin(email, password)
+                busy = false
+            }
+        }, enabled = !busy && email.contains("@") && password.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            else Text("Se connecter")
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("Connexion Supabase sécurisée. Les jetons sont chiffrés dans Android Keystore.", color = Color(0xFF718078), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun NativeHome(profile: NaxaProfile, onLogout: () -> Unit) {
+    var selected by remember { mutableIntStateOf(0) }
+    val labels = listOf("Accueil", "Rechercher", "Achats", "Profil")
+    val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.Default.ShoppingBag, Icons.Default.Person)
+    Scaffold(bottomBar = {
+        NavigationBar(containerColor = Color.White) {
+            labels.forEachIndexed { index, label ->
+                NavigationBarItem(selected == index, { selected = index },
+                    icon = { Icon(icons[index], contentDescription = label) }, label = { Text(label) })
             }
         }
-        web.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                val uri = request?.url ?: return false
-                if (uri.scheme == "https" && uri.host == "nnaxa.vercel.app") return false
-                if (uri.scheme == "https") {
-                    try { startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (_: Exception) { }
-                }
-                return true
+    }, containerColor = NaxaBackground) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("NAXA", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = NaxaGreen)
+                Spacer(Modifier.weight(1f))
+                Text("FCFA", color = Color(0xFF66756E), fontSize = 12.sp)
             }
-        }
-        web.addJavascriptInterface(NaxaBridge(), "NaxaAndroid")
-        setContentView(web)
-        NaxaReminderScheduler.ensureChannel(this)
-        NaxaReminderScheduler.scheduleAll(this)
-        web.loadUrl(BuildConfig.NAXA_BASE_URL + (intent.getStringExtra("openPath") ?: "/suivi"))
-    }
-
-    inner class NaxaBridge {
-        @JavascriptInterface fun isAvailable(): Boolean = true
-        @JavascriptInterface fun isFcmAvailable(): Boolean =
-            com.google.firebase.FirebaseApp.getApps(this@MainActivity).isNotEmpty()
-        @JavascriptInterface fun getFcmToken(): String =
-            getSharedPreferences(NaxaFirebaseMessagingService.PREFS, MODE_PRIVATE)
-                .getString(NaxaFirebaseMessagingService.TOKEN_KEY, "").orEmpty()
-        @JavascriptInterface fun refreshFcmToken() {
-            runOnUiThread {
-                if (com.google.firebase.FirebaseApp.getApps(this@MainActivity).isEmpty()) return@runOnUiThread
-                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
-                    .addOnSuccessListener { token ->
-                        getSharedPreferences(NaxaFirebaseMessagingService.PREFS, MODE_PRIVATE)
-                            .edit().putString(NaxaFirebaseMessagingService.TOKEN_KEY, token).apply()
-                        val script = "window.dispatchEvent(new CustomEvent('naxa-fcm-token',{detail:{token:" +
-                            JSONObject.quote(token) + "}}))"
-                        if (::web.isInitialized) web.evaluateJavascript(script, null)
-                    }
-            }
-        }
-        @JavascriptInterface fun startScan(deviceKey: String, ownerUserId: String) {
-            pendingDeviceKey = deviceKey.take(80)
-            pendingDeviceOwnerId = ownerUserId.take(80)
-            runOnUiThread { ensureBluetoothPermissionsAndScan() }
-        }
-        @JavascriptInterface fun disconnect(address: String) {
-            val intent = Intent(this@MainActivity, NaxaBleForegroundService::class.java)
-                .setAction(NaxaBleForegroundService.ACTION_DISCONNECT)
-                .putExtra(NaxaBleForegroundService.EXTRA_ADDRESS, address.take(80))
-            try { startService(intent) } catch (_: Exception) { }
-            runOnUiThread {
-                deviceKeys.remove(address)
-                retryCounts.remove(address)
-                gatts.remove(address)?.disconnect()
-            }
-        }
-        @JavascriptInterface fun getPendingBleEvents(): String =
-            NaxaBleForegroundService.pendingEvents(this@MainActivity)
-        @JavascriptInterface fun acknowledgeBleEvents(rawIds: String) {
-            try {
-                val ids = org.json.JSONArray(rawIds)
-                val values = (0 until ids.length()).mapNotNull { ids.optString(it).takeIf(String::isNotBlank) }.toSet()
-                NaxaBleForegroundService.acknowledgeEvents(this@MainActivity, values)
-            } catch (_: Exception) { }
-        }
-        @JavascriptInterface fun reconnect(address: String, deviceKey: String) {
-            pendingDeviceKey = deviceKey.take(80)
-            pendingReconnectAddress = address.take(80)
-            runOnUiThread { ensureBluetoothPermissionsAndReconnect() }
-        }
-        @JavascriptInterface fun stopScan() { runOnUiThread { stopBleScan() } }
-        @JavascriptInterface fun requestNotifications() {
-            runOnUiThread {
-                if (Build.VERSION.SDK_INT >= 33 &&
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 704)
-                else {
-                    NaxaReminderScheduler.ensureChannel(this@MainActivity)
-                    NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,true)
-                    emit("notificationPermissionGranted",message="Notifications Android activées.")
-                }
-            }
-        }
-        @JavascriptInterface fun hasNotificationPermission(): Boolean =
-            Build.VERSION.SDK_INT < 33 ||
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        @JavascriptInterface fun areLocalRemindersEnabled(): Boolean =
-            NaxaReminderScheduler.notificationsEnabled(this@MainActivity)
-        @JavascriptInterface fun disableLocalReminders() {
-            runOnUiThread { NaxaReminderScheduler.setNotificationsEnabled(this@MainActivity,false) }
-        }
-        @JavascriptInterface fun scheduleMeasurementReminder(raw: String) {
-            runOnUiThread {
-                NaxaReminderScheduler.ensureChannel(this@MainActivity)
-                NaxaReminderScheduler.save(this@MainActivity, raw.take(4000))
-            }
-        }
-        @JavascriptInterface fun cancelMeasurementReminder(id: String) {
-            runOnUiThread { NaxaReminderScheduler.remove(this@MainActivity, id.take(120)) }
-        }
-        @JavascriptInterface fun clearMeasurementReminders() {
-            runOnUiThread { NaxaReminderScheduler.clearAll(this@MainActivity) }
-        }
-        @JavascriptInterface fun syncMeasurementReminders(raw: String) {
-            runOnUiThread { NaxaReminderScheduler.sync(this@MainActivity, raw.take(30000)) }
-        }
-        @JavascriptInterface fun syncPersonalReminders(raw: String) {
-            runOnUiThread { NaxaReminderScheduler.syncPersonal(this@MainActivity, raw.take(30000)) }
-        }
-        @JavascriptInterface fun updateMeasurementFreshness(measurementType: String, timestampMillis: Long, deviceId: String) {
-            NaxaReminderScheduler.updateFreshness(this@MainActivity, measurementType.take(100), timestampMillis, deviceId.take(120))
-        }
-        @JavascriptInterface fun showLocalNotification(title: String, body: String, path: String, tag: String) {
-            runOnUiThread {
-                if (!NaxaReminderScheduler.notificationsEnabled(this@MainActivity)) return@runOnUiThread
-                if (Build.VERSION.SDK_INT >= 33 &&
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                ) return@runOnUiThread
-                NaxaReminderScheduler.ensureChannel(this@MainActivity)
-                val safePath=if(path.startsWith("/")&&!path.startsWith("//")&&!path.contains("://"))path else "/suivi"
-                val open=Intent(this@MainActivity,MainActivity::class.java).apply {
-                    flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra("openPath",safePath)
-                }
-                val notification=android.app.Notification.Builder(this@MainActivity,"naxa_suivi_measurements")
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
-                    .setContentTitle(title.take(80))
-                    .setContentText(body.take(180))
-                    .setContentIntent(PendingIntent.getActivity(this@MainActivity,tag.hashCode(),open,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-                    .setAutoCancel(true).build()
-                getSystemService(android.app.NotificationManager::class.java).notify(tag.hashCode(),notification)
-            }
-        }
-    }
-
-    private fun ensureBluetoothPermissionsAndScan() {
-        val required = if (Build.VERSION.SDK_INT >= 31) arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT
-        ) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        val missing = required.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) { requestPermissions(missing.toTypedArray(), 701); return }
-        if (adapter?.isEnabled != true || scanner == null) {
-            emit("error", message = "Activez le Bluetooth Android puis réessayez."); return
-        }
-        discovered.clear(); scanning = true
-        try { scanner?.startScan(scanCallback) } catch (_: SecurityException) {
-            scanning = false; emit("error", message = "Autorisation Bluetooth refusée."); return
-        }
-        emit("scanning", message = "Recherche des appareils Bluetooth à proximité…")
-        handler.postDelayed({ showDiscoveredDevices() }, 10000)
-    }
-
-    @Suppress("MissingPermission")
-    private fun ensureBluetoothPermissionsAndReconnect() {
-        val required = if (Build.VERSION.SDK_INT >= 31) arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT
-        ) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        val missing = required.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) { requestPermissions(missing.toTypedArray(), 702); return }
-        val address = pendingReconnectAddress ?: return
-        if (adapter?.isEnabled != true) { emit("error", deviceId = address, message = "Activez le Bluetooth Android pour reconnecter l'appareil."); return }
-        try { connect(adapter!!.getRemoteDevice(address)) }
-        catch (_: Exception) { emit("error", deviceId = address, message = "Appareil mémorisé indisponible. Relancez une recherche Bluetooth."); }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        val path=intent.getStringExtra("openPath") ?: "/suivi"
-        if(::web.isInitialized) web.loadUrl(BuildConfig.NAXA_BASE_URL + path)
-    }
-
-    @Deprecated("Android activity result compatibility")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 703) {
-            val callback = filePathCallback
-            filePathCallback = null
-            val uri = if (resultCode == RESULT_OK) data?.data else null
-            callback?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 701) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) ensureBluetoothPermissionsAndScan()
-            else emit("error", message = "Autorisation Bluetooth nécessaire pour détecter les appareils.")
-        } else if (requestCode == 702) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) ensureBluetoothPermissionsAndReconnect()
-            else emit("error", deviceId = pendingReconnectAddress, message = "Autorisation Bluetooth nécessaire pour reconnecter l'appareil.")
-        } else if (requestCode == 704) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                NaxaReminderScheduler.ensureChannel(this)
-                NaxaReminderScheduler.setNotificationsEnabled(this,true)
-                emit("notificationPermissionGranted",message="Notifications Android activées.")
-            } else {
-                NaxaReminderScheduler.setNotificationsEnabled(this,false)
-                emit("error", message = "Les notifications Android sont refusées. Autorisez-les dans les réglages pour recevoir les rappels H-5.")
-            }
-        }
-    }
-
-    private val scanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult) {
-            val address = result.device.address ?: return
-            discovered[address] = result.device
-        }
-        override fun onScanFailed(errorCode: Int) {
-            scanning = false; emit("error", message = "Recherche Bluetooth interrompue (code $errorCode).")
-        }
-    }
-
-    private fun stopBleScan() {
-        if (!scanning) return
-        try { scanner?.stopScan(scanCallback) } catch (_: SecurityException) { }
-        scanning = false
-    }
-
-    @Suppress("MissingPermission")
-    private fun showDiscoveredDevices() {
-        stopBleScan()
-        val entries = discovered.values.toList()
-        if (entries.isEmpty()) {
-            emit("error", message = "Aucun appareil détecté. Rapprochez l'appareil, réveillez-le et relancez la recherche."); return
-        }
-        val labels = entries.map { device ->
-            val name = try { device.name } catch (_: SecurityException) { null }
-            (name?.takeIf { it.isNotBlank() } ?: "Appareil Bluetooth") + " · " + device.address
-        }.toTypedArray()
-        AlertDialog.Builder(this).setTitle("Choisir l'appareil à connecter")
-            .setItems(labels) { _, index -> connect(entries[index]) }
-            .setNegativeButton("Annuler") { _, _ -> emit("cancelled") }.show()
-    }
-
-    @Suppress("MissingPermission")
-    private fun connect(device: BluetoothDevice, deviceKey: String = pendingDeviceKey) {
-        val address = device.address
-        deviceKeys[address] = deviceKey
-        emit("connecting", deviceId = address, deviceName = safeName(device))
-        val intent = Intent(this, NaxaBleForegroundService::class.java)
-            .setAction(NaxaBleForegroundService.ACTION_CONNECT)
-            .putExtra(NaxaBleForegroundService.EXTRA_ADDRESS, address)
-            .putExtra(NaxaBleForegroundService.EXTRA_KEY, deviceKey)
-            .putExtra(NaxaBleForegroundService.EXTRA_OWNER, pendingDeviceOwnerId)
-            .putExtra(NaxaBleForegroundService.EXTRA_NAME, safeName(device))
-        try {
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
-        } catch (_: Exception) {
-            emit("error", deviceId = address, message = "Le service Bluetooth en arrière-plan n'a pas pu démarrer.")
-        }
-    }
-
-    @Suppress("MissingPermission")
-    private fun safeName(device: BluetoothDevice): String =
-        try { device.name?.takeIf { it.isNotBlank() } ?: "Appareil Bluetooth" } catch (_: SecurityException) { "Appareil Bluetooth" }
-
-    private val gattCallback = object : BluetoothGattCallback() {
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            val address = gatt.device.address
-            if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
-                retryCounts[address] = 0
-                emit("connected", deviceId = address, deviceName = safeName(gatt.device), deviceKey = deviceKeys[address])
-                gatt.discoverServices()
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
-                gatt.close()
-                gatts.remove(address)
-                pendingReads.remove(address)
-                val retry = retryCounts[address] ?: 0
-                if (deviceKeys.containsKey(address) && retry < 10) {
-                    retryCounts[address] = retry + 1
-                    val delay = (1000L shl retry).coerceAtMost(300000L)
-                    emit("reconnecting", deviceId = address, deviceName = safeName(gatt.device), message = "Reconnexion automatique dans quelques instants…")
-                    handler.postDelayed({
-                        val savedKey = deviceKeys[address]
-                        if (savedKey != null && !gatts.containsKey(address)) connect(gatt.device, savedKey)
-                    }, delay)
-                } else {
-                    emit("disconnected", deviceId = address, deviceName = safeName(gatt.device),
-                        message = if (deviceKeys.containsKey(address)) "Reconnexion automatique suspendue après plusieurs échecs." else "Appareil déconnecté.")
-                    retryCounts.remove(address)
-                    deviceKeys.remove(address)
+            Spacer(Modifier.height(24.dp))
+            Text("Bonjour 👋", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
+            Text("Votre espace NAXA est connecté.", color = Color(0xFF65776F))
+            Spacer(Modifier.height(20.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Compte connecté", color = NaxaGreen, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(profile.role.ifBlank { "Compte NAXA" }, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(if (profile.ageVerified) "Vérification d’âge confirmée" else "Vérification d’âge à compléter",
+                        color = Color(0xFF65776F))
                 }
             }
-        }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                emit("error", deviceId = gatt.device.address, message = "Lecture des profils Bluetooth impossible."); return
-            }
-            var subscribed = 0
-            val readQueue = ArrayDeque<BluetoothGattCharacteristic>()
-            for ((serviceShort, characteristicShort) in servicePairs) {
-                val service = gatt.getService(uuid(serviceShort)) ?: continue
-                val characteristic = service.getCharacteristic(uuid(characteristicShort)) ?: continue
-                val properties = characteristic.properties
-                if (properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_INDICATE or BluetoothGattCharacteristic.PROPERTY_READ) != 0) subscribed++
-                if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0 ||
-                    properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) {
-                    if (gatt.setCharacteristicNotification(characteristic, true)) {
-                        val descriptor = characteristic.getDescriptor(cccd)
-                        if (descriptor != null) {
-                            if (Build.VERSION.SDK_INT >= 33) {
-                                gatt.writeDescriptor(descriptor, if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0)
-                                    BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                            } else {
-                                @Suppress("DEPRECATION")
-                                descriptor.value = if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0)
-                                    BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                                @Suppress("DEPRECATION")
-                                gatt.writeDescriptor(descriptor)
-                            }
-                        }
-                    }
+            Spacer(Modifier.height(18.dp))
+            when (selected) {
+                0 -> {
+                    Text("Vos services", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    FeatureCard("Pharmacies", "Accès aux pharmacies partenaires et disponibilités.")
+                    FeatureCard("Dispositifs médicaux", "Catalogue des dispositifs médicaux.")
+                    FeatureCard("Scanner", "Intégration native de la caméra à réaliser dans le prochain lot.")
                 }
-                if (properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
-                    readQueue.addLast(characteristic)
+                1 -> FeatureCard("Recherche", "Le catalogue sera relié aux API NAXA versionnées.")
+                2 -> FeatureCard("Achats et commandes", "Le suivi sera relié aux services métier autorisés pour votre compte.")
+                else -> {
+                    FeatureCard("Profil", "Identifiant : ${profile.userId}")
+                    TextButton(onClick = onLogout) { Text("Se déconnecter") }
                 }
             }
-            val infoService = gatt.getService(uuid("180A"))
-            listOf("2A29", "2A24", "2A26").forEach { short ->
-                val characteristic = infoService?.getCharacteristic(uuid(short))
-                if (characteristic != null && characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
-                    readQueue.addLast(characteristic)
-                }
-            }
-            val batteryService = gatt.getService(uuid("180F"))
-            val battery = batteryService?.getCharacteristic(uuid("2A19"))
-            if (battery != null && battery.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
-                readQueue.addLast(battery)
-            }
-            pendingReads[gatt.device.address] = readQueue
-            if (readQueue.isNotEmpty()) {
-                try { gatt.readCharacteristic(readQueue.removeFirst()) } catch (_: SecurityException) { }
-            }
-            emit("profiles", deviceId = gatt.device.address, profileCount = subscribed)
-        }
-
-        @Deprecated("Android callback compatibility")
-        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-            emitMeasurement(gatt, characteristic, characteristic.value ?: byteArrayOf())
-        }
-        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
-            emitMeasurement(gatt, characteristic, value)
-        }
-        @Deprecated("Android callback compatibility")
-        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            handleCharacteristicRead(gatt, characteristic, characteristic.value ?: byteArrayOf(), status)
-        }
-
-        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
-            handleCharacteristicRead(gatt, characteristic, value, status)
-        }
-
-        private fun handleCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, bytes: ByteArray, status: Int) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                val short = characteristic.uuid.toString().substring(4, 8).uppercase()
-                when (short) {
-                    "2A29" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "manufacturer", metadataValue = String(bytes, Charsets.UTF_8).trim())
-                    "2A24" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "model", metadataValue = String(bytes, Charsets.UTF_8).trim())
-                    "2A26" -> emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "firmware", metadataValue = String(bytes, Charsets.UTF_8).trim())
-                    "2A19" -> if (bytes.isNotEmpty()) emit("deviceInfo", deviceId = gatt.device.address, metadataKey = "battery_level", metadataValue = (bytes[0].toInt() and 0xff).toString())
-                    else -> emitMeasurement(gatt, characteristic, bytes)
-                }
-            }
-            val queue = pendingReads[gatt.device.address]
-            if (queue != null && queue.isNotEmpty()) {
-                try { gatt.readCharacteristic(queue.removeFirst()) } catch (_: SecurityException) { }
-            } else pendingReads.remove(gatt.device.address)
+            Spacer(Modifier.height(20.dp))
+            Text("Android natif · première version", color = Color(0xFF87948E), fontSize = 11.sp)
         }
     }
+}
 
-    private fun emitMeasurement(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, bytes: ByteArray) {
-        val payload = bytes.joinToString("") { "%02x".format(it) }
-        emit("measurement", deviceId = gatt.device.address, deviceName = safeName(gatt.device),
-            deviceKey = deviceKeys[gatt.device.address], serviceUuid = characteristic.service.uuid.toString(),
-            characteristicUuid = characteristic.uuid.toString(), payloadHex = payload)
-    }
-
-    private fun uuid(short: String): UUID = UUID.fromString("0000" + short.lowercase() + "-0000-1000-8000-00805f9b34fb")
-
-    private fun emit(type: String, message: String? = null, deviceId: String? = null,
-                     deviceName: String? = null, deviceKey: String? = null,
-                     serviceUuid: String? = null, characteristicUuid: String? = null,
-                     payloadHex: String? = null, profileCount: Int? = null,
-                     metadataKey: String? = null, metadataValue: String? = null) {
-        val data = JSONObject().put("type", type)
-        message?.let { data.put("message", it) }
-        deviceId?.let { data.put("deviceId", it) }
-        deviceName?.let { data.put("deviceName", it) }
-        deviceKey?.let { data.put("deviceKey", it) }
-        serviceUuid?.let { data.put("serviceUuid", it) }
-        characteristicUuid?.let { data.put("characteristicUuid", it) }
-        payloadHex?.let { data.put("payloadHex", it) }
-        profileCount?.let { data.put("profileCount", it) }
-        metadataKey?.let { data.put("metadataKey", it) }
-        metadataValue?.let { data.put("metadataValue", it) }
-        val script = "window.dispatchEvent(new CustomEvent('naxa-android-ble',{detail:" + data.toString() + "}))"
-        runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(script, null) }
-    }
-
-    override fun onDestroy() {
-        stopBleScan()
-        gatts.values.forEach { try { it.disconnect(); it.close() } catch (_: Exception) { } }
-        gatts.clear()
-        web.removeJavascriptInterface("NaxaAndroid")
-        web.destroy()
-        super.onDestroy()
-    }
-
-    @Deprecated("Back navigation compatibility")
-    override fun onBackPressed() {
-        if (::web.isInitialized && web.canGoBack()) web.goBack() else super.onBackPressed()
+@Composable
+private fun FeatureCard(title: String, description: String) {
+    Card(Modifier.fillMaxWidth().padding(top = 10.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = NaxaInk)
+            Spacer(Modifier.height(5.dp))
+            Text(description, color = Color(0xFF65776F), fontSize = 13.sp)
+        }
     }
 }
