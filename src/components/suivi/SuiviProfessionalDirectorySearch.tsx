@@ -106,9 +106,10 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
   const filtered=useMemo(()=>{
     const q=query.trim();
     return professionals.filter(p=>{
-      const nameMatch=!q||fuzzy(q,p.display_name)||fuzzy(q,p.specialty??"")||fuzzy(q,p.partner_name??"")||fuzzy(q,p.city??"");
+      const hasQuery=q.length>=2;
+      const nameMatch=!hasQuery||fuzzy(q,p.display_name)||fuzzy(q,p.specialty??"")||fuzzy(q,p.partner_name??"")||fuzzy(q,p.city??"");
       const intentMatch=intent.specialties.some(item=>normalize(p.specialty??"").includes(normalize(item))||normalize(item).includes(normalize(p.specialty??"")));
-      const queryMatch=!q||nameMatch||intentMatch;
+      const queryMatch=!hasQuery||nameMatch||intentMatch;
       const availabilityMatch=availability==="all"||(availability==="today"&&p.available_today)||(availability==="now"&&p.available_now);
       const specialtyMatch=!specialty||normalize(p.specialty??"")===normalize(specialty);
       return queryMatch&&availabilityMatch&&specialtyMatch;
