@@ -7,6 +7,10 @@ plugins {
 fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 val supabaseUrl = providers.gradleProperty("SUPABASE_URL").orElse(providers.environmentVariable("SUPABASE_URL")).getOrElse("")
 val supabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orElse(providers.environmentVariable("SUPABASE_ANON_KEY")).getOrElse("")
+val firebaseApiKey = providers.gradleProperty("FIREBASE_API_KEY").orElse(providers.environmentVariable("FIREBASE_API_KEY")).getOrElse("")
+val firebaseAppId = providers.gradleProperty("FIREBASE_APP_ID").orElse(providers.environmentVariable("FIREBASE_APP_ID")).getOrElse("")
+val firebaseProjectId = providers.gradleProperty("FIREBASE_PROJECT_ID").orElse(providers.environmentVariable("FIREBASE_PROJECT_ID")).getOrElse("")
+val firebaseSenderId = providers.gradleProperty("FIREBASE_SENDER_ID").orElse(providers.environmentVariable("FIREBASE_SENDER_ID")).getOrElse("")
 android {
     namespace = "cm.naxa.app"
     compileSdk = 35
@@ -19,6 +23,10 @@ android {
         buildConfigField("String", "NAXA_BASE_URL", quoted("https://naxa-opal.vercel.app"))
         buildConfigField("String", "SUPABASE_URL", quoted(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoted(supabaseAnonKey))
+        buildConfigField("String", "FIREBASE_API_KEY", quoted(firebaseApiKey))
+        buildConfigField("String", "FIREBASE_APP_ID", quoted(firebaseAppId))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(firebaseProjectId))
+        buildConfigField("String", "FIREBASE_SENDER_ID", quoted(firebaseSenderId))
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {
