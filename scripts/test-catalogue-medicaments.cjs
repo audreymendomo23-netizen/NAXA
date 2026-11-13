@@ -176,6 +176,10 @@ test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont int
   assert.match(photoResolver, /allowedCimaImageRights/);
   assert.match(photoResolver, /function cimaPhotoUpdateDate/);
   assert.match(photoResolver, /photo\.fecha/);
+  assert.match(photoResolver, /for \(const entry of medicine\.fotos \?\? \[\]\)/);
+  assert.match(photoResolver, /safeCimaImageUrl\(entry\.url, registration, wantedType\)/);
+  assert.match(photoResolver, /parts\[4\] !== registration/);
+  assert.match(photoResolver, /detail\.nregistro === candidate\.nregistro/);
   assert.match(photoResolver, /Données ouvertes AEMPS\/CIMA/);
   assert.match(photoResolver, /derechos\\s\+reservados/);
   assert.match(photoResolver, /for \(const record of matching\)/);
