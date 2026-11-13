@@ -116,3 +116,19 @@ Commencer le lot Paiements Promoteur en portant les fonctions et migrations requ
 - **Branche volontairement non rattachée à ce stade :** `feat/fee-luciole-interactions-20261019`. Son historique contient des améliorations encore absentes du code courant, notamment la protection des gestes pendant une interaction tactile, la gestion d'états métier durables et le trajet de retour au repos. Ces changements doivent être portés sélectivement dans la version actuelle de `Luciole.tsx`, `Recherche.tsx`, `ScannerShell.tsx` et des constantes avant de rattacher cette tête ; une fusion d'historique seule masquerait ces écarts.
 - Les branches `Test` et `Test-claude` restent des archives ZIP et ne sont pas des lots source à fusionner tels quels. Les mises à jour Dependabot majeures et les documents juridiques historiques contenant des informations à ne pas republier restent exclus d'une fusion aveugle.
 - HEAD de main à la fin de cette passe : `36b5dca1b861bb2531c395b189938a5abf72750a`. Aucun déploiement Vercel ni aucune migration Production n'a été effectué.
+
+
+## Journal d'exécution — portage partiel fée Luciole (2026-11-13)
+
+- HEAD de départ observé : `feffbb705232fa3a9ab194977fe9fb165008e3bc`.
+- Branche source : `feat/fee-luciole-interactions-20261019`, tête `82a795e2c1ec2ee723859c6cb94f6bf3bc29db48`, 25 commits en avance selon l'API compare (historique divergent ; le nombre ne représente pas 25 changements nets).
+- Contradiction vérifiée : le code courant de `main` avait déjà dépassé plusieurs fichiers de cette branche (Recherche, ScannerShell, API catalogue et planning de garde). Les anciennes versions de ces fichiers n'ont pas été copiées.
+- Portage ciblé publié directement sur `main` :
+  - `2484e8736fa2ce6eebc63bd996ec4756c46b68a4` : activation de la fée en mode nuit sur `/scanner` et suppression de l'inférence d'événements métier à partir du texte des boutons ; seuls les attributs explicites `data-naxa-fairy` déclenchent un geste.
+  - `92132440575aac8d855ac05f512e5289c041dfa7` : ajout des constantes de durée compatibles avec le portage.
+  - `7480f780d9dd95d0690976772862891464d22c4c` : émission d'un état visuel de recherche sans transmettre le terme.
+  - `08ec90a142f291ead46057c4e46304e73e709d99` : émission d'un état visuel du scanner sans transmettre l'ordonnance ni le code-barres.
+  - `16d5b2cb6541be2ba96d8111ec989cea1e7bea52` : émission d'un signal de rappel sans transmettre médicament, dose ou unité.
+- La logique avancée de la branche (états métier durables, gestion des gestes tactiles et trajet de retour au repos) n'est pas encore portée ; la tête de la branche n'est donc pas encore rattachée à l'historique de `main`.
+- CI GitHub Actions `NAXA quality` déclenchée sur le HEAD final `16d5b2c`, run `43344913433`. État relevé : jobs non disponibles.
+- Aucun déploiement Vercel ni aucune migration Supabase Production exécuté.
