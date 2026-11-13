@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const amount = payerSms?.amount ?? Number(body.amount ?? (Number(reservation.total) + Number(reservation.frais_livraison)));
     if (!Number.isSafeInteger(amount) || amount <= 0) return NextResponse.json({ error: "Montant déclaré invalide." }, { status: 400 });
     const reference = String(payerSms?.reference ?? body.reference ?? "").trim();
-    if (reference.length < 5 || reference.length > 120 || !/^[\\p{L}\\p{N}\\s_./-]+$/u.test(reference)) {
+    if (reference.length < 5 || reference.length > 120 || !/^[\p{L}\p{N}\s_./-]+$/u.test(reference)) {
       return NextResponse.json({ error: "ID / Référence de transaction obligatoire (5 caractères minimum). Le SMS partagé n'a pas permis de l'extraire automatiquement." }, { status: 400 });
     }
     const payerNumber = String(payerSms?.payerNumber ?? body.payerNumber ?? "").trim().slice(0, 40);
