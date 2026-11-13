@@ -181,10 +181,10 @@ function likelyCombinationMismatch(title: string, queryTokens: string[]): boolea
 
 
 const CIMA_BASE = "https://cima.aemps.es/cima/rest";
-// CIMA expose les URLs et la date de mise à jour de chaque photo. À défaut
-// d'une licence individuelle restrictive, la politique officielle de données
-// ouvertes AEMPS s'applique avec attribution et date ; toute restriction explicite
-// au niveau du média reste prioritaire.
+// CIMA expose les URLs et la date de mise à jour des photos. Les conditions
+// générales de réutilisation des données AEMPS ne suffisent pas à prouver les
+// droits sur les visuels fournis par les titulaires : une licence image explicite
+// et une URL de licence reconnue sont donc exigées plus bas.
 const CIMA_NAME_ALIASES: Record<string, string> = {
   acetaminophen: "paracetamol",
   ibuprofen: "ibuprofeno",
@@ -652,8 +652,9 @@ export async function rechercherPhotosMedicament(term: string): Promise<PhotosMe
   }
   if (!identityTokens(query).length) return { boite: null, comprime: null };
 
-  // CIMA est interrogé en premier : API publique AEMPS et réutilisation ouverte
-  // avec attribution. Commons complète uniquement les vues manquantes.
+  // CIMA est interrogé en premier pour les références et photos officielles ;
+  // une photo n'est retenue que si ses droits individuels sont explicites.
+  // Commons complète uniquement les vues manquantes avec licence vérifiée.
   const cima = await searchCima(query);
   if (cima.boite && cima.comprime) return cima;
 
