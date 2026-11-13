@@ -38,8 +38,12 @@ export function PrestationsCatalogue({offers,categories,initialQuery,initialCate
   async function searchWithPosition(gps:CoordonneesGPS,km:string) {
     setBusy(true); setGeoError("");
     try {
-      const params=new URLSearchParams({lat:String(gps.lat),lng:String(gps.lng),rayon_km:km});
-      const response=await fetch("/api/prestations/proches?"+params.toString(),{headers:{Accept:"application/json"},cache:"no-store"});
+      const response=await fetch("/api/prestations/proches",{
+        method:"POST",
+        headers:{Accept:"application/json","Content-Type":"application/json"},
+        body:JSON.stringify({lat:gps.lat,lng:gps.lng,rayon_km:Number(km)}),
+        cache:"no-store",
+      });
       const payload=await response.json() as {results?:NearbyResult[];error?:string};
       if(!response.ok) throw new Error(payload.error||"La recherche à proximité est indisponible.");
       setNearby(Array.isArray(payload.results)?payload.results:[]);
