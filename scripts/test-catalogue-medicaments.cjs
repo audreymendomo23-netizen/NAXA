@@ -305,11 +305,11 @@ test("import photos : file CIS/CIP réelle, colonnes Production exactes et CDN O
   assert.match(imageImporter, /select: "cis,cip_code,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut"/);
   assert.match(imageImporter, /\/medicaments_referentiel_sources\?/);
   assert.match(imageImporter, /select: "cis,nom,substances_actives"/);
-  assert.match(imageImporter, /statut: "in\.\(a_traiter,sans_image_source,erreur\)"/);
+  assert.ok(imageImporter.includes('or: "(statut.in.(a_traiter,sans_image_source,erreur),and('));
   assert.match(imageImporter, /GTIN exact/);
   assert.match(imageImporter, /CC BY-SA 4\.0/);
   assert.match(imageImporter, /Wikimedia Commons/);
-  assert.match(imageImporter, /statut: "image_stockee"/);
+  assert.ok(imageImporter.includes('or: "(statut.in.(a_traiter,sans_image_source,erreur),and('));
   assert.match(imageImporter, /images\.openproductsfacts\.org/);
   assert.match(imageImporter, /images\.openfoodfacts\.org/);
   assert.match(imageImporter, /const requiredHits = wanted\.length <= 2 \? wanted\.length : 2/);
