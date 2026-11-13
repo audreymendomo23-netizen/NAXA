@@ -219,8 +219,8 @@ test("CIMA pré-calculé : projection publique strictement filtrée et reliée a
   assert.match(cimaPhotoProjection, /fotos/);
   assert.match(cimaPhotoProjection, /fecha/);
   assert.match(cimaPhotoProjection, /cima\[\.]aemps\[\.]es/);
-  assert.match(cimaPhotoProjection, /revoke all on public\.medicamentos_cima_photos_public from public/);
-  assert.match(cimaPhotoProjection, /grant select on public\.medicamentos_cima_photos_public to anon, authenticated, service_role/);
+  assert.match(cimaPhotoProjection, /revoke all on public\.medicaments_cima_photos_public from public/);
+  assert.match(cimaPhotoProjection, /grant select on public\.medicaments_cima_photos_public to anon, authenticated, service_role/);
   assert.doesNotMatch(cimaPhotoProjection, /select\s+j\.donnees_cima\s*,/i);
   assert.match(route, /from\("medicaments_cima_photos_public"\)/);
   assert.match(route, /\.in\("cis", cisList\)/);
