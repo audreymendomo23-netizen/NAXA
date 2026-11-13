@@ -44,11 +44,12 @@ Statut : PARTIEL — code intégré, recette Android réelle et facturation Part
 
 - 20261113180000_partner_payment_notification_capture.sql : appareils Partenaire + candidats de notification / partage.
 - 20261113180500_promoteur_payment_notification_candidates.sql : candidats notification Promoteur reliés à une intention active.
-- Les deux tables utilisent RLS, révoquent les accès directs anon/authenticated et n'accordent l'accès qu'à service_role.
+- Migrations appliquées sur Supabase Replay nxa-ci-replay-2 (pwfftcsjyeibxxqhwysw), versions 20261113170158 et 20261113170204.
+- Vérification SQL Replay : RLS activé sur les trois tables nouvelles ; les seuls privilèges applicatifs listés sont ceux de service_role, aucun droit direct anon/authenticated. Colonnes, clés partenaires et table Promoteur liées à l'intention ont été introspectées.
 
 ## Limites / preuves encore requises
 
-- Appliquer les migrations uniquement sur Supabase Replay et vérifier les ACL/RLS.
+- Les migrations et ACL/RLS ont été vérifiées sur Replay ; ne pas transposer en Production sans autorisation distincte et procédure de migration dédiée.
 - Compiler et tester les variantes Android Standard/Admin.
 - Vérifier sur téléphones réels le filtrage des notifications sur Samsung, Tecno, Infinix et autres appareils.
 - Tester les SIM Orange et MTN, les codes USSD, double SIM et le flux après retour du composeur.

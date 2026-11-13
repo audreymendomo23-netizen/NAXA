@@ -25,7 +25,7 @@ Cette mise à jour remplace toute instruction antérieure qui reportait la lectu
 - Les coordonnées marchandes Client → Pharmacie sont séparées par établissement et opérateur. Le Client voit nom, téléphone, code marchand à 6 chiffres et montant. Le composeur est préparé avec MTN *126*4*<code 6 chiffres>*<montant># ou Orange #150*47#. Le préremplissage du montant Orange reste à confirmer sur SIM réelle.
 - La distribution reste par APK privé NAXA, sans Play Store.
 
-Les candidats Promoteur et Partenaire n'écrivent pas le texte SMS brut, ne ferment pas une intention d'abonnement et n'activent pas de compte. Les deux migrations de candidats du lot courant doivent être vérifiées sur Replay avant d'être considérées comme installées.
+Les candidats Promoteur et Partenaire n'écrivent pas le texte SMS brut, ne ferment pas une intention d'abonnement et n'activent pas de compte. Les migrations de candidats ont été appliquées sur Replay nxa-ci-replay-2 (pwfftcsjyeibxxqhwysw) sous les versions 20261113170158 et 20261113170204. Vérification SQL : RLS actif sur les tables Partenaire/Promoteur, aucun droit direct anon/authenticated ; service_role seul dispose des privilèges applicatifs.
 
 ## État des migrations et de la distribution
 >
