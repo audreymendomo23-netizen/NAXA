@@ -41,7 +41,18 @@ L'API de recherche rapproche cette projection par CIS BDPM exact. Les boîtes CI
 - Open Products Facts : endpoint public par code-barres ; sa documentation indique que son API est largement compatible avec Open Food Facts. Par prudence, NAXA applique le plafond de lecture produit documenté par Open Food Facts (15 lectures/minute/IP) comme limite conservative, sans présumer qu'il s'agit d'un quota contractuel OPF. Aucun endpoint de recherche texte n'est utilisé ; uniquement un GET par GTIN exact et cache 7 jours.
 - Aucun secret ni clé API payante n'est nécessaire pour ces trois sources.
 
-## Import batch des présentations CIS/CIP\n\nLe script `scripts/medicaments-images-cameroun.mjs` travaille sur la file réelle `public.medicaments_images` (clé primaire `(cis, cip_code)`) et non sur des colonnes photo inexistantes du référentiel BDPM. Il récupère le nom du médicament par CIS dans `medicaments_referentiel_sources`, interroge Open Products Facts uniquement par CIP/GTIN exact avec contrôle du code retourné et de la catégorie médicament, puis Wikimedia Commons avec vérification d'au moins deux ancres du nom (ou de tous les termes lorsque le nom est court) et des licences CC0, domaine public, CC BY ou CC BY-SA. Les résultats conservent `image_url`, `source_nom`, `source_url`, `licence`, `methode_correspondance` et le statut `image_stockee`. Les images restent distantes : aucune copie Storage ni altération des originaux. L'exécution est limitée à 40 présentations par défaut, 250 maximum, avec un délai de 4,1 secondes entre présentations pour respecter le plafond conservateur de 15 lectures produit par minute ; `--dry-run` permet de simuler.\n\n
+## Import batch des présentations CIS/CIP
+
+Le script `scripts/medicaments-images-cameroun.mjs` travaille sur la file réelle `public.medicaments_images` (clé CIS + CIP) et récupère les libellés via les colonnes réellement présentes de `public.medicaments_referentiel_sources` : `cis`, `nom`, `substances_actives`. Il n'écrit pas dans le référentiel BDPM.
+
+- Open Products Facts : requête par CIP/GTIN exact, contrôle du code retourné, catégorie médicament/pharmaceutique et identité produit. Les hôtes d'images autorisés sont `images.openproductsfacts.org` et `images.openfoodfacts.org`, l'infrastructure d'images étant partagée par Open Facts.
+- Wikimedia Commons : recherche par nom de médicament ; licences CC0, domaine public, CC BY ou CC BY-SA seulement. Pour un nom court, tous les termes significatifs doivent correspondre ; pour un nom long, au moins deux ancres distinctives doivent correspondre.
+- Les champs de provenance écrits sont ceux de la table réelle : `image_url`, `source_nom`, `source_url`, `licence`, `methode_correspondance`, `statut`. Aucun fichier n'est copié dans Storage.
+- Limite : 40 présentations par exécution par défaut, 250 maximum, délai de 4,1 secondes entre présentations (plafond prudent de 15 lectures produit/minute). `--dry-run` simule sans écrire.
+- Commande : `npm run import:medicaments-images -- --limit=40 --dry-run` pour simuler, puis la même commande sans `--dry-run` pour enregistrer les correspondances.
+
+L'exécution d'import nécessite `SUPABASE_URL` (ou `NEXT_PUBLIC_SUPABASE_URL`) et `SUPABASE_SERVICE_ROLE_KEY` dans l'environnement serveur. Ne jamais placer la clé dans le navigateur ni dans le dépôt.
+
 
 - La saisie d'un EAN/GTIN exact dans les deux interfaces de recherche déclenche une lecture OPF uniquement lorsque la recherche catalogue ne renvoie aucun résultat ; un code sans fiche médicament revient sans image et ne déclenche aucune recherche textuelle de secours.
 - Une recherche BDPM utilise le CIS exact pour récupérer les photos pré-calculées via la projection publique CIMA ; aucun accès public direct à la table privée n'est autorisé. La route photo lit aussi `medicaments_images` par CIS exact et ne sert que les lignes `image_stockee` munies d'une source et d'une licence HTTPS.
