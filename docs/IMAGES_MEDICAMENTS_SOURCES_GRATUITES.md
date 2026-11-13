@@ -47,6 +47,7 @@ L'API de recherche rapproche cette projection par CIS BDPM exact. Les boîtes CI
 - Une recherche BDPM utilise le CIS exact pour récupérer les photos pré-calculées via la projection publique CIMA ; aucun accès public direct à la table privée n'est autorisé.
 - Les photos CIMA nécessitent un champ `fotos[].fecha` valide et une URL exacte rattachée au numéro d'enregistrement CIMA.
 
+- L'API photo fusionne maintenant la photo locale vérifiée avec les vues externes manquantes ; le chargement côté client poursuit la recherche par identité après un GTIN partiellement illustré et conserve les sources/licences de chaque variante.
 - Migration `supabase/migration_310_cima_photo_public_projection.sql` : appliquée à Supabase Production le 13/11/2026. Dernier contrôle en base : 453 références éligibles (453 photos de boîte, 450 photos de forme pharmaceutique) ; ce compteur évolue avec le traitement CIMA. Lecture accordée à `anon`, `authenticated` et `service_role`, sans accès `anon` à la table privée. L’advisor Supabase signale la vue comme *security definer* : point de sécurité documenté à traiter avant clôture complète. Le code d’application est sur `main`, mais aucun déploiement Vercel n’a été effectué dans ce chantier.
 - `npm run test:catalogue-medicaments`
 - npx tsc --noEmit
