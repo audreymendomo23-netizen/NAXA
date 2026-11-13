@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
   };
   const selected = photos.boite ?? photos.comprime;
   const sources = [...new Set(
-    [photos.boite?.provider, photos.comprime?.provider].filter((value): value is string => Boolean(value))
+    [photos.boite?.provider, photos.comprime?.provider].flatMap((value) => value ? [value] : [])
   )];
   return NextResponse.json({
     photo: selected,

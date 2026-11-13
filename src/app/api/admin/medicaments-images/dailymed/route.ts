@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       query,
-      rxnormCandidates,
+      rxCandidates,
       results,
       notice: "Recherche directe RxNorm → DailyMed. SPLIMAGE est une image de forme orale solide, pas une photo de boîte. Droits de reproduction à confirmer auprès du titulaire avant toute publication.",
     }, { headers: { "Cache-Control": "no-store" } });

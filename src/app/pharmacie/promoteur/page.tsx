@@ -27,7 +27,7 @@ type Stats = {
 const date = (v: string | null | undefined) => v ? new Date(v).toLocaleDateString("fr-FR") : "Non renseignée";
 const dateTime = (v: string | null | undefined) => v ? new Date(v).toLocaleString("fr-FR") : "Non renseignée";
 
-export async function PromoteurDashboard({ section = "overview" }: { section?: string }) {
+export async function PromoteurDashboard({ section = "overview" }: { section?: string; geoStatus?: string }) {
   const access = await loadPromoteurAccess();
   const { auth, profile, links, linksError, pharmacies, pharmaciesError, convention, abonnement, activeLinkIds, expiryDate, isCommerciallyBlocked, contractDataUnavailable, contractIncomplete, shouldShowAccessStatus, hasLoadError } = access;
   const sb = supabaseServer();

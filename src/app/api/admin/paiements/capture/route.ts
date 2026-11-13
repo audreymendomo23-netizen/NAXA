@@ -195,8 +195,9 @@ export async function POST(request: Request) {
       if (intentsError) return NextResponse.json({ error: "Recherche des paiements prepares impossible." }, { status: 503 });
       let matchingIntents = (intents ?? []).filter(intent => {
         const snapshot = intent.destination_snapshot as { reference_destination?: string } | null;
-        return Boolean(snapshot?.reference_destination) &&
-          normalize(snapshot.reference_destination) === normalize(device.merchant_reference);
+        const destinationReference = snapshot?.reference_destination;
+        return typeof destinationReference === "string" &&
+          normalize(destinationReference) === normalize(device.merchant_reference);
       });
 
       if (matchingIntents.length > 1) {

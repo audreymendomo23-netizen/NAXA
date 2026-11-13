@@ -264,7 +264,7 @@ export default function Accueil() {
     setPosition("recherche");
     navigator.geolocation.getCurrentPosition(
       () => setPosition("active"),
-      () => setPosition("defaut"),
+      () => setPosition("indisponible"),
       { maximumAge: 300000, timeout: 8000 }
     );
   }

@@ -144,11 +144,11 @@ export function SuiviConnecte() {
   const [selectedDeviceKey, setSelectedDeviceKey] = useState<string | null>(null);
   const [measurementSheetOpen, setMeasurementSheetOpen] = useState(false);
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
-  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
+  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof window.setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
   const nativeDeviceRows=useRef(new Map<string,{id:string;deviceKey:string;name:string}>());
   const nativeReconnectRequested=useRef(new Set<string>());
   const nativeDevicePromises=useRef(new Map<string,Promise<string>>());
-  const measurementRefreshTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const measurementRefreshTimer = useRef<ReturnType<typeof window.setTimeout>|null>(null);
 
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
@@ -326,9 +326,7 @@ export function SuiviConnecte() {
             last_error:null,updated_at:new Date().toISOString()};
           const saved=existing.data?.id
             ? await sb.from("suivi_user_devices").update(payload).eq("id",existing.data.id).eq("user_id",authData.user.id).select("id").single()
-            : await sb.from("suivi_user_devices").insert({user_id:authData.user.id,device_key:deviceKey,
-                device_name:name,connection_mode:"bluetooth",active:true,capabilities:["bluetooth","manual","scan"],
-                ...payload}).select("id").single();
+            : await sb.from("suivi_user_devices").insert({user_id:authData.user.id,device_name:name,capabilities:["bluetooth","manual","scan"],...payload}).select("id").single();
           if(saved.error||!saved.data?.id)throw saved.error??new Error("Enregistrement de l'appareil impossible.");
           nativeDeviceRows.current.set(deviceId,{id:saved.data.id,deviceKey,name});
           await load();
@@ -390,7 +388,7 @@ export function SuiviConnecte() {
           if(!authData.user)throw new Error("Session expirée.");
           if(String(detail.ownerUserId??"")!==authData.user.id)throw new Error("Mesure Bluetooth écartée : compte propriétaire différent.");
           const receivedAt=new Date().toISOString();
-          const rows=allowed.map(measurement=>({
+          const rows=allowed.map((measurement,index)=>({
             user_id:authData.user!.id,device_id:row!.id,measurement_type:measurement.measurement_type,
             value_numeric:measurement.value_numeric,value_text:null,
             unit:measurement.unit,measured_at:measurement.measured_at??receivedAt,

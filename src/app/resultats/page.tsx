@@ -110,9 +110,9 @@ function ResultsContent(){
               photo?: CatalogPhoto | null;
               photos?: { boite?: CatalogPhoto | null; comprime?: CatalogPhoto | null };
             };
-            const photos = barcodePayload.photos ?? {
-              boite: barcodePayload.photo?.kind === "boite" ? barcodePayload.photo : null,
-              comprime: barcodePayload.photo?.kind === "comprime" ? barcodePayload.photo : null
+            const photos = {
+              boite: barcodePayload.photos?.boite ?? (barcodePayload.photo?.kind === "boite" ? barcodePayload.photo : null),
+              comprime: barcodePayload.photos?.comprime ?? (barcodePayload.photo?.kind === "comprime" ? barcodePayload.photo : null)
             };
             const primary = photos.boite ?? photos.comprime;
             if (primary?.url && primary.sourceUrl && primary.licence) {
