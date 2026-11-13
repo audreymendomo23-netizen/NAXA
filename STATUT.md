@@ -1283,3 +1283,12 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - **Statut : 🟡 SQL Replay et définitions Production vérifiés; CI/build/typecheck/lint et recette de l'interface Admin restent à exécuter.** Pas de déploiement. Aucune donnée métier permanente n'a été modifiée.
 
 - **Contrôle SQL structurel Replay (04/11/2026, lecture seule) :** PASS sur 10 assertions : signatures des RPC offline/device permissions/lot helper, SECURITY DEFINER du RPC de rejeu, refus EXECUTE à anon/authenticated, EXECUTE à service_role, journal de mouvements avec RLS, colonnes `device_sequence` et `modified_at`, policy de lecture lots fondée sur `naxa_can_manage_lots`, absence de policy `ALL` générique sur `stocks_lots`. Historique Replay contient la migration 280. Contrôle structurel uniquement, non substitut aux tests applicatifs.
+
+## Retrait des fournisseurs externes de photos médicaments — 13 novembre 2026
+
+- Suppression des intégrations photo CIMA/AEMPS, Wikimedia Commons et Open Products Facts, ainsi que du parcours de recherche d'images candidates DailyMed/RxNorm.
+- Suppression des modules, routes API, écran Admin, scripts, tests et commandes npm dédiés à ces recherches d'images.
+- `/api/medicaments/photo` ne consulte plus que les photos du catalogue local NAXA portant une source, une licence et une date de vérification; les anciennes lignes dont la source ou l'URL correspond aux fournisseurs retirés sont exclues de l'affichage.
+- La recherche documentaire RxNorm, openFDA et DailyMed reste distincte et sert uniquement aux métadonnées/notices médicaments; elle ne fournit plus de photos à l'interface.
+- Les enregistrements Supabase historiques ne sont pas supprimés; ils sont conservés mais ne sont plus servis par le parcours photo. Aucune migration ni suppression de données Production n'a été exécutée.
+- Aucun déploiement manuel n'a été lancé. Les contrôles TypeScript, lint et build restent à exécuter; ne pas déclarer ce retrait vert avant preuve.
