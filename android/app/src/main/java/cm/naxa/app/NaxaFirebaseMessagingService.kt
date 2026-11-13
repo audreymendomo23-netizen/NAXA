@@ -21,7 +21,7 @@ class NaxaFirebaseMessagingService : FirebaseMessagingService() {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(TOKEN_KEY, token).apply()
         serviceScope.launch {
             try {
-                FcmRegistrationRepository(SecureTokenStore(applicationContext)).register(token)
+                FcmRegistrationRepository(applicationContext, SecureTokenStore(applicationContext)).register(token)
             } catch (_: Exception) {
                 // Registration is retried after the next successful app sign-in/settings visit.
             }
