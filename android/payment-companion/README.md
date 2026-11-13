@@ -1,3 +1,17 @@
+# Mise à jour prioritaire — règle de paiement pilote (13/11/2026)
+
+La décision métier validée dans [docs/ARCHITECTURE_PAIEMENT_PILOTE.md](../../docs/ARCHITECTURE_PAIEMENT_PILOTE.md) prévaut sur la description historique ci-dessous.
+
+- Client : partage volontaire de son SMS de débit vers NAXA ; aucune permission RECEIVE_SMS.
+- Pharmacie : confirmation manuelle dans son espace, après vérification du crédit réel ; aucun transfert du SMS pharmacie pendant le pilote.
+- Promoteur : partage volontaire de son SMS de débit ; aucune permission RECEIVE_SMS.
+- Administrateur : conserve la réception automatique du SMS de crédit avec consentement explicite et permission Android valide. En cas d'échec, confirmation manuelle ou partage volontaire du SMS Admin.
+- L'automatisation par confrontation exige les deux preuves fiables. La capture SMS côté Pharmacie sera réévaluée après au moins cinq mois de pilote et de confiance acquise, sans devenir obligatoire.
+
+**Écart de code à ce commit :** l'APK décrite ci-dessous implémente encore l'ancien mécanisme de capture automatique Promoteur/Admin. Elle n'est pas encore conforme à la nouvelle règle pilote et ne doit pas être présentée comme telle avant adaptation et tests. Le présent ajout met à jour la consigne, pas le comportement de l'APK.
+
+---
+
 # NAXA Payment Companion (Android)
 
 ## Implémentation
