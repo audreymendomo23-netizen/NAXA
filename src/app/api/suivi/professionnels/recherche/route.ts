@@ -69,7 +69,9 @@ export async function POST(request:NextRequest){
     const members=(membersResult.data??[]) as MemberRow[];
     const availabilities=(availabilityResult.data??[]) as AvailabilityRow[];
     const localParts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Douala",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
-    const nowTime=localParts.find(p=>p.type==="hour")?.value+":"+localParts.find(p=>p.type==="minute")?.value;
+    const nowHour=localParts.find(p=>p.type==="hour")?.value??"00";
+    const nowMinute=localParts.find(p=>p.type==="minute")?.value??"00";
+    const nowTime=nowHour+":"+nowMinute;
     const results=unexpired.filter(row=>activeIds.has(row.user_id)).flatMap(row=>{
       const memberRows=members.filter(member=>member.user_id===row.user_id);
       const availability=availabilities.find(item=>item.user_id===row.user_id);
