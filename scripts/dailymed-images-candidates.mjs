@@ -138,7 +138,7 @@ export function buildCandidateUpdate(row, ref, candidates, rxnormCandidates = []
     image_path: null,
     source_nom: "DailyMed — NLM / SPLIMAGE",
     source_url: first.label_url,
-    licence: "Droits de reproduction de l'image SPLIMAGE à confirmer auprès du titulaire avant affichage public",
+    licence: "Droits de reproduction de l'image SPLIMAGE à confirmer auprès du titulaire avant affichage public — validation juridique obligatoire avant publication",
     statut: "correspondance_a_verifier",
     methode_correspondance: JSON.stringify({
       provider: "RxNorm → DailyMed v2 / SPLIMAGE",
