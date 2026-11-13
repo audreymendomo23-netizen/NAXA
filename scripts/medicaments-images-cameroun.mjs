@@ -14,7 +14,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DRY_RUN = process.argv.includes("--dry-run");
 const LIMIT = Math.max(1, Math.min(250, Number(process.argv.find((arg) => arg.startsWith("--limit="))?.split("=")[1] ?? 40)));
 const USER_AGENT = "NAXA/1.0 (https://naxa.cm; naxa.home@gmail.com)";
-const DELAY_MS = 1200;
+const DELAY_MS = 4100; // plafond prudent : 15 lectures produit par minute
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("Variables requises : SUPABASE_URL (ou NEXT_PUBLIC_SUPABASE_URL) et SUPABASE_SERVICE_ROLE_KEY.");
