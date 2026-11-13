@@ -106,9 +106,9 @@ function ResultsContent(){
               photo?: CatalogPhoto | null;
               photos?: { boite?: CatalogPhoto | null; comprime?: CatalogPhoto | null };
             };
-            const photos = {
-              boite: barcodePayload.photos?.boite ?? barcodePayload.photo ?? null,
-              comprime: barcodePayload.photos?.comprime ?? null
+            const photos = barcodePayload.photos ?? {
+              boite: barcodePayload.photo?.kind === "boite" ? barcodePayload.photo : null,
+              comprime: barcodePayload.photo?.kind === "comprime" ? barcodePayload.photo : null
             };
             const primary = photos.boite ?? photos.comprime;
             if (primary?.url && primary.sourceUrl && primary.licence) {
@@ -177,8 +177,10 @@ function ResultsContent(){
                   photo?: CatalogPhoto | null;
                   photos?: { boite?: CatalogPhoto | null; comprime?: CatalogPhoto | null };
                 };
-                variants.boite = variants.boite ?? photoPayload.photos?.boite ?? photoPayload.photo ?? null;
-                variants.comprime = variants.comprime ?? photoPayload.photos?.comprime ?? null;
+                variants.boite = variants.boite ?? photoPayload.photos?.boite
+                  ?? (photoPayload.photo?.kind === "boite" ? photoPayload.photo : null);
+                variants.comprime = variants.comprime ?? photoPayload.photos?.comprime
+                  ?? (photoPayload.photo?.kind === "comprime" ? photoPayload.photo : null);
               }
               if (!variants.boite && !variants.comprime) continue;
               const primary = variants.boite ?? variants.comprime;
