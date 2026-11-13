@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect,useMemo,useState } from "react";
+import { useCallback,useEffect,useMemo,useState } from "react";
 import { obtenirPositionGPS,type CoordonneesGPS,type ErreurGPS } from "@/lib/geolocation";
 
 type Professional={
@@ -62,7 +62,7 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
   const [aiNotice,setAiNotice]=useState("");
   const [suggestionOpen,setSuggestionOpen]=useState(false);
 
-  async function loadDirectory(gps?:CoordonneesGPS,km=radius){
+  const loadDirectory=useCallback(async(gps?:CoordonneesGPS,km=radius)=>{
     setLoading(true);setError("");
     try{
       const response=await fetch("/api/suivi/professionnels/recherche",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(gps?{lat:gps.lat,lng:gps.lng,radius_km:Number(km)}:{}),cache:"no-store"});
@@ -71,9 +71,9 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
       setProfessionals(Array.isArray(data.results)?data.results:[]);
     }catch(e){setError(e instanceof Error?e.message:"Impossible de charger l’annuaire.");}
     finally{setLoading(false);}
-  }
+  },[radius]);
 
-  useEffect(()=>{void loadDirectory();},[]);
+  useEffect(()=>{void loadDirectory();},[loadDirectory]);
 
   useEffect(()=>{
     if(query.trim().length<2){setIntent({specialties:[],keywords:[],source:"local"});setAiNotice("");return;}
@@ -147,7 +147,7 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
           <span className={professional.available_now?"font-bold text-emerald-800":professional.available_today?"font-semibold text-blue-800":"text-slate-500"}>{professional.available_now?"Disponible maintenant":professional.available_today?"Disponible aujourd’hui":"Indisponible aujourd’hui"}</span>
-          {professional.available_today&&professional.today_opens_at&&professional.today_closes_at&&<span className="text-slate-600">Horaires du jour : {time(professional.today_opens_at)} – {time(professional.today_closes_at)}</span>}
+          {professional.today_opens_at&&professional.today_closes_at&&<span className="text-slate-600">Horaires du jour : {time(professional.today_opens_at)} – {time(professional.today_closes_at)}</span>}
           {professional.distance_km!==null&&<span className="font-semibold text-slate-600">{professional.distance_km.toFixed(1)} km</span>}
         </div>
       </article>)}
