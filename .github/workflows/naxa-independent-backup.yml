@@ -101,7 +101,7 @@ jobs:
           print(f"Supabase {mode} URI syntax validated for project {project_ref}; the actual database dump will perform the authoritative network/authentication test. Credentials were not printed.")
           PY
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: supabase/setup-cli@v3
         with:
