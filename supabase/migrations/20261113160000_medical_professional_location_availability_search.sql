@@ -120,39 +120,41 @@ returns table(
 language sql stable security definer set search_path=''
 as $function$
   select
-    o.id,
-    p.id,
-    p.name,
-    p.city,
-    p.neighborhood,
-    o.name,
-    o.category,
-    o.description,
-    o.service_area_label,
-    o.price_fcfa,
-    coalesce(nullif(trim(sp.specialty),''),o.category),
-    coalesce(av.is_open,false),
+    o.id,p.id,p.name,p.city,p.neighborhood,o.name,o.category,o.description,o.service_area_label,o.price_fcfa,
+    provider.specialty,
+    coalesce(provider.is_open,false),
     coalesce(
-      av.is_open
-      and timezone('Africa/Douala',now())::time >= av.opens_at
-      and timezone('Africa/Douala',now())::time < av.closes_at,
+      provider.is_open
+      and timezone('Africa/Douala',now())::time >= provider.opens_at
+      and timezone('Africa/Douala',now())::time < provider.closes_at,
       false
     ),
-    case when av.is_open then av.opens_at else null end,
-    case when av.is_open then av.closes_at else null end
+    case when provider.is_open then provider.opens_at else null end,
+    case when provider.is_open then provider.closes_at else null end
   from public.home_service_offers o
   join public.partners p on p.id=o.partner_id and p.status='active' and p.partner_type='professionnel_domicile'
   join public.partner_universes pu on pu.partner_id=p.id and pu.universe_slug='prestations' and pu.enabled=true
   join public.universes u on u.slug='prestations' and u.enabled=true
   join public.feature_flags ff on ff.flag_key='universe.prestations' and ff.enabled=true
-  left join public.suivi_professionals sp
-    on sp.user_id=o.created_by
-    and sp.verified=true
-    and sp.verification_status='verified'
-    and (sp.verification_expires_at is null or sp.verification_expires_at>now())
-  left join public.suivi_professional_weekly_availability av
-    on av.user_id=o.created_by
-    and av.weekday=extract(isodow from timezone('Africa/Douala',now()))::smallint
+  left join lateral (
+    select
+      coalesce(nullif(trim(sp.specialty),''),nullif(trim(o.category),'')) as specialty,
+      av.is_open,av.opens_at,av.closes_at
+    from public.partner_members pm
+    join public.profiles account on account.id=pm.user_id and account.actif=true
+    join public.suivi_professionals sp
+      on sp.user_id=pm.user_id
+      and sp.verified=true
+      and sp.verification_status='verified'
+      and (sp.verification_expires_at is null or sp.verification_expires_at>now())
+    left join public.suivi_professional_weekly_availability av
+      on av.user_id=pm.user_id
+      and av.weekday=extract(isodow from timezone('Africa/Douala',now()))::smallint
+    where pm.partner_id=p.id
+      and pm.member_role in ('owner','manager','operator')
+    order by case pm.member_role when 'owner' then 0 when 'manager' then 1 else 2 end,pm.created_at
+    limit 1
+  ) provider on true
   where o.status='active'
   order by o.category,o.name,p.name;
 $function$;
