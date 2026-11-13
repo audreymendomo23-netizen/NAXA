@@ -186,104 +186,31 @@ export async function POST(request: Request) {
     let reglementId: string | null = pendingMatches.length === 1 ? pendingMatches[0].id : null;
 
     if (!reglementId) {
-      const { data: intents, error: intentsError } = await db.from("naxa_promoteur_payment_intents")
-        .select("id,promoteur_id,canal,expected_amount,destination_snapshot,expires_at,created_at,status")
-        .eq("status", "awaiting_payment").eq("canal", canal).eq("expected_amount", parsed.amount)
-        .lte("created_at", new Date(smsReceivedAt.getTime() + 5 * 60_000).toISOString())
-        .gte("expires_at", new Date(smsReceivedAt.getTime() - 5 * 60_000).toISOString())
-        .order("created_at", { ascending: false }).limit(100);
-      if (intentsError) return NextResponse.json({ error: "Recherche des paiements prepares impossible." }, { status: 503 });
-      let matchingIntents = (intents ?? []).filter(intent => {
-        const snapshot = intent.destination_snapshot as { reference_destination?: string } | null;
-        const destinationReference = snapshot?.reference_destination;
-        return typeof destinationReference === "string" &&
-          normalize(destinationReference) === normalize(device.merchant_reference);
-      });
-
-      if (matchingIntents.length > 1) {
-        const promoterIds = [...new Set(matchingIntents.map(intent => intent.promoteur_id))];
-        const { data: profiles } = await db.from("profiles").select("id,phone")
-          .eq("role", "promoteur").eq("actif", true).in("id", promoterIds);
-        const phones = new Map((profiles ?? []).map(row => [row.id, row.phone]));
-        matchingIntents = matchingIntents.filter(intent => samePhone(parsed.payerNumber, phones.get(intent.promoteur_id)));
-      }
-
-      if (matchingIntents.length === 1) {
-        const intent = matchingIntents[0];
-        const { data: promoterProfile, error: promoterPhoneError } = await db.from("profiles")
-          .select("phone").eq("id", intent.promoteur_id).eq("role", "promoteur").eq("actif", true).maybeSingle();
-        if (promoterPhoneError || !promoterProfile || !samePhone(parsed.payerNumber, promoterProfile.phone)) {
-          const { data: event, error: eventError } = await db.from("naxa_admin_payment_capture_events").insert({
-            admin_id: auth.user.id, device_id: device.id, reglement_id: null, canal,
-            direction: "merchant_credit", success: true, transaction_reference: reference,
-            amount: parsed.amount, currency: "FCFA", payer_number: phoneTail(parsed.payerNumber),
-            merchant_reference: device.merchant_reference, sender_origin_id: senderOriginAddress,
-            provider_occurred_at: parsed.occurredAt, sms_received_at: smsReceivedAt.toISOString(),
-            payload_sha256: payloadHash, match_status: "manual_review",
-          }).select("id").single();
-          await notifyAdmins(db, "Le payeur du SMS marchand n'a pas pu etre relie a l'unique paiement prepare. Verification manuelle requise.");
-          return NextResponse.json({ received: true, eventId: event?.id ?? null, status: "manual_review" }, { status: 202 });
-        }
-        const { data: regId, error: submitError } = await db.rpc("promoteur_soumettre_reglement", {
-          p_promoteur: intent.promoteur_id,
-          p_montant: parsed.amount,
-          p_canal: canal,
-          p_canal_autre: null,
-          p_compte_payeur: parsed.payerNumber,
-          p_reference: parsed.reference,
-          p_paye_le: providerAt?.toISOString() ?? smsReceivedAt.toISOString(),
-          p_preuve_path: null,
-          p_verification_details: {
-            level: 2,
-            status: "coherent_needs_operator_confirmation",
-            parser: parsed.parser,
-            quality: parsed.quality,
-            direction: "merchant_credit",
-            success: true,
-            amount: parsed.amount,
-            extractedReference: parsed.reference,
-            extractedPayerNumber: parsed.payerNumber,
-            extractedMerchantNumber: parsed.merchantNumber,
-            providerOccurredAt: parsed.occurredAt,
-            smsReceivedAt: smsReceivedAt.toISOString(),
-            smsSenderId: senderOriginAddress,
-            senderIdMatchesExpected: true,
-            destinationMatches: true,
-            rawSmsStored: false,
-            source: "admin_android_capture",
-          },
-        });
-        if (submitError || !regId) {
-          return NextResponse.json({ received: true, status: "manual_review", message: "Le SMS est reconnu mais la declaration n'a pas pu etre creee. Traitement manuel requis." }, { status: 202 });
-        }
-        reglementId = regId as string;
-        await db.from("naxa_promoteur_payment_intents").update({
-          status: "submission_created", linked_reglement_id: reglementId, updated_at: now.toISOString(),
-        }).eq("id", intent.id);
-      } else {
-        const { data: event, error: eventError } = await db.from("naxa_admin_payment_capture_events").insert({
-          admin_id: auth.user.id,
-          device_id: device.id,
-          reglement_id: null,
-          canal,
-          direction: parsed.direction,
-          success: true,
-          transaction_reference: reference,
-          amount: parsed.amount,
-          currency: "FCFA",
-          payer_number: phoneTail(parsed.payerNumber),
-          merchant_reference: device.merchant_reference,
-          sender_origin_id: senderOriginAddress,
-          provider_occurred_at: parsed.occurredAt,
-          sms_received_at: smsReceivedAt.toISOString(),
-          payload_sha256: payloadHash,
-          match_status: pendingMatches.length > 1 ? "ambiguous" : "manual_review",
-        }).select("id").single();
-        if (eventError?.code === "23505") return NextResponse.json({ received: true, status: "duplicate", message: "Cette reference a deja ete recue dans NAXA." }, { status: 409 });
-        if (eventError || !event) return NextResponse.json({ error: "Conservation de l'evenement Admin impossible." }, { status: 503 });
-        await notifyAdmins(db, "SMS marchand reconnu mais non rattache a un seul paiement. Reference " + reference + ", montant " + parsed.amount + " FCFA. Controle manuel requis.");
-        return NextResponse.json({ received: true, eventId: event.id, status: "manual_review" }, { status: 202 });
-      }
+      const { data: event, error: eventError } = await db.from("naxa_admin_payment_capture_events").insert({
+        admin_id: auth.user.id,
+        device_id: device.id,
+        reglement_id: null,
+        canal,
+        direction: "merchant_credit",
+        success: true,
+        transaction_reference: reference,
+        amount: parsed.amount,
+        currency: "FCFA",
+        payer_number: phoneTail(parsed.payerNumber),
+        merchant_reference: device.merchant_reference,
+        sender_origin_id: senderOriginAddress,
+        provider_occurred_at: parsed.occurredAt,
+        sms_received_at: smsReceivedAt.toISOString(),
+        payload_sha256: payloadHash,
+        match_status: "manual_review",
+      }).select("id").single();
+      if (eventError?.code === "23505") return NextResponse.json({ received: true, status: "duplicate" }, { status: 409 });
+      if (eventError || !event) return NextResponse.json({ error: "Conservation de l'evenement Admin impossible." }, { status: 503 });
+      await notifyAdmins(db, "SMS de crédit reçu, mais aucune déclaration de débit Promoteur correspondante n'existe. Le SMS seul ne crée ni règlement ni renouvellement. Référence " + reference + ".");
+      return NextResponse.json({
+        received: true, eventId: event.id, status: "manual_review",
+        message: "SMS de crédit conservé. Le Promoteur doit d'abord transmettre sa preuve de débit, ou l'Admin doit procéder à une vérification manuelle.",
+      }, { status: 202 });
     }
 
     const referenceRpc = await db.rpc("naxa_promoteur_payment_add_reference", {

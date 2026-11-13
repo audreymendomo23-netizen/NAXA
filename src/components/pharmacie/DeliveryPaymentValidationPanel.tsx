@@ -6,7 +6,9 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type PaymentRow = {
   reservation_id:string;mission_id:string|null;reference_code:string;
   client_id:string;client_phone:string|null;mode:string;reference:string|null;
-  expected_amount:number;cash_received:number|null;cash_change:number|null;
+  expected_amount:number;declared_amount:number|null;payer_number:string|null;
+  payment_occurred_at:string|null;proof_source:string|null;field_sources:Record<string,string>|null;
+  cash_received:number|null;cash_change:number|null;
   payment_status:string;created_at:string|null;livreur_id:string|null;
 };
 
@@ -23,7 +25,7 @@ export function DeliveryPaymentValidationPanel({
 
   const load=useCallback(async()=>{
     if(!pharmacieId||!sessionId){setRows([]);setLoading(false);return;}
-    const {data,error:rpcError}=await supabaseBrowser().rpc("naxa_delivery_pending_payment_list",{p_pharmacie:pharmacieId});
+    const {data,error:rpcError}=await supabaseBrowser().rpc("naxa_delivery_pending_payment_list_v2",{p_pharmacie:pharmacieId});
     if(rpcError){setError("Impossible de charger les paiements de livraison. Vérifiez votre session Caisse.");setRows([]);}
     else {setError("");setRows(Array.isArray(data)?data as PaymentRow[]:[]);}
     setLoading(false);
@@ -64,7 +66,7 @@ export function DeliveryPaymentValidationPanel({
 
   return <section id="caisse-livraisons" className="carte mb-4 space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="text-lg font-extrabold">Paiements de livraison à rapprocher</h2><p className="mt-1 text-sm text-slate-600">Vérifiez l’encaissement marchand ou les espèces déclarées par le Livreur. La validation crée le ticket POS complet, frais de livraison inclus.</p></div>
+      <div><h2 className="text-lg font-extrabold">Paiements de livraison à rapprocher</h2><p className="mt-1 text-sm text-slate-600">Vérifiez le crédit réellement reçu. Les détails transmis par le Client sont des déclarations, pas une preuve d'encaissement. La validation crée le ticket POS complet, frais de livraison inclus.</p></div>
       <button type="button" onClick={()=>void load()} disabled={loading||busy!==null} className="btn btn-clair">Actualiser</button>
     </div>
     {!sessionId&&<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Ouvrez votre session Caisse pour rapprocher les paiements de livraison.</p>}
@@ -81,6 +83,10 @@ export function DeliveryPaymentValidationPanel({
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div><dt className="text-slate-500">Total dû</dt><dd className="font-extrabold">{money(row.expected_amount)}</dd></div>
             <div><dt className="text-slate-500">Référence paiement</dt><dd className="break-all font-semibold">{row.reference??"Espèces à la remise"}</dd></div>
+            {row.payer_number&&<div><dt className="text-slate-500">Numéro payeur déclaré</dt><dd className="font-semibold">{row.payer_number}</dd></div>}
+            {row.declared_amount!==null&&row.declared_amount!==undefined&&<div><dt className="text-slate-500">Montant déclaré par le Client</dt><dd className={"font-semibold "+(row.declared_amount===row.expected_amount?"text-emerald-800":"text-amber-800")}>{money(row.declared_amount)}{row.declared_amount!==row.expected_amount?" · écart à vérifier":""}</dd></div>}
+            {row.payment_occurred_at&&<div><dt className="text-slate-500">Date déclarée</dt><dd className="font-semibold">{new Date(row.payment_occurred_at).toLocaleString("fr-FR",{timeZone:"Africa/Douala"})}</dd></div>}
+            {row.proof_source&&<div><dt className="text-slate-500">Origine des informations</dt><dd className="font-semibold">{row.proof_source==="shared_sms"?"SMS partagé par le Client":"Saisie manuelle"}</dd></div>}
             {row.mode==="especes_livraison"&&<div><dt className="text-slate-500">Espèces déclarées par le Livreur</dt><dd className="font-bold">{money(row.cash_received??0)} · monnaie {money(row.cash_change??0)}</dd></div>}
             <div><dt className="text-slate-500">Code commande</dt><dd className="font-mono font-bold">{row.reference_code}</dd></div>
           </dl>
