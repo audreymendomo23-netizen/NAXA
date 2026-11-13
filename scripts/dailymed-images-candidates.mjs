@@ -30,7 +30,9 @@ export const tokens = (value = "") => normalize(value).split(/\s+/).filter((x) =
 );
 
 export function extractSpls(payload) {
-  const candidates = payload?.data?.spls ?? payload?.spls ?? payload?.data?.data?.spls ?? [];
+  const candidates = Array.isArray(payload?.data)
+    ? payload.data
+    : payload?.data?.spls ?? payload?.spls ?? payload?.data?.data?.spls ?? [];
   return Array.isArray(candidates) ? candidates : [];
 }
 
