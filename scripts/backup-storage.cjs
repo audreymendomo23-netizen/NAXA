@@ -147,7 +147,7 @@ async function main() {
   if (
     parsed.protocol !== "https:" ||
     parsed.hostname !== projectRef + ".supabase.co" ||
-    parsed.pathname !== "" ||
+    (parsed.pathname !== "" && parsed.pathname !== "/") ||
     parsed.search ||
     parsed.hash
   ) {
