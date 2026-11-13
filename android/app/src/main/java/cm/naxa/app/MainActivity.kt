@@ -39,12 +39,14 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val repository = AuthRepository(SecureTokenStore(this))
+        val tokenStore = SecureTokenStore(this)
+        val repository = AuthRepository(tokenStore)
+        val clientHistory = ClientHistoryRepository(tokenStore)
         val catalogue = CatalogueRepository()
         val pharmacies = PharmacyRepository(this)
         val ageGate = AgeGateStore(this)
-        val fcmRegistration = FcmRegistrationRepository(this, SecureTokenStore(this))
-        setContent { NaxaTheme { NaxaRoot(repository, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
+        val fcmRegistration = FcmRegistrationRepository(this, tokenStore)
+        setContent { NaxaTheme { NaxaRoot(repository, clientHistory, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
     }
 }
 
@@ -63,6 +65,7 @@ private fun NaxaTheme(content: @Composable () -> Unit) {
 @Composable
 private fun NaxaRoot(
     repository: AuthRepository,
+    clientHistory: ClientHistoryRepository,
     catalogue: CatalogueRepository,
     pharmacies: PharmacyRepository,
     ageGate: AgeGateStore,
@@ -116,6 +119,7 @@ private fun NaxaRoot(
             )
             else -> NativeHome(
                 profile = profile,
+                clientHistory = clientHistory,
                 catalogue = catalogue,
                 pharmacies = pharmacies,
                 fcmRegistration = fcmRegistration,
@@ -211,6 +215,7 @@ private fun LoginScreen(
 @Composable
 private fun NativeHome(
     profile: NaxaProfile?,
+    clientHistory: ClientHistoryRepository,
     catalogue: CatalogueRepository,
     pharmacies: PharmacyRepository,
     fcmRegistration: FcmRegistrationRepository,
@@ -274,7 +279,7 @@ private fun NativeHome(
                         FeatureCard("Achats et commandes", "Connectez-vous pour consulter vos achats et vos commandes.")
                         TextButton(onClick = onSignIn) { Text("Se connecter") }
                     } else {
-                        FeatureCard("Achats et commandes", "Le parcours natif de consultation et de suivi des achats reste à raccorder.")
+                        NativeClientHistoryScreen(clientHistory, profile.userId)
                     }
                 }
                 else -> {
