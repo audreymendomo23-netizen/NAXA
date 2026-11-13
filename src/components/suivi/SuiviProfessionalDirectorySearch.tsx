@@ -11,6 +11,7 @@ type Professional={
 type Intent={specialties:string[];keywords:string[];source:"ai"|"local"};
 const field="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const roleLabels:Record<string,string>={medecin:"Médecin",pharmacien:"Pharmacien",infirmier:"Infirmier",sage_femme:"Sage-femme",chirurgien_dentiste:"Chirurgien-dentiste",kinesitherapeute:"Kinésithérapeute",technicien_laboratoire:"Technicien de laboratoire",autre_sante:"Professionnel de santé"};
+const roleSpecialtyLabels:Record<string,string>={medecin:"Médecin généraliste",pharmacien:"Pharmacien",infirmier:"Infirmier",sage_femme:"Sage-femme",chirurgien_dentiste:"Chirurgien-dentiste",kinesitherapeute:"Kinésithérapeute",technicien_laboratoire:"Technicien de laboratoire",autre_sante:"Autre spécialité"};
 const gpsErrors:Record<ErreurGPS,string>={indisponible:"La géolocalisation n’est pas disponible.",refusee:"Accès à la position refusé.",introuvable:"Position impossible à déterminer.",timeout:"Délai de localisation dépassé.",invalide:"Position GPS invalide."};
 function normalize(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr").replace(/[^a-z0-9]+/g," ").trim();}
 function distance(a:string,b:string){
@@ -98,7 +99,7 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
     finally{setBusyGps(false);}
   }
 
-  const specialtyOptions=useMemo(()=>[...new Set([...professionals.map(p=>p.specialty).filter((x):x is string=>!!x),...intent.specialties])].sort((a,b)=>a.localeCompare(b,"fr")),[professionals,intent]);
+  const specialtyOptions=useMemo(()=>[...new Set([...professionals.map(p=>p.specialty||roleSpecialtyLabels[p.professional_role]||roleLabels[p.professional_role]).filter(Boolean),...intent.specialties])].sort((a,b)=>a.localeCompare(b,"fr")),[professionals,intent]);
   const suggestions=useMemo(()=>{
     if(query.trim().length<2)return [];
     return [...new Set(professionals.filter(p=>fuzzy(query,p.display_name)).map(p=>p.display_name))].slice(0,7);
@@ -108,10 +109,11 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
     return professionals.filter(p=>{
       const hasQuery=q.length>=2;
       const nameMatch=!hasQuery||fuzzy(q,p.display_name)||fuzzy(q,p.specialty??"")||fuzzy(q,p.partner_name??"")||fuzzy(q,p.city??"");
-      const intentMatch=intent.specialties.some(item=>normalize(p.specialty??"").includes(normalize(item))||normalize(item).includes(normalize(p.specialty??"")));
+      const professionalSpecialty=p.specialty||roleSpecialtyLabels[p.professional_role]||roleLabels[p.professional_role]||"";
+      const intentMatch=intent.specialties.some(item=>normalize(professionalSpecialty).includes(normalize(item))||normalize(item).includes(normalize(professionalSpecialty)));
       const queryMatch=!hasQuery||nameMatch||intentMatch;
       const availabilityMatch=availability==="all"||(availability==="today"&&p.available_today)||(availability==="now"&&p.available_now);
-      const specialtyMatch=!specialty||normalize(p.specialty??"")===normalize(specialty);
+      const specialtyMatch=!specialty||normalize(professionalSpecialty)===normalize(specialty);
       return queryMatch&&availabilityMatch&&specialtyMatch;
     }).sort((a,b)=>{
       if(availability==="now")return Number(b.available_now)-Number(a.available_now);
