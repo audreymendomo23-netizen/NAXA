@@ -44,16 +44,19 @@ export async function GET(request:Request,{params}:{params:Promise<{reservationI
     if(reservationError||!reservation) return NextResponse.json({error:"Réservation introuvable."},{status:404});
 
     const {data:intent}=await db.from("naxa_universe_payment_intents")
-      .select("transaction_reference,status,proof_source")
+      .select("transaction_reference,status,proof_source,canal")
       .eq("reservation_id",reservationId).eq("client_id",userId)
       .order("created_at",{ascending:false}).limit(1).maybeSingle();
 
+    const status=reservation.payment_status==="manual_review"?"manual_review":
+      intent?.status==="submitted"||intent?.status==="matched"?"awaiting_pair":
+      intent?.status==="active"?"intent_active":"not_submitted";
+
     return NextResponse.json({
-      status:reservation.payment_status==="manual_review"?"manual_review":
-        reservation.payment_status==="declared"?"awaiting_pair":
-        reservation.payment_status==="awaiting_payment"?"awaiting_pair":"not_submitted",
+      status,
       paymentMode:reservation.payment_mode,
       transactionReference:intent?.transaction_reference??null,
+      intentChannel:intent?.canal??null,
     },{headers:{"Cache-Control":"no-store"}});
   } catch {
     return NextResponse.json({error:"Lecture de l'état du paiement partenaire indisponible."},{status:503});
