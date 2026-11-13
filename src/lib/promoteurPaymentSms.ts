@@ -130,6 +130,35 @@ export function parsePromoteurPaymentSms(
   return null;
 }
 
+export type PaymentSmsAutoMatchOverrides = {
+  amountManuallyEdited?: boolean;
+  referenceManuallyEdited?: boolean;
+  dateManuallyEdited?: boolean;
+};
+
+/**
+ * The payer SMS may support automatic matching only when its own parsed content
+ * contains a complete successful debit. Client-entered corrections remain
+ * declarations and must never upgrade an incomplete SMS into proof.
+ */
+export function isPayerSmsEligibleForAutomaticMatch(
+  parsed: PaymentSmsCandidate | null | undefined,
+  overrides: PaymentSmsAutoMatchOverrides = {}
+): boolean {
+  return Boolean(
+    parsed &&
+    parsed.direction === "payer_debit" &&
+    parsed.success === true &&
+    parsed.quality === "complete" &&
+    Number.isSafeInteger(parsed.amount) &&
+    Number(parsed.amount) > 0 &&
+    normalizePaymentReference(parsed.reference).length >= 5 &&
+    !overrides.amountManuallyEdited &&
+    !overrides.referenceManuallyEdited &&
+    (!parsed.occurredAt || !overrides.dateManuallyEdited)
+  );
+}
+
 export function validatePromoteurPaymentSms(
   parsed: PaymentSmsCandidate | null,
   expected: {
