@@ -40,9 +40,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val repository = AuthRepository(SecureTokenStore(this))
         val catalogue = CatalogueRepository()
+        val pharmacies = PharmacyRepository(this)
         val ageGate = AgeGateStore(this)
         val fcmRegistration = FcmRegistrationRepository(SecureTokenStore(this))
-        setContent { NaxaTheme { NaxaRoot(repository, catalogue, ageGate, fcmRegistration, onExit = { finish() }) } }
+        setContent { NaxaTheme { NaxaRoot(repository, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
     }
 }
 
@@ -62,6 +63,7 @@ private fun NaxaTheme(content: @Composable () -> Unit) {
 private fun NaxaRoot(
     repository: AuthRepository,
     catalogue: CatalogueRepository,
+    pharmacies: PharmacyRepository,
     ageGate: AgeGateStore,
     fcmRegistration: FcmRegistrationRepository,
     onExit: () -> Unit
@@ -114,6 +116,7 @@ private fun NaxaRoot(
             else -> NativeHome(
                 profile = profile,
                 catalogue = catalogue,
+                pharmacies = pharmacies,
                 fcmRegistration = fcmRegistration,
                 isGuest = profile == null,
                 onSignIn = { guestMode = false },
@@ -207,6 +210,7 @@ private fun LoginScreen(
 private fun NativeHome(
     profile: NaxaProfile?,
     catalogue: CatalogueRepository,
+    pharmacies: PharmacyRepository,
     fcmRegistration: FcmRegistrationRepository,
     isGuest: Boolean,
     onSignIn: () -> Unit,
@@ -250,7 +254,7 @@ private fun NativeHome(
             when (selected) {
                 0 -> {
                     Text("Vos services", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                    FeatureCard("Pharmacies", "Accès aux pharmacies partenaires et disponibilités.")
+                    PharmaciesScreen(pharmacies)
                     FeatureCard("Dispositifs médicaux", "Catalogue des dispositifs médicaux.")
                     FeatureCard("Scanner", "Le scanner natif caméra et ordonnance sera intégré dans le prochain lot.")
                 }
@@ -393,6 +397,110 @@ private fun MedicineCard(medicine: NativeMedicine) {
     }
 }
 
+
+
+@Composable
+private fun PharmaciesScreen(repository: PharmacyRepository) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pharmacies by remember { mutableStateOf<List<NearbyPharmacy>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+    var searched by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var routeMessage by remember { mutableStateOf<String?>(null) }
+
+    fun searchNearby() {
+        loading = true
+        searched = true
+        error = null
+        routeMessage = null
+        scope.launch {
+            try {
+                val coordinates = repository.currentLocation()
+                pharmacies = repository.nearby(coordinates)
+                if (pharmacies.isEmpty()) {
+                    routeMessage = "Aucune pharmacie partenaire géolocalisée n'est disponible dans ce secteur."
+                }
+            } catch (e: Exception) {
+                pharmacies = emptyList()
+                error = e.message ?: "Recherche des pharmacies impossible."
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    val locationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) searchNearby()
+        else error = "La localisation est nécessaire pour rechercher les pharmacies proches."
+    }
+
+    Column(Modifier.fillMaxWidth()) {
+        Text("Pharmacies proches", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
+        Spacer(Modifier.height(6.dp))
+        Text("Pharmacies partenaires réelles, sans établissements de démonstration.", color = Color(0xFF65776F), fontSize = 13.sp)
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = {
+                val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                if (fine || coarse) searchNearby()
+                else locationPermission.launch(arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ))
+            },
+            enabled = !loading,
+            modifier = Modifier.fillMaxWidth().height(48.dp)
+        ) {
+            if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+            else Text("Rechercher autour de moi")
+        }
+        if (error != null) {
+            Spacer(Modifier.height(10.dp))
+            Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+        }
+        if (routeMessage != null) {
+            Spacer(Modifier.height(10.dp))
+            Text(routeMessage!!, color = Color(0xFF65776F), fontSize = 12.sp)
+        }
+        if (searched && !loading && error == null && pharmacies.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text("${pharmacies.size} pharmacie(s) trouvée(s)", color = NaxaGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        }
+        pharmacies.forEach { pharmacy -> NearbyPharmacyCard(pharmacy) }
+    }
+}
+
+@Composable
+private fun NearbyPharmacyCard(pharmacy: NearbyPharmacy) {
+    val distance = pharmacy.distanceRoadKm?.let { "${"%.1f".format(Locale.FRENCH, it)} km par la route" }
+        ?: "${"%.1f".format(Locale.FRENCH, pharmacy.distanceStraightKm)} km à vol d'oiseau"
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(pharmacy.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = NaxaInk)
+            val place = listOfNotNull(pharmacy.district, pharmacy.city).joinToString(" · ")
+            if (place.isNotBlank()) Text(place, color = Color(0xFF65776F), fontSize = 12.sp)
+            pharmacy.address?.let { Text(it, color = Color(0xFF65776F), fontSize = 12.sp) }
+            Spacer(Modifier.height(8.dp))
+            Text(distance, color = NaxaGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            pharmacy.travelMinutes?.let { Text("Environ $it min de trajet", color = Color(0xFF65776F), fontSize = 12.sp) }
+            pharmacy.openingHours?.let { Text("Horaires : $it", color = Color(0xFF65776F), fontSize = 12.sp) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (pharmacy.onDuty) Text("De garde", color = Color(0xFF8A6B1C), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                if (pharmacy.deliveryAvailable) Text("Livraison proposée", color = NaxaGreen, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
 
 @Composable
 private fun NativeNotificationSettings(repository: FcmRegistrationRepository) {
