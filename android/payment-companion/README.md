@@ -1,27 +1,42 @@
 # NAXA Payment Companion (Android)
 
 ## Implémentation
-Le compagnon Android est désormais écrit en Kotlin. Les six sources Java ont été converties sans changer les routes HTTP NAXA, les rôles Promoteur/Admin, le chiffrement Android Keystore ni le filtrage local des SMS.
+Le compagnon Android est écrit en Kotlin. Les six sources Java ont été converties sans changer les routes HTTP NAXA, les rôles Promoteur/Admin, le chiffrement Android Keystore ni le filtrage local des expéditeurs SMS.
 
-## Objectif et confidentialité
-Le compagnon écoute uniquement le broadcast Android `SMS_RECEIVED` et conserve l'adresse d'origine brute fournie par Android. Il ne consulte ni les contacts, ni la base SMS, ni les autres conversations.
-- `OrangeMoney` → `orange_money`
-- `MobileMoney` → `mtn_momo`
-Les autres expéditeurs, notamment les expéditeurs numériques, sont ignorés. Le corps du SMS reste en mémoire pendant le rapprochement HTTP et n'est ni enregistré dans les préférences, ni écrit dans les logs.
+## Distribution privée
+NAXA Paiement est une application fermée, non destinée au grand public et non distribuée par le Play Store. Les canaux prévus sont :
+- transfert privé par Bluetooth ;
+- téléchargement depuis le site officiel NAXA ;
+- partage direct du fichier APK.
 
-## Configuration
+Le canal de transfert du fichier ne change pas les contrôles d'installation Android. L'application ne demande pas de désactiver Play Protect et ne contourne pas les restrictions système.
+
+## Consentement et autorisation SMS — règle obligatoire
+La capture automatique est désactivée par défaut et repose sur trois conditions cumulatives :
+1. **Consentement explicite dans l'application** : l'utilisateur coche « J'autorise explicitement NAXA Paiement à traiter ces SMS de transaction ». Le choix est stocké dans le coffre chiffré Android Keystore. Décocher la case désactive immédiatement le traitement côté application.
+2. **Permission Android** : après le consentement et l'enrôlement, l'application demande séparément `RECEIVE_SMS` au système. Le consentement de l'application ne remplace jamais la permission Android.
+3. **Expéditeur autorisé** : seuls les identifiants exacts `OrangeMoney` et `MobileMoney` sont acceptés. Les autres expéditeurs sont ignorés.
+
+Le compagnon transmet par HTTPS le texte du SMS reçu provenant de ces expéditeurs pour le rapprochement du paiement. Il ne consulte ni les contacts, ni l'historique SMS, ni les messages provenant d'autres expéditeurs. Le serveur reste le seul décideur de la validation et du renouvellement.
+
+### Restriction Android à respecter
+La permission `android.permission.RECEIVE_SMS` est classée par Android comme dangereuse et **hard-restricted**. Pour que le système puisse l'accorder, l'installateur enregistré doit aussi placer cette permission sur la liste autorisée (*allowlist*). Le dialogue de consentement utilisateur seul ne peut pas lever cette restriction.
+
+Cela doit être vérifié sur les appareils cibles pour chacun des canaux d'installation prévus (Bluetooth, site NAXA, APK direct). Si Android refuse la permission parce que l'installateur ne l'a pas autorisée, l'application affiche clairement l'état bloqué et n'effectue aucune capture automatique. Ne jamais contourner cette restriction ni désactiver Play Protect. Le parcours manuel de déclaration/vérification du paiement reste disponible dans NAXA.
+
+L'utilisateur peut retirer son consentement dans l'application à tout moment. Il peut également retirer la permission Android dans Paramètres > Applications > NAXA Paiement > Autorisations > SMS.
+
+## Configuration technique
 - Android Gradle Plugin : 9.4.0.
-- Kotlin : compilateur intégré à Android Gradle Plugin 9.4.0 (aucun plugin Kotlin redondant).
-- Gradle : 9.6.0 ; JDK 17 ou supérieur.
+- Kotlin : compilateur intégré à Android Gradle Plugin 9.4.0.
+- Gradle : 9.6.0 ; JDK 17.
 - compileSdk 36 ; targetSdk 36 ; minSdk 26.
+- Version Android : 1.2.0 (versionCode 3).
 - Aucune dépendance AndroidX tierce requise.
 Ouvrir `android/payment-companion` dans Android Studio. Le wrapper binaire `gradle-wrapper.jar` n'est pas inclus.
 
 ## Enrôlement
 Saisir les URL HTTPS NAXA et Supabase, la clé publique Supabase, l'e-mail et le mot de passe, puis choisir Promoteur ou Admin. La session Supabase et les jetons appareil sont chiffrés avec Android Keystore. L'enrôlement Admin enregistre séparément Orange et MTN.
-
-## Limite critique de distribution
-`RECEIVE_SMS` est une permission Android hard-restricted (fortement restreinte par le système). Play Protect peut bloquer une application téléchargée depuis un navigateur ou une autre source Internet. Ne pas recommander de désactiver Play Protect ni de contourner cette restriction. La capture automatique exige un canal de distribution autorisé permettant l'allowlist de cette permission. Tant que ce canal n'est pas validé sur un vrai téléphone, le fallback officiel reste le formulaire manuel/SMS collé dans NAXA et la confirmation Admin.
 
 ## Contrat backend conservé
 - Promoteur : `POST /api/promoteur/paiements/device/register` et `POST /api/promoteur/paiements/capture`.
@@ -29,10 +44,11 @@ Saisir les URL HTTPS NAXA et Supabase, la clé publique Supabase, l'e-mail et le
 - Champs conservés : `deviceId`, `deviceToken`, `canal`, `smsText`, `senderOriginAddress`, `smsReceivedAt`.
 - Le serveur reste seul décisionnaire de la validation du paiement et du renouvellement d'abonnement.
 
-## Statut et preuves CI
+## Tests et statut
+- Tests existants de classification des expéditeurs : six tests unitaires.
+- Tests ajoutés du verrou consentement + permission Android + expéditeur : cinq tests unitaires.
+- Le récepteur re-vérifie le consentement chiffré et la permission système avant de lire/transmettre le corps du SMS.
+- Le build Kotlin / tests et la génération de l'APK Debug doivent être confirmés par le workflow déclenché après les changements de cette version.
+- Les tests sur téléphone réel restent nécessaires pour confirmer le comportement d'installation et l'allowlist `RECEIVE_SMS` sur les versions Android et appareils retenus.
 
-- Sources Android converties en Kotlin ; aucun fichier source Java ne subsiste dans le module compagnon.
-- Dernière preuve native antérieure : [Android native build run 43418145728](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43418145728), commit `c986f1c715bcc1e6a5996e4f20d175589a767999` : compilation Kotlin, `testDebugUnitTest`, génération APK Debug et upload de l'artefact réussis.
-- Les commits Web/backup ultérieurs n'ont pas modifié le code Android. Le prochain push de ce README déclenche à nouveau le workflow natif sur le HEAD courant de `main`.
-
-Restent non certifiés : installation sur téléphone réel, enrôlement Promoteur/Admin, essais avec SIM MTN et Orange, réception des SMS et autorisation officielle de `RECEIVE_SMS` pour le canal de distribution retenu. L'APK Debug et le succès CI ne prouvent pas ces étapes matérielles.
+La construction du consentement est intégrée au code ; la validation des droits installateur et le test terrain restent distincts.
