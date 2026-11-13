@@ -1,17 +1,29 @@
 # NAXA — Continuité opérationnelle IA
 
-> **Priorité documentaire (mise à jour 2026-10-16) :** `AGENTS.md` est la règle opérationnelle prioritaire. Toute consigne historique de ce document qui impose CircleCI, interdit une modification autorisée de `main`, ou exige une PR/branche de travail est obsolète et ne doit pas être appliquée contre `AGENTS.md` et les ordres explicites plus récents de l’utilisateur. La Production Supabase reste en lecture seule sans autorisation explicite et aucun secret ne doit être affiché.
+> **Priorité opérationnelle — 13/11/2026 :** `AGENTS.md` est la source de consignes. La branche de travail et de référence est `main`. Les anciens journaux de branches, PR et interdictions de fusion ci-dessous sont conservés comme archives et ne remplacent ni `AGENTS.md`, ni les ordres explicites plus récents de l'utilisateur.
 
-Dernière mise à jour : 2026-11-09
+Dernière mise à jour : 2026-11-13
 
-## Règles impératives
-- Déclencheur « Rappel » : relire ce document, vérifier l'état réel GitHub/CI, comparer avec le dernier point, puis reprendre sans refaire inutilement le travail.
-- Aucune nouvelle branche. Aucun brouillon de PR. Ne jamais contourner un refus d'outil.
-- Les seuls commits autorisés par défaut sont ceux qui créent ou mettent à jour ce document de continuité. Aucun commit de code, configuration, migration ou fonctionnalité sous cette autorisation.
-- Travailler une branche existante à la fois. Vérifier les preuves réelles avant d'annoncer un résultat. Ne jamais déclarer CI verte sans logs correspondant au SHA exact.
-- Ne pas modifier directement main, ne pas fusionner et ne pas déployer sans autorisation explicite. Production Supabase reste en lecture seule.
-- Après chaque réponse concernant NAXA, mettre à jour ce document sur les branches du périmètre actif, avec état vérifié, preuves, blocages et prochaine action autorisée.
-- Méthode : audit → contradictions → cause racine → correction ciblée (uniquement après autorisation) → tests/preuves → documentation → CI verte → validation utilisateur → intégration autorisée → vérification → suppression de la branche terminée.
+## Règles opérationnelles courantes
+
+- Lire `AGENTS.md` avant toute intervention et travailler sur `main`, sans créer de nouvelle branche.
+- Ne pas créer de PR. Les fusions de branches ne sont effectuées que sur ordre explicite de l'utilisateur ; l'ordre du 13/11/2026 concernant les branches parallèles recensées a été exécuté.
+- Ne pas déployer et ne pas toucher à Supabase Production sans autorisation explicite correspondant à l'opération.
+- Vérifier le HEAD réel et les preuves sur le SHA exact ; une PR fusionnée établit l'intégration Git, pas la réussite des tests, du build, de la CI ou de la Production.
+- Garder les anciennes observations QA comme archives. Ne pas reprendre une ancienne branche comme branche active sur la seule base de ce journal.
+
+## Journal de continuité — fusion des branches parallèles (13/11/2026)
+
+- `main` était au SHA `722ecf3a642000085334fb92e78b38ab56245458` juste avant cette mise à jour documentaire.
+- PR #102 — source `3c76a1f0bddcc0aeb00b6f2689bdba7922341dc2`, fusion `6eb5bd0c58bd818a866c71ec7f50ee4f83a2806b` : [PR #102](https://github.com/audreymendomo23-netizen/NAXA/pull/102).
+- PR #104 — source `6312f8f3365f142c014638e53f9a828516ecb5f1`, fusion `c70e18c5f8ae7c5f7db2456a6c3b5920b9c70a3f` : [PR #104](https://github.com/audreymendomo23-netizen/NAXA/pull/104).
+- PR #105 — source `19a47178e3347014c4bd1a84f06dde2484a93779`, fusion `f80939f60fadbd700204b71bccd1aa9b67b18f52` : [PR #105](https://github.com/audreymendomo23-netizen/NAXA/pull/105).
+- PR #106 — source `f7654c3323d899e5a5845c70a52bf9b9fd9dc69d`, fusion `35ae6dfb06e1a3eaf64697904f431a2b0f268695` : [PR #106](https://github.com/audreymendomo23-netizen/NAXA/pull/106).
+- Chaque PR a été relue après fusion : `closed`, `merged=true`, base `main`. Les comparaisons GitHub des quatre SHAs sources avec `main` indiquent `behind_by=0`.
+- La branche `qa/e2e-stabilisation-20261106`, HEAD `f4edd8579971347aa090bf810e4357eca1ea26f8`, était déjà intégralement contenue dans `main` (`behind_by=0`) ; aucune fusion supplémentaire n'était requise.
+- Contrôles de qualité : les quatre workflows GitHub Actions `NAXA quality` étaient en échec. #102/#104/#105 : 357/376 tests réussis, 19 en échec ; #106 : installation npm bloquée par le conflit ESLint 8 / peer ESLint >=9. Aucun vert CI n'est revendiqué.
+
+## Archives historiques antérieures au 13/11/2026
 
 ## Chevauchements d'authentification identifiés
 - Inscription/téléphone : `fix/signup-phone-validation` (validation 073), `fix/signup-trigger-production` (déclencheur/migration 074) et `feat/naxa-messagerie-profil-yaounde` (PR #56, onboarding et correctif téléphone). Même domaine et cause apparentée, mais périmètres techniques distincts ; vérifier les commits/migrations pour confirmer le chevauchement exact.
