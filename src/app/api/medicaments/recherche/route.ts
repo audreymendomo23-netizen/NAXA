@@ -327,7 +327,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results: [], message: "Saisissez au moins deux caractères." });
   }
   // Un EAN/GTIN ne doit pas partir vers RxNorm, openFDA ou DailyMed comme terme médical.
-  // L'interface le transmet directement à l'endpoint photo/Open Products Facts.
+  // L'interface le transmet uniquement à l'endpoint photo du catalogue local NAXA.
   if (/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(query)) {
     return NextResponse.json({ results: [], barcodeLookup: true });
   }
