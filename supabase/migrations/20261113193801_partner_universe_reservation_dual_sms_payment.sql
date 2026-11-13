@@ -329,7 +329,7 @@ begin
   where e.workspace_type='partner' and e.workspace_id=p_partner
     and e.canal=v_intent.canal and e.source_type='sms_receiver'
     and e.direction='merchant_credit' and e.success=true
-    and e.match_status in ('manual_review','coherent_unconfirmed','coherent_confirmed')
+    and e.match_status in ('manual_review','coherent_unconfirmed')
     and e.transaction_reference is not null
     and upper(regexp_replace(e.transaction_reference,'[^A-Za-z0-9]','','g'))=v_ref;
   if v_event_count=0 then
@@ -346,7 +346,7 @@ begin
   where e.workspace_type='partner' and e.workspace_id=p_partner
     and e.canal=v_intent.canal and e.source_type='sms_receiver'
     and e.direction='merchant_credit' and e.success=true
-    and e.match_status in ('manual_review','coherent_unconfirmed','coherent_confirmed')
+    and e.match_status in ('manual_review','coherent_unconfirmed')
     and upper(regexp_replace(coalesce(e.transaction_reference,''),'[^A-Za-z0-9]','','g'))=v_ref
   for update;
 
@@ -380,13 +380,6 @@ begin
     update public.universe_reservations set payment_status='manual_review',updated_at=now()
     where id=v_intent.reservation_id;
     return jsonb_build_object('status','provider_timestamp_mismatch');
-  end if;
-
-  if exists(select 1 from public.naxa_universe_payment_confirmations c
-    where c.canal=v_intent.canal and c.reference_normalisee=v_ref) then
-    update public.universe_reservations set payment_status='manual_review',updated_at=now()
-    where id=v_intent.reservation_id;
-    return jsonb_build_object('status','transaction_reference_already_confirmed');
   end if;
 
   v_receipt:='NAXA-PAR-'||to_char(now() at time zone 'Africa/Douala','YYYYMMDD')||'-'||
