@@ -11,7 +11,29 @@ export async function requestHomeService(form: FormData) {
   const area = String(form.get("area_label") ?? "").trim();
   const address = String(form.get("exact_address") ?? "").trim();
   const phone = String(form.get("contact_phone") ?? "").trim();
-  const note = String(form.get("client_note") ?? "").trim();
+  const submittedNote = String(form.get("client_note") ?? "").trim();
+  const source = String(form.get("source_demande") ?? "");
+  const note = (source === "dispositifs-connectes"
+    ? "[Assistance demandée depuis l’univers Dispositifs connectés] " + submittedNote
+    : submittedNote).slice(0, 500);
+  const shareLocation = String(form.get("share_location") ?? "") === "true";
+  const rawLatitude = String(form.get("shared_latitude") ?? "").trim();
+  const rawLongitude = String(form.get("shared_longitude") ?? "").trim();
+  const rawAccuracy = String(form.get("shared_accuracy_m") ?? "").trim();
+  let sharedLatitude: number | null = null;
+  let sharedLongitude: number | null = null;
+  let sharedAccuracy: number | null = null;
+  if (shareLocation) {
+    sharedLatitude = Number(rawLatitude);
+    sharedLongitude = Number(rawLongitude);
+    sharedAccuracy = Number(rawAccuracy);
+    if (!rawLatitude || !rawLongitude || !rawAccuracy ||
+      !Number.isFinite(sharedLatitude) || sharedLatitude < -90 || sharedLatitude > 90 ||
+      !Number.isFinite(sharedLongitude) || sharedLongitude < -180 || sharedLongitude > 180 ||
+      !Number.isFinite(sharedAccuracy) || sharedAccuracy < 0 || sharedAccuracy > 10000) {
+      redirect("/prestations?erreur=validation");
+    }
+  }
   const preferredRaw = String(form.get("preferred_at") ?? "").trim();
   let preferredAt: string | null = null;
 
@@ -37,13 +59,16 @@ export async function requestHomeService(form: FormData) {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/prestations");
 
-  const { data: requestId, error } = await sb.rpc("request_home_service", {
+  const { data: requestId, error } = await (sb as any).rpc("request_home_service_with_location", {
     p_offer_id: offerId,
     p_area_label: area,
     p_exact_address: address,
     p_contact_phone: phone,
     p_preferred_at: preferredAt,
     p_client_note: note || null,
+    p_shared_latitude: sharedLatitude,
+    p_shared_longitude: sharedLongitude,
+    p_accuracy_m: sharedAccuracy,
   });
   if (error || !requestId) redirect("/prestations?erreur=indisponible");
 
