@@ -50,9 +50,11 @@ Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paie
 - Le SMS bénéficiaire est enregistré avec les champs extraits et un hash, sans texte brut. Il ne confirme jamais seul.
 - **Pour les règlements Promoteur → NAXA, les preuves débit et crédit sont conservées séparément sous le même ID de transaction ; la confirmation ne dépend plus du libellé expéditeur.**
 - **Pour Client → Pharmacie, les deux déclencheurs et le moteur de rapprochement sont présents dans Replay et versionnés dans `main`** : ils se lancent dès que la déclaration débit ou le SMS crédit arrive, quel que soit l'ordre. Une intention horodatée fige montant, canal et destination marchande ; les paiements sans intention valide restent en revue manuelle.
+- **Pour Client → Partenaire, les tables d'intention et de confirmation, les deux déclencheurs et le moteur dédié sont présents dans Replay et versionnés dans `main`**. RLS protège les tables techniques ; seul le service interne peut les lire/écrire directement. Le retrait est bloqué jusqu'au statut financier `confirmed`.
 - **La paire concordante crée maintenant une confirmation financière durable et un reçu NAXA `NAXA-LIV-...`**, avec ID de transaction, montant, destination snapshot, dates et empreintes SHA-256 distinctes des deux SMS. L'événement bénéficiaire passe à `coherent_confirmed`. Le Client et la Pharmacie reçoivent une notification au même moment.
 - La confirmation financière est séparée de l'écriture POS : la réservation reste en attente d'inscription comptable tant qu'une session Caisse n'a pas enregistré la vente et le ticket. La file Caisse expose le reçu et l'état de confirmation ; le Client peut consulter le reçu et son état est actualisé périodiquement.
-- Client → Partenaire n'est pas raccordé au registre de réservation et de paiement.
+- **Pour Client → Partenaire, le flux de réservation est raccordé dans Replay et versionné dans `main`** : l'intention fige le montant, le canal et les coordonnées marchandes ; la déclaration Client est rapprochée du SMS de crédit reçu par le Partenaire ; une paire unique concordante crée un reçu `NAXA-PAR-...` et met `payment_status='confirmed'`. Le reçu de réservation restitue aussi le mode et l'état du paiement. Le retrait physique reste bloqué jusqu'à cette confirmation ; l'inscription du mouvement de stock se fait au retrait confirmé.
+- Le Partenaire n'utilise pas la Caisse Pharmacie ni un ticket POS de livraison : son justificatif est le reçu de réservation Partenaire, distinct du reçu de rapprochement NAXA.
 - La collecte réelle reste conditionnée à l'autorisation Android RECEIVE_SMS ; chaque téléphone/installateur doit être vérifié en pratique.
 
 ## Processus métier
@@ -63,8 +65,11 @@ Le Client partage le SMS de débit ; un SMS partagé incomplet ou non reconnu es
 ### Promoteur → NAXA
 Le Promoteur partage le SMS de débit. L'Admin reçoit le SMS de crédit NAXA sur son téléphone. Les deux preuves sont stockées séparément sous le même ID de transaction ; la confirmation contrôle aussi canal, sens, montant, destination, payeur et fenêtre horaire. Le libellé expéditeur sert uniquement au filtrage à la collecte.
 
-### Pharmacie / Partenaire → NAXA
-Le téléphone Partenaire peut recevoir le SMS de crédit du compte marchand et le croiser avec le SMS de débit transmis par le payeur. Les abonnements Pharmacie ont un modèle existant ; il reste à raccorder le registre commun à leurs intentions réelles d'abonnement. Le schéma Replay consulté n'a pas de modèle d'abonnement/tarif Partenaire : aucun montant ni renouvellement Partenaire ne doit être inventé avant définition métier.
+### Client → Partenaire
+Le Client partage son SMS de débit depuis l'espace de réservation. Le SMS de crédit du compte marchand est reçu sur le téléphone Professionnel du Partenaire, via `SmsReceiver` et l'autorisation SMS distincte. Le moteur rapproche les deux messages par référence normalisée, canal, montant, destination figée, empreintes et cohérence temporelle. Un SMS payeur incomplet ou corrigé sur les champs critiques passe en revue manuelle. Une paire concordante crée un reçu `NAXA-PAR-...`, confirme le paiement de réservation et déclenche les notifications Client / membres du Partenaire. Le retrait ne peut être enregistré qu'après cette confirmation, puis le stock est décrémenté une seule fois dans la transition de retrait.
+
+### Abonnements professionnels → NAXA
+Les abonnements Pharmacie ont leur propre modèle de règlement et de renouvellement. Le schéma Replay consulté ne fixe pas encore un tarif ni un cycle d'abonnement Partenaire : aucun montant, échéance ou renouvellement Partenaire ne doit être inventé avant décision métier.
 
 ## Formulaire universel
 
