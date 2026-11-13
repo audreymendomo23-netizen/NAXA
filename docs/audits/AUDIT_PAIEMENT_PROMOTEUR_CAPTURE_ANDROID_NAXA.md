@@ -14,7 +14,7 @@
 >
 > ## État des migrations et de la distribution
 >
-> Les migrations `20261113152922_payment_sms_declarations_and_dual_proof_guard.sql` et `20261113152925_promoteur_payment_require_dual_sms_proofs.sql` sont présentes dans le dépôt. Leur application sur une base Replay n'est pas attestée par le présent audit ; elles ne doivent pas être considérées comme appliquées en Production. Aucun déploiement Production n'est couvert par cette mise à jour.
+> Les migrations `20261113152922_payment_sms_declarations_and_dual_proof_guard.sql` et `20261113152925_promoteur_payment_require_dual_sms_proofs.sql` sont appliquées sur Supabase Replay `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) et enregistrées sous ces versions. Les deux migrations n'ont pas été appliquées sur Production ; aucun déploiement Production n'a été lancé.
 >
 > La CI Android avait confirmé la compilation, les tests unitaires et l'assemblage Debug des deux variantes sur le commit antérieur `c7bc186bdfe3ad38db4c2db83c9df1f109e24763`. Les APK Release signés, l'allowlist réelle de la permission SMS sur un téléphone Admin, les SMS Orange/MTN de production et les E2E Client→Caisse / Promoteur→Admin restent à valider sur les environnements/appareils autorisés.
 >
@@ -105,3 +105,11 @@ PromoteurPaymentProofOcr et promoteurPaymentProofOcr.ts ajoutent la lecture loca
 Migrations Replay : versions 20261111011044, 20261111011317, 20261111012919, 20261111012923, 20261111013438, 20261111013608. Tests SQL promoteur_payment_three_stage_verification.sql et promoteur_payment_admin_sms_auto_confirm.sql : PASS. Les scripts Node de régression sont ajoutés mais pas exécutés dans cette session ; typecheck, lint, build Next, build Android et tests sur SIM réelles ne sont pas prouvés.
 
 **Bloqueurs d'E2E :** aucune destination marchande réelle n'est configurée dans Replay (0 destination active) et aucun téléphone réel n'est enrôlé. L'expéditeur SMS alphanumérique n'est pas une signature cryptographique ; le test réel doit inclure les possibilités de spoofing et les délais opérateur.
+
+### Preuves Replay — 13 novembre 2026
+
+- `supabase/tests/promoteur_payment_three_stage_verification.sql` : **PASS**.
+- `supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql` : **PASS**.
+- Vérification SQL : six champs de déclaration Client présents ; RLS active ; accès directs à la table et à la RPC Client refusés à `anon/authenticated` ; RPC Caisse réservée aux utilisateurs authentifiés avec contrôle de pharmacie ; auto-confirmation Promoteur réservée à `service_role` ; les deux niveaux de preuve sont présents dans la définition effective.
+- Données Replay au contrôle : 0 destination marchande active, 0 appareil Promoteur actif, 0 appareil Admin actif, 0 événement de capture, 0 intention de paiement active. Les tests réels Orange/MTN et l'E2E Client→Caisse ne sont donc pas encore possibles.
+
