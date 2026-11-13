@@ -133,7 +133,8 @@ export function buildCandidateUpdate(row, ref, candidates, rxnormCandidates = []
   const first = candidates[0];
   const splImage = first.splimage ?? first.media?.[0] ?? null;
   return {
-    image_url: splImage?.url ?? null,
+    // DailyMed candidates are not publishable until rights and exact product identity are reviewed.
+    image_url: null,
     image_path: null,
     source_nom: "DailyMed — NLM / SPLIMAGE",
     source_url: first.label_url,
