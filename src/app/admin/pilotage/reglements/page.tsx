@@ -133,12 +133,14 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
       {!collectedEvidenceError && collectedEvidence?.map((event) => <article key={event.id} className="rounded-xl border border-slate-200 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-bold">{event.workspace_type === "pharmacie" ? "Pharmacie" : event.workspace_type === "partner" ? "Partenaire" : "Administrateur"} · {event.canal === "orange_money" ? "Orange Money" : "MTN Mobile Money"} · {event.amount ? money(event.amount) : "Montant non extrait"}</p>
-          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">À rapprocher · {event.match_status}</span>
+          <span className={"rounded-full px-2 py-1 text-xs font-bold " + (event.match_status === "coherent_confirmed" ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950")}>
+            {event.match_status === "coherent_confirmed" ? "Paire SMS confirmée" : event.match_status === "coherent_unconfirmed" ? "Paire rapprochée · POS à finaliser" : "À rapprocher · " + event.match_status}
+          </span>
         </div>
         <p className="mt-1 break-all text-sm">Référence : <strong>{event.transaction_reference ?? "Non extraite"}</strong> · Mouvement : {event.direction} · Succès détecté : {event.success ? "Oui" : "Non / inconnu"}</p>
         <p className="text-xs text-slate-600">Source : {event.source_type === "notification" ? "Notification " + (event.source_package ?? "application inconnue") : "SMS partagé volontairement"} · Espace : {event.workspace_id} · Payeur : …{event.payer_number_tail ?? "—"} · Marchand : …{event.merchant_number_tail ?? "—"}</p>
         <p className="text-xs text-slate-600">Date opérateur : {date(event.provider_occurred_at)} · Reçu : {date(event.received_at)}</p>
-        <p className="mt-2 text-xs font-semibold text-amber-900">Élément de collecte uniquement : aucune confirmation ni activation d'abonnement n'a été effectuée.</p>
+        <p className="mt-2 text-xs font-semibold text-amber-900">{event.match_status === "coherent_confirmed" ? "Paire SMS débit/crédit rapprochée. Pour une livraison, le reçu financier NAXA est créé ; l'inscription du ticket POS reste une étape Caisse distincte." : "Élément de collecte uniquement : aucune confirmation ni activation d'abonnement n'a été effectuée."}</p>
       </article>)}
     </section>
     <section className="space-y-3">
