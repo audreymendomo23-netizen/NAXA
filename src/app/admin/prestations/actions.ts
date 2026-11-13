@@ -31,3 +31,38 @@ export async function setHomeServiceOfferStatus(form: FormData) {
   revalidatePath("/prestations");
   redirect("/admin/prestations?ok=" + status);
 }
+
+
+export async function setAdminHomeServicePartnerLocation(form: FormData) {
+  const sb = await requireAdmin();
+  const { data: auth } = await sb.auth.getUser();
+  const partnerId = String(form.get("partner_id") ?? "");
+  const latText = String(form.get("lat") ?? "").trim();
+  const lngText = String(form.get("lng") ?? "").trim();
+  const lat = Number(latText);
+  const lng = Number(lngText);
+  if (!auth.user || !uuid(partnerId) || !latText || !lngText ||
+      !Number.isFinite(lat) || lat < -90 || lat > 90 ||
+      !Number.isFinite(lng) || lng < -180 || lng > 180) {
+    redirect("/admin/prestations?erreur=position");
+  }
+  const { data, error } = await sb.from("partners").update({
+    latitude: lat,
+    longitude: lng,
+    admin_location_updated_at: new Date().toISOString(),
+    admin_location_updated_by: auth.user.id,
+    updated_at: new Date().toISOString(),
+  }).eq("id",partnerId).eq("partner_type","professionnel_domicile").select("id").maybeSingle();
+  if(error || !data) redirect("/admin/prestations?erreur=position");
+  await sb.from("audit_log").insert({
+    actor_id:auth.user.id,
+    action:"partner.admin_location_updated",
+    entity_type:"partner",
+    entity_id:partnerId,
+    metadata:{latitude:lat,longitude:lng}
+  });
+  revalidatePath("/admin/prestations");
+  revalidatePath("/partenaire/prestations");
+  revalidatePath("/prestations");
+  redirect("/admin/prestations?ok=position");
+}
