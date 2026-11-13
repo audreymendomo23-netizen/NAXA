@@ -78,7 +78,7 @@ export async function soumettrePaiementPromoteur(formData: FormData) {
     extractedMerchantLabel: parsed?.merchantLabel ?? null,
     providerOccurredAt: parsed?.occurredAt ?? null,
     smsSenderId: smsSender || null,
-    senderIdMatchesExpected: parsed?.senderTrusted ?? false,
+    senderLabelMatchedCollectionFilter: parsed?.senderTrusted ?? false,
     reasons: validation.reasons,
     manualEvidence: true,
     rawSmsStored: false,
