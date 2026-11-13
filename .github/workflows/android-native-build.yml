@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "android/**"
+      - "android/payment-companion/**"
       - ".github/workflows/android-native-build.yml"
   pull_request:
     paths:
-      - "android/**"
+      - "android/payment-companion/**"
       - ".github/workflows/android-native-build.yml"
   workflow_dispatch:
 
@@ -21,9 +21,9 @@ concurrency:
 
 jobs:
   build:
-    name: Compile and unit tests
+    name: Kotlin compile and unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -34,7 +34,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Prepare Android SDK
+      - name: Prepare Android SDK 37
         shell: bash
         run: |
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
@@ -47,22 +47,22 @@ jobs:
           echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
           printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          "$SDKMANAGER" --install "platforms;android-37" "build-tools;37.0.0" "platform-tools"
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle 9.6.0
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: "9.6.0"
 
-      - name: Compile app and run unit tests
-        working-directory: android
+      - name: Compile Kotlin app and run unit tests
+        working-directory: android/payment-companion
         run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
 
       - name: Publish debug APK for internal verification only
         if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: naxa-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: naxa-payment-companion-debug
+          path: android/payment-companion/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
