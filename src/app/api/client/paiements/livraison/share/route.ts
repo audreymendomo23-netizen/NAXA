@@ -83,9 +83,41 @@ export async function POST(request: Request) {
       p_sms_payload_sha256: smsHash,
     });
     if (saveError || saved !== true) return NextResponse.json({ error: saveError?.message ?? "Déclaration non enregistrée." }, { status: 409 });
+    const { data: confirmation } = await db.from("naxa_delivery_payment_confirmations")
+      .select("receipt_number,amount_fcfa,confirmed_at")
+      .eq("reservation_id", reservation.id)
+      .eq("client_id", auth.user.id)
+      .maybeSingle();
+
+    if (confirmation) {
+      return NextResponse.json({
+        received: true,
+        status: "financially_confirmed_waiting_pos",
+        receiptNumber: confirmation.receipt_number,
+        amount: confirmation.amount_fcfa,
+        confirmedAt: confirmation.confirmed_at,
+        message: "Les SMS de débit et de crédit ont été rapprochés. Paiement confirmé par NAXA. Reçu " +
+          confirmation.receipt_number + ". La pharmacie doit encore inscrire le ticket dans sa Caisse.",
+      }, { status: 202 });
+    }
+
+    const { data: paymentRecord } = await db.from("naxa_delivery_payment_records")
+      .select("sms_match_status")
+      .eq("reservation_id", reservation.id)
+      .eq("client_id", auth.user.id)
+      .maybeSingle();
+
+    const matchStatus = paymentRecord?.sms_match_status ?? "not_checked";
+    const waitingMessage = matchStatus === "awaiting_merchant_sms"
+      ? "Votre déclaration est enregistrée. NAXA attend le SMS de crédit marchand ; l'absence de ce message dans NAXA ne signifie pas que l'opérateur a échoué."
+      : matchStatus === "manual_review"
+        ? "Votre déclaration et le SMS reçu nécessitent une revue manuelle. Aucun échec opérateur n'est présumé."
+        : "Votre déclaration est enregistrée. NAXA rapproche automatiquement les deux SMS dès qu'ils sont disponibles.";
+
     return NextResponse.json({
-      received: true, status: "waiting_pharmacy_confirmation",
-      message: "Déclaration transmise. La pharmacie doit vérifier le crédit réel et confirmer dans sa Caisse.",
+      received: true,
+      status: matchStatus,
+      message: waitingMessage,
     }, { status: 202 });
   } catch {
     return NextResponse.json({ error: "Service de déclaration de paiement indisponible." }, { status: 503 });
