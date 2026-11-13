@@ -107,6 +107,24 @@ export function PartnerUniversePaymentPanel({
     } finally {setBusy(false);}
   }
 
+  async function cancelIntent() {
+    if(!details||details.status!=="active"||busy) return;
+    setBusy(true);setError("");setMessage("");
+    try {
+      const response=await fetch("/api/client/paiements/univers/cancel",{
+        method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",
+        body:JSON.stringify({reservationId}),
+      });
+      const result=await response.json().catch(()=>({})) as {error?:string;message?:string};
+      if(!response.ok) throw new Error(result.error||"Annulation du choix électronique impossible.");
+      setDetails(null);setCanal(null);
+      setConfirmation({status:"not_submitted"});
+      setMessage(result.message||"Choix de paiement électronique annulé.");
+    } catch(reason) {
+      setError(reason instanceof Error?reason.message:"Annulation impossible.");
+    } finally {setBusy(false);}
+  }
+
   async function submit() {
     if(!canal||!details||busy) return;
     const numericAmount=Number(amount);
@@ -132,6 +150,7 @@ export function PartnerUniversePaymentPanel({
       const result=await response.json().catch(()=>({})) as {error?:string;message?:string;status?:string;receiptNumber?:string};
       if(!response.ok) throw new Error(result.error||"Déclaration non enregistrée.");
       setMessage(result.message||"Déclaration transmise à NAXA.");
+      setDetails({...details,status:"submitted"});
       await refresh();
     } catch(reason) {
       setError(reason instanceof Error?reason.message:"Déclaration non enregistrée.");
@@ -205,7 +224,8 @@ export function PartnerUniversePaymentPanel({
       </label>
       <button type="button" disabled={busy||reference.trim().length<5} onClick={()=>void submit()} className="btn btn-vert w-full">{busy?"Transmission…":"Transmettre le SMS et ma déclaration"}</button>
       <p className="text-xs text-slate-500">Un SMS partagé remplit les champs mais ne confirme pas seul le paiement. NAXA attend aussi le SMS de crédit reçu par le partenaire.</p>
-      <button type="button" disabled={busy||locked} onClick={()=>{setCanal(null);setDetails(null);setError("");}} className="min-h-10 rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40">Changer d'opérateur</button>
+      {details.status==="active"&&<button type="button" disabled={busy} onClick={()=>void cancelIntent()} className="min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-40">Annuler et régler sur place</button>}
+      {details.status==="active"&&<button type="button" disabled={busy||locked} onClick={()=>{setCanal(null);setDetails(null);setError("");}} className="min-h-10 rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40">Changer d'opérateur</button>}
     </div>}
 
     {message&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
