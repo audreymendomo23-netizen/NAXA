@@ -62,7 +62,7 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
   const [aiNotice,setAiNotice]=useState("");
   const [suggestionOpen,setSuggestionOpen]=useState(false);
 
-  const loadDirectory=useCallback(async(gps?:CoordonneesGPS,km=radius)=>{
+  const loadDirectory=useCallback(async(gps?:CoordonneesGPS,km="25")=>{
     setLoading(true);setError("");
     try{
       const response=await fetch("/api/suivi/professionnels/recherche",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(gps?{lat:gps.lat,lng:gps.lng,radius_km:Number(km)}:{}),cache:"no-store"});
@@ -71,7 +71,7 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
       setProfessionals(Array.isArray(data.results)?data.results:[]);
     }catch(e){setError(e instanceof Error?e.message:"Impossible de charger l’annuaire.");}
     finally{setLoading(false);}
-  },[radius]);
+  },[]);
 
   useEffect(()=>{void loadDirectory();},[loadDirectory]);
 
