@@ -48,7 +48,7 @@ export function extractMedia(payload) {
 /** Extrait uniquement la référence SPLIMAGE (vue du comprimé/gélule), pas les schémas de notice. */
 export function extractSplImageFilename(xml) {
   if (typeof xml !== "string" || !xml) return null;
-  const subjectRegex = new RegExp("<(?:[A-Za-z0-9_-]+:)?subjectOf\\\\b[^>]*>([\\\\s\\\\S]*?)<\\\\/(?:[A-Za-z0-9_-]+:)?subjectOf>", "gi");
+  const subjectRegex = new RegExp("<(?:[A-Za-z0-9_-]+:)?subjectOf\\\\b[^>]*>([\\\\s\\\\S]*?)</(?:[A-Za-z0-9_-]+:)?subjectOf>", "gi");
   for (const match of xml.matchAll(subjectRegex)) {
     const block = match[1] ?? "";
     if (!new RegExp("<(?:[A-Za-z0-9_-]+:)?code\\\\b[^>]*\\\\bcode=[\"']SPLIMAGE[\"']", "i").test(block)) continue;
