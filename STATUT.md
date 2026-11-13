@@ -538,7 +538,7 @@ Les lots code/intégration, SQL/sécurité, CI/preuves et documentation sont tra
 - Ajout d'un endpoint serveur de recherche qui interroge RxNorm, OpenFDA et DailyMed; aucune dépendance payante ajoutée. RxImage n'est pas utilisé car son API a été arrêtée.
 - Ajout de dix termes pilotes pour vérifier les correspondances, pas pour prétendre qu'il s'agit des dix médicaments les plus vendus au Cameroun.
 - La recherche de la page d'accueil affiche les résultats au fur et à mesure de la saisie : nom, marque, substance active, forme, définition/indications si fournies, source et photo si une image pertinente est disponible. Sinon, une illustration neutre est utilisée.
-- Les photos DailyMed sont identifiées comme issues de l'étiquetage américain et ne sont pas présentées comme des boîtes locales camerounaises.
+- Les candidats photo DailyMed ne sont plus recherchés ni exposés dans l'Admin; les images externes non vérifiées ne sont pas affichées.
 - Aucun dosage n'est rendu dans les cartes de recherche, la liste de stocks, la fiche produit ou le panier. Les données de dosage ne font pas partie du contrat de réponse de l'API catalogue.
 - Le bouton de résultat utilise la recherche de stock existante. Disponibilité/prix/réservation restent issus des stocks réels des partenaires NAXA; le catalogue externe n'est jamais une source de stock.
 - Ajout du test source scripts/test-catalogue-medicaments.cjs et intégration à la tâche qualité CircleCI. L'exécution réelle des APIs, les réponses pour les dix termes, la compilation CI et l'exactitude des images restent à vérifier avant de déclarer le chantier vert.
