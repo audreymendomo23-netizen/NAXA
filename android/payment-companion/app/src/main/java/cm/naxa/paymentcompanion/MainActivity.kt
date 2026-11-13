@@ -2,6 +2,7 @@ package cm.naxa.paymentcompanion
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.os.Bundle
@@ -19,10 +20,12 @@ class MainActivity : Activity() {
     private lateinit var email: EditText
     private lateinit var password: EditText
     private lateinit var roleGroup: RadioGroup
-    private lateinit var smsConsent: CheckBox
-    private lateinit var connectButton: Button
-    private lateinit var permissionButton: Button
     private lateinit var statusText: TextView
+    private lateinit var connectButton: Button
+    private var smsConsent: CheckBox? = null
+    private var channelSpinner: Spinner? = null
+    private var promoterRadioId: Int = View.NO_ID
+    private var clientRadioId: Int = View.NO_ID
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,15 +36,19 @@ class MainActivity : Activity() {
         }
         scroll.addView(root)
         root.addView(TextView(this).apply {
-            text = "NAXA · Compagnon de paiement"
+            text = "NAXA · Paiement"
             textSize = 23f
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
         })
         root.addView(TextView(this).apply {
-            text = "Le compagnon ne traite que les SMS provenant des identifiants exacts OrangeMoney ou MobileMoney. Il ne consulte ni les contacts, ni l'historique SMS, ni les messages d'autres expéditeurs."
+            text = if (BuildConfig.ADMIN_CAPTURE_ENABLED)
+                "Compagnon Administrateur : réception automatique facultative des SMS de crédit NAXA."
+            else
+                "Compagnon Client / Promoteur : partage volontaire du SMS de transaction. Aucun accès aux SMS en arrière-plan."
             textSize = 14f
             setPadding(0, dp(8), 0, dp(18))
         })
+
         naxaUrl = addField(root, "URL de l'espace NAXA (HTTPS)", "https://votre-domaine-naxa")
         supabaseUrl = addField(root, "URL Supabase", "https://votre-projet.supabase.co")
         anonKey = addField(root, "Clé publique Supabase (anon / publishable)", "")
@@ -51,77 +58,121 @@ class MainActivity : Activity() {
         }
 
         root.addView(TextView(this).apply {
-            text = "Compte à enrôler"
+            text = "Profil NAXA"
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             setPadding(0, dp(16), 0, dp(6))
         })
         roleGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
-        val promoter = RadioButton(this).apply {
-            id = View.generateViewId()
-            text = "Promoteur (téléphone du payeur)"
+        if (BuildConfig.ADMIN_CAPTURE_ENABLED) {
+            val admin = RadioButton(this).apply {
+                id = View.generateViewId()
+                text = "Administrateur · téléphone bénéficiaire NAXA"
+                isChecked = true
+            }
+            roleGroup.addView(admin)
+        } else {
+            val client = RadioButton(this).apply {
+                id = View.generateViewId()
+                text = "Client · paiement d'une commande pharmacie"
+                isChecked = true
+            }
+            clientRadioId = client.id
+            val promoter = RadioButton(this).apply {
+                id = View.generateViewId()
+                text = "Promoteur · abonnement NAXA"
+            }
+            promoterRadioId = promoter.id
+            roleGroup.addView(client)
+            roleGroup.addView(promoter)
         }
-        val admin = RadioButton(this).apply {
-            id = View.generateViewId()
-            text = "Administrateur (téléphone du bénéficiaire)"
-        }
-        roleGroup.addView(promoter)
-        roleGroup.addView(admin)
-        promoter.isChecked = true
         root.addView(roleGroup)
 
-        root.addView(TextView(this).apply {
-            text = "Consentement à la capture SMS"
-            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-            setPadding(0, dp(18), 0, dp(4))
-        })
-        root.addView(TextView(this).apply {
-            text = "La capture automatique est facultative. Si vous cochez la case ci-dessous, le compagnon pourra traiter les SMS reçus uniquement lorsque leur expéditeur est OrangeMoney ou MobileMoney, puis transmettre le texte du message à NAXA par HTTPS pour le rapprochement du paiement. Le message n'est pas conservé dans l'historique de l'application."
-            textSize = 13f
-            setPadding(0, 0, 0, dp(8))
-        })
-        smsConsent = CheckBox(this).apply {
-            text = "J'autorise explicitement NAXA Paiement à traiter ces SMS de transaction."
-            isChecked = SecureVault.get(this@MainActivity, "sms_consent_granted") == "true"
+        if (BuildConfig.ADMIN_CAPTURE_ENABLED) {
+            root.addView(TextView(this).apply {
+                text = "Autorisation de réception SMS"
+                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                setPadding(0, dp(18), 0, dp(4))
+            })
+            root.addView(TextView(this).apply {
+                text = "La réception automatique ne concerne que les SMS de crédit Orange Money ou MTN MoMo du téléphone Administrateur. Votre consentement dans NAXA et l'autorisation Android sont deux choix séparés. Vous pouvez retirer le consentement à tout moment."
+                textSize = 13f
+                setPadding(0, 0, 0, dp(8))
+            })
+            smsConsent = CheckBox(this).apply {
+                text = "J'autorise explicitement NAXA à traiter les SMS de crédit sur ce téléphone Administrateur."
+                isChecked = SecureVault.get(this@MainActivity, "sms_consent_granted") == "true"
+            }
+            root.addView(smsConsent)
+            root.addView(TextView(this).apply {
+                text = "Si la permission Android n'est pas accordée, vous pouvez partager manuellement le SMS de crédit depuis votre messagerie. Le partage manuel ne déclenche jamais une confirmation automatique."
+                textSize = 12f
+                setPadding(0, dp(4), 0, dp(12))
+            })
+            smsConsent?.setOnCheckedChangeListener { _, checked -> applySmsConsentChoice(checked) }
         }
-        root.addView(smsConsent)
-        root.addView(TextView(this).apply {
-            text = "Vous pouvez retirer ce consentement à tout moment en décochant cette case. Dans ce cas, le compagnon ignore immédiatement les SMS, même si Android a déjà accordé la permission. Pour retirer aussi la permission système, ouvrez Paramètres Android > Applications > NAXA Paiement > Autorisations > SMS."
-            textSize = 12f
-            setPadding(0, dp(4), 0, dp(12))
-        })
 
         connectButton = Button(this).apply {
             text = "Connecter et enrôler ce téléphone"
             setOnClickListener { connectAndEnroll() }
         }
         root.addView(connectButton)
+
         statusText = TextView(this).apply {
             textSize = 13f
-            setPadding(0, dp(16), 0, dp(6))
+            setPadding(0, dp(16), 0, dp(8))
         }
         root.addView(statusText)
-        permissionButton = Button(this).apply {
-            text = "Activer / réessayer l'autorisation SMS"
-            setOnClickListener { requestSmsPermission() }
-        }
-        root.addView(permissionButton)
 
-        smsConsent.setOnCheckedChangeListener { _, checked ->
-            applySmsConsentChoice(checked)
+        if (BuildConfig.ADMIN_CAPTURE_ENABLED) {
+            root.addView(Button(this).apply {
+                text = "Activer / réessayer l'autorisation SMS"
+                setOnClickListener { requestSmsPermission() }
+            })
+            root.addView(Button(this).apply {
+                text = "Partager manuellement un SMS de crédit"
+                setOnClickListener { openShareForm() }
+            })
+        } else {
+            if (promoterRadioId != View.NO_ID) {
+                root.addView(TextView(this).apply {
+                    text = "Préparer un abonnement Promoteur"
+                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    setPadding(0, dp(18), 0, dp(4))
+                })
+                val channels = arrayOf("Orange Money", "MTN Mobile Money")
+                channelSpinner = Spinner(this).apply {
+                    adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, channels)
+                }
+                root.addView(channelSpinner)
+                root.addView(Button(this).apply {
+                    text = "Préparer le montant et le bénéficiaire NAXA"
+                    setOnClickListener { preparePromoterPayment() }
+                })
+            }
+            root.addView(Button(this).apply {
+                text = "Ouvrir la saisie / le partage volontaire"
+                setOnClickListener { openShareForm() }
+            })
+            root.addView(TextView(this).apply {
+                text = "Pour transmettre un SMS : ouvrez le SMS de débit, choisissez Partager, puis NAXA Paiement. NAXA n'a pas accès à votre historique SMS."
+                textSize = 12f
+                setPadding(0, dp(12), 0, 0)
+            })
         }
 
         root.addView(TextView(this).apply {
-            text = "Distribution privée : l'application NAXA Paiement peut être transmise par Bluetooth, depuis le site NAXA ou directement sous forme d'APK. Après installation, Android peut demander séparément l'autorisation SMS. Le consentement dans l'application ne remplace pas cette autorisation système."
+            text = "Distribution privée : APK NAXA. La variante Client / Promoteur ne déclare pas RECEIVE_SMS. Seule la variante Administrateur demande cette permission restreinte."
             textSize = 12f
-            setPadding(0, dp(14), 0, 0)
+            setPadding(0, dp(18), 0, 0)
         })
         setContentView(scroll)
-        refreshCaptureStatus()
+        if (BuildConfig.ADMIN_CAPTURE_ENABLED) refreshCaptureStatus()
+        else statusText.text = "Connectez-vous avec votre compte Client ou Promoteur."
     }
 
     override fun onResume() {
         super.onResume()
-        if (::statusText.isInitialized) refreshCaptureStatus()
+        if (::statusText.isInitialized && BuildConfig.ADMIN_CAPTURE_ENABLED) refreshCaptureStatus()
     }
 
     private fun addField(parent: LinearLayout, label: String, hint: String): EditText {
@@ -138,8 +189,13 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun selectedRole(): String {
+        if (BuildConfig.ADMIN_CAPTURE_ENABLED) return "admin"
+        return if (roleGroup.checkedRadioButtonId == promoterRadioId) "promoteur" else "client"
+    }
+
     private fun connectAndEnroll() {
-        val role = if (roleGroup.checkedRadioButtonId == (roleGroup.getChildAt(1) as RadioButton).id) "admin" else "promoteur"
+        val role = selectedRole()
         val naxa = trim(naxaUrl.text.toString())
         val sb = trim(supabaseUrl.text.toString())
         val key = anonKey.text.toString().trim()
@@ -150,21 +206,23 @@ class MainActivity : Activity() {
             return
         }
         connectButton.isEnabled = false
-        statusText.text = "Connexion Supabase et enrôlement en cours…"
+        statusText.text = "Connexion et vérification du profil NAXA…"
         executor.execute {
             try {
                 SecureVault.put(this, "naxa_base_url", naxa)
                 SecureVault.put(this, "supabase_url", sb)
                 SecureVault.put(this, "supabase_anon_key", key)
                 SupabaseSession.login(this, sb, key, user, secret)
-                NaxaApi.enroll(this, role)
+                if (role == "client") SecureVault.put(this, "companion_role", "client")
+                else NaxaApi.enroll(this, role)
                 runOnUiThread {
                     connectButton.isEnabled = true
-                    if (SecureVault.get(this, "sms_consent_granted") == "true") {
-                        requestSmsPermission()
-                    } else {
-                        statusText.text = "Téléphone enrôlé pour le compte " + role + ". Aucun SMS ne sera lu : le consentement de capture n'a pas été accordé."
+                    statusText.text = when (role) {
+                        "client" -> "Compte Client connecté. Partagez un SMS de débit ou utilisez la saisie manuelle."
+                        "promoteur" -> "Compte Promoteur enrôlé. Préparez un paiement avant de partager le SMS de débit."
+                        else -> "Compte Administrateur enrôlé. La capture automatique reste désactivée tant que le consentement n'est pas accordé."
                     }
+                    if (role == "admin" && SecureVault.get(this, "sms_consent_granted") == "true") requestSmsPermission()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -175,45 +233,62 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun isDeviceEnrolled(): Boolean =
-        !SecureVault.get(this, "companion_role").isNullOrBlank()
+    private fun preparePromoterPayment() {
+        if (SecureVault.get(this, "companion_role") != "promoteur") {
+            statusText.text = "Connectez-vous d'abord avec un compte Promoteur."
+            return
+        }
+        val channel = if ((channelSpinner?.selectedItemPosition ?: 0) == 0) "orange_money" else "mtn_momo"
+        statusText.text = "Préparation du paiement Promoteur…"
+        executor.execute {
+            try {
+                val intent = NaxaApi.preparePromoterPayment(this, channel)
+                runOnUiThread {
+                    statusText.text = "Paiement préparé : " + intent.optInt("expected_amount").toString() +
+                        " FCFA · " + (if (channel == "orange_money") "Orange Money" else "MTN MoMo") +
+                        ". Effectuez le transfert puis partagez le SMS de débit avec NAXA Paiement."
+                }
+            } catch (error: Exception) {
+                runOnUiThread { statusText.text = error.message ?: "Préparation du paiement impossible." }
+            }
+        }
+    }
+
+    private fun openShareForm() {
+        startActivity(Intent(this, PaymentShareActivity::class.java).apply {
+            action = "cm.naxa.paymentcompanion.MANUAL_ENTRY"
+        })
+    }
 
     private fun applySmsConsentChoice(checked: Boolean) {
         try {
-            // Persist the revocation/grant before changing the visible state.
             SecureVault.put(this, "sms_consent_granted", checked.toString())
         } catch (_: Exception) {
-            val persistedChoice = SecureVault.get(this, "sms_consent_granted") == "true"
-            smsConsent.setOnCheckedChangeListener(null)
-            smsConsent.isChecked = persistedChoice
-            smsConsent.setOnCheckedChangeListener { _, value -> applySmsConsentChoice(value) }
-            statusText.text = "Impossible d'enregistrer votre choix dans le coffre sécurisé. La capture ne change pas tant que le choix n'est pas sauvegardé."
+            val saved = SecureVault.get(this, "sms_consent_granted") == "true"
+            smsConsent?.setOnCheckedChangeListener(null)
+            smsConsent?.isChecked = saved
+            smsConsent?.setOnCheckedChangeListener { _, value -> applySmsConsentChoice(value) }
+            statusText.text = "Impossible d'enregistrer le consentement dans le coffre sécurisé."
             return
         }
-
         if (!checked) {
-            statusText.text = "Consentement retiré. La capture automatique est désactivée immédiatement. La permission Android peut être retirée séparément dans les paramètres de l'application."
-        } else if (isDeviceEnrolled()) {
-            requestSmsPermission()
+            statusText.text = "Consentement retiré : la capture automatique est désactivée immédiatement."
         } else {
-            statusText.text = "Consentement enregistré sur cet appareil. Connectez et enrôlez le téléphone pour activer la capture automatique."
+            requestSmsPermission()
         }
     }
 
     private fun requestSmsPermission() {
+        if (!BuildConfig.ADMIN_CAPTURE_ENABLED || SecureVault.get(this, "companion_role") != "admin") return
         if (SecureVault.get(this, "sms_consent_granted") != "true") {
-            statusText.text = "La capture SMS reste désactivée tant que le consentement n'est pas accordé."
-            return
-        }
-        if (!isDeviceEnrolled()) {
-            statusText.text = "Consentement enregistré. Connectez et enrôlez ce téléphone avant d'activer la capture SMS."
+            statusText.text = "Capture désactivée : consentement Administrateur non accordé."
             return
         }
         if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) {
             refreshCaptureStatus()
             return
         }
-        statusText.text = "Consentement enregistré. Android va maintenant demander séparément l'autorisation de recevoir les SMS."
+        statusText.text = "Android va demander séparément l'autorisation de recevoir les SMS. Si elle est refusée, utilisez le partage manuel."
         requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_RECEIVE_SMS)
     }
 
@@ -221,29 +296,22 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != REQUEST_RECEIVE_SMS) return
-        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            refreshCaptureStatus()
-        } else {
-            statusText.text = "Consentement accepté, mais Android n'a pas accordé RECEIVE_SMS. L'installateur de cet APK doit aussi autoriser cette permission restreinte. Aucune capture automatique ne sera effectuée ; utilisez le parcours manuel NAXA sans désactiver les protections Android."
-        }
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) refreshCaptureStatus()
+        else statusText.text = "Android n'a pas accordé RECEIVE_SMS. Vérifiez l'autorisation de l'installateur ; la capture automatique reste désactivée. Le partage manuel Admin reste disponible."
     }
 
     private fun refreshCaptureStatus() {
-        if (!::statusText.isInitialized) return
+        if (!::statusText.isInitialized || !BuildConfig.ADMIN_CAPTURE_ENABLED) return
         val consent = SecureVault.get(this, "sms_consent_granted") == "true"
-        val enrolled = isDeviceEnrolled()
-        val permissionGranted = checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-        val message = when {
+        val enrolled = SecureVault.get(this, "companion_role") == "admin"
+        val permission = checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+        val state = when {
             !consent -> "Capture automatique désactivée : consentement non accordé."
-            !enrolled -> "Consentement enregistré ; connectez et enrôlez ce téléphone pour activer la capture."
-            !permissionGranted -> "Consentement accepté, mais l'autorisation Android RECEIVE_SMS n'est pas accordée. Vérifiez que l'installateur de l'APK autorise cette permission restreinte."
-            else -> "Capture SMS active : consentement explicite et permission Android accordés. Seuls les expéditeurs OrangeMoney et MobileMoney sont acceptés."
+            !enrolled -> "Connectez un compte Administrateur actif."
+            !permission -> "Consentement accepté, mais RECEIVE_SMS n'est pas accordée / autorisée par l'installateur."
+            else -> "Capture Admin active : seuls les SMS OrangeMoney et MobileMoney sont traités."
         }
-        val lastState = SecureVault.get(this, "last_capture_status")
-        val lastAt = SecureVault.get(this, "last_capture_at")
-        statusText.text = message + if (lastState != null) {
-            "\nDernière capture : " + lastState + (lastAt?.let { " · " + it } ?: "")
-        } else ""
+        statusText.text = state
     }
 
     private fun trim(value: String?): String {
