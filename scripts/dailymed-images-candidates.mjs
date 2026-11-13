@@ -2,11 +2,10 @@
 /**
  * DailyMed v2 discovery for NAXA medicine-image queue.
  *
- * DailyMed exposes SPL labels and their attached media, but the media endpoint
- * does not return per-image copyright/license metadata. This importer therefore
- * records candidates for human rights/identity review and NEVER publishes an
- * image URL into image_url. Public display remains blocked until rights are
- * independently verified.
+ * DailyMed exposes SPL labels and media. This importer stores only the exact
+ * SPLIMAGE asset in image_url as an admin-review candidate; it keeps statut at
+ * "correspondance_a_verifier", so the public catalogue does not display it.
+ * Per-image reproduction rights must be confirmed before publication.
  *
  * Usage: node scripts/dailymed-images-candidates.mjs [--limit=25] [--dry-run]
  * Requires SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and
@@ -176,9 +175,7 @@ async function fetchText(url) {
 }
 
 export async function searchDailyMed(identity) {
-  // DailyMed v2 ne documente pas drug_name comme filtre de /spls.
-  // RxNorm résout d'abord le nom BDPM en RxCUI, puis DailyMed est interrogée
-  // directement avec son filtre officiel rxcui.
+  // Première passe : normalisation RxNorm et recherche DailyMed par RxCUI.
   const resolved = await resolveRxNormTerms(identity);
   const bySetId = new Map();
   for (const candidate of resolved.slice(0, 8)) {
@@ -191,10 +188,22 @@ export async function searchDailyMed(identity) {
         ...spl,
         rxnorm_rxcui: candidate.rxcui,
         rxnorm_name: candidate.name,
-        rxnorm_score: candidate.score ?? null
+        rxnorm_score: candidate.score ?? null,
+        matched_by: "rxcui"
       });
     }
     await wait(DELAY_MS);
+  }
+  // Deuxième passe : recherche directe DailyMed pour les marques non résolues par RxNorm.
+  const directUrl = new URL(BASE + "/spls.json");
+  directUrl.searchParams.set("drug_name", identity);
+  directUrl.searchParams.set("name_type", "both");
+  directUrl.searchParams.set("pagesize", "20");
+  const directPayload = await fetchJson(directUrl);
+  for (const spl of extractSpls(directPayload)) {
+    if (spl?.setid && !bySetId.has(String(spl.setid))) {
+      bySetId.set(String(spl.setid), { ...spl, matched_by: "drug_name" });
+    }
   }
   return [...bySetId.values()];
 }
