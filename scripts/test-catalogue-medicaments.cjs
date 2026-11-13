@@ -313,5 +313,7 @@ test("import photos : file CIS/CIP réelle, colonnes Production exactes et CDN O
   assert.match(imageImporter, /images\.openproductsfacts\.org/);
   assert.match(imageImporter, /images\.openfoodfacts\.org/);
   assert.match(imageImporter, /const requiredHits = wanted\.length <= 2 \? wanted\.length : 2/);
+  assert.equal(packageJson.scripts["import:medicaments-images"], "node scripts/medicaments-images-cameroun.mjs");
+  assert.match(imageImporter, /const DELAY_MS = 4100/);
   assert.doesNotMatch(imageImporter, /photo_path|photo_source_url|photo_licence|photo_attribution|photo_verifiee_le/);
 });
