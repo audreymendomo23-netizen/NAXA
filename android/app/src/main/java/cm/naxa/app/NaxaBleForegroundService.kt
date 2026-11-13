@@ -302,7 +302,7 @@ class NaxaBleForegroundService : Service() {
 
     @Suppress("MissingPermission")
     private fun performNextOperation(gatt: BluetoothGatt, session: DeviceSession) {
-        val descriptor = session.descriptorWrites.pollFirst()
+        val descriptor = session.descriptorWrites.removeFirstOrNull()
         if (descriptor != null) {
             if (Build.VERSION.SDK_INT >= 33) {
                 val status = gatt.writeDescriptor(descriptor, descriptor.value ?: BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
@@ -314,7 +314,7 @@ class NaxaBleForegroundService : Service() {
             }
             return
         }
-        val characteristic = session.reads.pollFirst() ?: return
+        val characteristic = session.reads.removeFirstOrNull() ?: return
         if (!gatt.readCharacteristic(characteristic)) performNextOperation(gatt, session)
     }
 
