@@ -75,32 +75,11 @@ type LocalProduct = {
 };
 
 type StockPair = { produit_id: string; pharmacie_id: string };
-type CimaPhotoViewRow = {
-  cis: string;
-  nregistro: string;
-  nom_cima: string;
-  titulaire_cima: string | null;
-  image_boite_url: string | null;
-  photo_boite_updated_at: string | null;
-  image_forme_url: string | null;
-  photo_forme_updated_at: string | null;
-};
-type CimaPhotoVariant = {
-  url: string;
-  sourceUrl: string;
-  licence: string;
-  attribution: string | null;
-  title: string;
-  kind: "boite" | "comprime";
-  provider: "cima_aemps";
-  updatedAt: string;
-};
 type BdpmProduct = {
   cis: string; nom: string; forme: string | null; voies_administration: string | null;
   statut_amm: string | null; etat_commercialisation: string | null; date_amm: string | null;
   titulaires: string | null; substances_actives: string | null; source_nom: string;
   source_url: string; source_dataset_updated_at: string | null;
-  cimaPhotos?: { boite: CimaPhotoVariant | null; comprime: CimaPhotoVariant | null };
 };
 
 
@@ -130,75 +109,6 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
 }
 
 
-function dateCima(value: string | null): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
-}
-
-function construirePhotoCima(
-  row: CimaPhotoViewRow,
-  rawUrl: string | null,
-  rawDate: string | null,
-  kind: "boite" | "comprime"
-): CimaPhotoVariant | null {
-  const updatedAt = dateCima(rawDate);
-  if (!rawUrl || !updatedAt || !row.nregistro) return null;
-  try {
-    const url = new URL(rawUrl);
-    const parts = url.pathname.split("/").filter(Boolean);
-    const expectedType = kind === "boite" ? "materialas" : "formafarmac";
-    const expectedFile = row.nregistro + "_" + expectedType + ".jpg";
-    if (url.protocol !== "https:" || url.hostname !== "cima.aemps.es"
-      || parts.length !== 6
-      || parts[0] !== "cima"
-      || parts[1] !== "fotos"
-      || !["thumbnails", "full"].includes(parts[2])
-      || parts[3] !== expectedType
-      || parts[4] !== row.nregistro
-      || parts[5] !== expectedFile) return null;
-
-    const sourceUrl = "https://cima.aemps.es/cima/rest/medicamento?nregistro="
-      + encodeURIComponent(row.nregistro);
-    const dateLabel = "photo mise à jour le " + updatedAt;
-    const titular = row.titulaire_cima?.trim();
-    return {
-      url: url.toString(),
-      sourceUrl,
-      licence: "Données ouvertes AEMPS/CIMA — réutilisation avec attribution — " + dateLabel,
-      attribution: [
-        "AEMPS / CIMA",
-        titular ? "titulaire AMM : " + titular : "",
-        dateLabel
-      ].filter(Boolean).join(" — "),
-      title: row.nom_cima,
-      kind,
-      provider: "cima_aemps",
-      updatedAt
-    };
-  } catch {
-    return null;
-  }
-}
-
-function imagesCimaPourRecherche(photos: BdpmProduct["cimaPhotos"]) {
-  if (!photos) return {};
-  const primary = photos.boite ?? photos.comprime;
-  if (!primary) return {};
-  const description = photos.boite
-    ? "AEMPS / CIMA (Espagne) — emballage de référence indicatif ; marque et présentation pouvant différer du produit recherché au Cameroun"
-    : "AEMPS / CIMA (Espagne) — forme pharmaceutique de référence indicative ; ne confirme pas l’aspect exact du produit camerounais";
-  return {
-    imageUrl: primary.url,
-    imageSource: description,
-    imageSourceUrl: primary.sourceUrl,
-    imageLicense: primary.licence,
-    imageAttribution: primary.attribution,
-    imageTitle: primary.title,
-    imageVariants: photos
-  };
-}
-
 async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
   const needle = term.trim().replace(/[%,_()]/g, " ").replace(/\s+/g, " ").slice(0, 80);
   if (needle.length < 2) return [];
@@ -214,31 +124,8 @@ async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
     const products = [...unique.values()].slice(0, 10);
     if (!products.length) return [];
 
-    // La table privée CIMA n'est jamais lue directement depuis l'API applicative.
-    // Seule la projection publique à colonnes limitées est consultée par CIS.
-    const cisList = products.map((item) => item.cis);
-    const { data: photoRows, error: photoError } = await sb
-      .from("medicaments_cima_photos_public")
-      .select("cis,nregistro,nom_cima,titulaire_cima,image_boite_url,photo_boite_updated_at,image_forme_url,photo_forme_updated_at")
-      .in("cis", cisList);
-
-    if (photoError) {
-      console.warn("NAXA_CIMA_PHOTO_PROJECTION_UNAVAILABLE", photoError.message);
-      return products;
-    }
-
-    const photosByCis = new Map<string, { boite: CimaPhotoVariant | null; comprime: CimaPhotoVariant | null }>();
-    for (const row of (photoRows ?? []) as CimaPhotoViewRow[]) {
-      const photos = {
-        boite: construirePhotoCima(row, row.image_boite_url, row.photo_boite_updated_at, "boite"),
-        comprime: construirePhotoCima(row, row.image_forme_url, row.photo_forme_updated_at, "comprime")
-      };
-      if (photos.boite || photos.comprime) photosByCis.set(row.cis, photos);
-    }
-    return products.map((item) => ({
-      ...item,
-      cimaPhotos: photosByCis.get(item.cis)
-    }));
+    // Le référentiel BDPM fournit uniquement les métadonnées; aucune photo CIMA n'est chargée.
+    return products;
   } catch {
     return [];
   }
@@ -599,35 +486,16 @@ export async function GET(request: NextRequest) {
       url: match.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
       updatedAt: match.source_dataset_updated_at
     };
-    const matchExactNom = normaliserTerme(match.nom) === normaliserTerme(item.name);
-    const cimaPrimary = !item.imageUrl && matchExactNom
-      ? match.cimaPhotos?.boite ?? match.cimaPhotos?.comprime
-      : null;
-    const cimaImages = cimaPrimary ? imagesCimaPourRecherche(match.cimaPhotos) : {};
     return {
       ...item,
-      ...cimaImages,
-      source: [...new Set([...item.source, match.source_nom || "BDPM", ...(cimaPrimary ? ["AEMPS / CIMA"] : [])])],
-      sourceDetails: [
-        ...item.sourceDetails,
-        bdpmSource,
-        ...(cimaPrimary ? [{
-          name: "AEMPS / CIMA",
-          role: "photo de référence étrangère indicative ; ne confirme ni la marque, ni le conditionnement, ni l’AMM au Cameroun",
-          url: cimaPrimary.sourceUrl,
-          updatedAt: cimaPrimary.updatedAt
-        }] : [])
-      ]
+      sourceDetails: [...item.sourceDetails, bdpmSource]
     };
   });
   const existingNames = new Set(mergedResults.map((item) => normaliserTerme(item.name)));
   const bdpmResults = bdpmProducts
     .filter((item) => !existingNames.has(normaliserTerme(item.nom)))
     .slice(0, Math.max(0, 10 - mergedResults.length))
-    .map((item) => {
-      const cimaImages = imagesCimaPourRecherche(item.cimaPhotos);
-      const cimaPrimary = item.cimaPhotos?.boite ?? item.cimaPhotos?.comprime;
-      return ({
+    .map((item) => ({
       id: "bdpm-" + item.cis,
       name: item.nom,
       brand: null,
@@ -638,13 +506,7 @@ export async function GET(request: NextRequest) {
       safetyInformation: null,
       sourceDetails: [
         { name: item.source_nom || "BDPM", role: "référentiel français importé dans NAXA", url: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement", updatedAt: item.source_dataset_updated_at },
-        { name: "DPML Cameroun", role: "à consulter pour vérifier l’autorisation au Cameroun", url: "https://dpml.cm/repertoireDesAmm/index.php" },
-        ...(cimaPrimary ? [{
-          name: "AEMPS / CIMA",
-          role: "photo de référence étrangère indicative ; ne confirme ni la marque, ni le conditionnement, ni l’AMM au Cameroun",
-          url: cimaPrimary.sourceUrl,
-          updatedAt: cimaPrimary.updatedAt
-        }] : [])
+        { name: "DPML Cameroun", role: "à consulter pour vérifier l’autorisation au Cameroun", url: "https://dpml.cm/repertoireDesAmm/index.php" }
       ],
       imageUrl: null,
       imageSource: null,
@@ -652,8 +514,7 @@ export async function GET(request: NextRequest) {
       imageLicense: null,
       imageAttribution: null,
       imageTitle: null,
-      ...cimaImages,
-      source: [item.source_nom || "BDPM", ...(cimaPrimary ? ["AEMPS / CIMA"] : [])],
+      source: [item.source_nom || "BDPM"],
       sourceUrl: item.source_url || "https://base-donnees-publique.medicaments.gouv.fr/telechargement",
       availability: "non_verifiee" as const,
       partnerPharmacyCount: null,
@@ -669,8 +530,8 @@ export async function GET(request: NextRequest) {
       bdpmRoutes: item.voies_administration,
       bdpmHolder: item.titulaires,
       bdpmSourceDatasetUpdatedAt: item.source_dataset_updated_at
-    });
-    });
+    }));
+
   // Les sources externes peuvent décrire plusieurs fois le même médicament et
   // le rapprochement local peut attribuer un même produit à plusieurs variantes.
   // Dédupliquer avant la limite et conserver la première fiche, mieux priorisée.
