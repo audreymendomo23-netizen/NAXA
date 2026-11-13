@@ -67,7 +67,9 @@ Cette destination doit être distincte du projet Supabase. Les clés doivent app
 
 Les fichiers binaires (photos, logos, justificatifs et autres documents) ne sont pas contenus dans le dump SQL de la base. Le workflow `.github/workflows/naxa-storage-e2e.yml` est un test fonctionnel sur Replay : il teste upload/téléchargement, isolation et nettoyage. Ce n'est pas un workflow de sauvegarde de Production.
 
-Un volet séparé doit exporter les objets de chaque bucket Production, préserver leurs chemins et métadonnées utiles, les chiffrer, les envoyer vers le stockage indépendant et vérifier leur inventaire/empreinte. Il doit aussi prévoir la suppression ou le remplacement d'objets et un test de restauration sur Replay. Aucune sauvegarde binaire Production n'est actuellement démontrée.
+Un premier exporteur binaire en lecture seule a été ajouté dans `scripts/backup-storage.cjs`. Le workflow manuel `.github/workflows/naxa-storage-backup-replay.yml` l'exécute uniquement contre le projet Replay `pwfftcsjyeibxxqhwysw`, puis archive et chiffre le résultat. Il ne contient aucun déclencheur quotidien et ne peut pas viser Production. Il doit d'abord réussir sur Replay ; son artefact doit ensuite faire l'objet d'un exercice de restauration isolé.
+
+Cette répétition utilise les secrets Replay déjà prévus pour les tests (`NAXA_STORAGE_E2E_URL`, `NAXA_STORAGE_E2E_ADMIN_KEY`) et `NAXA_BACKUP_ENCRYPTION_KEY`. L'exporteur énumère les buckets, télécharge récursivement les objets et produit un inventaire avec tailles et empreintes SHA-256. Il n'écrit ni ne supprime aucun objet distant. Une cible Production, ses secrets dédiés, la copie externe et une restauration testée restent à mettre en place. Aucune sauvegarde binaire Production n'est actuellement démontrée.
 
 ## 6. Validation obligatoire de restauration
 
