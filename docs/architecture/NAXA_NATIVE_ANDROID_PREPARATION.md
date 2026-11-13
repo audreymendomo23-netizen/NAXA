@@ -16,7 +16,7 @@ NAXA reste un seul produit et un seul backend, mais pas une seule interface :
 
 Les trois clients partagent les règles métier, l'authentification, les données et les contrôles serveur. L'application Android ne réutilise pas les composants React : ses écrans, sa navigation, son stockage local, ses permissions et ses intégrations système sont natifs.
 
-Le projet Android sera ajouté au dépôt NAXA, dans un module isolé (cible proposée : `apps/android/`). Il ne doit pas créer une seconde base de données, un second référentiel de rôles ou des règles métier concurrentes.
+Le projet Android est maintenant intégré au dépôt NAXA dans le module isolé `android/`. Il ne doit pas créer une seconde base de données, un second référentiel de rôles ou des règles métier concurrentes.
 
 ## 2. Périmètre de l'audit réalisé
 
@@ -98,11 +98,11 @@ Tout endpoint consommé par Android doit :
 
 Le helper Bearer ajouté est un socle partagé pour les routes qui adoptent ce contrat. Il ne transforme pas automatiquement les routes Web existantes en routes Android : chaque route utilisant aujourd'hui cookies, Server Actions ou session pharmacie doit être auditée et migrée explicitement avant d'être exposée au client natif.
 
-## 5. Critères de passage au chantier Kotlin
+## 5. Jalons de maturation de l'application Kotlin
 
-Le développement Android commencera seulement après stabilisation et recette Web/PWA, conformément au séquencement retenu.
+Le séquencement initial prévoyait d'ouvrir le chantier après recette Web/PWA. Sur instruction explicite de l'utilisateur, le développement natif a maintenant commencé en parallèle, sans déploiement Web ni migration Production.
 
-Avant cette ouverture, il faudra clôturer les points suivants :
+Les points ci-dessous restent des critères de complétude avant de déclarer l'application Android complète :
 
 - [ ] Cartographie complète des pages, Server Actions, RPC et opérations métier nécessaires à chaque rôle.
 - [ ] Matrice API v1 : endpoint/RPC, payload, réponse, erreurs, idempotence, rôle et périmètre exigés.
@@ -114,27 +114,33 @@ Avant cette ouverture, il faudra clôturer les points suivants :
 - [ ] Recette API multi-rôles avec comptes réels de test et preuves RLS.
 - [ ] Politique APK : signature de release protégée, même certificat pour les mises à jour, versionnement, empreinte SHA-256, canal officiel HTTPS, notes de version et procédure de révocation. L'installation et les mises à jour restent soumises aux protections Android et à l'action de l'utilisateur.
 
-## 6. Changements réalisés dans cette passe
+## 6. Changements réalisés et versionnés
 
 | Fichier | Changement |
 |---|---|
 | `src/lib/supabase/bearer-auth.ts` | Authentification Bearer et client RLS non privilégié |
 | `src/app/api/v1/auth/session/route.ts` | Endpoint v1 de vérification de session native |
 | `scripts/test-native-bearer-api-contract.cjs` | Tests statiques de non-régression du contrat Bearer |
-| `docs/architecture/NAXA_NATIVE_ANDROID_PREPARATION.md` | Audit, décisions, risques et critères de passage |
+| `android/app/src/main/java/cm/naxa/app/MainActivity.kt` | Interface Android Compose, déclaration d'âge, login, visiteur, navigation Client |
+| `android/app/src/main/java/cm/naxa/app/AuthRepository.kt` | Supabase Auth REST, refresh, session API et contrôle serveur de majorité |
+| `android/app/src/main/java/cm/naxa/app/SecureTokenStore.kt` | Jetons chiffrés avec Android Keystore AES-GCM |
+| `android/app/src/main/java/cm/naxa/app/CatalogueRepository.kt` | Recherche réelle des médicaments par API |
+| `android/app/src/main/java/cm/naxa/app/PharmacyRepository.kt` | Géolocalisation native et recherche API des pharmacies proches |
+| `android/app/src/main/java/cm/naxa/app/FcmRegistrationRepository.kt` | Enregistrement/révocation des jetons FCM avec Bearer |
+| `.github/workflows/android-native-build.yml` | Build APK debug interne et tests unitaires Android |
+| `android/README.md` | Configuration, périmètre livré et critères de recette |
 
-Le test ajouté est un contrôle structurel du code source ; il ne remplace pas un appel HTTP avec un vrai JWT ni une recette sur appareil Android.
+Les tests unitaires du module Android ciblent le parsing du catalogue et des pharmacies, ainsi que la non-invention de prix, stocks ou distances.
 
 ## 7. Limites et statut honnête
 
-- Le socle Bearer et le endpoint de session sont versionnés sur `main`.
-- Aucun projet Kotlin, APK ou écran Android n'est créé dans cette étape.
-- Le test statique ajouté n'a pas été exécuté dans un runner local dans cette passe ; le build, TypeScript, lint et CI ne sont donc pas déclarés verts.
+- Le module Kotlin/Compose existe et ne repose plus sur WebView, Capacitor ou React Native.
+- La première tranche native connecte Auth, catalogue médicaments, pharmacies proches et FCM. Elle ne constitue pas l'application métier complète.
+- La connexion utilise un hôte API configurable ; le domaine exact de production doit être confirmé avant le build connecté final.
+- Les tests unitaires ont été ajoutés, mais le build Gradle et les tests exécutés dans GitHub Actions ne sont pas encore confirmés verts au checkpoint.
+- Aucun test instrumenté sur appareil, flux OAuth, inscription native, scanner caméra, panier/commandes, espaces ERP par rôle ou synchronisation hors ligne n'est certifié.
 - Aucune migration, donnée, clé ou permission Supabase Production n'a été modifiée.
-- Aucun déploiement Vercel, APK publié ou distribution n'a été effectué.
-- L'authentification native complète, le flux pharmacie par code, l'OAuth natif, les API métier, le hors-ligne multi-appareils et la recette réelle restent ouverts.
-
-**Statut :** préparation d'architecture intégrée ; non certifiée verte avant exécution des tests et recette. Web/PWA restent le chantier prioritaire ; Android natif reste planifié après leur recette.
+- Aucun déploiement Vercel, APK signé de production ou distribution n'a été effectué.
 
 
 ## Preuves au checkpoint final — 12 novembre 2026
@@ -144,4 +150,4 @@ Le test ajouté est un contrôle structurel du code source ; il ne remplace pas 
 - Le script `scripts/test-native-bearer-api-contract.cjs` est découvert automatiquement par `npm test` via `scripts/test-*.cjs`. La commande Node, le TypeScript, le lint et le build n'ont pas été exécutés dans cet environnement ; aucun PASS de runner n'est revendiqué.
 - Le statut combiné GitHub de la tête observée ne montre que `ci/circleci: quality = pending`. CircleCI n'a pas été relancé.
 - Le miroir GitLab `main` est au commit `61afc7c2983157bbcaa814587db280cedc0e8e51` du 5 novembre 2026, antérieur aux changements GitHub du 12 novembre. Aucun pipeline GitLab n'a été déclenché sur ce miroir obsolète.
-- Aucun déploiement, aucune migration ou écriture Production, aucune modification de secret et aucun projet Android n'ont été effectués.
+- Aucun déploiement, aucune migration ou écriture Production, aucune modification de secret et aucun APK de production n'ont été effectués.
