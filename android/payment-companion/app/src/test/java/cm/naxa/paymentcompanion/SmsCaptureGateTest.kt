@@ -12,6 +12,15 @@ class SmsCaptureGateTest {
         }
     }
 
+    @Test fun acceptsPharmacyAndPartnerOnlyWithConsentAndPermission() {
+        listOf("pharmacie", "partenaire").forEach { role ->
+            assertTrue(SmsCaptureGate.canCapture(role, true, true, "orange_money"))
+            assertTrue(SmsCaptureGate.canCapture(role, true, true, "mtn_momo"))
+            assertFalse(SmsCaptureGate.canCapture(role, false, true, "orange_money"))
+            assertFalse(SmsCaptureGate.canCapture(role, true, false, "mtn_momo"))
+        }
+    }
+
     @Test fun rejectsAdminWithoutExplicitConsent() {
         assertFalse(SmsCaptureGate.canCapture("admin", false, true, "orange_money"))
     }

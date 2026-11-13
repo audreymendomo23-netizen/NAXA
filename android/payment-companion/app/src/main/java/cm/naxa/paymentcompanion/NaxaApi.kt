@@ -101,6 +101,39 @@ object NaxaApi {
         }
     }
 
+    fun setSmsConsent(context: Context, enabled: Boolean) {
+        val role = SecureVault.get(context, "companion_role")
+        require(role == "pharmacie" || role == "partenaire") {
+            "La collecte SMS automatique est réservée à Pharmacie et Partenaire."
+        }
+        val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
+        val access = SupabaseSession.getAccessToken(context)
+        val devices = JSONArray()
+        if (role == "pharmacie") {
+            val id = SecureVault.get(context, "notification_device_id")
+            val token = SecureVault.get(context, "notification_device_token")
+            if (!id.isNullOrBlank() && !token.isNullOrBlank()) {
+                devices.put(JSONObject().put("deviceId", id).put("deviceToken", token))
+            }
+        } else {
+            val partnerDevices = JSONArray(SecureVault.get(context, "notification_partner_devices") ?: "[]")
+            for (i in 0 until partnerDevices.length()) {
+                devices.put(partnerDevices.getJSONObject(i))
+            }
+        }
+        require(devices.length() > 0) { "Aucun téléphone professionnel enrôlé." }
+        for (i in 0 until devices.length()) {
+            val item = devices.getJSONObject(i)
+            HttpClient.post(
+                SupabaseSession.trimSlash(base) + "/api/paiements/android-device/sms-consent",
+                access, null,
+                JSONObject().put("deviceId", item.getString("deviceId"))
+                    .put("deviceToken", item.getString("deviceToken"))
+                    .put("enabled", enabled)
+            )
+        }
+    }
+
     fun preparePromoterPayment(context: Context, channel: String): JSONObject {
         require(channel == "orange_money" || channel == "mtn_momo") { "Canal de paiement invalide." }
         val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
@@ -256,16 +289,49 @@ object NaxaApi {
     }
 
     fun sendCapturedSms(context: Context, channel: String, sender: String?, message: String, receivedAtMillis: Long) {
-        if (SecureVault.get(context, "companion_role") != "admin") return
+        val role = SecureVault.get(context, "companion_role") ?: return
         val base = SecureVault.get(context, "naxa_base_url") ?: return
         val access = SupabaseSession.getAccessToken(context)
-        val deviceId = SecureVault.get(context, "admin_device_id_" + channel) ?: return
-        val deviceToken = SecureVault.get(context, "admin_device_token_" + channel) ?: return
-        val body = JSONObject().put("deviceId", deviceId).put("deviceToken", deviceToken)
-            .put("canal", channel).put("smsText", message).put("senderOriginAddress", sender)
-            .put("smsReceivedAt", Instant.ofEpochMilli(receivedAtMillis).toString())
-        val response = HttpClient.post(SupabaseSession.trimSlash(base) + "/api/admin/paiements/capture", access, null, body)
-        SecureVault.put(context, "last_capture_status", response.optString("status", "received"))
+        val receivedAt = Instant.ofEpochMilli(receivedAtMillis).toString()
+
+        // Keep the dedicated Promoteur-subscription/Admin reconciliation path unchanged.
+        if (role == "admin") {
+            val deviceId = SecureVault.get(context, "admin_device_id_" + channel) ?: return
+            val deviceToken = SecureVault.get(context, "admin_device_token_" + channel) ?: return
+            val body = JSONObject().put("deviceId", deviceId).put("deviceToken", deviceToken)
+                .put("canal", channel).put("smsText", message).put("senderOriginAddress", sender)
+                .put("smsReceivedAt", receivedAt)
+            val response = HttpClient.post(SupabaseSession.trimSlash(base) + "/api/admin/paiements/capture", access, null, body)
+            SecureVault.put(context, "last_capture_status", response.optString("status", "received"))
+            SecureVault.put(context, "last_capture_at", System.currentTimeMillis().toString())
+            return
+        }
+
+        if (role != "pharmacie" && role != "partenaire") return
+        val devices = JSONArray()
+        if (role == "pharmacie") {
+            val deviceId = SecureVault.get(context, "notification_device_id")
+            val deviceToken = SecureVault.get(context, "notification_device_token")
+            if (!deviceId.isNullOrBlank() && !deviceToken.isNullOrBlank()) {
+                devices.put(JSONObject().put("deviceId", deviceId).put("deviceToken", deviceToken))
+            }
+        } else {
+            val partnerDevices = JSONArray(SecureVault.get(context, "notification_partner_devices") ?: "[]")
+            for (i in 0 until partnerDevices.length()) devices.put(partnerDevices.getJSONObject(i))
+        }
+        if (devices.length() == 0) return
+
+        var submitted = 0
+        for (i in 0 until devices.length()) {
+            val item = devices.getJSONObject(i)
+            val body = JSONObject().put("deviceId", item.getString("deviceId"))
+                .put("deviceToken", item.getString("deviceToken"))
+                .put("canal", channel).put("smsText", message)
+                .put("senderOriginAddress", sender).put("smsReceivedAt", receivedAt)
+            HttpClient.post(SupabaseSession.trimSlash(base) + "/api/paiements/android-sms", access, null, body)
+            submitted++
+        }
+        SecureVault.put(context, "last_capture_status", if (submitted > 0) "received_for_matching" else "not_enrolled")
         SecureVault.put(context, "last_capture_at", System.currentTimeMillis().toString())
     }
 
