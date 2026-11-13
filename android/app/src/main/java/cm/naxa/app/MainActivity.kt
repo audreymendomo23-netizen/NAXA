@@ -1,6 +1,15 @@
 package cm.naxa.app
 
 import android.os.Bundle
+import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.google.firebase.FirebaseApp
+import com.google.firebase.messaging.FirebaseMessaging
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -32,7 +41,8 @@ class MainActivity : ComponentActivity() {
         val repository = AuthRepository(SecureTokenStore(this))
         val catalogue = CatalogueRepository()
         val ageGate = AgeGateStore(this)
-        setContent { NaxaTheme { NaxaRoot(repository, catalogue, ageGate, onExit = { finish() }) } }
+        val fcmRegistration = FcmRegistrationRepository(SecureTokenStore(this))
+        setContent { NaxaTheme { NaxaRoot(repository, catalogue, ageGate, fcmRegistration, onExit = { finish() }) } }
     }
 }
 
@@ -53,6 +63,7 @@ private fun NaxaRoot(
     repository: AuthRepository,
     catalogue: CatalogueRepository,
     ageGate: AgeGateStore,
+    fcmRegistration: FcmRegistrationRepository,
     onExit: () -> Unit
 ) {
     var profile by remember { mutableStateOf<NaxaProfile?>(null) }
@@ -103,6 +114,7 @@ private fun NaxaRoot(
             else -> NativeHome(
                 profile = profile,
                 catalogue = catalogue,
+                fcmRegistration = fcmRegistration,
                 isGuest = profile == null,
                 onSignIn = { guestMode = false },
                 onLogout = {
@@ -195,6 +207,7 @@ private fun LoginScreen(
 private fun NativeHome(
     profile: NaxaProfile?,
     catalogue: CatalogueRepository,
+    fcmRegistration: FcmRegistrationRepository,
     isGuest: Boolean,
     onSignIn: () -> Unit,
     onLogout: () -> Unit
@@ -256,6 +269,7 @@ private fun NativeHome(
                         TextButton(onClick = onSignIn) { Text("Se connecter") }
                     } else {
                         FeatureCard("Profil", "Identifiant : ${profile.userId}")
+                        NativeNotificationSettings(fcmRegistration)
                         TextButton(onClick = onLogout) { Text("Se déconnecter") }
                     }
                 }
@@ -377,6 +391,92 @@ private fun MedicineCard(medicine: NativeMedicine) {
                 color = Color(0xFF87948E), fontSize = 10.sp)
         }
     }
+}
+
+
+@Composable
+private fun NativeNotificationSettings(repository: FcmRegistrationRepository) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) registerFcmToken(context, repository, scope, { busy = it }, { message = it })
+        else message = "Autorisation refusée. Activez les notifications NAXA dans les réglages Android."
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Notifications Android", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = NaxaInk)
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "Recevez les alertes et mises à jour NAXA sur cet appareil.",
+                color = Color(0xFF65776F), fontSize = 12.sp
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    message = null
+                    if (FirebaseApp.getApps(context).isEmpty()) {
+                        message = "Le service de notifications n’est pas configuré pour cette version."
+                    } else if (
+                        Build.VERSION.SDK_INT >= 33 &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        registerFcmToken(context, repository, scope, { busy = it }, { message = it })
+                    }
+                }
+            ) {
+                if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                else Text("Activer les notifications")
+            }
+            if (message != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(message!!, color = if (message!!.startsWith("Notifications activées")) NaxaGreen else MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+private fun registerFcmToken(
+    context: android.content.Context,
+    repository: FcmRegistrationRepository,
+    scope: kotlinx.coroutines.CoroutineScope,
+    setBusy: (Boolean) -> Unit,
+    setMessage: (String) -> Unit
+) {
+    setBusy(true)
+    FirebaseMessaging.getInstance().token
+        .addOnSuccessListener { token ->
+            scope.launch {
+                try {
+                    repository.register(token)
+                    context.getSharedPreferences(NaxaFirebaseMessagingService.PREFS, 0)
+                        .edit().putString(NaxaFirebaseMessagingService.TOKEN_KEY, token).apply()
+                    setMessage("Notifications activées sur cet appareil.")
+                } catch (e: Exception) {
+                    setMessage(e.message ?: "Enregistrement des notifications impossible.")
+                } finally {
+                    setBusy(false)
+                }
+            }
+        }
+        .addOnFailureListener { error ->
+            setMessage(error.message ?: "Impossible d’obtenir le jeton Firebase.")
+            setBusy(false)
+        }
 }
 
 @Composable
