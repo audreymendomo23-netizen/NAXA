@@ -9,8 +9,6 @@
  * Usage : node scripts/medicaments-images-cameroun.mjs [--limit=40] [--dry-run]
  * Nécessite SUPABASE_URL (ou NEXT_PUBLIC_SUPABASE_URL) et SUPABASE_SERVICE_ROLE_KEY.
  */
-import { createClient } from "@supabase/supabase-js";
-
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -22,7 +20,27 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("Variables requises : SUPABASE_URL (ou NEXT_PUBLIC_SUPABASE_URL) et SUPABASE_SERVICE_ROLE_KEY.");
   process.exit(2);
 }
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+const REST = SUPABASE_URL.replace(/\/$/, "") + "/rest/v1";
+const apiHeaders = {
+  apikey: SERVICE_KEY,
+  Authorization: "Bearer " + SERVICE_KEY,
+  Accept: "application/json",
+  "Content-Type": "application/json"
+};
+async function supabaseRequest(path, options = {}) {
+  const response = await fetch(REST + path, {
+    ...options,
+    headers: { ...apiHeaders, ...(options.headers ?? {}) },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error("Supabase REST " + response.status + " : " + detail.slice(0, 500));
+  }
+  if (response.status === 204) return null;
+  return response.json();
+}
 
 const normalize = (value = "") => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -126,12 +144,14 @@ async function wikimedia(identity) {
 async function loadQueue() {
   const rows = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await supabase.from("medicaments_images")
-      .select("cis,cip_code,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut")
-      .in("statut", ["a_traiter", "sans_image_source", "erreur"])
-      .order("updated_at", { ascending: true })
-      .range(offset, offset + 499);
-    if (error) throw new Error("Lecture medicaments_images : " + error.message);
+    const params = new URLSearchParams({
+      select: "cis,cip_code,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut",
+      statut: "in.(a_traiter,sans_image_source,erreur)",
+      order: "updated_at.asc",
+      limit: "500",
+      offset: String(offset)
+    });
+    const data = await supabaseRequest("/medicaments_images?" + params.toString());
     rows.push(...(data ?? []));
     if (!data || data.length < 500) break;
   }
@@ -140,12 +160,13 @@ async function loadQueue() {
 
 async function loadNames(cisList) {
   const map = new Map();
-  for (let offset = 0; offset < cisList.length; offset += 500) {
-    const batch = cisList.slice(offset, offset + 500);
-    const { data, error } = await supabase.from("medicaments_referentiel_sources")
-      .select("cis,nom,substances_actives")
-      .in("cis", batch);
-    if (error) throw new Error("Lecture référentiel BDPM : " + error.message);
+  for (let offset = 0; offset < cisList.length; offset += 100) {
+    const batch = cisList.slice(offset, offset + 100);
+    const params = new URLSearchParams({
+      select: "cis,nom,substances_actives",
+      cis: "in.(" + batch.join(",") + ")"
+    });
+    const data = await supabaseRequest("/medicaments_referentiel_sources?" + params.toString());
     for (const row of data ?? []) map.set(row.cis, row);
   }
   return map;
@@ -162,9 +183,12 @@ async function savePhoto(row, photo) {
     methode_correspondance: photo.methode_correspondance
   };
   if (DRY_RUN) return update;
-  const { error } = await supabase.from("medicaments_images").update(update)
-    .eq("cis", row.cis).eq("cip_code", row.cip_code);
-  if (error) throw new Error("Écriture " + row.cis + "/" + row.cip_code + " : " + error.message);
+  const params = new URLSearchParams({ cis: "eq." + row.cis, cip_code: "eq." + row.cip_code });
+  await supabaseRequest("/medicaments_images?" + params.toString(), {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify(update)
+  });
   return update;
 }
 
