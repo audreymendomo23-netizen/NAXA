@@ -1589,6 +1589,12 @@ export function SuiviConnecte() {
         </div>
         <p className="mt-4 text-[11px] leading-4 text-blue-100">Photos de référence par catégorie : elles illustrent plusieurs exemples de modèles et ne garantissent ni une marque précise ni une compatibilité Bluetooth.</p>
       </header>
+      <section aria-label="Demander une assistance à domicile" className="mt-5 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm print:hidden">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Services à domicile</p><h2 className="mt-1 text-lg font-black text-slate-900">Besoin d’une assistance à domicile ?</h2><p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600">Trouvez un professionnel autour de vous et envoyez une demande depuis vos dispositifs connectés. Vos mesures et l’historique de vos appareils ne sont jamais transmis.</p></div>
+          <Link href="/prestations?mode=assistance&origine=dispositifs-connectes" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-[#124E82] px-4 font-bold text-white">Demander une assistance</Link>
+        </div>
+      </section>
       <section aria-label="Résumé du suivi" className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Mes appareils</p><p className="mt-2 text-3xl font-black text-slate-900"><AnimatedCounter value={devices.filter(device=>device.active).length} /></p><p className="mt-1 text-sm text-slate-500">appareils activés dans mon espace</p></article>
         <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm"><p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Mes mesures</p><p className="mt-2 text-3xl font-black text-slate-900"><AnimatedCounter value={history.length} /></p><p className="mt-1 text-sm text-slate-500">entrées personnelles enregistrées</p></article>
