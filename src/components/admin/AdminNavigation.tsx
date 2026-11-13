@@ -15,7 +15,6 @@ const sections = [
   { href: "/admin/configuration", label: "Configuration", note: "Langue et apparence" },
   { href: "/admin/profil", label: "Profil", note: "Données du compte" },
   { href: "/admin/produits", label: "Produits", note: "Fiches santé" },
-  { href: "/admin/medicaments-images", label: "Images médicaments", note: "Recherche DailyMed / RxNorm" },
   { href: "/admin/examens", label: "Centres et examens", note: "Publication, suivi et tickets" },
   { href: "/admin/univers", label: "Univers & catalogue", note: "Partenaires et prestations" },
 ];
