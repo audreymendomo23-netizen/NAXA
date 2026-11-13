@@ -37,7 +37,7 @@ jobs:
             *) echo "::error::NAXA_DATABASE_URL must be the complete PostgreSQL connection URI"; exit 1 ;;
           esac
 
-      - name: Validate official Supabase Session Pooler URI
+      - name: Validate Supabase direct or Session Pooler URI
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
@@ -46,6 +46,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import os
+          import socket
           import sys
           from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
@@ -56,7 +57,7 @@ jobs:
               print(f"::error::{message} Credentials and connection URI were not printed.")
               sys.exit(1)
 
-          if not raw or raw != raw.strip() or any(ch in raw for ch in "\r\n\t"):
+          if not raw or raw != raw.strip() or any(ch in raw for ch in "\\r\\n\\t"):
               fail("NAXA_DATABASE_URL is empty or contains whitespace/newlines.")
 
           try:
@@ -69,13 +70,9 @@ jobs:
               fail("NAXA_DATABASE_URL is not a valid PostgreSQL connection URI.")
 
           if parsed.scheme not in ("postgres", "postgresql"):
-              fail("Use the PostgreSQL URI copied from Supabase Connect.")
-          if username != f"postgres.{project_ref}":
-              fail("The Session Pooler username must be postgres.<production-project-ref> for the NAXA production project.")
-          if not host.endswith(".pooler.supabase.com"):
-              fail("Use the Supabase Shared Session Pooler hostname shown in the production Connect panel.")
+              fail("NAXA_DATABASE_URL must be a PostgreSQL URI.")
           if port != 5432:
-              fail("Use Session Pooler mode on port 5432, not Transaction mode on 6543.")
+              fail("Use PostgreSQL port 5432.")
           if parsed.path.rstrip("/") != "/postgres":
               fail("The connection URI must target the postgres database.")
           if not password or password == "[YOUR-PASSWORD]":
@@ -83,26 +80,49 @@ jobs:
           if parsed.fragment:
               fail("The connection URI must not contain a fragment.")
 
-          # Preserve Supabase's exact region-specific host and tenant username.
-          # Only add SSL when the copied URI does not specify it already.
+          direct_host = f"db.{project_ref}.supabase.co"
+          if host == direct_host and username == "postgres":
+              mode = "direct"
+          elif host.endswith(".pooler.supabase.com") and username == f"postgres.{project_ref}":
+              mode = "session-pooler"
+          else:
+              fail("URI must match this project's direct endpoint (db.<project>.supabase.co / postgres) or official Session Pooler (postgres.<project> / *.pooler.supabase.com).")
+
           query = parse_qsl(parsed.query, keep_blank_values=True)
           if not any(key.lower() == "sslmode" for key, _ in query):
               query.append(("sslmode", "require"))
-          target_url = urlunsplit((
-              parsed.scheme,
-              parsed.netloc,
-              parsed.path or "/postgres",
-              urlencode(query),
-              ""
-          ))
+          target_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/postgres", urlencode(query), ""))
+
+          try:
+              addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+          except OSError:
+              fail("DNS lookup failed for the Supabase database endpoint.")
+
+          if mode == "direct":
+              addresses = [a for a in addresses if a[0] == socket.AF_INET6]
+              if not addresses:
+                  fail("Direct endpoint has no IPv6 address visible to this runner; use the Session Pooler or an IPv6-enabled runner.")
+          if not addresses:
+              fail("No usable network address was returned for the Supabase endpoint.")
+
+          connected = False
+          last_error = None
+          for family, socktype, proto, _, sockaddr in addresses:
+              try:
+                  with socket.socket(family, socktype, proto) as conn:
+                      conn.settimeout(12)
+                      conn.connect(sockaddr)
+                  connected = True
+                  break
+              except OSError as exc:
+                  last_error = exc
+          if not connected:
+              fail(f"TCP connectivity test to Supabase port 5432 failed ({type(last_error).__name__ if last_error else 'unknown error'}).")
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
-              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
+              github_env.write(f"SUPABASE_DATABASE_URL={target_url}\\n")
 
-          print(
-              "Connection URI preflight passed: official Supabase Session Pooler, "
-              f"project={project_ref}, port=5432. Credentials were not printed."
-          )
+          print(f"Supabase {mode} URI validated; DNS and TCP/5432 connectivity passed for project {project_ref}. Credentials were not printed.")
           PY
 
       - uses: actions/checkout@v5
