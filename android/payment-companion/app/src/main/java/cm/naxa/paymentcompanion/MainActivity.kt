@@ -236,33 +236,93 @@ class MainActivity : Activity() {
                 SecureVault.put(this, "supabase_url", sb)
                 SecureVault.put(this, "supabase_anon_key", key)
                 SupabaseSession.login(this, sb, key, user, secret)
-                if (role == "client") {
-                    SecureVault.put(this, "notification_consent_granted", "false")
-                    SecureVault.put(this, "companion_role", "client")
-                } else NaxaApi.enroll(this, role)
-                if (BuildConfig.PROFESSIONAL_CAPTURE_ENABLED && role in listOf("pharmacie", "partenaire")) {
-                    NaxaApi.setSmsConsent(this, SecureVault.get(this, "sms_consent_granted") == "true")
-                }
-                runOnUiThread {
-                    connectButton.isEnabled = true
-                    statusText.text = when (role) {
-                        "client" -> "Compte Client connecté. Partagez un SMS de débit ou utilisez la saisie manuelle."
-                        "promoteur" -> "Compte Promoteur enrôlé. Le partage volontaire du SMS reste disponible ; aucun lecteur de notifications."
-                        "pharmacie" -> "Compte Pharmacie enrôlé. Lecteur de notifications facultatif ; partage SMS également disponible."
-                        "partenaire" -> "Compte Partenaire enrôlé. Lecteur de notifications facultatif ; partage SMS également disponible."
-                        else -> "Compte Administrateur enrôlé. Les mécanismes restent désactivés sans consentement et autorisations Android."
-                    }
-                    syncNotificationListenerComponent()
-                    if (role in listOf("admin", "pharmacie", "partenaire") &&
-                        SecureVault.get(this, "sms_consent_granted") == "true") requestSmsPermission()
-                    if (role in listOf("admin", "pharmacie", "partenaire") &&
-                        SecureVault.get(this, "notification_consent_granted") == "true") openNotificationAccessSettings()
+                if (role == "partenaire") {
+                    val partners = NaxaApi.partnerWorkspaceOptions(this)
+                    runOnUiThread { showPartnerWorkspacePicker(partners) }
+                } else {
+                    completeEnrollment(role)
                 }
             } catch (error: Exception) {
                 runOnUiThread {
                     connectButton.isEnabled = true
                     statusText.text = "Échec de la connexion / enrôlement : " + (error.message ?: "erreur inconnue")
                 }
+            }
+        }
+    }
+
+    private fun showPartnerWorkspacePicker(partners: org.json.JSONArray) {
+        if (partners.length() == 0) {
+            connectButton.isEnabled = true
+            statusText.text = "Aucun espace Partenaire actif ne vous est affecté comme propriétaire ou gestionnaire."
+            return
+        }
+        val ids = ArrayList<String>()
+        val labels = ArrayList<String>()
+        for (index in 0 until partners.length()) {
+            val partner = partners.optJSONObject(index) ?: continue
+            val id = partner.optString("id")
+            if (id.isBlank()) continue
+            ids.add(id)
+            labels.add(partner.optString("name").ifBlank { "Partenaire " + (ids.size) })
+        }
+        if (ids.isEmpty()) {
+            connectButton.isEnabled = true
+            statusText.text = "Aucun espace Partenaire exploitable."
+            return
+        }
+        if (ids.size == 1) {
+            statusText.text = "Enrôlement de l'espace " + labels[0] + "…"
+            executor.execute { completeEnrollment("partenaire", ids[0]) }
+            return
+        }
+        var selected = 0
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Choisir l'espace Partenaire de ce téléphone")
+            .setSingleChoiceItems(labels.toTypedArray(), selected) { _, which -> selected = which }
+            .setNegativeButton("Annuler") { _, _ ->
+                connectButton.isEnabled = true
+                statusText.text = "Enrôlement annulé. Aucun SMS ne sera transmis à un espace Partenaire."
+            }
+            .setPositiveButton("Continuer") { _, _ ->
+                connectButton.isEnabled = false
+                statusText.text = "Enrôlement de l'espace " + labels[selected] + "…"
+                executor.execute { completeEnrollment("partenaire", ids[selected]) }
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun completeEnrollment(role: String, partnerId: String? = null) {
+        try {
+            if (role == "client") {
+                SecureVault.put(this, "notification_consent_granted", "false")
+                SecureVault.put(this, "companion_role", "client")
+            } else {
+                NaxaApi.enroll(this, role, partnerId)
+            }
+            if (BuildConfig.PROFESSIONAL_CAPTURE_ENABLED && role in listOf("pharmacie", "partenaire")) {
+                NaxaApi.setSmsConsent(this, SecureVault.get(this, "sms_consent_granted") == "true")
+            }
+            runOnUiThread {
+                connectButton.isEnabled = true
+                statusText.text = when (role) {
+                    "client" -> "Compte Client connecté. Partagez un SMS de débit ou utilisez la saisie manuelle."
+                    "promoteur" -> "Compte Promoteur enrôlé. Le partage volontaire du SMS reste disponible ; aucun lecteur de notifications."
+                    "pharmacie" -> "Compte Pharmacie enrôlé. Lecteur de notifications et collecte SMS facultatifs selon vos consentements."
+                    "partenaire" -> "Espace Partenaire sélectionné et enrôlé. Les SMS reçus ne seront transmis qu'à cet espace."
+                    else -> "Compte Administrateur enrôlé. Les mécanismes restent désactivés sans consentement et autorisations Android."
+                }
+                syncNotificationListenerComponent()
+                if (role in listOf("admin", "pharmacie", "partenaire") &&
+                    SecureVault.get(this, "sms_consent_granted") == "true") requestSmsPermission()
+                if (role in listOf("admin", "pharmacie", "partenaire") &&
+                    SecureVault.get(this, "notification_consent_granted") == "true") openNotificationAccessSettings()
+            }
+        } catch (error: Exception) {
+            runOnUiThread {
+                connectButton.isEnabled = true
+                statusText.text = "Échec de l'enrôlement : " + (error.message ?: "erreur inconnue")
             }
         }
     }

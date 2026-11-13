@@ -8,7 +8,16 @@ import java.time.Instant
 import java.util.UUID
 
 object NaxaApi {
-    fun enroll(context: Context, role: String) {
+    fun partnerWorkspaceOptions(context: Context): JSONArray {
+        val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
+        val access = SupabaseSession.getAccessToken(context)
+        return HttpClient.get(
+            SupabaseSession.trimSlash(base) + "/api/partenaire/paiements/device/register",
+            access
+        ).optJSONArray("partners") ?: JSONArray()
+    }
+
+    fun enroll(context: Context, role: String, partnerId: String? = null) {
         val base = SecureVault.get(context, "naxa_base_url")
         val access = SupabaseSession.getAccessToken(context)
         val installationId = getOrCreateInstallationId(context)
@@ -29,20 +38,34 @@ object NaxaApi {
                 SecureVault.put(context, "companion_role", "pharmacie")
             }
             "partenaire" -> {
-                val body = JSONObject().put("installationId", installationId).put("deviceName", deviceName)
-                val response = HttpClient.post(SupabaseSession.trimSlash(base) + "/api/partenaire/paiements/device/register", access, null, body)
-                val devices = response.optJSONArray("devices") ?: JSONArray()
-                SecureVault.put(context, "partner_payment_devices", devices.toString())
-                val notificationDevices = JSONArray()
-                for (i in 0 until devices.length()) {
-                    val partner = devices.optJSONObject(i) ?: continue
-                    val notification = registerNotificationDevice(context, "partner", partner.optString("partnerId"))
-                    notificationDevices.put(JSONObject()
-                        .put("partnerId", partner.optString("partnerId"))
-                        .put("deviceId", notification.getString("deviceId"))
-                        .put("deviceToken", notification.getString("deviceToken")))
+                val selectedPartnerId = partnerId?.trim().orEmpty()
+                require(selectedPartnerId.isNotBlank()) {
+                    "Sélectionnez un espace Partenaire avant d'enrôler ce téléphone."
                 }
+                val body = JSONObject().put("installationId", installationId)
+                    .put("deviceName", deviceName).put("partnerId", selectedPartnerId)
+                val response = HttpClient.post(
+                    SupabaseSession.trimSlash(base) + "/api/partenaire/paiements/device/register",
+                    access, null, body
+                )
+                val devices = response.optJSONArray("devices") ?: JSONArray()
+                require(devices.length() == 1) {
+                    "Le serveur n'a pas renvoyé un unique espace Partenaire."
+                }
+                val partner = devices.getJSONObject(0)
+                require(partner.optString("partnerId") == selectedPartnerId) {
+                    "L'espace Partenaire enrôlé ne correspond pas à la sélection."
+                }
+                SecureVault.put(context, "partner_payment_devices", devices.toString())
+
+                val notification = registerNotificationDevice(context, "partner", selectedPartnerId)
+                val notificationDevices = JSONArray().put(
+                    JSONObject().put("partnerId", selectedPartnerId)
+                        .put("deviceId", notification.getString("deviceId"))
+                        .put("deviceToken", notification.getString("deviceToken"))
+                )
                 SecureVault.put(context, "notification_partner_devices", notificationDevices.toString())
+                SecureVault.put(context, "selected_partner_id", selectedPartnerId)
                 SecureVault.put(context, "companion_role", "partenaire")
             }
             "admin" -> {
