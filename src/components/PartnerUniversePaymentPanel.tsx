@@ -179,6 +179,7 @@ export function PartnerUniversePaymentPanel({
   }
 
   const locked=confirmation?.status==="awaiting_pair"||confirmation?.status==="manual_review";
+  const activeIntent=confirmation?.status==="intent_active";
   return <section className="carte mt-4 space-y-3">
     <div>
       <h2 className="font-extrabold">Paiement électronique (facultatif)</h2>
@@ -188,6 +189,8 @@ export function PartnerUniversePaymentPanel({
 
     {confirmation?.status==="manual_review"&&
       <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Les éléments transmis nécessitent une revue manuelle. NAXA ne présume pas d'un échec opérateur. Présentez le reçu ou les informations au partenaire avant tout retrait.</p>}
+    {activeIntent&&
+      <p role="status" className="rounded-xl bg-sky-50 p-3 text-sm text-sky-950">Une intention de paiement est déjà préparée. Rechoisissez le même opérateur pour reprendre les coordonnées figées, ou annulez cette intention avant de régler sur place.</p>}
     {confirmation?.status==="awaiting_pair"&&
       <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">Votre déclaration est enregistrée. NAXA attend le SMS de crédit du partenaire. L'absence de ce SMS dans NAXA ne signifie pas un échec chez l'opérateur.</p>}
 
