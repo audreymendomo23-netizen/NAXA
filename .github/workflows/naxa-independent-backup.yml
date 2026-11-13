@@ -46,7 +46,6 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import os
-          import socket
           import sys
           from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
@@ -89,31 +88,6 @@ jobs:
               query.append(("sslmode", "require"))
           target_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/postgres", urlencode(query), ""))
 
-          try:
-              addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-          except OSError:
-              fail("DNS lookup failed for the Supabase database endpoint.")
-
-          if mode == "direct":
-              addresses = [a for a in addresses if a[0] == socket.AF_INET6]
-              if not addresses:
-                  fail("Direct endpoint has no IPv6 address visible to this runner; use the Session Pooler or an IPv6-enabled runner.")
-          if not addresses:
-              fail("No usable network address was returned for the Supabase endpoint.")
-
-          connected = False
-          last_error = None
-          for family, socktype, proto, _, sockaddr in addresses:
-              try:
-                  with socket.socket(family, socktype, proto) as conn:
-                      conn.settimeout(12)
-                      conn.connect(sockaddr)
-                  connected = True
-                  break
-              except OSError as exc:
-                  last_error = exc
-          if not connected:
-              fail(f"TCP connectivity test to Supabase port 5432 failed ({type(last_error).__name__ if last_error else 'unknown error'}).")
           if not password or password == "[YOUR-PASSWORD]":
               fail("The connection URI does not contain the real PostgreSQL Database Password.")
           if parsed.fragment:
@@ -122,7 +96,7 @@ jobs:
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
               github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
 
-          print(f"Supabase {mode} URI validated; DNS and TCP/5432 connectivity passed for project {project_ref}. Credentials were not printed.")
+          print(f"Supabase {mode} URI syntax validated for project {project_ref}; the actual database dump will perform the authoritative network/authentication test. Credentials were not printed.")
           PY
 
       - uses: actions/checkout@v5
