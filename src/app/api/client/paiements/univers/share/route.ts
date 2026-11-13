@@ -51,24 +51,30 @@ export async function POST(request:Request) {
 
     const parsed=smsText?parsePromoteurPaymentSms(smsText,canal):null;
     const extractedPayer=parsed?.direction==="payer_debit"&&parsed.success===true?parsed:null;
-    const payerSms=extractedPayer?.quality==="complete"&&
-      Number.isSafeInteger(extractedPayer.amount)&&Number(extractedPayer.amount)>0&&
-      Boolean(extractedPayer.reference)
-      ? extractedPayer
-      : null;
-    const amount=extractedPayer?.amount??Number(body.amount??reservation.total_fcfa);
+    const amountWasCorrected=body.fieldSources?.amount==="manual_entry";
+    const referenceWasCorrected=body.fieldSources?.reference==="manual_entry";
+    const dateWasCorrected=body.fieldSources?.paidAt==="manual_entry";
+    const amount=amountWasCorrected
+      ? Number(body.amount)
+      : extractedPayer?.amount??Number(body.amount??reservation.total_fcfa);
     if(!Number.isSafeInteger(amount)||amount<=0) {
       return NextResponse.json({error:"Montant déclaré invalide."},{status:400});
     }
-    const reference=String(extractedPayer?.reference??body.reference??"").trim();
-    if(reference.length<5||reference.length>120||!/^[\p{L}\p{N}\s_./-]+$/u.test(reference)) {
+    const reference=String(referenceWasCorrected
+      ? body.reference??""
+      : extractedPayer?.reference??body.reference??"").trim();
+    if(reference.length<5||reference.length>120||!/^[\\p{L}\\p{N}\\s_./-]+$/u.test(reference)) {
       return NextResponse.json({error:"ID / Référence de transaction obligatoire (5 caractères minimum). Complétez-le si le SMS n'a pas été reconnu."},{status:400});
     }
-    const payerNumber=String(extractedPayer?.payerNumber??body.payerNumber??"").trim().slice(0,40);
+    const payerNumber=String(body.fieldSources?.payerNumber==="manual_entry"
+      ? body.payerNumber??""
+      : extractedPayer?.payerNumber??body.payerNumber??"").trim().slice(0,40);
     if(payerNumber&& (digits(payerNumber).length<8||digits(payerNumber).length>15)) {
       return NextResponse.json({error:"Numéro payeur invalide."},{status:400});
     }
-    const paidAtRaw=extractedPayer?.occurredAt??String(body.paidAt??new Date().toISOString());
+    const paidAtRaw=dateWasCorrected
+      ? String(body.paidAt??"")
+      : extractedPayer?.occurredAt??String(body.paidAt??new Date().toISOString());
     const paidAt=new Date(paidAtRaw);
     const now=new Date();
     if(!Number.isFinite(paidAt.getTime())||paidAt.getTime()>now.getTime()+5*60_000||
@@ -76,15 +82,25 @@ export async function POST(request:Request) {
       return NextResponse.json({error:"Date de paiement invalide ou trop ancienne."},{status:400});
     }
 
+    const completePayerSms=Boolean(
+      extractedPayer?.quality==="complete"&&
+      Number.isSafeInteger(extractedPayer.amount)&&Number(extractedPayer.amount)>0&&
+      Boolean(extractedPayer.reference)&&!amountWasCorrected&&!referenceWasCorrected&&
+      (!extractedPayer.occurredAt||!dateWasCorrected)
+    );
     const fieldSources={
-      amount:extractedPayer?.amount!==null&&extractedPayer?.amount!==undefined?"sms_extracted":
+      amount:extractedPayer?.amount!==null&&extractedPayer?.amount!==undefined&&!amountWasCorrected
+        ?"sms_extracted":amountWasCorrected?"manual_entry":
         body.fieldSources?.amount==="manual_entry"?"manual_entry":"generated_default",
-      paidAt:extractedPayer?.occurredAt?"sms_extracted":
+      paidAt:extractedPayer?.occurredAt&&!dateWasCorrected
+        ?"sms_extracted":dateWasCorrected?"manual_entry":
         body.fieldSources?.paidAt==="manual_entry"?"manual_entry":"generated_default",
-      reference:extractedPayer?.reference?"sms_extracted":"manual_entry",
-      payerNumber:extractedPayer?.payerNumber?"sms_extracted":payerNumber?"manual_entry":"not_provided",
-      sms:!smsText?"not_shared":payerSms?"recognized_complete_payer_debit":
-        extractedPayer?"shared_incomplete_manual_review":"shared_unrecognized_manual_review",
+      reference:extractedPayer?.reference&&!referenceWasCorrected
+        ?"sms_extracted":"manual_entry",
+      payerNumber:extractedPayer?.payerNumber&&body.fieldSources?.payerNumber!=="manual_entry"
+        ?"sms_extracted":payerNumber?"manual_entry":"not_provided",
+      sms:!smsText?"not_shared":completePayerSms?"recognized_complete_payer_debit":
+        extractedPayer?"shared_incomplete_or_corrected_manual_review":"shared_unrecognized_manual_review",
     };
     const hash=smsText?createHash("sha256").update(smsText).digest("hex"):null;
     const {data:saved,error:saveError}=await db.rpc("naxa_universe_declare_payment",{
@@ -95,7 +111,7 @@ export async function POST(request:Request) {
       p_payer_number:payerNumber||null,
       p_declared_amount:amount,
       p_payment_occurred_at:paidAt.toISOString(),
-      p_proof_source:payerSms?"shared_sms":"manual_entry",
+      p_proof_source:completePayerSms?"shared_sms":"manual_entry",
       p_field_sources:fieldSources,
       p_sms_payload_sha256:hash,
     });
