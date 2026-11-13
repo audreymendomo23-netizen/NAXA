@@ -78,6 +78,7 @@ export async function POST(request:NextRequest){
       const todayOpen=!!availability?.is_open&&!!availability.opens_at&&!!availability.closes_at;
       const todayOpens=todayOpen?String(availability!.opens_at).slice(0,5):null;
       const todayCloses=todayOpen?String(availability!.closes_at).slice(0,5):null;
+      const todayAvailable=!!(todayOpen&&nowTime<todayCloses!);
       const nowOpen=!!(todayOpen&&nowTime>=todayOpens!&&nowTime<todayCloses!);
       const listings=memberRows.length?memberRows.map(member=>{
         const partner=member.partners;
@@ -97,7 +98,7 @@ export async function POST(request:NextRequest){
         user_id:row.user_id,professional_role:row.professional_role,display_name:row.display_name,
         specialty:row.specialty,partner_name:best.partner_name,city:best.city,neighborhood:best.neighborhood,
         distance_km:best.distance_km===null?null:Math.round(best.distance_km*10)/10,
-        available_today:todayOpen,available_now:nowOpen,
+        available_today:todayAvailable,available_now:nowOpen,
         today_opens_at:todayOpens,today_closes_at:todayCloses
       }];
     });
