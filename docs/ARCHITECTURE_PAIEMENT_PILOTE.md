@@ -49,14 +49,16 @@ Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paie
 - Le consentement SMS serveur est indépendant du consentement NotificationListener ; Client et Promoteur restent exclus de la capture système.
 - Le SMS bénéficiaire est enregistré avec les champs extraits et un hash, sans texte brut. Il ne confirme jamais seul.
 - **Pour les règlements Promoteur → NAXA, les preuves débit et crédit sont conservées séparément sous le même ID de transaction ; la confirmation ne dépend plus du libellé expéditeur.**
-- **Pour Client → Pharmacie, le moteur SQL de rapprochement et ses deux déclencheurs sont présents dans Replay et versionnés dans `main`** : ils se lancent dès que la déclaration débit ou le SMS crédit arrive, quel que soit l'ordre. La paire cohérente passe à `matched_waiting_pos` ; la création du ticket POS et la confirmation financière finale dans la réservation ne sont pas encore raccordées.
+- **Pour Client → Pharmacie, les deux déclencheurs et le moteur de rapprochement sont présents dans Replay et versionnés dans `main`** : ils se lancent dès que la déclaration débit ou le SMS crédit arrive, quel que soit l'ordre. Une intention horodatée fige montant, canal et destination marchande ; les paiements sans intention valide restent en revue manuelle.
+- **La paire concordante crée maintenant une confirmation financière durable et un reçu NAXA `NAXA-LIV-...`**, avec ID de transaction, montant, destination snapshot, dates et empreintes SHA-256 distinctes des deux SMS. L'événement bénéficiaire passe à `coherent_confirmed`.
+- La confirmation financière est séparée de l'écriture POS : la réservation reste en attente d'inscription comptable tant qu'une session Caisse n'a pas enregistré la vente et le ticket. La file Caisse expose le reçu et l'état de confirmation.
 - Client → Partenaire n'est pas raccordé au registre de réservation et de paiement.
 - La collecte réelle reste conditionnée à l'autorisation Android RECEIVE_SMS ; chaque téléphone/installateur doit être vérifié en pratique.
 
 ## Processus métier
 
 ### Client → Pharmacie
-Le Client partage le SMS de débit et le téléphone Pharmacie collecte le SMS de crédit du compte marchand. Les messages peuvent venir de téléphones différents et arriver dans n'importe quel ordre. Le déclenchement automatique appelle le rapprochement par ID commun, canal, sens débit/crédit, montant et destination. Le numéro payeur sert de contrôle complémentaire lorsqu'il est présent des deux côtés ; son absence isolée n'empêche plus la paire d'être rapprochée. **État actuel :** la paire passe à `matched_waiting_pos`, mais ne crée pas encore le ticket POS et ne finalise pas le statut de paiement de la réservation. L'absence de SMS dans NAXA n'est pas un verdict d'échec opérateur.
+Le Client partage le SMS de débit et le téléphone Pharmacie collecte le SMS de crédit du compte marchand. Les messages peuvent venir de téléphones différents et arriver dans n'importe quel ordre. Le déclenchement automatique rapproche l'ID commun, le canal, les directions débit/crédit, le montant et la destination issue de l'intention figée. Le numéro payeur est comparé s'il est disponible des deux côtés ; son absence isolée ne bloque pas le rapprochement, mais une contradiction entre deux numéros présents déclenche la revue manuelle. Une paire unique et cohérente crée le reçu de confirmation financière NAXA. **La vente et le ticket POS restent une étape distincte**, réalisée dans une session Caisse ouverte. L'absence de SMS dans NAXA n'est pas un verdict d'échec opérateur.
 
 ### Promoteur → NAXA
 Le Promoteur partage le SMS de débit. L'Admin reçoit le SMS de crédit NAXA sur son téléphone. Les deux preuves sont stockées séparément sous le même ID de transaction ; la confirmation contrôle aussi canal, sens, montant, destination, payeur et fenêtre horaire. Le libellé expéditeur sert uniquement au filtrage à la collecte.
@@ -77,7 +79,7 @@ Le montant attendu et la date/heure courante sont générés depuis l'intention 
 - `OrangeMoney` / `MobileMoney` : filtre de collecte uniquement, jamais un critère de confirmation financière.
 - Si un SMS n'arrive pas sur le téléphone surveillé, conserver l'état « preuve bénéficiaire non reçue » / « à vérifier » ; ne pas conclure à un échec de transaction chez l'opérateur.
 - Utiliser RLS et des droits service-role uniquement pour les tables techniques.
-- Les nouvelles collectes restent `manual_review` jusqu'au rapprochement ; les paires concordantes passent à `coherent_unconfirmed` en attendant le raccordement financier final et la Caisse.
+- Les nouvelles collectes restent `manual_review` jusqu'au rapprochement ; une paire double concordante passe à `coherent_confirmed` et crée le reçu financier. Le ticket POS reste à inscrire dans la Caisse.
 - Ne pas déployer en Production ni appliquer une migration Production pendant ce chantier.
 
 ## Recette obligatoire
