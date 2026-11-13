@@ -15,14 +15,23 @@ const files = [
   "src/app/admin/pilotage/reglements/actions.ts",
   "src/app/admin/pilotage/reglements/page.tsx",
   "src/app/api/promoteur/paiements/capture/route.ts",
+  "src/app/api/promoteur/paiements/share/route.ts",
+  "src/app/api/client/paiements/livraison/share/route.ts",
+  "src/app/api/admin/paiements/share/route.ts",
+  "src/components/DeliveryPaymentSelector.tsx",
 ];
 const sources = Object.fromEntries(files.map(file => [file, read(file)]));
 const migration = read("supabase/migrations/20261111022000_promoteur_payment_admin_sms_auto_confirm.sql");
 const rpcMigration = read("supabase/migrations/20261111022500_promoteur_payment_admin_sms_auto_confirm_rpc.sql");
 const declarationFix = read("supabase/migrations/20261111023000_promoteur_payment_declaration_sms_received_at_fix.sql");
+const dualProofMigration = read("supabase/migrations/20261113111000_promoteur_payment_require_dual_sms_proofs.sql");
+const deliveryProofMigration = read("supabase/migrations/20261113110000_payment_sms_declarations_and_dual_proof_guard.sql");
 const sqlTest = read("supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql");
 const androidRoot = "android/payment-companion/";
 const androidManifest = read(androidRoot + "app/src/main/AndroidManifest.xml");
+const androidAdminManifest = read(androidRoot + "app/src/admin/AndroidManifest.xml");
+const androidShareActivity = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/PaymentShareActivity.kt");
+const androidParser = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsPaymentParser.kt");
 const androidReceiver = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsReceiver.kt");
 const androidClassifier = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsOriginClassifier.kt");
 const androidApi = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/NaxaApi.kt");
@@ -73,9 +82,12 @@ test("capture Admin : ambiguïté ou payeur non identifiable interdit le renouve
   const source = sources["src/app/api/admin/paiements/capture/route.ts"];
   assert.match(source, /pendingMatches\.length > 1/);
   assert.match(source, /match_status: "ambiguous"/);
-  assert.match(source, /samePhone\(parsed\.payerNumber, promoterProfile\.phone\)/);
   assert.match(source, /if \(!declaredPhone \|\| declaredPhone !== phoneTail\(parsed\.payerNumber\)\) return false/);
   assert.match(source, /status: "manual_review"/);
+  assert.match(dualProofMigration, /source_level=1/);
+  assert.match(dualProofMigration, /payer_sms/);
+  assert.match(dualProofMigration, /source_level=2/);
+  assert.match(dualProofMigration, /merchant_sms/);
 });
 
 test("OCR : fichier image/PDF local, limite pages, aucun texte brut persistant", () => {
@@ -111,26 +123,44 @@ test("migration SQL réserve l'accès aux RPC et aux tables Admin", () => {
   assert.match(rpcMigration, /admin_confirmer_reglement_promoteur/);
   assert.match(rpcMigration, /service_role/);
   assert.match(declarationFix, /provider_occurred_at,sms_received_at/);
+  assert.match(dualProofMigration, /naxa_promoteur_payment_auto_confirm_admin_sms/);
+  assert.match(deliveryProofMigration, /naxa_client_declarer_paiement_livraison_v2/);
+  assert.match(deliveryProofMigration, /payer_number/);
+  assert.match(deliveryProofMigration, /declared_amount/);
   assert.match(sqlTest, /has_function_privilege/);
 });
 
 
-test("compagnon Android : ne demande que RECEIVE_SMS et n'accede pas à READ_SMS ou aux notifications", () => {
-  assert.match(androidManifest, /android\.permission\.RECEIVE_SMS/);
-  assert.doesNotMatch(androidManifest, /android\.permission\.READ_SMS/);
-  assert.doesNotMatch(androidManifest, /NotificationListenerService/);
+test("compagnon Android : la variante standard ne déclare aucune permission de lecture SMS", () => {
+  assert.doesNotMatch(androidManifest, /RECEIVE_SMS|READ_SMS/);
+  assert.doesNotMatch(androidManifest, /SmsReceiver/);
+  assert.match(androidManifest, /android\.intent\.action\.SEND/);
+  assert.match(androidManifest, /text\/plain/);
+  assert.match(androidShareActivity, /Intent\.ACTION_SEND/);
+  assert.match(androidShareActivity, /EXTRA_TEXT/);
+  assert.match(androidAdminManifest, /android\.permission\.RECEIVE_SMS/);
+  assert.doesNotMatch(androidAdminManifest, /READ_SMS|NotificationListenerService/);
   assert.match(androidReceiver, /Telephony\.Sms\.Intents\.getMessagesFromIntent/);
   assert.match(androidReceiver, /originatingAddress/);
+  assert.match(androidReceiver, /role, hasExplicitConsent, hasAndroidPermission/);
   assert.doesNotMatch(androidReceiver, /getDisplayOriginatingAddress/);
 });
 
-test("compagnon Android : filtre uniquement les identifiants alphanumeriques officiels", () => {
+test("compagnon Android : capture Admin uniquement et partage volontaire Client/Promoteur", () => {
   assert.match(androidClassifier, /ORANGEMONEY/);
   assert.match(androidClassifier, /MOBILEMONEY/);
   assert.match(androidClassifier, /normalized\.matches\(Regex\("\[0-9\]\+"\)\)/);
   assert.match(androidReceiver, /SmsOriginClassifier\.channelFromRawOrigin/);
   assert.match(androidApi, /api\/admin\/paiements\/capture/);
-  assert.match(androidApi, /api\/promoteur\/paiements\/capture/);
+  assert.match(androidApi, /api\/promoteur\/paiements\/share/);
+  assert.match(androidApi, /api\/client\/paiements\/livraison\/share/);
+  assert.doesNotMatch(androidApi, /api\/promoteur\/paiements\/capture/);
+  assert.match(androidShareActivity, /submitPromoterPayment/);
+  assert.match(androidShareActivity, /submitClientPayment/);
+  assert.match(androidParser, /payer_debit/);
+  assert.match(androidBuild, /ADMIN_CAPTURE_ENABLED/);
+  assert.match(androidBuild, /productFlavors/);
+  assert.match(sources["src/app/api/promoteur/paiements/capture/route.ts"], /status: 410/);
 });
 
 test("compagnon Android : jetons chiffres par Android Keystore AES-GCM", () => {
@@ -147,5 +177,5 @@ test("compagnon Android : versions Gradle/API et restriction Play Protect docume
   assert.match(androidBuild, /targetSdk 36/);
   assert.match(androidReadme, /hard-restricted/);
   assert.match(androidReadme, /Play Protect/);
-  assert.match(androidReadme, /Ne pas recommander de désactiver Play Protect/);
+  assert.match(androidReadme, /ne jamais désactiver Play Protect/i);
 });
