@@ -31,6 +31,14 @@ $constraints$;
 
 -- Les anciennes coordonnées latitude/longitude restent la position de référence saisie par l'administration.
 -- Les coordonnées provider_* représentent le dernier point déclaré par le professionnel et les surchargent.
+create index if not exists partners_admin_location_updated_by_idx
+  on public.partners(admin_location_updated_by)
+  where admin_location_updated_by is not null;
+
+create index if not exists partners_provider_location_updated_by_idx
+  on public.partners(provider_location_updated_by)
+  where provider_location_updated_by is not null;
+
 alter table public.suivi_professionals
   add column if not exists registration_number text,
   add column if not exists issuing_authority text,
