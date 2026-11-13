@@ -11,6 +11,14 @@ const notices = fs.readFileSync(
   path.join(__dirname, "../src/components/admin/AdminRappelLotNotice.tsx"),
   "utf8",
 );
+const universeStatusRoute = fs.readFileSync(
+  path.join(__dirname, "../src/app/api/universes/status/route.ts"),
+  "utf8",
+);
+const ecosystemes = fs.readFileSync(
+  path.join(__dirname, "../src/lib/ecosystemes.ts"),
+  "utf8",
+);
 
 function action(name, nextName) {
   const start = source.indexOf(`export async function ${name}(`);
@@ -61,7 +69,7 @@ test("la diffusion d'avis réseau exige un UUID retourné par la RPC avant le su
   assert.match(notices, /typeof data !== "string"/);
   assert.ok(notices.includes("/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data)"));
   assert.match(notices, /setMessage\("Avis diffusé aux pharmacies actives/);
-  assert.ok(notices.indexOf("typeof data !== \"string\"") < notices.indexOf('setMessage("Avis diffusé aux pharmacies actives'));
+  assert.ok(notices.indexOf('typeof data !== "string"') < notices.indexOf('setMessage("Avis diffusé aux pharmacies actives'));
   assert.match(notices, /finally \{\s*setBusy\(false\);\s*\}/);
 });
 
@@ -71,4 +79,10 @@ test("les accusés de réception chargent toutes les lignes des avis affichés s
   assert.match(notices, /\.order\("avis_id",\{ascending:true\}\)\.order\("pharmacie_id",\{ascending:true\}\)/);
   assert.match(notices, /if\(page\.length<pageSize\)break/);
   assert.match(notices, /if\(re\)\{setError\("Impossible de charger les accusés de réception\."/);
+});
+
+test("le statut DB 'suivi' est aussi exposé sous l'identifiant UI 'dispositifs'", () => {
+  assert.match(ecosystemes, /id: "dispositifs"/);
+  assert.match(universeStatusRoute, /if \(slug === "suivi"\) universes\.dispositifs = enabled/);
+  assert.match(universeStatusRoute, /universes\[slug\] = enabled/);
 });
