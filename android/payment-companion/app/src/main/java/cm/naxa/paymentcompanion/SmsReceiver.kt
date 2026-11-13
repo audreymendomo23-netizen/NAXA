@@ -50,6 +50,14 @@ class SmsReceiver : BroadcastReceiver() {
         val pending = goAsync()
         EXECUTOR.execute {
             try {
+                // Re-check immediately before the network transmission so a
+                // consent withdrawal while the receiver is queued takes effect.
+                val consentStillGranted = SecureVault.get(appContext, "sms_consent_granted") == "true"
+                val permissionStillGranted =
+                    appContext.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+                if (!SmsCaptureGate.canCapture(consentStillGranted, permissionStillGranted, channel)) {
+                    return@execute
+                }
                 NaxaApi.sendCapturedSms(appContext, channel!!, rawOrigin, smsText, receivedAt)
             } catch (error: Exception) {
                 try {
