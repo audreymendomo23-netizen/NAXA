@@ -32,7 +32,13 @@ export async function GET() {
       (data ?? []).map((row) => [row.slug, row.enabled === true] as const),
     );
     const universes: Record<string, boolean> = { pharmacie: true };
-    for (const slug of CONFIGURABLE_UNIVERSES) universes[slug] = rows.get(slug) === true;
+    for (const slug of CONFIGURABLE_UNIVERSES) {
+      const enabled = rows.get(slug) === true;
+      // The database slug is "suivi", while the public UI ecosystem ID is
+      // "dispositifs". Publish both keys to keep both contracts compatible.
+      universes[slug] = enabled;
+      if (slug === "suivi") universes.dispositifs = enabled;
+    }
 
     return NextResponse.json(
       { universes },
