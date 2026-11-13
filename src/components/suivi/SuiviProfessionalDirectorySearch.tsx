@@ -107,10 +107,11 @@ export function SuiviProfessionalDirectorySearch({selectedId,onSelect}:{selected
     const q=query.trim();
     return professionals.filter(p=>{
       const nameMatch=!q||fuzzy(q,p.display_name)||fuzzy(q,p.specialty??"")||fuzzy(q,p.partner_name??"")||fuzzy(q,p.city??"");
+      const intentMatch=intent.specialties.some(item=>normalize(p.specialty??"").includes(normalize(item))||normalize(item).includes(normalize(p.specialty??"")));
+      const queryMatch=!q||nameMatch||intentMatch;
       const availabilityMatch=availability==="all"||(availability==="today"&&p.available_today)||(availability==="now"&&p.available_now);
       const specialtyMatch=!specialty||normalize(p.specialty??"")===normalize(specialty);
-      const intentMatch=!intent.specialties.length||intent.specialties.some(item=>normalize(p.specialty??"").includes(normalize(item))||normalize(item).includes(normalize(p.specialty??"")));
-      return nameMatch&&availabilityMatch&&specialtyMatch&&intentMatch;
+      return queryMatch&&availabilityMatch&&specialtyMatch;
     }).sort((a,b)=>{
       if(availability==="now")return Number(b.available_now)-Number(a.available_now);
       if(proximity)return (a.distance_km??Number.MAX_SAFE_INTEGER)-(b.distance_km??Number.MAX_SAFE_INTEGER);
