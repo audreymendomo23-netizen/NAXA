@@ -31,7 +31,7 @@ export function SuiviAccreditationManager({initialRows}:{initialRows:Accreditati
     if(error)setNotice("Mise à jour refusée. Vérifiez vos droits Admin et la migration d'accréditation.");
     else{
       setRows(previous=>previous.map(item=>item.user_id===row.user_id?{...item,verified:status==="verified",verification_status:status,verified_at:status==="verified"?now:null}:item));
-      setNotice(status==="verified"?"Accréditation validée. Le professionnel entre dans l'annuaire NAXA.":"Demande rejetée. Le professionnel n'apparaît pas dans l'annuaire.");
+      setNotice(status==="verified"?"Agrément médical validé. La publication indépendante reste bloquée jusqu’à l’existence d’un Partenaire personnel et d’une convention NAXA acceptée puis approuvée.":"Agrément refusé. Le compte ne peut pas accéder aux fonctions professionnelles du Suivi connecté.");
     }
     setBusyId(null);
   }

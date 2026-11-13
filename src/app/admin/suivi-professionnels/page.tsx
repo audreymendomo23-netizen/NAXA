@@ -17,7 +17,7 @@ export default async function AdminSuiviProfessionnels(){
   }));
   return <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
     <Link href="/admin" className="text-sm font-bold text-emerald-800 underline">← Administration NAXA</Link>
-    <header><p className="text-xs font-extrabold uppercase tracking-widest text-emerald-700">Contrôle des accès médicaux</p><h1 className="mt-1 text-2xl font-black">Accréditations des professionnels de santé</h1><p className="mt-2 text-sm text-slate-600">Seuls les dossiers validés par un administrateur NAXA et dont le compte reste actif apparaissent dans l'annuaire de suivi santé.</p></header>
+    <header><p className="text-xs font-extrabold uppercase tracking-widest text-emerald-700">Contrôle des accès médicaux</p><h1 className="mt-1 text-2xl font-black">Accréditations des professionnels de santé</h1><p className="mt-2 text-sm text-slate-600">Cette validation concerne uniquement les justificatifs médicaux. Le droit indépendant exige séparément un Partenaire de type Prestations et soins à domicile et une convention NAXA acceptée par son titulaire puis approuvée par l’administration.</p><Link href="/admin/prestations/conventions" className="mt-3 inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-bold underline">Contrôler les conventions indépendantes</Link></header>
     {error?<p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">Impossible de charger les dossiers d'accréditation. Vérifiez les droits Admin et les migrations.</p>:<SuiviAccreditationManager initialRows={rows}/>}
   </main>;
 }

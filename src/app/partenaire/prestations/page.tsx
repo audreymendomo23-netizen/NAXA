@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { archiveHomeServiceOffer, createHomeServiceOffer, transitionHomeServiceRequest, updateHomeServicePartnerLocation, resetHomeServicePartnerLocation } from "./actions";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 import { GeolocalisationChamps } from "@/components/admin/GeolocalisationChamps";
-import { SuiviProfessionalAvailabilityEditor } from "@/components/suivi/SuiviProfessionalAvailabilityEditor";
+import { PartnerWeeklyAvailabilityEditor } from "@/components/partenaire/PartnerWeeklyAvailabilityEditor";
 
 const field = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900";
 const offerStatus: Record<string, string> = { draft: "Brouillon — en attente de validation", active: "Publié", archived: "Archivé" };
@@ -36,6 +36,14 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
   );
   const ids = active.map((m: any) => m.partner_id);
   if (!ids.length) redirect("/");
+  const { data: agreements, error: agreementError } = await sb.from("partner_independent_agreements")
+    .select("partner_id,status,expires_at").eq("professional_user_id", auth.user.id)
+    .eq("status", "active").in("partner_id", ids)
+    .or("expires_at.is.null,expires_at.gt." + new Date().toISOString());
+  const independentIds = new Set((agreements ?? []).map((row: any) => row.partner_id));
+  const independentOwners = agreementError ? [] : active.filter((m: any) =>
+    m.member_role === "owner" && independentIds.has(m.partner_id)
+  );
 
   const [offersResult, requestsResult] = await Promise.all([
     sb.from("home_service_offers").select("id,partner_id,name,category,description,service_area_label,price_fcfa,status,created_at")
@@ -72,7 +80,7 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
     <div className="mx-auto max-w-5xl space-y-5 pt-4">
       <header className="flex items-center justify-between gap-3 rounded-2xl bg-[#064B2A] px-4 py-3 text-white">
         <strong>NAXA · Espace partenaire</strong>
-        <nav className="flex flex-wrap items-center gap-3 text-sm font-bold"><BoutonNotifications/><Link href="/promoteur/paiements" className="underline">Abonnement</Link><Link href="/partenaire/prestations/parametres" className="underline">Rappels</Link><Link href="/partenaire/catalogue" className="underline">Catalogue</Link><Link href="/partenaire/reservations" className="underline">Réservations</Link><Link href="/" className="underline">Accueil</Link></nav>
+        <nav className="flex flex-wrap items-center gap-3 text-sm font-bold"><BoutonNotifications/><Link href="/promoteur/paiements" className="underline">Abonnement</Link><Link href="/partenaire/prestations/parametres" className="underline">Rappels</Link><Link href="/partenaire/prestations/convention" className="underline">Convention NAXA</Link><Link href="/partenaire/catalogue" className="underline">Catalogue</Link><Link href="/partenaire/reservations" className="underline">Réservations</Link><Link href="/" className="underline">Accueil</Link></nav>
       </header>
       <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#B73623]">NAXA · Prestations à domicile</p><h1 className="mt-1 text-3xl font-black">Mes prestations et demandes</h1><p className="mt-2 text-sm leading-6 text-slate-600">Les nouvelles prestations restent en brouillon jusqu’à validation administrative. Confirmer une demande signifie désormais retenir un créneau précis. L’adresse exacte du client reste masquée tant que la demande n’est pas confirmée.</p></div>
       {searchParams.ok && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{searchParams.ok === "position" ? "Votre position GPS prioritaire est enregistrée." : searchParams.ok === "position_reinitialisee" ? "La position administrative est de nouveau utilisée." : searchParams.ok === "creation" ? "Prestation enregistrée en brouillon." : searchParams.ok === "archive" ? "Prestation archivée." : searchParams.ok === "confirmed" ? "Rendez-vous confirmé et rappels programmables." : "Prestation marquée comme terminée."}</p>}
@@ -80,64 +88,48 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
       {broken && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Le suivi des prestations est temporairement indisponible. Les actions sont désactivées jusqu’au retour des données.</p>}
 
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-extrabold">Mon planning de disponibilité</h2>
-        <p className="mt-1 text-sm text-slate-600">Ce planning alimente directement les filtres de disponibilité dans les recherches des clients et de l’assistance connectée.</p>
-        <div className="mt-4"><SuiviProfessionalAvailabilityEditor userId={auth.user.id}/></div>
-      </section>
-
-      <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-extrabold">Ma position de service</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">Votre position déclarée ici est prioritaire sur la position de référence renseignée par l’administration. Vous pouvez la modifier à tout moment ou revenir à la position administrative.</p>
-        <div className="mt-4 space-y-4">
-          {active.map((membership:any)=>{
-            const partner=membership.partners;
-            const hasOwn=partner.provider_latitude!=null&&partner.provider_longitude!=null;
-            const effectiveLat=hasOwn?partner.provider_latitude:partner.latitude;
-            const effectiveLng=hasOwn?partner.provider_longitude:partner.longitude;
-            return <article key={partner.id} className="rounded-xl border p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-extrabold">{partner.name}</h3><p className="mt-1 text-xs text-slate-500">{hasOwn?"Position professionnelle prioritaire":"Position administrative de référence"} · {[partner.neighborhood,partner.city].filter(Boolean).join(" · ")}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{effectiveLat!=null&&effectiveLng!=null?"Position renseignée":"Position à définir"}</span></div>
-              {effectiveLat!=null&&effectiveLng!=null&&<p className="mt-2 text-sm text-slate-700">Coordonnées utilisées : {Number(effectiveLat).toFixed(6)} · {Number(effectiveLng).toFixed(6)}</p>}
-              <form action={updateHomeServicePartnerLocation} className="mt-3 space-y-3">
-                <input type="hidden" name="partner_id" value={partner.id}/>
-                <p className="text-sm font-semibold">Définir ou mettre à jour ma position GPS</p>
-                <GeolocalisationChamps className={field} initialLatitude={hasOwn?Number(partner.provider_latitude):null} initialLongitude={hasOwn?Number(partner.provider_longitude):null}/>
-                <button disabled={broken} className="min-h-11 rounded-xl bg-[#064B2A] px-4 font-bold text-white disabled:opacity-40">Enregistrer ma position prioritaire</button>
-              </form>
-              {hasOwn&&<form action={resetHomeServicePartnerLocation} className="mt-2"><input type="hidden" name="partner_id" value={partner.id}/><button disabled={broken} className="min-h-10 rounded-lg border px-3 text-sm font-bold disabled:opacity-40">Revenir à la position administrateur</button></form>}
+        <h2 className="text-xl font-extrabold">Réglages du Partenaire indépendant</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Le planning et la position appartiennent au Partenaire, pas à chaque salarié. Ils sont modifiables par le titulaire uniquement après acceptation et validation de la convention autonome NAXA.</p>
+        {agreementError ? (
+          <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Le statut de la convention ne peut pas être vérifié. Par sécurité, les réglages publics du Partenaire restent masqués.</p>
+        ) : !independentOwners.length ? (
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            {active.some((m: any) => m.member_role === "owner")
+              ? "Aucune convention indépendante active n’est enregistrée pour votre Partenaire. Le titulaire peut consulter, accepter et soumettre la convention NAXA."
+              : "Votre compte intervient ici comme membre d’équipe. Cette affectation ne vous confère pas un statut indépendant et ne vous autorise pas à modifier les réglages publics du Partenaire. Le titulaire conserve cette responsabilité."}
+            {" "}<Link href="/partenaire/prestations/convention" className="font-bold underline">Consulter la convention du Partenaire</Link>.
+          </p>
+        ) : <div className="mt-4 space-y-5">
+          {independentOwners.map((membership: any) => {
+            const partner = membership.partners;
+            const hasOwn = partner.provider_latitude != null && partner.provider_longitude != null;
+            const effectiveLat = hasOwn ? partner.provider_latitude : partner.latitude;
+            const effectiveLng = hasOwn ? partner.provider_longitude : partner.longitude;
+            return <article key={partner.id} className="space-y-4 rounded-xl border p-4">
+              <div>
+                <h3 className="font-extrabold">{partner.name}</h3>
+                <p className="mt-1 text-xs text-slate-500">{[partner.neighborhood, partner.city].filter(Boolean).join(" · ")}</p>
+                <p className="mt-1 text-xs font-semibold text-emerald-800">Convention indépendante active</p>
+              </div>
+              <PartnerWeeklyAvailabilityEditor partnerId={partner.id} partnerName={partner.name}/>
+              <div className="border-t pt-4">
+                <h4 className="font-bold">Position de service</h4>
+                <p className="mt-1 text-sm text-slate-600">{hasOwn ? "Position indépendante prioritaire" : "Position de référence Admin"}{effectiveLat != null && effectiveLng != null ? ` · ${Number(effectiveLat).toFixed(6)}, ${Number(effectiveLng).toFixed(6)}` : " · À définir"}</p>
+                <form action={updateHomeServicePartnerLocation} className="mt-3 space-y-3">
+                  <input type="hidden" name="partner_id" value={partner.id}/>
+                  <GeolocalisationChamps className={field}
+                    initialLatitude={hasOwn ? Number(partner.provider_latitude) : null}
+                    initialLongitude={hasOwn ? Number(partner.provider_longitude) : null}/>
+                  <button disabled={broken} className="min-h-11 rounded-xl bg-[#064B2A] px-4 font-bold text-white disabled:opacity-40">Enregistrer la position du Partenaire</button>
+                </form>
+                {hasOwn && <form action={resetHomeServicePartnerLocation} className="mt-2">
+                  <input type="hidden" name="partner_id" value={partner.id}/>
+                  <button disabled={broken} className="min-h-10 rounded-lg border px-3 text-sm font-bold disabled:opacity-40">Revenir à la position Admin</button>
+                </form>}
+              </div>
             </article>;
           })}
-        </div>
-      </section>
-
-
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-extrabold">Mon planning de disponibilité</h2>
-        <p className="mt-1 text-sm text-slate-600">Ce planning alimente directement les filtres de disponibilité dans les recherches des clients et de l’assistance connectée.</p>
-        <div className="mt-4"><SuiviProfessionalAvailabilityEditor userId={auth.user.id}/></div>
-      </section>
-
-      <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-extrabold">Ma position de service</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">Votre position déclarée ici est prioritaire sur la position de référence renseignée par l’administration. Vous pouvez la modifier à tout moment ou revenir à la position administrative.</p>
-        <div className="mt-4 space-y-4">
-          {active.map((membership:any)=>{
-            const partner=membership.partners;
-            const hasOwn=partner.provider_latitude!=null&&partner.provider_longitude!=null;
-            const effectiveLat=hasOwn?partner.provider_latitude:partner.latitude;
-            const effectiveLng=hasOwn?partner.provider_longitude:partner.longitude;
-            return <article key={partner.id} className="rounded-xl border p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-extrabold">{partner.name}</h3><p className="mt-1 text-xs text-slate-500">{hasOwn?"Position professionnelle prioritaire":"Position administrative de référence"} · {[partner.neighborhood,partner.city].filter(Boolean).join(" · ")}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{effectiveLat!=null&&effectiveLng!=null?"Position renseignée":"Position à définir"}</span></div>
-              {effectiveLat!=null&&effectiveLng!=null&&<p className="mt-2 text-sm text-slate-700">Coordonnées utilisées : {Number(effectiveLat).toFixed(6)} · {Number(effectiveLng).toFixed(6)}</p>}
-              <form action={updateHomeServicePartnerLocation} className="mt-3 space-y-3">
-                <input type="hidden" name="partner_id" value={partner.id}/>
-                <p className="text-sm font-semibold">Définir ou mettre à jour ma position GPS</p>
-                <GeolocalisationChamps className={field} initialLatitude={hasOwn?Number(partner.provider_latitude):null} initialLongitude={hasOwn?Number(partner.provider_longitude):null}/>
-                <button disabled={broken} className="min-h-11 rounded-xl bg-[#064B2A] px-4 font-bold text-white disabled:opacity-40">Enregistrer ma position prioritaire</button>
-              </form>
-              {hasOwn&&<form action={resetHomeServicePartnerLocation} className="mt-2"><input type="hidden" name="partner_id" value={partner.id}/><button disabled={broken} className="min-h-10 rounded-lg border px-3 text-sm font-bold disabled:opacity-40">Revenir à la position administrateur</button></form>}
-            </article>;
-          })}
-        </div>
+        </div>}
       </section>
 
       <section className="rounded-2xl border bg-white p-5 shadow-sm">

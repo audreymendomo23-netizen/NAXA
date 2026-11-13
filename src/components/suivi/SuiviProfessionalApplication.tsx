@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import Link from "next/link";
 
 type Role="medecin"|"pharmacien"|"infirmier"|"sage_femme"|"chirurgien_dentiste"|"kinesitherapeute"|"technicien_laboratoire"|"autre_sante";
 type Application={
@@ -72,15 +73,15 @@ export function SuiviProfessionalApplication(){
         await sb.storage.from("suivi-accreditations").remove([existing.credential_storage_path]);
       }
       setExisting({user_id:userId,professional_role:role,display_name:displayName.trim(),registration_number:registration.trim(),issuing_authority:authority.trim(),specialty:specialty.trim()||null,credential_storage_path:credentialPath,verification_status:"pending",verification_expires_at:expiry?new Date(expiry+"T23:59:59").toISOString():null,verified:false});
-      setFile(null);setNotice("Demande transmise à NAXA. Votre profil ne sera visible dans l'annuaire qu'après contrôle et validation de l'accréditation.");
+      setFile(null);setNotice("Demande d’agrément médical transmise à NAXA. Cet agrément ne confère pas à lui seul le statut de Partenaire indépendant ni la publication dans l’annuaire.");
     }
     setBusy(false);
   }
   return <main className="mx-auto max-w-2xl space-y-4 px-4 py-8">
-    <header><p className="text-xs font-bold uppercase tracking-widest text-emerald-700">NAXA · Vérification professionnelle</p><h1 className="mt-1 text-2xl font-black">Demande d'agrément</h1><p className="mt-2 text-sm text-slate-600">NAXA contrôle les informations et le justificatif avant d'autoriser l'accès à l'annuaire et aux dossiers patients.</p></header>
+    <header><p className="text-xs font-bold uppercase tracking-widest text-emerald-700">NAXA · Vérification professionnelle</p><h1 className="mt-1 text-2xl font-black">Demande d'agrément</h1><p className="mt-2 text-sm text-slate-600">Cette étape vérifie uniquement votre agrément médical. Elle ne crée pas une catégorie professionnelle distincte et ne vous accorde pas le statut de Partenaire indépendant.</p><p className="mt-3 text-sm leading-6 text-slate-700">Pour apparaître personnellement dans l’annuaire du Suivi connecté ou proposer des prestations en votre nom, vous devez également être titulaire de votre propre Partenaire « Prestations et soins à domicile », accepter personnellement la convention NAXA et obtenir son approbation Admin. Une simple affectation salariée ne suffit pas.</p><Link href="/partenaire/prestations/convention?source=dispositifs-connectes" className="inline-flex min-h-10 items-center rounded-lg border border-emerald-700 px-3 text-sm font-bold text-emerald-900 underline">Accéder à la convention du Partenaire</Link></header>
     {notice&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">{notice}</p>}
     {existing&&<div className="rounded-xl border p-3 text-sm"><b>État actuel :</b> {accreditationIsExpired?"Agrément expiré":existing.verification_status==="verified"?"Agrément validé":existing.verification_status==="rejected"?"Demande rejetée":existing.verification_status==="expired"?"Agrément expiré":"En attente de vérification"}</div>}
-    {accreditationIsCurrent?<p className="rounded-xl bg-emerald-50 p-4 text-sm">Votre accréditation est validée par NAXA. Elle est soumise à sa date d'expiration et aux contrôles de validité continus.</p>:<>
+    {accreditationIsCurrent?<p className="rounded-xl bg-emerald-50 p-4 text-sm">Votre agrément médical est validé. Il reste distinct de la convention autonome du Partenaire ; votre profil indépendant ne sera publié qu’après acceptation et approbation de cette convention.</p>:<>
       <div className="space-y-3 rounded-2xl border bg-white p-4">
         <label className="block text-sm font-semibold">Profession<select className="champ mt-1 w-full" value={role} onChange={e=>setRole(e.target.value as Role)}>{Object.entries(roleLabels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
         <label className="block text-sm font-semibold">Nom professionnel<input className="champ mt-1 w-full" value={displayName} onChange={e=>setDisplayName(e.target.value)} maxLength={160}/></label>
