@@ -27,7 +27,7 @@ assert.match(player, /<video\b/i);
 assert.match(player, /api\/security\/cameras\/live-session/);
 assert.match(player, /application\/sdp/);
 assert.doesNotMatch(player, /rtsp:\/\//i);
-assert.match(layout, /label:"9\. Sécurité",href:"\/pharmacie\/promoteur\/securite",icon:"◉"/);
+assert.match(layout, /label:"10\. Sécurité",href:"\/pharmacie\/promoteur\/securite",icon:"◉"/);
 assert.match(navigation, /"◉":/);
 assert.match(dashboard, /\.in\("pharmacie_id", scopedIds\)/);
 assert.match(dashboard, /<PromoteurSecuriteIntelligente/);

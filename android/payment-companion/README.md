@@ -11,6 +11,8 @@ La référence métier est l'architecture des paiements dans ../../docs/ARCHITEC
 
 L'installation se fait par APK depuis le canal officiel NAXA. Android peut demander d'autoriser cette source à installer des applications ; NAXA ne contourne pas cet avertissement.
 
+La variante Admin demande séparément RECEIVE_SMS après consentement. Android classe cette permission comme dangereuse et hard-restricted : l'installateur doit l'autoriser dans l'allowlist des permissions restreintes. Le simple téléchargement APK, le transfert Bluetooth ou le réglage « installer des applications inconnues » ne garantissent pas cette allowlist. Tester les installateurs et téléphones cibles ; ne jamais désactiver Play Protect ni contourner Android. Si l'autorisation est refusée, le partage volontaire du SMS Admin ou la vérification manuelle restent disponibles.
+
 ## Règles de lecture des notifications
 
 Android accorde au lecteur un accès technique au flux général des notifications du téléphone. L'utilisateur doit activer cet accès spécial dans les paramètres Android après avoir donné son consentement dans NAXA.

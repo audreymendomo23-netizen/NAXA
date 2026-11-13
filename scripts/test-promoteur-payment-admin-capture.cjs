@@ -72,7 +72,7 @@ test("capture Admin : expéditeur brut exact et SMS crédit seulement", () => {
   assert.match(source, /senderOriginAddress/);
   assert.match(source, /MobileMoney/);
   assert.match(source, /OrangeMoney/);
-  assert.match(source, /\/\\d\//);
+  assert.match(source, /senderOriginAddress !== expectedSender/);
   assert.match(source, /direction === "merchant_credit"/);
   assert.match(source, /payloadHash/);
   assert.match(source, /naxa_promoteur_payment_auto_confirm_admin_sms/);
@@ -157,9 +157,9 @@ test("compagnon Android : la variante standard ne déclare aucune permission de 
 });
 
 test("compagnon Android : capture Admin uniquement et partage volontaire Client/Promoteur", () => {
-  assert.match(androidClassifier, /ORANGEMONEY/);
-  assert.match(androidClassifier, /MOBILEMONEY/);
-  assert.match(androidClassifier, /normalized\.matches\(Regex\("\[0-9\]\+"\)\)/);
+  assert.match(androidClassifier, /"OrangeMoney" ->/);
+  assert.match(androidClassifier, /"MobileMoney" ->/);
+  assert.doesNotMatch(androidClassifier, /uppercase|replace\(Regex/);
   assert.match(androidReceiver, /SmsOriginClassifier\.channelFromRawOrigin/);
   assert.match(androidApi, /api\/admin\/paiements\/capture/);
   assert.match(androidApi, /api\/promoteur\/paiements\/share/);
