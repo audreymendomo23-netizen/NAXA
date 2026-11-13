@@ -18,6 +18,7 @@ $$;
 
 alter view public.medicaments_cima_photos_public set schema private;
 alter view private.medicaments_cima_photos_public rename to cima_photo_projection_internal;
+alter view private.cima_photo_projection_internal set (security_invoker = true);
 
 revoke all on private.cima_photo_projection_internal from public, anon, authenticated, service_role;
 
