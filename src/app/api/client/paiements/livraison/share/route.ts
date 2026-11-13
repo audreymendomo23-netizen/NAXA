@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     const reference = String(referenceWasCorrected
       ? body.reference ?? ""
       : extractedPayer?.reference ?? body.reference ?? "").trim();
-    if (reference.length < 5 || reference.length > 120 || !/^[\\p{L}\\p{N}\\s_./-]+$/u.test(reference)) {
+    if (reference.length < 5 || reference.length > 120 || !/^[\p{L}\p{N}\s_./-]+$/u.test(reference)) {
       return NextResponse.json({ error: "ID / Référence de transaction obligatoire (5 caractères minimum). Le SMS partagé n'a pas permis de l'extraire automatiquement." }, { status: 400 });
     }
     const payerNumber = String(body.fieldSources?.payerNumber === "manual_entry"
