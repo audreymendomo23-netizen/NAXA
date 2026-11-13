@@ -75,8 +75,11 @@ function titleMatches(query, title) {
   const actual = new Set(tokens(title.replace(/^File:/i, "")));
   if (!wanted.length) return false;
   const hits = wanted.filter((token) => actual.has(token));
-  // Ne jamais accepter une simple image de classe thérapeutique ou de molécule voisine.
-  return hits.length >= Math.max(1, Math.ceil(wanted.length * 0.75));
+  // Une identité courte doit correspondre intégralement ; pour un nom long,
+  // deux ancres distinctives suffisent (marque + substance, ou deux éléments du nom).
+  // Les recherches restent limitées au nom exact du médicament, jamais à sa classe.
+  const requiredHits = wanted.length <= 2 ? wanted.length : 2;
+  return hits.length >= requiredHits;
 }
 
 async function openProductsFacts(barcode, identity) {
@@ -110,7 +113,7 @@ async function openProductsFacts(barcode, identity) {
 async function wikimedia(identity) {
   const wanted = tokens(identity);
   if (!wanted.length) return null;
-  const query = identity.trim().slice(0, 100) + " medicine packaging";
+  const query = identity.trim().slice(0, 120);
   const params = new URLSearchParams({
     action: "query", generator: "search", gsrsearch: "filetype:bitmap " + query,
     gsrnamespace: "6", gsrlimit: "20", prop: "imageinfo", iiprop: "url|extmetadata",
