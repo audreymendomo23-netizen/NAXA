@@ -113,6 +113,18 @@ export function ScannerShell() {
   const inputFichier = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
 
+  // Signal visuel de scan : aucun contenu d'ordonnance ni code-barres n'est transmis.
+  useEffect(() => {
+    const state = lectureEnCours ? "active"
+      : ecran === "camera" && !!flux ? "active"
+      : ecran === "results" ? (erreur ? "failure" : produits.length ? "success" : "empty")
+      : erreur ? "failure" : "idle";
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "scan", state } }));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [ecran, flux, lectureEnCours, produits.length, erreur]);
+
   useEffect(() => {
     if (!initialResults) return;
     try {
