@@ -58,6 +58,8 @@ $function$;
 revoke all on function public.get_home_service_catalog_nearby(double precision,double precision,double precision) from public,anon,authenticated;
 grant execute on function public.get_home_service_catalog_nearby(double precision,double precision,double precision) to service_role;
 
+drop function if exists public.request_home_service_with_location(uuid,text,text,text,timestamptz,text,double precision,double precision,double precision);
+
 create or replace function public.request_home_service_with_location(
   p_client_id uuid,
   p_offer_id uuid,p_area_label text,p_exact_address text,p_contact_phone text,
