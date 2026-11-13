@@ -1,4 +1,10 @@
-> **CAMPAGNE DE VÉRIFICATION ACTIVE :** branche `qa/e2e-stabilisation-20261106`. `main` est la branche par défaut du dépôt, mais n'est pas la branche de travail QA. Avant toute intervention ou nouvelle conversation, lire `AGENTS.md` puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Ne pas répéter les tests des lots clos sans déclencheur documenté. Aucun merge vers `main` sans ordre explicite.
+> **ÉTAT GIT COURANT — 13/11/2026 :** la branche de référence et de travail est `main`, HEAD vérifié avant cette mise à jour documentaire : `722ecf3a642000085334fb92e78b38ab56245458` ([commit](https://github.com/audreymendomo23-netizen/NAXA/commit/722ecf3a642000085334fb92e78b38ab56245458)).
+>
+> **Branches parallèles recensées :** les PR [#102](https://github.com/audreymendomo23-netizen/NAXA/pull/102), [#104](https://github.com/audreymendomo23-netizen/NAXA/pull/104), [#105](https://github.com/audreymendomo23-netizen/NAXA/pull/105) et [#106](https://github.com/audreymendomo23-netizen/NAXA/pull/106) sont fermées et fusionnées dans `main`. Les quatre commits sources sont intégrés ; les comparaisons GitHub après fusion indiquent `behind_by=0`. La branche `qa/e2e-stabilisation-20261106` (HEAD `f4edd8579971347aa090bf810e4357eca1ea26f8`) était déjà intégralement contenue dans `main` et n'a pas nécessité de fusion.
+>
+> **Réserve qualité à ne pas masquer :** les quatre exécutions GitHub Actions `NAXA quality` des PR étaient en échec. Les PR fusionnées prouvent l'intégration Git, pas le vert CI, le build, la recette applicative ni la Production. Détail et SHA de fusion : voir la section « Synchronisation GitHub » de `STATUT.md`.
+>
+> **Règle de reprise :** appliquer `AGENTS.md`, contrôler le HEAD courant de `main` et reprendre les seules réserves ouvertes. Les mentions de branche QA active ou d'absence de fusion dans les sections historiques ci-dessous sont des instantanés archivés, pas le statut Git courant.
 
 > **DOCUMENTS DE RÉFÉRENCE — NAXA**
 >
