@@ -42,14 +42,16 @@ export async function POST(request: Request) {
     }
 
     const parsed = smsText ? parsePromoteurPaymentSms(smsText, canal) : null;
-    if (smsText && (!parsed || parsed.direction !== "payer_debit" || parsed.success !== true)) {
-      return NextResponse.json({ error: "Le SMS partagé n'est pas reconnu comme confirmation de débit. Corrigez les champs ou utilisez la saisie manuelle." }, { status: 422 });
-    }
-    const amount = parsed?.amount ?? Number(body.amount ?? (Number(reservation.total) + Number(reservation.frais_livraison ?? 0)));
+    // A shared but unrecognized/incomplete SMS is preserved for manual review.
+    // Only a recognized successful payer-debit message with an ID can auto-match.
+    const payerSms = parsed?.direction === "payer_debit" && parsed.success === true && parsed.reference
+      ? parsed
+      : null;
+    const amount = payerSms?.amount ?? Number(body.amount ?? (Number(reservation.total) + Number(reservation.frais_livraison)));
     if (!Number.isSafeInteger(amount) || amount <= 0) return NextResponse.json({ error: "Montant déclaré invalide." }, { status: 400 });
-    const reference = String(parsed?.reference ?? body.reference ?? "").trim();
-    if (reference.length < 5 || reference.length > 120 || !/^[\p{L}\p{N}\s_./-]+$/u.test(reference)) {
-      return NextResponse.json({ error: "Référence de transaction obligatoire (5 caractères minimum)." }, { status: 400 });
+    const reference = String(payerSms?.reference ?? body.reference ?? "").trim();
+    if (reference.length < 5 || reference.length > 120 || !/^[\\p{L}\\p{N}\\s_./-]+$/u.test(reference)) {
+      return NextResponse.json({ error: "ID / Référence de transaction obligatoire (5 caractères minimum). Le SMS partagé n'a pas permis de l'extraire automatiquement." }, { status: 400 });
     }
     const payerNumber = String(parsed?.payerNumber ?? body.payerNumber ?? "").trim().slice(0, 40);
     if (payerNumber && (digits(payerNumber).length < 8 || digits(payerNumber).length > 15)) {
@@ -62,13 +64,16 @@ export async function POST(request: Request) {
         paidAt.getTime() < now.getTime() - 7 * 24 * 60 * 60_000) {
       return NextResponse.json({ error: "Date de paiement invalide ou trop ancienne." }, { status: 400 });
     }
-    const parsedProof = Boolean(parsed && parsed.direction === "payer_debit" && parsed.success);
+    const parsedProof = Boolean(payerSms);
     const smsHash = smsText ? createHash("sha256").update(smsText).digest("hex") : null;
     const fieldSources = {
-      amount: parsed?.amount !== null && parsed?.amount !== undefined ? "sms_extracted" : body.fieldSources?.amount ?? "generated_default",
-      paidAt: parsed?.occurredAt ? "sms_extracted" : body.fieldSources?.paidAt ?? "generated_default",
-      reference: parsed?.reference ? "sms_extracted" : body.fieldSources?.reference ?? "manual_entry",
-      payerNumber: parsed?.payerNumber ? "sms_extracted" : body.fieldSources?.payerNumber ?? (payerNumber ? "manual_entry" : "not_provided"),
+      amount: payerSms?.amount !== null && payerSms?.amount !== undefined
+        ? "sms_extracted"
+        : amount === Number(reservation.total) + Number(reservation.frais_livraison) ? "generated_default" : "manual_entry",
+      paidAt: payerSms?.occurredAt ? "sms_extracted" : "client_declared",
+      reference: payerSms?.reference ? "sms_extracted" : "manual_entry",
+      payerNumber: payerSms?.payerNumber ? "sms_extracted" : payerNumber ? "manual_entry" : "not_provided",
+      sms: !smsText ? "not_shared" : payerSms ? "recognized_payer_debit" : "shared_unrecognized_manual_review",
     };
 
     const { data: saved, error: saveError } = await db.rpc("naxa_client_declarer_paiement_livraison_v2", {
