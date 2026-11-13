@@ -1,45 +1,52 @@
 # Intégration DailyMed — images médicaments
 
-## Source et endpoints
+## Sources et endpoints
 
-NAXA utilise l'API REST officielle DailyMed v2 (NLM/NIH) et RxNorm/RxNav (NLM), en HTTPS. Ces endpoints publics ne nécessitent pas de clé pour les fonctions utilisées :
-- recherche SPL : `/dailymed/services/v2/spls.json?drug_name=...&name_type=generic&pagesize=20`
-- médias d'une notice : `/dailymed/services/v2/spls/{SETID}/media.json`
-- notice source : `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={SETID}`
+NAXA utilise les API publiques officielles de la NLM en HTTPS :
+- RxNorm/RxNav : `/REST/approximateTerm.json?term=...&maxEntries=...&option=1` et, dans le script, résolution normalisée `/REST/rxcui.json?name=...&search=2&allsrc=0`.
+- DailyMed v2 par nom : `/dailymed/services/v2/spls.json?drug_name=...&name_type=both&pagesize=20`.
+- DailyMed v2 par RxCUI : `/dailymed/services/v2/spls.json?rxcui=...&pagesize=20`.
+- XML de la notice : `/dailymed/services/v2/spls/{SETID}.xml`.
+- Médias d'une notice : `/dailymed/services/v2/spls/{SETID}/media.json`.
+- Notice source : `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={SETID}`.
 
-## Rapprochement des noms avec RxNorm
+## Chaîne de rapprochement
 
-Avant la recherche DailyMed, le script interroge l'API RxNorm/RxNav de la NLM :
-- recherche exacte/normalisée via `/REST/rxcui.json?name=...&search=2&allsrc=0` ;
-- récupération des noms de concepts via `/REST/rxcui/{RXCUI}/properties.json` ;
-- si aucun résultat normalisé n'est trouvé, recours au rapprochement approximatif `/REST/approximateTerm.json?term=...&maxEntries=10&option=1` ;
-- les noms RxNorm obtenus élargissent les termes de recherche DailyMed et les RXCUI sont conservés pour audit.
-- les résultats sont mis en cache en mémoire par terme pendant l'exécution, avec déduplication des appels simultanés et éviction au-delà de 500 termes ; les erreurs ne sont pas mises en cache.
+1. NAXA recherche le nom du médicament et ses substances actives dans RxNorm.
+2. Les RxCUI dont le score de rapprochement est retenu servent à interroger DailyMed.
+3. Une deuxième recherche DailyMed directe par nom (générique ou marque) complète RxNorm lorsque le nom n'a pas de RxCUI exploitable.
+4. Les SET ID sont dédupliqués.
+5. Pour chaque notice, NAXA lit le XML SPL et recherche explicitement le code `SPLIMAGE`.
+6. NAXA récupère, dans `media.json`, le fichier dont le nom correspond exactement à la référence XML. Aucun autre schéma ou média de notice n'est utilisé comme photo du comprimé.
 
-Les scores RxNorm ne sont pas des probabilités et ne prouvent pas l'équivalence d'un médicament, de son dosage, de sa forme ou de son conditionnement. Le rapprochement reste une aide lexicale ; aucune substitution de CIS/CIP ni publication automatique n'en découle.
+Les scores RxNorm ne sont pas des probabilités et ne prouvent pas l'équivalence d'un médicament, de son dosage, de sa forme ou de son conditionnement. Le rapprochement est une aide à l'identification ; aucune substitution de CIS/CIP n'en découle.
 
-## Règle de sécurité éditoriale
+## Nature de l'image
 
-L'API retourne des URLs de médias mais ne retourne pas de licence/copyright par image. DailyMed indique que des images sont soumises par les laboratoires dans les SPL. En conséquence, le script NAXA :
-- recherche les SPL par nom générique et substance active ;
-- filtre les titres et ne retient que les médias image hébergés par DailyMed ;
-- enregistre les URLs et Set ID dans `methode_correspondance` ;
-- laisse impérativement `image_url = NULL` et place la ligne en `correspondance_a_verifier` ;
-- ne rend donc aucune image DailyMed publiable automatiquement.
+`SPLIMAGE` désigne une image d'une forme orale solide (comprimé ou gélule), généralement avec vue avant et arrière. Ce n'est pas une photo de boîte, ni une preuve que le conditionnement est celui vendu au Cameroun.
 
-Une image n'est publiable qu'après vérification indépendante des droits et de l'identité. Les photos d'une notice américaine ne prouvent pas le conditionnement vendu au Cameroun.
+Références techniques :
+- Guide DailyMed SPL Image : https://dailymed.nlm.nih.gov/dailymed/splimage-guidelines.cfm
+- Validation FDA du champ `SPLIMAGE` : https://www.fda.gov/media/84201/download
 
-## Exécution
+## Droits et affichage
 
-```bash
-npm run import:dailymed-images -- --limit=25 --dry-run
-npm run import:dailymed-images -- --limit=25
-npm run test:dailymed-api
-```
+L'API DailyMed fournit des URLs de médias, mais ne fournit pas une licence individuelle de réutilisation pour chaque image. Des médias SPL peuvent être déposés par les titulaires/laboratoires.
 
-Variables serveur requises : `SUPABASE_URL` (ou `NEXT_PUBLIC_SUPABASE_URL`) et `SUPABASE_SERVICE_ROLE_KEY`. Ne jamais exposer la clé service_role côté navigateur.
+En conséquence :
+- L'image SPLIMAGE peut être conservée en `image_url` comme aperçu de candidat réservé à l'administration.
+- La ligne reste impérativement en `correspondance_a_verifier`.
+- Le champ `licence` indique que les droits de reproduction doivent être confirmés auprès du titulaire.
+- Le catalogue public NAXA affiche uniquement les lignes `image_stockee` ; un candidat DailyMed n'est donc pas exposé automatiquement aux clients.
+- Le passage à `image_stockee` exige une validation distincte de l'identité et des droits. Une notice américaine ne prouve ni l'AMM camerounaise, ni l'emballage local.
 
-## Statuts
+## Interfaces et exécution
 
-- `correspondance_a_verifier` : candidat DailyMed trouvé, droits et identité de présentation non validés.
-- `image_stockee` : réservé à une image dont la provenance, les droits et l'identité sont validés.
+- Recherche en direct et aperçu Admin : `/admin/medicaments-images`.
+- API Admin : `/api/admin/medicaments-images/dailymed?q=...` (session Admin active obligatoire).
+- Import contrôlé : `naxa-images-import-temp` (JWT obligatoire, lot maximal de 10 lignes).
+- Script local : `scripts/dailymed-images-candidates.mjs` et `scripts/medicaments-images-cameroun.mjs`.
+
+Variables serveur requises par les scripts : `SUPABASE_URL` (ou `NEXT_PUBLIC_SUPABASE_URL`) et `SUPABASE_SERVICE_ROLE_KEY`. Ne jamais exposer la clé service_role côté navigateur.
+
+Aucun import de lot ni changement des lignes de médicaments en Production n'est déclenché par la recherche Admin en direct.
