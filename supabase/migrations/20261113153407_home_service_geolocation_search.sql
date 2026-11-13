@@ -59,7 +59,7 @@ end;
 $function$;
 
 revoke all on function public.get_home_service_catalog_nearby(double precision,double precision,double precision) from public,anon,authenticated;
-grant execute on function public.get_home_service_catalog_nearby(double precision,double precision,double precision) to anon,authenticated;
+grant execute on function public.get_home_service_catalog_nearby(double precision,double precision,double precision) to service_role;
 
 create or replace function public.request_home_service_with_location(
   p_offer_id uuid,p_area_label text,p_exact_address text,p_contact_phone text,
