@@ -36,7 +36,7 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
     }
 
     suspend fun restoreSession(): NaxaProfile? = withContext(Dispatchers.IO) {
-        requireConfigured()
+        if (BuildConfig.SUPABASE_URL.isBlank() || BuildConfig.SUPABASE_ANON_KEY.isBlank()) return@withContext null
         val saved = tokenStore.read() ?: return@withContext null
         try {
             loadProfile(saved.first)
@@ -91,7 +91,7 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
         http.newCall(request).execute().use { response ->
             val raw = response.body?.string().orEmpty()
             val payload = try { if (raw.isBlank()) JSONObject() else JSONObject(raw) } catch (_: Exception) { JSONObject() }
-            if (!response.isSuccessful || payload.optBoolean("ok") == false) {
+            if (!response.isSuccessful || (payload.has("ok") && !payload.optBoolean("ok"))) {
                 val message = when (payload.optString("code")) {
                     "AUTH_REQUIRED", "AUTH_INVALID" -> "Identifiants invalides ou session expirée."
                     "PROFILE_INACTIVE" -> "Compte inactif ou suspendu."
