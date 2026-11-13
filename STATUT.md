@@ -1,3 +1,24 @@
+## Synchronisation GitHub — intégration des branches parallèles — 13/11/2026
+
+**État Git : INTÉGRÉ.** La branche active et source de vérité reste `main`. HEAD de `main` vérifié juste avant cette mise à jour documentaire : `722ecf3a642000085334fb92e78b38ab56245458` ([commit](https://github.com/audreymendomo23-netizen/NAXA/commit/722ecf3a642000085334fb92e78b38ab56245458)).
+
+| PR | Mise à jour | Commit source intégré | Commit de fusion |
+|---|---|---|---|
+| [PR #102](https://github.com/audreymendomo23-netizen/NAXA/pull/102) | @simplewebauthn/server 13.2.2 → 14.1.0 | `3c76a1f0bddcc0aeb00b6f2689bdba7922341dc2` | `6eb5bd0c58bd818a866c71ec7f50ee4f83a2806b` |
+| [PR #104](https://github.com/audreymendomo23-netizen/NAXA/pull/104) | next 14.2.35 → 16.4.6 | `6312f8f3365f142c014638e53f9a828516ecb5f1` | `c70e18c5f8ae7c5f7db2456a6c3b5920b9c70a3f` |
+| [PR #105](https://github.com/audreymendomo23-netizen/NAXA/pull/105) | tesseract.js 5.1.1 → 7.0.0 | `19a47178e3347014c4bd1a84f06dde2484a93779` | `f80939f60fadbd700204b71bccd1aa9b67b18f52` |
+| [PR #106](https://github.com/audreymendomo23-netizen/NAXA/pull/106) | eslint-config-next 14.2.35 → 16.4.5 | `f7654c3323d899e5a5845c70a52bf9b9fd9dc69d` | `35ae6dfb06e1a3eaf64697904f431a2b0f268695` |
+
+- Les quatre PR (#102, #104, #105 et #106) ont été relues après opération : `state=closed`, `merged=true`, cible `main`.
+- Comparaison GitHub de chaque SHA source avec `main) : `behind_by=0`. Aucun commit de ces quatre têtes de branche ne manque dans `main`.
+- La branche `qa/e2e-stabilisation-20261106` (tête contrôlée : `f4edd8579971347aa090bf810e4357eca1ea26f8`) était déjà un ancêtre de `main` : comparaison inverse `qa/e2e-stabilisation-20261106...main` renvoyant `behind_by=0`. Aucune fusion supplémentaire n'était nécessaire.
+- **Contrôles qualité distincts : NON VERTS.** Le workflow GitHub Actions `NAXA quality` était en échec sur les quatre têtes de PR. Pour #102, #104 et #105, les tests indiquaient 357/376 réussis et 19 échecs. Pour #106, `npm install` échouait sur ERESOLVE : `eslint@8.57.1` ne satisfait pas le peer requis `eslint >=9` de `eslint-config-next@16.4.5`. La fusion Git confirme l'intégration des commits, pas la réussite des tests, du build ou de la CI.
+- Aucun déploiement explicite n'a été lancé dans cette opération documentaire ; l'état Vercel n'est pas certifié par cette entrée.
+
+**Conclusion : 4 PR fusionnées + 1 branche QA déjà incluse dans main.** Les anciens passages de ce fichier qui présentent QA comme branche active ou interdisent toute fusion vers `main` décrivent des instantanés antérieurs et ne sont plus le statut Git courant. Appliquer `AGENTS.md` et vérifier le HEAD réel pour toute reprise.
+
+---
+
 ## Paiement abonnement Promoteur — état de la reprise — 11/11/2026
 
 **Statut global : JAUNE.** Le circuit Admin SMS, la confirmation serveur et l'OCR sont codés. Les migrations et tests SQL sont passés sur Replay. Le compagnon Android est ajouté comme source, mais il n'est ni compilé ni testé sur téléphone. Aucun paiement E2E réel n'a été exécuté.
@@ -49,11 +70,9 @@ Détails : `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`, lot **STOCK-IMPORT
 
 ---
 
-# BRANCHE ACTIVE DES VÉRIFICATIONS — NAXA
+# CAMPAGNE QA ANTÉRIEURE — BRANCHE HISTORIQUE
 
-**Branche de travail :** `qa/e2e-stabilisation-20261106`.
-**Dernier commit de code/tests de référence :** `cab8b965c3464b4d7acd1285c888a8e4f82440c4` (les commits suivants de cette passe sont documentaires).
-Avant toute nouvelle session : lire `AGENTS.md`, puis `docs/audits/REGISTRE_CLOTURE_DEFINITIVE_NAXA.md`. Reprendre seulement les réserves ouvertes et les lots réellement impactés. `main` est la branche par défaut, non la branche active de cette campagne. Ne pas écrire ni fusionner vers main sans ordre explicite.
+La branche `qa/e2e-stabilisation-20261106` n'est plus la branche active. Sa tête contrôlée (`f4edd8579971347aa090bf810e4357eca1ea26f8`) est déjà contenue dans `main` ; la comparaison GitHub indique `behind_by=0`. Les éléments ci-dessous relatifs à la campagne QA sont conservés comme historique de tests et de réserves. Pour toute nouvelle intervention, appliquer `AGENTS.md` et travailler sur `main`.
 
 ---
 
