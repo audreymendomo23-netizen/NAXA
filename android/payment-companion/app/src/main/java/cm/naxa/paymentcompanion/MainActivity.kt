@@ -240,9 +240,8 @@ class MainActivity : Activity() {
                     SecureVault.put(this, "notification_consent_granted", "false")
                     SecureVault.put(this, "companion_role", "client")
                 } else NaxaApi.enroll(this, role)
-                if (BuildConfig.PROFESSIONAL_CAPTURE_ENABLED && role in listOf("pharmacie", "partenaire") &&
-                    SecureVault.get(this, "sms_consent_granted") == "true") {
-                    NaxaApi.setSmsConsent(this, true)
+                if (BuildConfig.PROFESSIONAL_CAPTURE_ENABLED && role in listOf("pharmacie", "partenaire")) {
+                    NaxaApi.setSmsConsent(this, SecureVault.get(this, "sms_consent_granted") == "true")
                 }
                 runOnUiThread {
                     connectButton.isEnabled = true
@@ -422,6 +421,33 @@ class MainActivity : Activity() {
             statusText.text = "Impossible d'enregistrer le consentement dans le coffre sécurisé."
             return
         }
+
+        val role = SecureVault.get(this, "companion_role")
+        val hasProfessionalDevice = when (role) {
+            "pharmacie" ->
+                !SecureVault.get(this, "notification_device_id").isNullOrBlank() &&
+                !SecureVault.get(this, "notification_device_token").isNullOrBlank()
+            "partenaire" ->
+                runCatching {
+                    org.json.JSONArray(SecureVault.get(this, "notification_partner_devices") ?: "[]").length() > 0
+                }.getOrDefault(false)
+            else -> false
+        }
+        if (BuildConfig.PROFESSIONAL_CAPTURE_ENABLED && hasProfessionalDevice) {
+            executor.execute {
+                try {
+                    NaxaApi.setSmsConsent(this, checked)
+                    runOnUiThread {
+                        if (!checked) smsStatusText?.text = "Consentement retiré côté NAXA ; collecte SMS désactivée."
+                    }
+                } catch (error: Exception) {
+                    runOnUiThread {
+                        smsStatusText?.text = error.message ?: "Mise à jour du consentement SMS impossible."
+                    }
+                }
+            }
+        }
+
         if (!checked) {
             smsStatusText?.text = "Consentement retiré : la capture SMS est désactivée immédiatement."
         } else {

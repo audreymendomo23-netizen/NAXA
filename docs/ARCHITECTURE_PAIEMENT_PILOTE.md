@@ -43,6 +43,14 @@ Le système conserve uniquement les champs structurés nécessaires (direction d
 
 Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paiement. Le moteur de rapprochement doit d'abord retrouver un ID de transaction commun, puis contrôler le canal, les directions opposées, le montant, le payeur, le bénéficiaire et la cohérence temporelle. Une paire cohérente, unique et non déjà consommée peut confirmer la transaction. SMS manquant, ID absent, écart, doublon ou ambiguïté restent en attente / revue manuelle ; l'absence de SMS dans NAXA ne signifie pas que l'opérateur n'a pas exécuté le paiement.
 
+## État d'implémentation constaté — 13 novembre 2026
+
+- Le récepteur Android Professionnel transmet maintenant les SMS entrants filtrés vers `naxa_payment_evidence_intake` avec la provenance `sms_receiver`.
+- Le consentement SMS serveur est indépendant du consentement NotificationListener ; Client et Promoteur restent exclus de la capture système.
+- Le SMS reçu est enregistré avec les champs extraits et un hash, sans texte brut. Il demeure en attente de rapprochement.
+- **Le moteur qui relie les SMS débit/crédit par ID commun et qui confirme automatiquement la paire n'est pas encore implémenté.** La Caisse utilise encore son mécanisme actuel de validation manuelle. Cette étape n'est donc pas AU VERT.
+- La collecte réelle reste conditionnée à l'autorisation Android RECEIVE_SMS ; chaque téléphone/installateur doit être vérifié en pratique.
+
 ## Processus métier
 
 ### Client → Pharmacie
@@ -71,8 +79,8 @@ Le montant attendu et la date/heure courante sont générés depuis l'intention 
 ## Recette obligatoire
 
 - Manifeste fusionné Standard : pas de NotificationListener / RECEIVE_SMS.
-- Professionnel : NotificationListener présent, RECEIVE_SMS absent.
-- Admin : NotificationListener et RECEIVE_SMS présents.
+- Professionnel : NotificationListener et RECEIVE_SMS présents, avec consentements distincts.
+- Admin : NotificationListener et RECEIVE_SMS présents, avec consentements distincts.
 - Tests unitaires des rôles, des paquets source, du consentement et des refus.
 - Tests de révocation et d'accès refusé au serveur.
 - Tests de codes marchands 5, 6 et 7 chiffres, zéros initiaux, séparation des entités.
