@@ -481,7 +481,10 @@ async function searchCima(query: string): Promise<PhotosMedicament> {
 /**
  * Open Products Facts n'est interrogé que lorsqu'un code-barres complet est
  * fourni. L'égalité du GTIN doit être exacte et la fiche doit être catégorisée
- * comme médicament. Les photos restent distantes pour conserver CC BY-SA.
+ * comme médicament. L'uploader et la date de dépôt sont obligatoires pour
+ * conserver l'attribution CC BY-SA 4.0. Les visuels peuvent toutefois contenir
+ * des éléments graphiques de tiers : leur affichage reste soumis aux droits
+ * éventuels sur ces éléments, comme le précise la documentation OPF.
  */
 async function searchOpenProductsFactsByBarcode(barcode: string): Promise<MedicamentPhoto | null> {
   if (!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(barcode)) return null;
@@ -520,7 +523,7 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
     return {
       url: image.toString(),
       sourceUrl: "https://world.openproductsfacts.org/product/" + barcode,
-      licence: "CC BY-SA (Open Products Facts — attribution et partage à l'identique requis).",
+      licence: "CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/ — Open Products Facts (attribution et partage à l'identique requis).",
       attribution: uploader + " — Open Products Facts (CC BY-SA 4.0) — image ajoutée le " +
         new Date(uploadedAt * 1000).toISOString().slice(0, 10) + ".",
       title: [product.product_name, product.brands].filter(Boolean).join(" — ") || barcode,
