@@ -44,7 +44,7 @@ test("le paiement est préparé avant débit, montant et destination viennent du
 test("le débit Promoteur est transmis volontairement depuis le téléphone enrôlé", () => {
   assert.match(capture, /status: 410/);
   assert.match(capture, /replacement: "\/api\/promoteur\/paiements\/share"/);
-  assert.match(share, /admin\.auth\.getUser\(accessToken\)/);
+  assert.match(share, /db\.auth\.getUser\(accessToken\)/);
   assert.match(share, /profile\?\.role !== "promoteur"/);
   assert.match(share, /hashDeviceToken\(deviceToken\)/);
   assert.match(share, /parsed\.direction !== "payer_debit"/);
