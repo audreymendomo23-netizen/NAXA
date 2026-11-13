@@ -153,6 +153,12 @@ test("BDPM : référentiel séparé, source publique, RLS et script d’import o
 });
 
 
+test("photos : une photo locale vérifiée ne masque pas les variantes externes complémentaires", () => {
+  assert.match(photoRoute, /const \[localPhoto, externalPhotos\] = await Promise\.all\(/);
+  assert.match(photoRoute, /comprime: localPhoto\?\.kind === "comprime" \? localPhoto : externalPhotos\.comprime/);
+  assert.match(photoRoute, /const sources = \[\.\.\.new Set\(/);
+});
+
 test("photos : les photos locales exigent une correspondance, une licence et une source vérifiées", () => {
   assert.match(photoRoute, /verifiedLocalPhoto/);
   assert.match(photoRoute, /from\("medicaments_images"\)/);
@@ -236,13 +242,20 @@ test("CIMA pré-calculé : projection publique strictement filtrée et reliée a
 
   assert.match(route, /marque et présentation pouvant différer/);
   assert.match(route, /matchExactNom/);
+  assert.match(route, /const exactBdpmMatch = bdpmProducts\.find/);
+  assert.match(route, /const match = exactBdpmMatch \?\? ingredientBdpmMatch/);
   assert.match(route, /normaliserTerme\(match\.nom\) === normaliserTerme\(item\.name\)/);
   assert.match(route, /parts\[4\] !== row\.nregistro/);
   assert.match(route, /provider: "cima_aemps",\s+updatedAt\s*\n\s*};/);
 });
 
-test("photos : le chargement client borne la concurrence et conserve la provenance réelle", () => {
+test("photos : le chargement client borne la concurrence et complète les variantes partielles", () => {
   assert.ok(recherche.includes("Math.min(2, ciblesPhoto.length)"));
+  assert.ok(recherche.includes("!item.imageVariants?.boite || !item.imageVariants?.comprime"));
+  assert.ok(recherche.includes("imageVariants.boite = imageVariants.boite ?? payload.photos?.boite ?? null"));
+  assert.ok(recherche.includes("imageVariants.comprime = imageVariants.comprime ?? payload.photos?.comprime ?? null"));
+  assert.ok(recherche.includes("sourceDetails = [...(item.sourceDetails ?? []), ...photoSourceDetails]"));
+  assert.ok(recherche.includes("imageUrl: item.imageUrl ?? primary.url"));
   assert.ok(!recherche.includes("Promise.all(ciblesPhoto.map"));
   assert.ok(recherche.includes("AEMPS / CIMA"));
   assert.ok(recherche.includes("Open Products Facts"));
