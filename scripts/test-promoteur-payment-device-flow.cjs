@@ -60,7 +60,7 @@ test("le partage du débit ne confirme pas seul et attend le crédit Admin", () 
   assert.match(share, /L'abonnement ne sera activé qu'après rapprochement/);
   assert.doesNotMatch(share, /admin_confirmer_reglement_promoteur/);
   assert.doesNotMatch(share, /abonnements_promoteurs.*update/);
-  assert.match(audit, /deux preuves indépendantes/);
+  assert.match(audit, /Double preuve Promoteur/);
 });
 
 test("le Promoteur est invité à vérifier sa session et le même téléphone Android", () => {
