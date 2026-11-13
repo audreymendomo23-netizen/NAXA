@@ -137,6 +137,18 @@ begin
     raise exception 'FAIL: Partner schedule INSERT grant missing';
   end if;
 
+  if has_table_privilege('authenticated','public.partner_independent_agreement_templates','INSERT')
+    or has_table_privilege('authenticated','public.partner_independent_agreement_templates','UPDATE')
+    or has_table_privilege('authenticated','public.partner_independent_agreement_templates','DELETE') then
+    raise exception 'FAIL: template writes must be restricted to audited Admin publication RPC';
+  end if;
+
+  if (select count(*) from pg_policies
+      where schemaname='public' and tablename='partner_independent_agreement_templates'
+        and cmd='SELECT' and policyname in ('partner_independent_templates_published_read','partner_independent_templates_admin_archived_read'))<>2 then
+    raise exception 'FAIL: non-overlapping published/Admin template read policies missing';
+  end if;
+
   if has_function_privilege('authenticated','public.partner_independent_agreement_accept(uuid)','EXECUTE') is not true
     or has_function_privilege('authenticated','public.admin_review_partner_independent_agreement(uuid,boolean,timestamptz,text)','EXECUTE') is not true
     or has_function_privilege('anon','public.partner_independent_agreement_accept(uuid)','EXECUTE') then

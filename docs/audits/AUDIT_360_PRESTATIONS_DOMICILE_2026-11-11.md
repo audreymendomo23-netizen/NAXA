@@ -108,12 +108,14 @@ Cette intervention est une **tranche de code préparée**, pas une mise en produ
 | `20261113180834` | Droit d’exécution du garde interne réservé à `service_role` |
 | `20261113181202` | Expiration de la convention antérieure lors de la demande de renouvellement |
 | `20261113181311` | Séparation explicite entre agrément médical et statut de Partenaire indépendant |
+| `20261113182010` | Lecture des modèles publiée/archivée sans chevauchement de politiques et sans écriture directe |
 
 ### Contrôles réalisés
 
 - Projet vérifié : `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) uniquement.
 - Le test transactionnel `supabase/tests/20261113181000_partner_independent_agreements_contract.sql` est **PASS** : le titulaire agréé avec convention active apparaît dans l’annuaire ; l’employé agréé sans convention conserve sa qualification médicale mais n’est pas listé comme Partenaire indépendant ; le catalogue utilise le Partenaire conventionné et son planning.
 - Les accès directs `anon/authenticated` au RPC de géolocalisation sont refusés ; seul `service_role` peut l’appeler. Le garde interne est exécutable par `service_role`, pas par `anon/authenticated`.
+- Les modèles de convention n'ont aucune écriture directe pour `authenticated`; la lecture publiée et la lecture Admin des versions archivées utilisent deux politiques disjointes.
 - Les écritures Authenticated sur l’ancien planning individuel sont refusées.
 - La transaction E2E a été annulée ; les compteurs Replay de Partenaires, membres, agréments, conventions, offres et plannings restent à zéro.
 - Aucun compte, Partenaire ou accord de test n’a été conservé.
