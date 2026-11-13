@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
         val catalogue = CatalogueRepository()
         val pharmacies = PharmacyRepository(this)
         val ageGate = AgeGateStore(this)
-        val fcmRegistration = FcmRegistrationRepository(SecureTokenStore(this))
+        val fcmRegistration = FcmRegistrationRepository(this, SecureTokenStore(this))
         setContent { NaxaTheme { NaxaRoot(repository, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
     }
 }
@@ -123,6 +123,7 @@ private fun NaxaRoot(
                 onLogout = {
                     loading = true
                     scope.launch {
+                        try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
                         repository.signOut()
                         profile = null
                         guestMode = false
