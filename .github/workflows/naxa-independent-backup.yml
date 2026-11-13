@@ -37,7 +37,7 @@ jobs:
             *) echo "::error::NAXA_DATABASE_URL must be the complete PostgreSQL connection URI"; exit 1 ;;
           esac
 
-      - name: Validate Supabase direct or Session Pooler URI
+      - name: Require Supabase shared Session Pooler URI
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.NAXA_DATABASE_URL }}
@@ -70,35 +70,30 @@ jobs:
 
           if parsed.scheme not in ("postgres", "postgresql"):
               fail("NAXA_DATABASE_URL must be a PostgreSQL URI.")
-          if port not in (5432, 6543):
-              fail("Use port 5432 (Session Pooler) or 6543 (Transaction Pooler).")
+          if host == f"db.{project_ref}.supabase.co":
+              fail("The direct Supabase host is not reachable from this GitHub runner over IPv6. Replace NAXA_DATABASE_URL with the project's Shared Session Pooler URI (port 5432).")
+          if not host.endswith(".pooler.supabase.com"):
+              fail("Use the Supabase Shared Session Pooler host copied from Dashboard > Connect.")
+          if port != 5432:
+              fail("Use Shared Session Pooler port 5432. Transaction Pooler port 6543 is not supported for this backup dump.")
+          if username != f"postgres.{project_ref}":
+              fail("The pooler username must be postgres.<project-ref> for this project.")
           if parsed.path.rstrip("/") not in ("", "/postgres"):
               fail("The connection URI must target the postgres database.")
-
-          direct_host = f"db.{project_ref}.supabase.co"
-          if host == direct_host and username == "postgres":
-              mode = "direct"
-          elif host.endswith(".pooler.supabase.com") and username == f"postgres.{project_ref}" and port == 5432:
-              mode = "session-pooler"
-          elif host.endswith(".pooler.supabase.com") and username == f"postgres.{project_ref}" and port == 6543:
-              mode = "transaction-pooler"
-          else:
-              fail("URI must match this project direct endpoint or official Supabase Session Pooler (5432) / Transaction Pooler (6543), with username postgres.<project-ref>.")
+          if not password or password == "[YOUR-PASSWORD]":
+              fail("The connection URI does not contain the real PostgreSQL Database Password.")
+          if parsed.fragment:
+              fail("The connection URI must not contain a fragment.")
 
           query = parse_qsl(parsed.query, keep_blank_values=True)
           if not any(key.lower() == "sslmode" for key, _ in query):
               query.append(("sslmode", "require"))
           target_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/postgres", urlencode(query), ""))
 
-          if not password or password == "[YOUR-PASSWORD]":
-              fail("The connection URI does not contain the real PostgreSQL Database Password.")
-          if parsed.fragment:
-              fail("The connection URI must not contain a fragment.")
-
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
               github_env.write(f"SUPABASE_DATABASE_URL={target_url}\n")
 
-          print(f"Supabase {mode} URI syntax validated for project {project_ref}; the actual database dump will perform the authoritative network/authentication test. Credentials were not printed.")
+          print(f"Supabase shared Session Pooler URI syntax validated for project {project_ref} on port 5432. Credentials were not printed.")
           PY
 
       - uses: actions/checkout@v7

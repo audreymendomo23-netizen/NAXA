@@ -43,7 +43,7 @@ Référence officielle : https://supabase.com/docs/reference/cli/supabase-db-dum
 ## 3. Secrets requis pour le dump de base
 
 Dans GitHub > Settings > Secrets and variables > Actions :
-- `NAXA_DATABASE_URL` : URI complète Session Pooler de Production, avec le nom d'utilisateur du projet et le vrai mot de passe Database. Ne jamais la committer ni la publier.
+- `NAXA_DATABASE_URL` : URI exacte du **Shared Session Pooler** de Production, copiée depuis Supabase Dashboard > Connect > Session Pooler. Elle doit viser `*.pooler.supabase.com`, utiliser le port `5432`, la base `postgres` et le nom d'utilisateur `postgres.<project-ref>`, avec le vrai mot de passe Database. Ne jamais la committer ni la publier. Le host direct `db.<project-ref>.supabase.co` est refusé par le workflow car le runner GitHub utilisé ici ne peut pas joindre son adresse IPv6. Le Transaction Pooler (`6543`) est aussi refusé pour cet export.
 - `NAXA_BACKUP_ENCRYPTION_KEY` : phrase secrète aléatoire longue, dédiée au chiffrement. Une copie sûre doit être conservée hors de GitHub ; sans elle, l'archive ne peut pas être déchiffrée.
 
 Page des secrets : https://github.com/audreymendomo23-netizen/NAXA/settings/secrets/actions
@@ -87,15 +87,17 @@ Aucune restauration destructive ne doit être lancée sans autorisation explicit
 
 ## 7. État de preuve au 13 novembre 2026
 
-Dernier run contrôlé : [GitHub Actions run 2402](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43328826058).
+Dernier run contrôlé : [GitHub Actions run 43403755292](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43403755292).
 
-- Validation des secrets : PASS.
-- Validation de l'URI Session Pooler : FAIL.
-- Export : non exécuté.
+- Validation des secrets : PASS ; les deux secrets requis étaient présents.
+- Validation syntaxique de l'URI : PASS, mais l'ancien validateur autorisait à tort le host direct.
+- Dump PostgreSQL : FAIL ; `pg_dumpall` a tenté le host direct `db.eouwtuusnsuxaejsxknf.supabase.co`, résolu en IPv6, puis a reçu `Network is unreachable` depuis le runner GitHub.
 - Chiffrement et vérification : non exécutés.
 - Artefact GitHub : absent.
 - Upload S3 : non exécuté.
 - Test de restauration : non exécuté.
+
+**Correction du workflow préparée :** le nouveau validateur refuse le host direct et le Transaction Pooler, et exige le Shared Session Pooler du projet sur port `5432`. Cette correction ne met pas à jour le secret GitHub lui-même. Un propriétaire du dépôt doit remplacer `NAXA_DATABASE_URL` ici : https://github.com/audreymendomo23-netizen/NAXA/settings/secrets/actions, en collant l'URI exacte copiée de Supabase Dashboard > Connect > Session Pooler. Après cela, relancer le workflow manuellement ou attendre son déclenchement planifié.
 
 L'organisation Supabase NAXA est sur le plan Free. Selon la documentation Supabase, les sauvegardes quotidiennes gérées sont fournies sur Pro, Team et Enterprise ; les sauvegardes de base n'incluent pas les objets Storage. Références : https://supabase.com/docs/guides/platform/backups
 

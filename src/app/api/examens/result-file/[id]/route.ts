@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 
-export async function GET(_request:Request,{params}:{params:{id:string}}){
+export async function GET(_request:NextRequest,{params}:{params:Promise<{id:string}>}){
+  const {id}=await params;
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user) return NextResponse.json({error:"Connexion requise"},{status:401});
-  const {data:file,error}=await sb.from("exam_result_files").select("id,result_id,center_id,storage_path").eq("id",params.id).maybeSingle();
+  const {data:file,error}=await sb.from("exam_result_files").select("id,result_id,center_id,storage_path").eq("id",id).maybeSingle();
   if(error||!file) return NextResponse.json({error:"Pièce introuvable ou accès refusé"},{status:404});
   const {data:result}=await sb.from("exam_results").select("id,status,client_id").eq("id",file.result_id).eq("center_id",file.center_id).maybeSingle();
   if(!result) return NextResponse.json({error:"Résultat introuvable"},{status:404});

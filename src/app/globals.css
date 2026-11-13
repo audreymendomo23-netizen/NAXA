@@ -401,7 +401,7 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motion-safe\\:animate-\\[naxa-breathe_3s_ease-in-out_infinite\\] { animation: none !important; }
+  .motion-safe\:animate-\[naxa-breathe_3s_ease-in-out_infinite\] { animation: none !important; }
 }
 
 
@@ -411,7 +411,7 @@ body { background: var(--naxa-bg); color: var(--naxa-green-dark); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motion-reduce\\:animate-none { animation: none !important; }
+  .motion-reduce\:animate-none { animation: none !important; }
 }
 
 
