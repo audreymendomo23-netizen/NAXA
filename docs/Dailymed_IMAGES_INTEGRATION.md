@@ -14,6 +14,7 @@ Avant la recherche DailyMed, le script interroge l'API RxNorm/RxNav de la NLM :
 - récupération des noms de concepts via `/REST/rxcui/{RXCUI}/properties.json` ;
 - si aucun résultat normalisé n'est trouvé, recours au rapprochement approximatif `/REST/approximateTerm.json?term=...&maxEntries=10&option=1` ;
 - les noms RxNorm obtenus élargissent les termes de recherche DailyMed et les RXCUI sont conservés pour audit.
+- les résultats sont mis en cache en mémoire par terme pendant l'exécution, avec déduplication des appels simultanés et éviction au-delà de 500 termes ; les erreurs ne sont pas mises en cache.
 
 Les scores RxNorm ne sont pas des probabilités et ne prouvent pas l'équivalence d'un médicament, de son dosage, de sa forme ou de son conditionnement. Le rapprochement reste une aide lexicale ; aucune substitution de CIS/CIP ni publication automatique n'en découle.
 
