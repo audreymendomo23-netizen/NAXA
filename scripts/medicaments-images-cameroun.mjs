@@ -153,7 +153,7 @@ async function loadQueue() {
   for (let offset = 0; ; offset += 500) {
     const params = new URLSearchParams({
       select: "cis,cip_code,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut",
-      statut: "in.(a_traiter,sans_image_source,erreur)",
+      or: "(statut.in.(a_traiter,sans_image_source,erreur),and(statut.eq.correspondance_a_verifier,image_url.is.null))",
       order: "updated_at.asc",
       limit: "500",
       offset: String(offset)
