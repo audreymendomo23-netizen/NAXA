@@ -200,7 +200,7 @@ function imagesCimaPourRecherche(photos: BdpmProduct["cimaPhotos"]) {
 }
 
 async function bdpmProductsFor(term: string): Promise<BdpmProduct[]> {
-  const needle = term.trim().replace(/[%,_()]/g, " ").replace(/\\s+/g, " ").slice(0, 80);
+  const needle = term.trim().replace(/[%,_()]/g, " ").replace(/\s+/g, " ").slice(0, 80);
   if (needle.length < 2) return [];
   try {
     const sb = supabaseServer();
@@ -596,8 +596,10 @@ export async function GET(request: NextRequest) {
       updatedAt: match.source_dataset_updated_at
     };
     const matchExactNom = normaliserTerme(match.nom) === normaliserTerme(item.name);
-    const cimaImages = !item.imageUrl && matchExactNom ? imagesCimaPourRecherche(match.cimaPhotos) : {};
-    const cimaPrimary = matchExactNom ? match.cimaPhotos?.boite ?? match.cimaPhotos?.comprime : null;
+    const cimaPrimary = !item.imageUrl && matchExactNom
+      ? match.cimaPhotos?.boite ?? match.cimaPhotos?.comprime
+      : null;
+    const cimaImages = cimaPrimary ? imagesCimaPourRecherche(match.cimaPhotos) : {};
     return {
       ...item,
       ...cimaImages,
