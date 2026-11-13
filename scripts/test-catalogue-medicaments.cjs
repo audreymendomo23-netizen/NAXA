@@ -4,6 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const root = path.join(__dirname, "..");
+const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const catalogue = fs.readFileSync(path.join(root, "src/lib/medicaments/catalogue-pilote.ts"), "utf8");
 const route = fs.readFileSync(path.join(root, "src/app/api/medicaments/recherche/route.ts"), "utf8");
 const recherche = fs.readFileSync(path.join(root, "src/components/Recherche.tsx"), "utf8");
