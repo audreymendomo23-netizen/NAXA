@@ -126,7 +126,7 @@ export function PrestationsCatalogue({offers,initialQuery,assistanceMode}:{offer
   }
 
   const distances=useMemo(()=>new Map((nearby??[]).map(row=>[row.offer_id,row.distance_km])),[nearby]);
-  const specialties=useMemo(()=>[...new Set(offers.map(o=>o.specialty?.trim()).filter((x):x is string=>!!x))].sort((a,b)=>a.localeCompare(b,"fr")),[offers]);
+  const specialties=useMemo(()=>[...new Set(offers.map(o=>(o.specialty??o.category)?.trim()).filter((x):x is string=>!!x))].sort((a,b)=>a.localeCompare(b,"fr")),[offers]);
   const suggestions=useMemo(()=>{
     const q=query.trim();if(q.length<2)return [];
     const values=[...new Set(offers.flatMap(o=>[o.name,o.partner_name,o.specialty??""]).filter(Boolean))];
@@ -140,13 +140,13 @@ export function PrestationsCatalogue({offers,initialQuery,assistanceMode}:{offer
     const result=offers.filter(offer=>{
       const nameHit=!q||closeMatch(query,offer.name)||closeMatch(query,offer.partner_name)
         ||closeMatch(query,offer.specialty??"")||closeMatch(query,offer.category);
-      const intentHit=!aiSpecialties.length&&!aiKeywords.length
-        ||aiSpecialties.some(s=>normalize(offer.specialty??"").includes(s)||s.includes(normalize(offer.specialty??"")))
+      const intentHit=aiSpecialties.some(s=>normalize(offer.specialty??offer.category).includes(s)||s.includes(normalize(offer.specialty??offer.category)))
         ||aiKeywords.some(word=>normalize([offer.name,offer.specialty??"",offer.category,offer.description??""].join(" ")).includes(word));
+      const queryHit=!q||nameHit||intentHit;
       const availabilityHit=availability==="all"||(availability==="today"&&offer.available_today)||(availability==="now"&&offer.available_now);
       const distanceHit=!nearbyEnabled||distances.has(offer.offer_id);
       const specialtyHit=!specialty||normalize(offer.specialty??"")===normalize(specialty);
-      return nameHit&&intentHit&&availabilityHit&&distanceHit&&specialtyHit;
+      return queryHit&&availabilityHit&&distanceHit&&specialtyHit;
     });
     if(nearbyEnabled)result.sort((a,b)=>(distances.get(a.offer_id)??Number.MAX_SAFE_INTEGER)-(distances.get(b.offer_id)??Number.MAX_SAFE_INTEGER));
     return result;
