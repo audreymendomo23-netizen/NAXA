@@ -261,8 +261,14 @@ test("photos : le chargement client borne la concurrence et complète les varian
   assert.ok(recherche.includes("Open Products Facts"));
   assert.ok(recherche.includes("Wikimedia Commons"));
   assert.ok(recherche.includes("Recherche directe par EAN/GTIN"));
-  assert.ok(recherche.includes('photo?.provider === "open_products_facts"'));
-  assert.ok(resultats.includes('photo?.provider==="open_products_facts"'));
+  assert.ok(recherche.includes("barcodePayload.photos ?? {"));
+  assert.ok(recherche.includes("photo?.provider === \"catalogue_local_verifie\""));
+  assert.ok(recherche.includes("imageVariants: photos"));
+  assert.ok(resultats.includes("barcodePayload.photos?.boite"));
+  assert.ok(resultats.includes('barcodePayload.photo?.kind === "boite"'));
+  assert.ok(resultats.includes('barcodePayload.photo?.kind === "comprime"'));
+  assert.ok(resultats.includes("photoPayload.photos?.comprime"));
+  assert.ok(resultats.includes("Forme pharmaceutique"));
   assert.ok(route.includes("id,nom,dci,code_barre,forme"));
   assert.ok(route.includes("barcode: localProduct?.code_barre"));
   assert.ok(route.includes("barcodeLookup: true"));
