@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PharmacyRepositoryTest {
-    private val repository = PharmacyRepositoryTestParser()
+    
 
     @Test
     fun parsesPartnerPharmaciesAndRealRouteInformation() {
@@ -35,7 +35,7 @@ class PharmacyRepositoryTest {
             """.trimIndent()
         )
 
-        val result = repository.parse(payload).single()
+        val result = parseNearbyPharmacies(payload).single()
         assertEquals("ph-1", result.id)
         assertEquals("Pharmacie Réelle", result.name)
         assertEquals("Akwa", result.district)
@@ -68,39 +68,3 @@ class PharmacyRepositoryTest {
     }
 }
 
-/** Parser seam kept separate from Android's Location/HTTP services for JVM tests. */
-private class PharmacyRepositoryTestParser {
-    fun parse(payload: JSONObject): List<NearbyPharmacy> {
-        val rows = payload.optJSONArray("pharmacies") ?: return emptyList()
-        return buildList {
-            for (index in 0 until rows.length()) {
-                val item = rows.optJSONObject(index) ?: continue
-                val id = item.optString("id")
-                val name = item.optString("nom")
-                if (id.isBlank() || name.isBlank()) continue
-                add(
-                    NearbyPharmacy(
-                        id = id,
-                        name = name,
-                        city = item.nullable("ville"),
-                        district = item.nullable("quartier"),
-                        address = item.nullable("adresse"),
-                        onDuty = item.optBoolean("de_garde", false),
-                        deliveryAvailable = item.optBoolean("livraison_active", false),
-                        distanceRoadKm = item.number("distanceRoutiereKm"),
-                        distanceStraightKm = item.number("distanceKm")?.takeIf { it >= 0 },
-                        travelMinutes = if (item.isNull("dureeTrajetMinutes")) null else item.optInt("dureeTrajetMinutes").takeIf { it >= 0 },
-                        openingHours = item.nullable("horaires"),
-                        mapsUrl = item.nullable("googleMapsUrl")
-                    )
-                )
-            }
-        }
-    }
-
-    private fun JSONObject.nullable(key: String): String? =
-        optString(key).takeIf { it.isNotBlank() && it != "null" }
-
-    private fun JSONObject.number(key: String): Double? =
-        if (isNull(key)) null else optDouble(key, Double.NaN).takeIf { it.isFinite() }
-}
