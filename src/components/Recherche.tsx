@@ -151,30 +151,64 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
             const barcodeResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(terme), { signal: controller.signal });
             if (barcodeResponse.ok) {
               const barcodePayload = await barcodeResponse.json() as {
-                photo?: {
-                  url: string; sourceUrl: string; licence: string; attribution: string | null;
-                  title: string; kind: "boite" | "comprime";
-                  provider?: "open_products_facts" | "cima_aemps" | "wikimedia_commons" | "catalogue_local_verifie";
-                } | null;
+                photo?: MedicamentPhotoItem | null;
+                photos?: { boite?: MedicamentPhotoItem | null; comprime?: MedicamentPhotoItem | null };
               };
-              const photo = barcodePayload.photo;
-              if (photo?.provider === "open_products_facts" && photo.url && photo.sourceUrl && photo.licence) {
+              const photos = barcodePayload.photos ?? {
+                boite: barcodePayload.photo?.kind === "boite" ? barcodePayload.photo : null,
+                comprime: barcodePayload.photo?.kind === "comprime" ? barcodePayload.photo : null
+              };
+              const primary = photos.boite ?? photos.comprime;
+              if (primary?.url && primary.sourceUrl && primary.licence) {
+                const photoSources = [...new Set(
+                  [photos.boite, photos.comprime]
+                    .filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
+                    .map((photo) => photo.provider === "cima_aemps"
+                      ? "AEMPS / CIMA"
+                      : photo.provider === "open_products_facts"
+                        ? "Open Products Facts"
+                        : photo.provider === "catalogue_local_verifie"
+                          ? "Catalogue local NAXA"
+                          : "Wikimedia Commons")
+                )];
+                const photoDetails = [photos.boite, photos.comprime]
+                  .filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
+                  .map((photo) => ({
+                    name: photo.provider === "cima_aemps"
+                      ? "AEMPS / CIMA"
+                      : photo.provider === "open_products_facts"
+                        ? "Open Products Facts"
+                        : photo.provider === "catalogue_local_verifie"
+                          ? "Catalogue local NAXA"
+                          : "Wikimedia Commons",
+                    role: photo.provider === "cima_aemps"
+                      ? "référence étrangère indicative ; ne confirme pas le conditionnement camerounais"
+                      : photo.provider === "open_products_facts"
+                        ? "photo rattachée au GTIN exact ; licence CC BY-SA"
+                        : photo.provider === "catalogue_local_verifie"
+                          ? "photo locale dont la source et la licence ont été vérifiées"
+                          : "image sous licence vérifiée ; identité contrôlée",
+                    url: photo.sourceUrl,
+                    updatedAt: photo.updatedAt ?? null
+                  }));
                 results = [{
-                  id: "opf-" + terme,
-                  name: photo.title || "Médicament — code " + terme,
+                  id: "barcode-" + terme,
+                  name: primary.title || "Médicament — code " + terme,
                   brand: null,
                   activeIngredient: null,
+                  barcode: terme,
                   form: null,
                   definition: null,
                   indications: null,
-                  imageUrl: photo.url,
-                  imageSource: "Open Products Facts — emballage · " + photo.licence,
-                  imageSourceUrl: photo.sourceUrl,
-                  imageLicense: photo.licence,
-                  imageAttribution: photo.attribution,
-                  imageTitle: photo.title,
-                  imageVariants: { boite: photo, comprime: null },
-                  source: ["Open Products Facts"],
+                  imageUrl: primary.url,
+                  imageSource: photoSources.join(" + ") + " — " + primary.licence,
+                  imageSourceUrl: primary.sourceUrl,
+                  imageLicense: primary.licence,
+                  imageAttribution: primary.attribution,
+                  imageTitle: primary.title,
+                  imageVariants: photos,
+                  source: photoSources,
+                  sourceDetails: photoDetails,
                   availability: "non_verifiee",
                   partnerPharmacyCount: null,
                   lowestPartnerPrice: null,
