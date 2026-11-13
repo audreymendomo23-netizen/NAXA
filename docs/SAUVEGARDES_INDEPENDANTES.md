@@ -87,19 +87,22 @@ Aucune restauration destructive ne doit être lancée sans autorisation explicit
 
 ## 7. État de preuve au 13 novembre 2026
 
-Dernier run contrôlé : [GitHub Actions run 43403755292](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43403755292).
+Dernier run réussi : [GitHub Actions run 43424354502](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43424354502), commit `d28e93e8a761a5321bcf2300b95b095a29233d84`.
 
-- Validation des secrets : PASS ; les deux secrets requis étaient présents.
-- Validation syntaxique de l'URI : PASS, mais l'ancien validateur autorisait à tort le host direct.
-- Dump PostgreSQL : FAIL ; `pg_dumpall` a tenté le host direct `db.eouwtuusnsuxaejsxknf.supabase.co`, résolu en IPv6, puis a reçu `Network is unreachable` depuis le runner GitHub.
-- Chiffrement et vérification : non exécutés.
-- Artefact GitHub : absent.
-- Upload S3 : non exécuté.
-- Test de restauration : non exécuté.
+- Secrets requis : PASS.
+- Validation de l'URI Shared Session Pooler (port 5432) : PASS.
+- Export des rôles, du schéma et des données : PASS.
+- Archive tar.gz : créée.
+- Chiffrement AES-256-CBC/PBKDF2 : PASS ; le déchiffrement de contrôle et la comparaison binaire ont réussi.
+- Artefact GitHub : PASS — `naxa-db-backup-43424354502-1`, ID `14036745506`, taille 2 267 677 octets, empreinte SHA-256 de l'artefact ZIP `3382bc7b03fb13826177f83e869ac69cbebe11069c4929368fdb013fe5874059`, rétention jusqu'au 11 février 2027.
+- Copie S3 externe : SKIPPED ; `NAXA_BACKUP_S3_BUCKET` n'est pas configuré.
+- Restauration : NON TESTÉE ; le manifeste confirme `restore_tested:false`.
 
-**Correction du workflow préparée :** le nouveau validateur refuse le host direct et le Transaction Pooler, et exige le Shared Session Pooler du projet sur port `5432`. Cette correction ne met pas à jour le secret GitHub lui-même. Un propriétaire du dépôt doit remplacer `NAXA_DATABASE_URL` ici : https://github.com/audreymendomo23-netizen/NAXA/settings/secrets/actions, en collant l'URI exacte copiée de Supabase Dashboard > Connect > Session Pooler. Après cela, relancer le workflow manuellement ou attendre son déclenchement planifié.
+**Avertissement de restauration :** pendant l'export des données, PostgreSQL a signalé des contraintes de clés étrangères circulaires dans `profiles` et `compta_ecriture`. L'archive a bien été produite, mais une restauration directe du fichier data-only n'est pas certifiée. Le protocole de restauration doit traiter ces dépendances (désactivation temporaire des triggers ou méthode équivalente, avec contrôle de réactivation et intégrité), puis être exécuté sur une base isolée non-production.
 
-L'organisation Supabase NAXA est sur le plan Free. Selon la documentation Supabase, les sauvegardes quotidiennes gérées sont fournies sur Pro, Team et Enterprise ; les sauvegardes de base n'incluent pas les objets Storage. Références : https://supabase.com/docs/guides/platform/backups
+Le validateur du workflow exige désormais le Shared Session Pooler du projet sur port `5432` et refuse l'hôte direct ainsi que le Transaction Pooler. La validation réelle a réussi dans le run ci-dessus ; aucun secret ni mot de passe n'est affiché dans le dépôt.
+
+L'organisation Supabase NAXA est sur le plan Free. Les sauvegardes GitHub ci-dessus ne remplacent pas une copie S3 indépendante, une sauvegarde séparée de Supabase Storage ni l'export des comptes Auth et objets gérés exclus du dump. Références : https://supabase.com/docs/guides/platform/backups
 
 ## 8. Critère de clôture
 

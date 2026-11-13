@@ -29,5 +29,10 @@ Saisir les URL HTTPS NAXA et Supabase, la clé publique Supabase, l'e-mail et le
 - Champs conservés : `deviceId`, `deviceToken`, `canal`, `smsText`, `senderOriginAddress`, `smsReceivedAt`.
 - Le serveur reste seul décisionnaire de la validation du paiement et du renouvellement d'abonnement.
 
-## Statut
-Sources migrées vers Kotlin dans le dépôt. Build Gradle, APK, enrôlement sur appareil et essais réels avec SIM MTN/Orange non certifiés à ce stade.
+## Statut et preuves CI
+
+- Sources Android converties en Kotlin ; aucun fichier source Java ne subsiste dans le module compagnon.
+- Dernière preuve native antérieure : [Android native build run 43418145728](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43418145728), commit `c986f1c715bcc1e6a5996e4f20d175589a767999` : compilation Kotlin, `testDebugUnitTest`, génération APK Debug et upload de l'artefact réussis.
+- Les commits Web/backup ultérieurs n'ont pas modifié le code Android. Le prochain push de ce README déclenche à nouveau le workflow natif sur le HEAD courant de `main`.
+
+Restent non certifiés : installation sur téléphone réel, enrôlement Promoteur/Admin, essais avec SIM MTN et Orange, réception des SMS et autorisation officielle de `RECEIVE_SMS` pour le canal de distribution retenu. L'APK Debug et le succès CI ne prouvent pas ces étapes matérielles.
