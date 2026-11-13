@@ -118,6 +118,56 @@ where j.statut = 'correspondance_forte'
   and nullif(trim(j.nom_cima), '') is not null
   and nullif(trim(j.substance_cima), '') is not null
   and (
+    (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(comprime|tablet)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(comprimid|tablet)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(gelule|capsule)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(capsul|gelul)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(perfusion)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(perfusion)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(injectable|injection)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(inyect|inject)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(solution buvable|solution orale)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(solucion oral)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(suspension buvable)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(suspension oral)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(sirop)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(jarabe)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(creme)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(crema)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(pommade)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(pomada)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(collyre|gouttes ophtalmiques)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(colirio|gotas oftalmicas)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(poudre)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(polvo)'
+    )
+    or (
+      extensions.unaccent(lower(coalesce(j.forme, ''))) ~ '(spray|pulverisation|aerosol)'
+      and extensions.unaccent(lower(coalesce(j.forme_cima, ''))) ~ '(spray|pulverizacion|aerosol)'
+    )
+  )
+  and (
     boite.image_url is not null
     or forme.image_url is not null
   );

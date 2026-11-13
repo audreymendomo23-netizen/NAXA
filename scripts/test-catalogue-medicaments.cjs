@@ -212,6 +212,10 @@ test("CIMA pré-calculé : projection publique strictement filtrée et reliée a
   assert.match(cimaPhotoProjection, /j\.statut = 'correspondance_forte'/);
   assert.match(cimaPhotoProjection, /j\.dose_concordante is true/);
   assert.match(cimaPhotoProjection, /j\.score >= 0\.78/);
+  assert.match(cimaPhotoProjection, /forme_cima/);
+  assert.match(cimaPhotoProjection, /extensions\.unaccent/);
+  assert.match(cimaPhotoProjection, /perfusion/);
+  assert.match(cimaPhotoProjection, /suspension buvable/);
   assert.match(cimaPhotoProjection, /fotos/);
   assert.match(cimaPhotoProjection, /fecha/);
   assert.match(cimaPhotoProjection, /cima\[\.]aemps\[\.]es/);
