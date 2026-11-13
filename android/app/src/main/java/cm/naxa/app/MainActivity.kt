@@ -31,7 +31,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val repository = AuthRepository(SecureTokenStore(this))
         val catalogue = CatalogueRepository()
-        setContent { NaxaTheme { NaxaRoot(repository, catalogue) } }
+        val ageGate = AgeGateStore(this)
+        setContent { NaxaTheme { NaxaRoot(repository, catalogue, ageGate, onExit = { finish() }) } }
     }
 }
 
@@ -48,10 +49,17 @@ private fun NaxaTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun NaxaRoot(repository: AuthRepository, catalogue: CatalogueRepository) {
+private fun NaxaRoot(
+    repository: AuthRepository,
+    catalogue: CatalogueRepository,
+    ageGate: AgeGateStore,
+    onExit: () -> Unit
+) {
     var profile by remember { mutableStateOf<NaxaProfile?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var adultDeclared by remember { mutableStateOf(ageGate.isAdultDeclared()) }
+    var guestMode by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         try {
@@ -64,33 +72,88 @@ private fun NaxaRoot(repository: AuthRepository, catalogue: CatalogueRepository)
     }
     Surface(Modifier.fillMaxSize(), color = NaxaBackground) {
         when {
+            !adultDeclared -> AgeDeclarationScreen(
+                onConfirm = {
+                    ageGate.declareAdult()
+                    adultDeclared = true
+                },
+                onDecline = onExit
+            )
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = NaxaGreen)
             }
-            profile == null -> LoginScreen(busy = loading, error = error, onLogin = { email, password ->
-                loading = true
-                error = null
-                scope.launch {
-                    try { profile = repository.signIn(email, password).profile }
-                    catch (e: Exception) { error = e.message ?: "Connexion impossible." }
-                    finally { loading = false }
-                }
-            })
-            else -> NativeHome(profile!!, catalogue, onLogout = {
-                loading = true
-                scope.launch {
-                    repository.signOut()
-                    profile = null
+            profile == null && !guestMode -> LoginScreen(
+                busy = loading,
+                error = error,
+                onLogin = { email, password ->
+                    loading = true
                     error = null
-                    loading = false
+                    scope.launch {
+                        try {
+                            profile = repository.signIn(email, password).profile
+                        } catch (e: Exception) {
+                            error = e.message ?: "Connexion impossible."
+                        } finally {
+                            loading = false
+                        }
+                    }
+                },
+                onGuest = { guestMode = true }
+            )
+            else -> NativeHome(
+                profile = profile,
+                catalogue = catalogue,
+                isGuest = profile == null,
+                onSignIn = { guestMode = false },
+                onLogout = {
+                    loading = true
+                    scope.launch {
+                        repository.signOut()
+                        profile = null
+                        guestMode = false
+                        error = null
+                        loading = false
+                    }
                 }
-            })
+            )
         }
     }
 }
 
 @Composable
-private fun LoginScreen(busy: Boolean, error: String?, onLogin: (String, String) -> Unit) {
+private fun AgeDeclarationScreen(onConfirm: () -> Unit, onDecline: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Bienvenue sur NAXA", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "L'accès public à NAXA est réservé aux personnes majeures. Avant d'ouvrir l'espace visiteur, confirmez avoir 18 ans ou plus.",
+            color = Color(0xFF50645B), fontSize = 15.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Cette déclaration est enregistrée localement sur cet appareil. Elle ne remplace pas la vérification de majorité du compte, qui reste contrôlée par NAXA.",
+            color = Color(0xFF7A8982), fontSize = 12.sp
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Text("Je confirme avoir 18 ans ou plus")
+        }
+        TextButton(onClick = onDecline, modifier = Modifier.fillMaxWidth()) {
+            Text("Je ne suis pas majeur(e)")
+        }
+    }
+}
+
+@Composable
+private fun LoginScreen(
+    busy: Boolean,
+    error: String?,
+    onLogin: (String, String) -> Unit,
+    onGuest: () -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     Column(
@@ -121,12 +184,21 @@ private fun LoginScreen(busy: Boolean, error: String?, onLogin: (String, String)
             else Text("Se connecter")
         }
         Spacer(Modifier.height(20.dp))
+        TextButton(onClick = onGuest, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+            Text("Continuer en visiteur")
+        }
         Text("Connexion Supabase sécurisée. Les jetons sont chiffrés dans Android Keystore.", color = Color(0xFF718078), fontSize = 12.sp)
     }
 }
 
 @Composable
-private fun NativeHome(profile: NaxaProfile, catalogue: CatalogueRepository, onLogout: () -> Unit) {
+private fun NativeHome(
+    profile: NaxaProfile?,
+    catalogue: CatalogueRepository,
+    isGuest: Boolean,
+    onSignIn: () -> Unit,
+    onLogout: () -> Unit
+) {
     var selected by remember { mutableIntStateOf(0) }
     val labels = listOf("Accueil", "Rechercher", "Achats", "Profil")
     val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.Default.ShoppingBag, Icons.Default.Person)
@@ -146,15 +218,19 @@ private fun NativeHome(profile: NaxaProfile, catalogue: CatalogueRepository, onL
             }
             Spacer(Modifier.height(24.dp))
             Text("Bonjour 👋", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
-            Text("Votre espace NAXA est connecté.", color = Color(0xFF65776F))
+            Text(if (isGuest) "Mode visiteur" else "Votre espace NAXA est connecté.", color = Color(0xFF65776F))
             Spacer(Modifier.height(20.dp))
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("Compte connecté", color = NaxaGreen, fontWeight = FontWeight.SemiBold)
+                    Text(if (isGuest) "Accès public" else "Compte connecté", color = NaxaGreen, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
-                    Text(profile.role.ifBlank { "Compte NAXA" }, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(if (profile.ageVerified) "Vérification d’âge confirmée" else "Vérification d’âge à compléter",
-                        color = Color(0xFF65776F))
+                    Text(if (isGuest) "Catalogue et informations publiques" else profile?.role ?: "Compte NAXA",
+                        fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    if (profile != null) {
+                        Text("Vérification de majorité confirmée", color = Color(0xFF65776F))
+                    } else {
+                        Text("Connectez-vous pour accéder aux fonctions liées à votre compte.", color = Color(0xFF65776F))
+                    }
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -166,10 +242,22 @@ private fun NativeHome(profile: NaxaProfile, catalogue: CatalogueRepository, onL
                     FeatureCard("Scanner", "Le scanner natif caméra et ordonnance sera intégré dans le prochain lot.")
                 }
                 1 -> CatalogueScreen(catalogue)
-                2 -> FeatureCard("Achats et commandes", "Le suivi sera relié aux services métier autorisés pour votre compte.")
+                2 -> {
+                    if (profile == null) {
+                        FeatureCard("Achats et commandes", "Connectez-vous pour consulter vos achats et vos commandes.")
+                        TextButton(onClick = onSignIn) { Text("Se connecter") }
+                    } else {
+                        FeatureCard("Achats et commandes", "Le suivi sera relié aux services métier autorisés pour votre compte.")
+                    }
+                }
                 else -> {
-                    FeatureCard("Profil", "Identifiant : ${profile.userId}")
-                    TextButton(onClick = onLogout) { Text("Se déconnecter") }
+                    if (profile == null) {
+                        FeatureCard("Profil", "Vous naviguez sans compte connecté.")
+                        TextButton(onClick = onSignIn) { Text("Se connecter") }
+                    } else {
+                        FeatureCard("Profil", "Identifiant : ${profile.userId}")
+                        TextButton(onClick = onLogout) { Text("Se déconnecter") }
+                    }
                 }
             }
             Spacer(Modifier.height(20.dp))
