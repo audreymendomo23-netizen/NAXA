@@ -215,26 +215,24 @@ begin
   end if;
 
   return query
-  select
-    c.offer_id,c.partner_id,c.partner_name,c.city,c.neighborhood,
+  select c.offer_id,c.partner_id,c.partner_name,c.city,c.neighborhood,
     c.name,c.category,c.description,c.service_area_label,c.price_fcfa,
-    round((
-      6371.0 * 2.0 * asin(least(1.0,sqrt(greatest(0.0,
+    round(d.distance_km::numeric,1)::double precision as distance_km
+  from private.get_home_service_catalog_for_client() c
+  join public.partners p on p.id=c.partner_id
+  cross join lateral (
+    select 6371.0 * 2.0 * asin(
+      least(1.0,sqrt(greatest(0.0,
         power(sin(radians((coalesce(p.provider_latitude,p.latitude)::double precision-p_latitude)/2.0)),2)
         + cos(radians(p_latitude))*cos(radians(coalesce(p.provider_latitude,p.latitude)::double precision))
           * power(sin(radians((coalesce(p.provider_longitude,p.longitude)::double precision-p_longitude)/2.0)),2)
       )))
-    )::numeric,1)::double precision as distance_km
-  from private.get_home_service_catalog_for_client() c
-  join public.partners p on p.id=c.partner_id
+    ) as distance_km
+  ) d
   where coalesce(p.provider_latitude,p.latitude) is not null
     and coalesce(p.provider_longitude,p.longitude) is not null
-    and 6371.0 * 2.0 * asin(least(1.0,sqrt(greatest(0.0,
-      power(sin(radians((coalesce(p.provider_latitude,p.latitude)::double precision-p_latitude)/2.0)),2)
-      + cos(radians(p_latitude))*cos(radians(coalesce(p.provider_latitude,p.latitude)::double precision))
-        * power(sin(radians((coalesce(p.provider_longitude,p.longitude)::double precision-p_longitude)/2.0)),2)
-    ))) <= p_radius_km
-  order by distance_km,c.category,c.name,c.partner_name;
+    and d.distance_km <= p_radius_km
+  order by d.distance_km,c.category,c.name,c.partner_name;
 end;
 $function$;
 
