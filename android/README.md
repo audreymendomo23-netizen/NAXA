@@ -34,7 +34,7 @@ gradle :app:assembleDebug
 - Recherche catalogue médicaments via `GET /api/medicaments/recherche?q=...`, sans prix ni stock fictif.
 - Scanner natif : prise de photo via l'appareil photo Android, sélection d'image/PDF et OCR ML Kit embarqué sur l'appareil ; PDF limités à 10 pages et 40 Mo.
 - Recherche de pharmacies proches via permission GPS explicite et `GET /api/pharmacies/proches?lat=...&lng=...`.
-- Historique Client natif connecté à `reservations`, `client_achats` et `reservation_events` via PostgREST avec le Bearer de session, la clé publique et les politiques RLS Supabase. Les détails d'achat sont signalés indisponibles si la vue ne peut pas être lue.
+- Historique Client natif connecté à `reservations`, `client_achats` et `reservation_events` via PostgREST avec le Bearer de session, la clé publique et les politiques RLS Supabase. La vue `client_achats` utilise `security_invoker=true` et le filtre SQL `auth.uid()` ; aucun filtre `client_id` n'est envoyé car cette colonne n'est pas exposée par la vue. Les détails d'achat sont signalés indisponibles si la vue ne peut pas être lue.
 - Notifications natives FCM : permission Android demandée dans le profil, enregistrement Bearer, synchronisation lors de rotation du jeton et révocation à la déconnexion.
 - Les bases natives existantes de BLE, rappels et notifications sont conservées, mais leur raccordement complet aux écrans Compose reste à faire.
 

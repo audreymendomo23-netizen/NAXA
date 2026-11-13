@@ -53,7 +53,7 @@ class ClientHistoryRepository(private val tokenStore: SecureTokenStore) {
                 "client_achats",
                 listOf(
                     "select" to "reservation_id,produit_id,medicament,dci,dosage,forme,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut",
-                    "client_id" to "eq.$clientId", "order" to "achat_le.desc.nullslast", "limit" to "2000"
+                    "order" to "achat_le.desc.nullslast", "limit" to "2000"
                 ), accessToken
             )
         }
