@@ -1,8 +1,9 @@
-# Registre de clôture et de reprise — NAXA (branche de vérification)
+# Registre de clôture et de reprise — NAXA
 
-> **Document obligatoire à lire avant chaque nouvelle conversation ou session d'agent NAXA.**
-> Branche active des vérifications : `qa/e2e-stabilisation-20261106`.
-> Dernier commit de code/tests de référence : `d93e1000be26705c1feefd543da904c0bd7c8ec9` — `test(core): assert full FK index coverage`, daté du 09/11/2026 à 23:43:57 UTC. Les commits documentaires de gouvernance suivants n'ont pas changé le code applicatif ; toujours vérifier le HEAD réel au début d'une session.
+> **Document de reprise. Source opérationnelle :** `AGENTS.md`. Branche active : `main`.
+> **État Git du 13/11/2026 :** HEAD vérifié avant cette mise à jour documentaire `722ecf3a642000085334fb92e78b38ab56245458`. Les quatre PR Dependabot #102/#104/#105/#106 sont fusionnées ; leurs commits de fusion et leurs SHAs sources figurent dans `STATUT.md` et `README.md`.
+> La branche QA `qa/e2e-stabilisation-20261106` (HEAD `f4edd8579971347aa090bf810e4357eca1ea26f8`) est déjà contenue dans `main` (`behind_by=0`). Les consignes et comparaisons QA des sections historiques ne doivent plus être prises comme un workflow actif.
+> **Réserve :** les quatre workflows `NAXA quality` des PR étaient en échec au moment de la fusion. Intégration Git confirmée ne signifie pas CI/build/recette verts.
 
 ## 1. Lecture obligatoire avant toute reprise
 
@@ -10,22 +11,22 @@ Avant toute analyse, commande, modification ou proposition technique sur NAXA :
 
 1. Lire intégralement `AGENTS.md`.
 2. Lire intégralement le présent registre.
-3. Lire `STATUT.md` et les documents de continuité explicitement référencés et présents sur cette branche.
+3. Lire `STATUT.md` et les documents de continuité explicitement référencés et présents sur `main`.
 4. Pour une mission Admin 360, lire également `docs/audits/AUDIT_360_ADMINISTRATEUR_NAXA.md` et le NAXA-MANDAT CTO actif.
-5. Vérifier le HEAD réel de `qa/e2e-stabilisation-20261106` et le comparer à ce checkpoint.
+5. Vérifier le HEAD réel de `main` et le comparer au dernier checkpoint documentaire.
 6. Reprendre uniquement les réserves ouvertes ou les lots réellement touchés par un changement.
 
 **Aucune conversation ne recommence l'audit depuis zéro.** Un lot clos n'est jamais retesté parce qu'une nouvelle conversation commence.
 
 **Condition d'arrêt :** si un document obligatoire est inaccessible, le signaler avant de commencer. Ne pas faire d'audit redondant, modifier le projet à l'aveugle, ni remplacer ces documents par un résumé mémoire.
 
-## 2. Branche de travail et séparation avec main
+## 2. Référence Git courante et historique de la campagne QA
 
-- **Branche active pour les vérifications :** `qa/e2e-stabilisation-20261106`.
-- **Branche par défaut du dépôt :** `main`. Elle n'est pas la branche de travail de cette campagne QA.
-- Ne pas écrire sur `main`, ne pas fusionner QA vers main, ne pas créer de branche ou de PR sans ordre explicite ultérieur de l'utilisateur.
-- Le relevé de comparaison du 10/11/2026 montre que `qa/e2e-stabilisation-20261106` et `main` ont divergé depuis le commit commun `2374348e416d4745e19546da1151ea1ad8fefa11`. À cet instantané, comparaison GitHub : 482 commits propres à l'historique QA et 11 commits propres à main. Ce résultat décrit une divergence, pas un simple retard linéaire ; ne pas fusionner ou cherry-pick en bloc.
-- Un certain nombre de corrections et migrations récentes présentes sur `main` sont absentes de QA. Une preuve exécutée sur Replay à partir de ces fichiers ne prouve pas que la correction est intégrée à la branche QA.
+- **Branche active et source de vérité :** `main`, conformément à `AGENTS.md`.
+- **Branche QA historique :** `qa/e2e-stabilisation-20261106`, tête contrôlée `f4edd8579971347aa090bf810e4357eca1ea26f8`. Elle est un ancêtre de `main` ; GitHub retourne `behind_by=0`, donc aucun commit propre à cette tête QA ne manque dans `main`.
+- **PR fusionnées le 13/11/2026 :** #102 (`6eb5bd0c58bd818a866c71ec7f50ee4f83a2806b`), #104 (`c70e18c5f8ae7c5f7db2456a6c3b5920b9c70a3f`), #105 (`f80939f60fadbd700204b71bccd1aa9b67b18f52`) et #106 (`35ae6dfb06e1a3eaf64697904f431a2b0f268695`). Les commits sources sont intégrés et les PR retournent `merged=true`.
+- **Aucune nouvelle fusion de la branche QA n'était nécessaire.** Ne pas reprendre la comparaison divergente datée du 10/11 comme état actuel.
+- Les sections de réserves QA plus bas conservent le contexte et les preuves de la campagne antérieure ; avant de reprendre un point, le requalifier à partir du code et du HEAD actuel de `main`.
 
 ## 3. Règles de preuve et statuts
 
@@ -72,7 +73,10 @@ Les opérations suivantes ont été appliquées et vérifiées sur Supabase Repl
 
 **Conséquence :** ne pas reprendre ces tests comme « clôturés QA ». Réconcilier les différences de source entre les branches et reporter chaque correction vers QA uniquement après analyse de ses dépendances. Ne pas cherry-pick ou fusionner aveuglément les 11 commits main, car les branches sont divergentes.
 
-## 5. Réserves à reprendre sur QA
+## 5. Réserves historiques de la campagne QA — à requalifier sur main
+
+> Les statuts ci-dessous décrivent le checkpoint QA précédent. Ils ne signifient pas que la branche QA doit être reprise. Toute action future doit être fondée sur une vérification du code, des migrations et des tests du HEAD courant de `main`.
+
 
 | ID | Point restant | État | Action ciblée |
 |---|---|---|---|
