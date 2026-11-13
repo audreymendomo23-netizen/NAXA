@@ -126,7 +126,11 @@ as $function$
     select sp.specialty,av.is_open,av.opens_at,av.closes_at
     from public.partner_members pm
     join public.profiles account on account.id=pm.user_id and account.actif=true
-    left join public.suivi_professionals sp on sp.user_id=pm.user_id
+    left join public.suivi_professionals sp
+      on sp.user_id=pm.user_id
+      and sp.verified=true
+      and sp.verification_status='verified'
+      and (sp.verification_expires_at is null or sp.verification_expires_at>now())
     left join public.suivi_professional_weekly_availability av
       on av.user_id=pm.user_id and av.weekday=extract(isodow from timezone('Africa/Douala',now()))::smallint
     where pm.partner_id=p.id and pm.member_role in ('owner','manager','operator')
