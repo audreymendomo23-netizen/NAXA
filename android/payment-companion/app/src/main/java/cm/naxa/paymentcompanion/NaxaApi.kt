@@ -199,6 +199,7 @@ object NaxaApi {
         payerNumber: String, amount: Int, paidAt: String, reference: String,
         fieldSources: JSONObject
     ): JSONObject {
+        prepareClientUniversePayment(context, reservationId, channel)
         val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
         val access = SupabaseSession.getAccessToken(context)
         val body = JSONObject()
