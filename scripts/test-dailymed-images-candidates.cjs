@@ -21,3 +21,11 @@ test("DailyMed v2 adapter validates SPL titles and media before review", async (
   assert.match(update.licence, /validation juridique obligatoire/);
   assert.match(update.methode_correspondance, /DailyMed v2/);
 });
+
+test("RxNorm extracts approximate candidates and preserves identifiers", async () => {
+  const api = await import("./dailymed-images-candidates.mjs");
+  assert.deepEqual(api.extractRxNormCandidates({ approximateGroup: { candidate: [
+    { rxcui: "161", name: "acetaminophen 500 MG Oral Tablet", score: "12.5", rank: "1", source: "RXNORM" }
+  ] } }), [{ rxcui: "161", name: "acetaminophen 500 MG Oral Tablet", score: 12.5, rank: 1, source: "RXNORM" }]);
+  assert.deepEqual(api.extractRxNormCandidates({ approximateGroup: {} }), []);
+});
