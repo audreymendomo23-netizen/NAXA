@@ -14,7 +14,7 @@ SUPABASE_URL=https://<projet>.supabase.co
 SUPABASE_ANON_KEY=<clé publique anon ou publishable>
 ```
 
-La valeur par défaut du dépôt est `https://naxa-opal.vercel.app` d'après la métadonnée d'accueil GitHub, mais l'ancien module utilisait `https://nnaxa.vercel.app`. L'hôte final doit être confirmé avant un APK connecté/production.
+L'hôte NAXA par défaut est `https://nnaxa.vercel.app` (domaine canonique de l'application). Il peut être remplacé par `NAXA_BASE_URL` lors d'une compilation de recette distincte.
 
 L'hôte API peut également être fourni par variable d'environnement `NAXA_BASE_URL`. Les valeurs Firebase facultatives utilisées par les notifications sont `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_PROJECT_ID` et `FIREBASE_SENDER_ID`. Elles peuvent être passées par propriétés Gradle ou variables d'environnement. Aucune clé service-role/secret Supabase ne doit être intégrée à l'APK.
 

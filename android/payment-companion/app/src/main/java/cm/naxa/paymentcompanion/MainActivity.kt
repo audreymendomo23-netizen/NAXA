@@ -61,6 +61,7 @@ class MainActivity : Activity() {
         })
 
         naxaUrl = addField(root, "URL de l'espace NAXA (HTTPS)", "https://votre-domaine-naxa")
+        naxaUrl.setText("https://nnaxa.vercel.app")
         supabaseUrl = addField(root, "URL Supabase", "https://votre-projet.supabase.co")
         anonKey = addField(root, "Clé publique Supabase (anon / publishable)", "")
         email = addField(root, "Adresse e-mail NAXA", "")

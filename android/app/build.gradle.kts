@@ -5,7 +5,7 @@ plugins {
     id("com.google.gms.google-services")
 }
 fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-val naxaBaseUrl = providers.gradleProperty("NAXA_BASE_URL").orElse(providers.environmentVariable("NAXA_BASE_URL")).getOrElse("https://naxa-opal.vercel.app")
+val naxaBaseUrl = providers.gradleProperty("NAXA_BASE_URL").orElse(providers.environmentVariable("NAXA_BASE_URL")).getOrElse("https://nnaxa.vercel.app")
 val supabaseUrl = providers.gradleProperty("SUPABASE_URL").orElse(providers.environmentVariable("SUPABASE_URL")).getOrElse("")
 val supabaseAnonKey = providers.gradleProperty("SUPABASE_ANON_KEY").orElse(providers.environmentVariable("SUPABASE_ANON_KEY")).getOrElse("")
 val firebaseApiKey = providers.gradleProperty("FIREBASE_API_KEY").orElse(providers.environmentVariable("FIREBASE_API_KEY")).getOrElse("")
