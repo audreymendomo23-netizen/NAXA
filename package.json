@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test:travel-taxi": "node scripts/test-travel-taxi.cjs",
     "test:geolocalisation": "node scripts/test-geolocalisation-pharmacies.cjs",
     "test:catalogue-medicaments": "node scripts/test-catalogue-medicaments.cjs",
@@ -46,8 +46,8 @@
     "postcss": "8.5.32",
     "tailwindcss": "3.4.13",
     "typescript": "5.6.2",
-    "eslint": "8.57.1",
-    "eslint-config-next": "16.4.5",
+    "eslint": "10.14.0",
+    "eslint-config-next": "16.4.6",
     "@types/web-push": "3.6.4",
     "@types/qrcode": "1.5.5"
   }
