@@ -37,6 +37,39 @@ jobs:
             *) echo "::error::NAXA_DATABASE_URL must be the complete PostgreSQL connection URI"; exit 1 ;;
           esac
 
+      - name: Test direct Supabase IPv6 network connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import socket
+          import sys
+
+          host = "db.eouwtuusnsuxaejsxknf.supabase.co"
+          port = 5432
+          try:
+              addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+          except OSError as exc:
+              print(f"::error::Direct endpoint DNS lookup failed ({type(exc).__name__}).")
+              sys.exit(1)
+          ipv6 = [a for a in addresses if a[0] == socket.AF_INET6]
+          if not ipv6:
+              print("::error::GitHub runner did not resolve an IPv6 address for the direct Supabase endpoint.")
+              sys.exit(1)
+          last_error = None
+          for family, socktype, proto, _, sockaddr in ipv6:
+              try:
+                  with socket.socket(family, socktype, proto) as conn:
+                      conn.settimeout(12)
+                      conn.connect(sockaddr)
+                  print("Direct Supabase endpoint: IPv6 DNS and TCP/5432 connectivity passed.")
+                  sys.exit(0)
+              except OSError as exc:
+                  last_error = exc
+          print(f"::error::Direct Supabase TCP/5432 connection failed ({type(last_error).__name__ if last_error else 'unknown error'}).")
+          sys.exit(1)
+          PY
+
       - name: Validate Supabase direct or Session Pooler URI
         shell: bash
         env:
