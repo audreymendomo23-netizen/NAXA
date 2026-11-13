@@ -5,11 +5,11 @@ declare
 begin
   select pg_get_functiondef(v_function) into v_definition;
 
-  if position('v_record.payer_number is null' in v_definition) > 0 then
+  if position('or v_record.payer_number is null' in v_definition) > 0 then
     raise exception 'Regression: le numéro payeur est redevenu obligatoire côté payeur';
   end if;
 
-  if position('v_event.payer_number_tail is null' in v_definition) > 0 then
+  if position('or v_event.payer_number_tail is null' in v_definition) > 0 then
     raise exception 'Regression: le numéro payeur est redevenu obligatoire côté SMS bénéficiaire';
   end if;
 
