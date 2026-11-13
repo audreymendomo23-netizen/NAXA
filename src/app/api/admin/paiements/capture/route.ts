@@ -22,11 +22,6 @@ const phoneTail = (value: string | null | undefined) => {
   const digits = String(value ?? "").replace(/\D/g, "");
   return digits.length >= 9 ? digits.slice(-9) : "";
 };
-const samePhone = (left: string | null | undefined, right: string | null | undefined) => {
-  const a = phoneTail(left);
-  const b = phoneTail(right);
-  return Boolean(a && b && a === b);
-};
 
 async function notifyAdmins(db: ReturnType<typeof supabaseAdmin>, message: string) {
   const { data: admins } = await db.from("profiles").select("id").eq("role", "admin").eq("actif", true);

@@ -129,7 +129,7 @@ class MainActivity : Activity() {
                 setOnClickListener { requestSmsPermission() }
             })
             root.addView(Button(this).apply {
-                text = "Partager manuellement un SMS de crédit"
+                text = "Aide : partager un SMS de crédit"
                 setOnClickListener { openShareForm() }
             })
         } else {

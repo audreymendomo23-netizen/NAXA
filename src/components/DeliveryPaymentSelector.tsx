@@ -16,8 +16,21 @@ type Props = {
 type PaymentDetails = { code_marchand: string; total: number; devise?: string };
 
 function localDateTimeValue() {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Douala",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find(item => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+}
+
+function cameroonDateTimeToIso(value: string) {
+  if (!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(value)) {
+    throw new Error("Date de paiement invalide.");
+  }
+  // datetime-local n'a pas de fuseau ; Africa/Douala est UTC+01:00.
+  return new Date(`${value}:00+01:00`).toISOString();
 }
 
 export function DeliveryPaymentSelector({
@@ -102,7 +115,7 @@ export function DeliveryPaymentSelector({
           smsText: "",
           payerNumber,
           amount: numericAmount,
-          paidAt: new Date(paidAt).toISOString(),
+          paidAt: cameroonDateTimeToIso(paidAt),
           reference: reference.trim(),
           fieldSources: {
             amount: numericAmount === totalArticles + fraisLivraison ? "generated_default" : "manual_entry",

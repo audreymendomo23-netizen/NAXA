@@ -16,6 +16,7 @@ class PaymentShareActivity : Activity() {
     private lateinit var paidAt: EditText
     private lateinit var reference: EditText
     private lateinit var submitButton: Button
+    private var adminChannelSpinner: Spinner? = null
     private var smsText = ""
     private var role = ""
     private var channel = "orange_money"
@@ -137,6 +138,7 @@ class PaymentShareActivity : Activity() {
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
             val channelSpinner = Spinner(this)
+            adminChannelSpinner = channelSpinner
             channelSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Orange Money", "MTN Mobile Money"))
             channelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -146,7 +148,7 @@ class PaymentShareActivity : Activity() {
             }
             root.addView(channelSpinner)
             root.addView(TextView(this).apply {
-                text = "Le texte original n'est pas conservé. NAXA conserve une empreinte technique et place ce partage en revue manuelle."
+                text = if (smsText.isBlank()) "Ouvrez le SMS de crédit dans votre messagerie, choisissez Partager puis NAXA Paiement. Aucun accès général aux SMS n'est accordé." else "Le texte original n'est pas conservé. NAXA conserve une empreinte technique et place ce partage en revue manuelle."
                 textSize = 12f
                 setPadding(0, dp(6), 0, dp(12))
             })
@@ -257,8 +259,7 @@ class PaymentShareActivity : Activity() {
     }
 
     private fun submitAdminShare() {
-        val spinner = root.getChildAt(root.childCount - 3) as? Spinner
-        val selectedChannel = if ((spinner?.selectedItemPosition ?: 0) == 0) "orange_money" else "mtn_momo"
+        val selectedChannel = if ((adminChannelSpinner?.selectedItemPosition ?: 0) == 0) "orange_money" else "mtn_momo"
         if (smsText.isBlank()) {
             status.text = "Ouvrez le SMS de crédit puis partagez-le avec NAXA Paiement."
             return

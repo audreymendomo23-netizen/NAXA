@@ -25,14 +25,14 @@ object SmsPaymentParser {
         if (channel == "orange_money") {
             val payer = Regex("paiement de (.+?) reussi par ([0-9]{8,15})\\s+[^.]*[.]?\\s*id transaction:\\s*([a-z0-9.]+),\\s*montant:\\s*([0-9][0-9 .,]*)\\s*fcfa").find(text)
             if (payer != null) return PayerSmsData(
-                "payer_debit", true, parseAmount(payer.groupValues[4]), payer.groupValues[3],
+                "payer_debit", true, parseAmount(payer.groupValues[4]), payer.groupValues[3].uppercase(),
                 null, normalizePhone(payer.groupValues[2]), null
             )
         }
         if (channel == "mtn_momo") {
             val payer = Regex("(?:votre paiement|your payment) de? ?([0-9][0-9 .,]*)\\s*(?:xaf|fcfa)\\s+(?:a|to)\\s+.+?\\(([0-9]{8,15})\\)\\s+(?:a ete finalise a|was (?:successfully )?completed at|was successful at)\\s+(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})").find(text)
             if (payer != null) {
-                val ref = Regex("(?:identifiant de transaction financiere|financial transaction id)\\s*:\\s*([a-z0-9-]+)").find(text)?.groupValues?.get(1)
+                val ref = Regex("(?:identifiant de transaction financiere|financial transaction id)\\s*:\\s*([a-z0-9-]+)").find(text)?.groupValues?.get(1)?.uppercase()
                 return PayerSmsData(
                     "payer_debit", true, parseAmount(payer.groupValues[1]), ref,
                     parseProviderDate(payer.groupValues[3]), null, normalizePhone(payer.groupValues[2])
