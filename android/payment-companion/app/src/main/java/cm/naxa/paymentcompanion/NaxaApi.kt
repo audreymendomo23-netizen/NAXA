@@ -22,6 +22,12 @@ object NaxaApi {
                 SecureVault.put(context, "promoteur_device_token", response.getString("deviceToken"))
                 SecureVault.put(context, "companion_role", "promoteur")
             }
+            "partenaire" -> {
+                val body = JSONObject().put("installationId", installationId).put("deviceName", deviceName)
+                val response = HttpClient.post(SupabaseSession.trimSlash(base) + "/api/partenaire/paiements/device/register", access, null, body)
+                SecureVault.put(context, "partner_payment_devices", response.optJSONArray("devices")?.toString() ?: "[]")
+                SecureVault.put(context, "companion_role", "partenaire")
+            }
             "admin" -> {
                 arrayOf("orange_money", "mtn_momo").forEach { channel ->
                     val body = JSONObject().put("installationId", installationId).put("deviceName", deviceName).put("canal", channel)
@@ -82,7 +88,8 @@ object NaxaApi {
 
     fun submitPromoterPayment(
         context: Context, channel: String, smsText: String?,
-        payerNumber: String, amount: Int, paidAt: String, reference: String
+        payerNumber: String, amount: Int, paidAt: String, reference: String,
+        sourceType: String = "voluntary_sms_share", senderTitle: String? = null, smsReceivedAt: String? = null
     ): JSONObject {
         val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
         val access = SupabaseSession.getAccessToken(context)
@@ -93,17 +100,77 @@ object NaxaApi {
             .put("canal", channel).put("smsText", smsText ?: "")
             .put("payerNumber", payerNumber).put("amount", amount)
             .put("paidAt", paidAt).put("reference", reference)
+            .put("sourceType", sourceType)
+        if (!senderTitle.isNullOrBlank()) body.put("senderTitle", senderTitle)
+        if (!smsReceivedAt.isNullOrBlank()) body.put("smsReceivedAt", smsReceivedAt)
         return HttpClient.post(SupabaseSession.trimSlash(base) + "/api/promoteur/paiements/share", access, null, body)
     }
 
-    fun submitAdminSharedSms(context: Context, channel: String, smsText: String): JSONObject {
+    fun submitAdminSharedSms(
+        context: Context, channel: String, smsText: String,
+        sourceType: String = "voluntary_sms_share", senderTitle: String? = null
+    ): JSONObject {
         val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
         val access = SupabaseSession.getAccessToken(context)
         val deviceId = SecureVault.get(context, "admin_device_id_" + channel) ?: error("Téléphone Admin non enrôlé pour ce canal.")
         val deviceToken = SecureVault.get(context, "admin_device_token_" + channel) ?: error("Jeton Admin manquant.")
         val body = JSONObject().put("deviceId", deviceId).put("deviceToken", deviceToken)
-            .put("canal", channel).put("smsText", smsText)
+            .put("canal", channel).put("smsText", smsText).put("sourceType", sourceType)
+        if (!senderTitle.isNullOrBlank()) body.put("senderTitle", senderTitle)
         return HttpClient.post(SupabaseSession.trimSlash(base) + "/api/admin/paiements/share", access, null, body)
+    }
+
+    fun submitPartnerSmsCandidate(
+        context: Context, partnerId: String, deviceId: String, deviceToken: String,
+        channel: String, smsText: String, sourceType: String,
+        senderTitle: String? = null, sourcePackage: String? = null, receivedAt: String? = null
+    ): JSONObject {
+        val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
+        val access = SupabaseSession.getAccessToken(context)
+        val body = JSONObject()
+            .put("partnerId", partnerId).put("deviceId", deviceId).put("deviceToken", deviceToken)
+            .put("canal", channel).put("smsText", smsText).put("sourceType", sourceType)
+            .put("receivedAt", receivedAt ?: Instant.now().toString())
+        if (!senderTitle.isNullOrBlank()) body.put("senderTitle", senderTitle)
+        if (!sourcePackage.isNullOrBlank()) body.put("sourcePackage", sourcePackage)
+        return HttpClient.post(SupabaseSession.trimSlash(base) + "/api/partenaire/paiements/notification-candidate", access, null, body)
+    }
+
+    private fun submitPromoterNotificationCandidate(
+        context: Context, channel: String, senderTitle: String, message: String, sourcePackage: String, receivedAt: String
+    ): JSONObject {
+        val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
+        val access = SupabaseSession.getAccessToken(context)
+        val deviceId = SecureVault.get(context, "promoteur_device_id") ?: error("Téléphone Promoteur non enrôlé.")
+        val deviceToken = SecureVault.get(context, "promoteur_device_token") ?: error("Jeton Promoteur manquant.")
+        val body = JSONObject().put("deviceId", deviceId).put("deviceToken", deviceToken)
+            .put("canal", channel).put("senderTitle", senderTitle).put("notificationText", message)
+            .put("sourcePackage", sourcePackage).put("receivedAt", receivedAt)
+        return HttpClient.post(SupabaseSession.trimSlash(base) + "/api/promoteur/paiements/notification-candidate", access, null, body)
+    }
+
+    fun sendNotificationCandidate(
+        context: Context, senderTitle: String, message: String, sourcePackage: String, receivedAtMillis: Long
+    ) {
+        val role = SecureVault.get(context, "companion_role")
+        val channel = NotificationCaptureGate.channelFromTitle(senderTitle) ?: return
+        if (!NotificationCaptureGate.canCapture(role, SecureVault.get(context, "notification_consent_granted") == "true", senderTitle)) return
+        val receivedAt = Instant.ofEpochMilli(receivedAtMillis).toString()
+        when (role) {
+            "admin" -> submitAdminSharedSms(context, channel, message, "notification_listener_candidate", senderTitle)
+            "promoteur" -> submitPromoterNotificationCandidate(context, channel, senderTitle, message, sourcePackage, receivedAt)
+            "partenaire" -> {
+                val devices = JSONArray(SecureVault.get(context, "partner_payment_devices") ?: "[]")
+                for (i in 0 until devices.length()) {
+                    val item = devices.optJSONObject(i) ?: continue
+                    submitPartnerSmsCandidate(
+                        context, item.optString("partnerId"), item.optString("deviceId"),
+                        item.optString("deviceToken"), channel, message,
+                        "notification_listener_candidate", senderTitle, sourcePackage, receivedAt
+                    )
+                }
+            }
+        }
     }
 
     fun sendCapturedSms(context: Context, channel: String, sender: String?, message: String, receivedAtMillis: Long) {

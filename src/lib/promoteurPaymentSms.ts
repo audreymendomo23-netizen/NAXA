@@ -50,9 +50,8 @@ function parseProviderDate(value: string | undefined): string | null {
   return date.toISOString();
 }
 function trustedSender(senderId: string | null, channel: PaymentChannel): boolean {
-  const value = normalizePaymentSms(senderId).replace(/[^a-z0-9]/g, "").toUpperCase();
-  const expected = channel === "orange_money" ? "ORANGEMONEY" : "MOBILEMONEY";
-  return value === expected && !/^\d+$/.test(value);
+  const expected = channel === "orange_money" ? "OrangeMoney" : "MobileMoney";
+  return senderId === expected;
 }
 function makeCandidate(
   channel: PaymentChannel,

@@ -3,9 +3,11 @@ package cm.naxa.paymentcompanion
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.os.Bundle
+import android.provider.Settings
 import android.text.InputType
 import android.view.View
 import android.widget.*
@@ -26,6 +28,9 @@ class MainActivity : Activity() {
     private var channelSpinner: Spinner? = null
     private var promoterRadioId: Int = View.NO_ID
     private var clientRadioId: Int = View.NO_ID
+    private var partnerRadioId: Int = View.NO_ID
+    private var notificationConsent: CheckBox? = null
+    private var notificationControls: LinearLayout? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +49,7 @@ class MainActivity : Activity() {
             text = if (BuildConfig.ADMIN_CAPTURE_ENABLED)
                 "Compagnon Administrateur : réception automatique facultative des SMS de crédit NAXA."
             else
-                "Compagnon Client / Promoteur : partage volontaire du SMS de transaction. Aucun accès aux SMS en arrière-plan."
+                "Client : partage volontaire uniquement. Promoteur / Partenaire : partage SMS et lecteur de notifications facultatif ; aucun accès RECEIVE_SMS."
             textSize = 14f
             setPadding(0, dp(8), 0, dp(18))
         })
@@ -79,11 +84,17 @@ class MainActivity : Activity() {
             clientRadioId = client.id
             val promoter = RadioButton(this).apply {
                 id = View.generateViewId()
-                text = "Promoteur · abonnement NAXA"
+                text = "Promoteur / Pharmacie · abonnement NAXA"
             }
             promoterRadioId = promoter.id
+            val partner = RadioButton(this).apply {
+                id = View.generateViewId()
+                text = "Partenaire · paiement d'abonnement"
+            }
+            partnerRadioId = partner.id
             roleGroup.addView(client)
             roleGroup.addView(promoter)
+            roleGroup.addView(partner)
         }
         root.addView(roleGroup)
 
@@ -109,6 +120,14 @@ class MainActivity : Activity() {
                 setPadding(0, dp(4), 0, dp(12))
             })
             smsConsent?.setOnCheckedChangeListener { _, checked -> applySmsConsentChoice(checked) }
+        }
+
+        createNotificationControls(root, BuildConfig.ADMIN_CAPTURE_ENABLED)
+        if (!BuildConfig.ADMIN_CAPTURE_ENABLED) {
+            roleGroup.setOnCheckedChangeListener { _, checkedId ->
+                notificationControls?.visibility = if (checkedId == clientRadioId) View.GONE else View.VISIBLE
+            }
+            notificationControls?.visibility = if (roleGroup.checkedRadioButtonId == clientRadioId) View.GONE else View.VISIBLE
         }
 
         connectButton = Button(this).apply {
@@ -161,18 +180,19 @@ class MainActivity : Activity() {
         }
 
         root.addView(TextView(this).apply {
-            text = "Distribution privée : APK NAXA. La variante Client / Promoteur ne déclare pas RECEIVE_SMS. Seule la variante Administrateur demande cette permission restreinte."
+            text = "Distribution privée : APK NAXA hors Play Store. Le Client n'a aucun lecteur de notifications ni accès SMS en arrière-plan. RECEIVE_SMS reste réservé à la variante Admin."
             textSize = 12f
             setPadding(0, dp(18), 0, 0)
         })
         setContentView(scroll)
         if (BuildConfig.ADMIN_CAPTURE_ENABLED) refreshCaptureStatus()
-        else statusText.text = "Connectez-vous avec votre compte Client ou Promoteur."
+        else statusText.text = "Connectez-vous avec votre compte Client, Promoteur ou Partenaire."
     }
 
     override fun onResume() {
         super.onResume()
         if (::statusText.isInitialized && BuildConfig.ADMIN_CAPTURE_ENABLED) refreshCaptureStatus()
+        if (::statusText.isInitialized) refreshNotificationStatus()
     }
 
     private fun addField(parent: LinearLayout, label: String, hint: String): EditText {
@@ -191,7 +211,11 @@ class MainActivity : Activity() {
 
     private fun selectedRole(): String {
         if (BuildConfig.ADMIN_CAPTURE_ENABLED) return "admin"
-        return if (roleGroup.checkedRadioButtonId == promoterRadioId) "promoteur" else "client"
+        return when (roleGroup.checkedRadioButtonId) {
+            promoterRadioId -> "promoteur"
+            partnerRadioId -> "partenaire"
+            else -> "client"
+        }
     }
 
     private fun connectAndEnroll() {
@@ -213,16 +237,20 @@ class MainActivity : Activity() {
                 SecureVault.put(this, "supabase_url", sb)
                 SecureVault.put(this, "supabase_anon_key", key)
                 SupabaseSession.login(this, sb, key, user, secret)
-                if (role == "client") SecureVault.put(this, "companion_role", "client")
-                else NaxaApi.enroll(this, role)
+                if (role == "client") {
+                    SecureVault.put(this, "notification_consent_granted", "false")
+                    SecureVault.put(this, "companion_role", "client")
+                } else NaxaApi.enroll(this, role)
                 runOnUiThread {
                     connectButton.isEnabled = true
                     statusText.text = when (role) {
                         "client" -> "Compte Client connecté. Partagez un SMS de débit ou utilisez la saisie manuelle."
-                        "promoteur" -> "Compte Promoteur enrôlé. Préparez un paiement avant de partager le SMS de débit."
-                        else -> "Compte Administrateur enrôlé. La capture automatique reste désactivée tant que le consentement n'est pas accordé."
+                        "promoteur" -> "Compte Promoteur enrôlé. Le partage SMS et la lecture facultative des notifications sont disponibles."
+                        "partenaire" -> "Compte Partenaire enrôlé. Partagez un SMS ou activez la lecture facultative des notifications."
+                        else -> "Compte Administrateur enrôlé. Les mécanismes restent désactivés sans consentement et autorisations Android."
                     }
                     if (role == "admin" && SecureVault.get(this, "sms_consent_granted") == "true") requestSmsPermission()
+                    if (role != "client" && SecureVault.get(this, "notification_consent_granted") == "true") openNotificationAccessSettings()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -230,6 +258,70 @@ class MainActivity : Activity() {
                     statusText.text = "Échec de la connexion / enrôlement : " + (error.message ?: "erreur inconnue")
                 }
             }
+        }
+    }
+
+    private fun createNotificationControls(parent: LinearLayout, alwaysVisible: Boolean) {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(18), 0, dp(8))
+        }
+        panel.addView(TextView(this).apply {
+            text = "Lecture automatique des notifications de paiement"
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+        })
+        panel.addView(TextView(this).apply {
+            text = "Accès Android sensible : le système expose à NAXA le flux général des notifications. NAXA filtre localement les seuls titres exacts OrangeMoney et MobileMoney et n'envoie que les éléments de paiement reconnus. Le titre d'une notification n'authentifie jamais l'expéditeur SMS et ne confirme jamais un paiement."
+            textSize = 12f
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        notificationConsent = CheckBox(this).apply {
+            text = "J'autorise NAXA à détecter les notifications de paiement sur ce téléphone."
+            isChecked = SecureVault.get(this@MainActivity, "notification_consent_granted") == "true"
+        }
+        panel.addView(notificationConsent)
+        notificationConsent?.setOnCheckedChangeListener { _, checked ->
+            SecureVault.put(this, "notification_consent_granted", checked.toString())
+            if (checked) openNotificationAccessSettings()
+            else statusText.text = "Lecture automatique désactivée. Le partage volontaire du SMS reste disponible."
+        }
+        panel.addView(Button(this).apply {
+            text = "Gérer l'accès Android aux notifications"
+            setOnClickListener {
+                if (SecureVault.get(this@MainActivity, "notification_consent_granted") != "true") {
+                    statusText.text = "Cochez d'abord le consentement NAXA."
+                } else openNotificationAccessSettings()
+            }
+        })
+        notificationControls = panel
+        parent.addView(panel)
+        panel.visibility = if (alwaysVisible) View.VISIBLE else View.GONE
+    }
+
+    private fun openNotificationAccessSettings() {
+        if (SecureVault.get(this, "notification_consent_granted") != "true") return
+        if (SecureVault.get(this, "companion_role") !in listOf("admin", "promoteur", "partenaire")) return
+        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    }
+
+    private fun refreshNotificationStatus() {
+        if (!::statusText.isInitialized) return
+        val role = SecureVault.get(this, "companion_role")
+        if (role == "client") {
+            notificationControls?.visibility = View.GONE
+            return
+        }
+        val consent = SecureVault.get(this, "notification_consent_granted") == "true"
+        val component = ComponentName(this, NaxaNotificationListenerService::class.java)
+        val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+            ?.split(':')
+            ?.any { ComponentName.unflattenFromString(it) == component } == true
+        if (!consent) {
+            statusText.text = "Lecture automatique non autorisée dans NAXA. Le partage SMS reste disponible."
+        } else if (!enabled) {
+            statusText.text = "Consentement NAXA enregistré, mais l'accès spécial Android aux notifications n'est pas activé."
+        } else {
+            statusText.text = "Détection des notifications activée. Les éléments reconnus restent soumis au rapprochement NAXA."
         }
     }
 

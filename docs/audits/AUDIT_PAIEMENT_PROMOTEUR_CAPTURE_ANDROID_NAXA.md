@@ -12,7 +12,22 @@
 > - **Client :** après confirmation du stock, le Client choisit MTN Mobile Money ou Orange Money, partage volontairement son SMS ou saisit les champs manuellement. La déclaration est visible dans la Caisse avec montant, numéro payeur, date et source ; la pharmacie contrôle le crédit et confirme via le ticket POS. Le SMS partagé ne vaut jamais encaissement.
 > - **Compagnon Android :** le produit est sous `android/payment-companion/` avec variantes `standard` et `admin`. La variante standard n'écoute pas les SMS ; elle traite le partage volontaire Client/Promoteur. La permission `RECEIVE_SMS` est limitée à la variante Admin.
 >
-> ## État des migrations et de la distribution
+> ## Mise à jour fonctionnelle — 13 novembre 2026
+
+Cette mise à jour remplace toute instruction antérieure qui reportait la lecture des notifications côté Pharmacie ou interdisait cette fonction au Promoteur pendant le pilote.
+
+- Client : partage volontaire du SMS uniquement ; aucun accès aux notifications ou SMS en arrière-plan. Le service Android refuse explicitement le rôle Client.
+- Pharmacie : dans le modèle actuel, le paiement de l'abonnement pharmacie est porté par le compte Promoteur. Ce profil peut activer la lecture facultative des notifications et partager le SMS volontairement.
+- Partenaire : le compagnon peut enrôler chaque partenaire actif pour lequel l'utilisateur est owner/manager. Notifications et SMS partagés sont conservés comme candidats de revue manuelle. Le cycle métier d'abonnement Partenaire (tarif, intention, échéance, règlement, activation) n'existe pas encore ; aucune activation automatique n'est déclenchée.
+- Administrateur : garde tous les mécanismes, y compris le lecteur de notifications, le partage volontaire et le récepteur SMS_RECEIVED avec son consentement et sa permission distincte.
+- Le lecteur Android nécessite l'accès spécial aux notifications. Android expose techniquement un flux général ; NAXA filtre localement les seuls titres exacts OrangeMoney et MobileMoney. Une notification ne prouve pas l'origine brute du SMS et reste toujours en revue manuelle.
+- Seul le SMS réellement reçu via SMS_RECEIVED sur le téléphone Admin, avec adresse d'origine exacte OrangeMoney ou MobileMoney, peut alimenter la preuve de crédit authentifiée. Les notifications ne sont jamais envoyées à l'endpoint de capture authentifiée.
+- Les coordonnées marchandes Client → Pharmacie sont séparées par établissement et opérateur. Le Client voit nom, téléphone, code marchand à 6 chiffres et montant. Le composeur est préparé avec MTN *126*4*<code 6 chiffres>*<montant># ou Orange #150*47#. Le préremplissage du montant Orange reste à confirmer sur SIM réelle.
+- La distribution reste par APK privé NAXA, sans Play Store.
+
+Les candidats Promoteur et Partenaire n'écrivent pas le texte SMS brut, ne ferment pas une intention d'abonnement et n'activent pas de compte. Les deux migrations de candidats du lot courant doivent être vérifiées sur Replay avant d'être considérées comme installées.
+
+## État des migrations et de la distribution
 >
 > Les migrations `20261113152922_payment_sms_declarations_and_dual_proof_guard.sql` et `20261113152925_promoteur_payment_require_dual_sms_proofs.sql` sont appliquées sur Supabase Replay `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) et enregistrées sous ces versions. Les deux migrations n'ont pas été appliquées sur Production ; aucun déploiement Production n'a été lancé.
 >

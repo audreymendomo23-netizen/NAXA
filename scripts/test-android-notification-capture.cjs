@@ -1,0 +1,46 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const assert = require("node:assert/strict");
+
+const root = path.resolve(__dirname, "..");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const service = read("android/payment-companion/app/src/main/java/cm/naxa/paymentcompanion/NaxaNotificationListenerService.kt");
+const gate = read("android/payment-companion/app/src/main/java/cm/naxa/paymentcompanion/NotificationCaptureGate.kt");
+const manifest = read("android/payment-companion/app/src/main/AndroidManifest.xml");
+const adminManifest = read("android/payment-companion/app/src/admin/AndroidManifest.xml");
+const smsReceiver = read("android/payment-companion/app/src/main/java/cm/naxa/paymentcompanion/SmsReceiver.kt");
+const promoterRoute = read("src/app/api/promoteur/paiements/notification-candidate/route.ts");
+const partnerRoute = read("src/app/api/partenaire/paiements/notification-candidate/route.ts");
+const adminShare = read("src/app/api/admin/paiements/share/route.ts");
+const adminCapture = read("src/app/api/admin/paiements/capture/route.ts");
+const parser = read("src/lib/promoteurPaymentSms.ts");
+const promoterMigration = read("supabase/migrations/20261113180500_promoteur_payment_notification_candidates.sql");
+const partnerMigration = read("supabase/migrations/20261113180000_partner_payment_notification_capture.sql");
+
+assert.match(gate, /role !in listOf\("promoteur", "partenaire", "admin"\)/);
+assert.doesNotMatch(gate, /"client"/);
+assert.match(gate, /"OrangeMoney"/);
+assert.match(gate, /"MobileMoney"/);
+assert.match(service, /NotificationCaptureGate\.canCapture/);
+assert.doesNotMatch(service, /sendCapturedSms/);
+assert.match(manifest, /NotificationListenerService/);
+assert.match(adminManifest, /RECEIVE_SMS/);
+assert.doesNotMatch(manifest, /RECEIVE_SMS/);
+assert.match(smsReceiver, /SmsCaptureGate\.canCapture/);
+assert.match(promoterRoute, /status: "manual_review"/);
+assert.match(promoterRoute, /titre de notification n'authentifie pas le SMS/i);
+assert.match(promoterRoute, /naxa_promoteur_payment_notification_candidates/);
+assert.doesNotMatch(promoterRoute, /status: "matched"|auto_confirm|confirm.*subscription/i);
+assert.match(partnerRoute, /naxa_partner_payment_notification_candidates/);
+assert.match(partnerRoute, /status: "manual_review"/);
+assert.match(partnerRoute, /cycle de facturation Partenaire/i);
+assert.match(adminShare, /NOTIFICATION_LISTENER_CANDIDATE/);
+assert.match(adminShare, /match_status: "manual_review"/);
+assert.match(adminCapture, /senderOriginAddress !== expectedSender/);
+assert.match(parser, /return senderId === expected/);
+assert.match(promoterMigration, /enable row level security/i);
+assert.match(promoterMigration, /from public, anon, authenticated/i);
+assert.match(partnerMigration, /enable row level security/i);
+assert.match(partnerMigration, /from public, anon, authenticated/i);
+
+console.log("PASS — cloisonnement Client/Promoteur/Partenaire/Admin, provenance candidate, RLS et séparation capture SMS authentifiée.");

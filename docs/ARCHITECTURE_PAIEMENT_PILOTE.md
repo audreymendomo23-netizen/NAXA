@@ -1,89 +1,66 @@
-# NAXA Payment — architecture pilote validée
+# NAXA — architecture des paiements mobiles
 
-**Décision métier validée le 13 novembre 2026.** Cette architecture remplace toute proposition de capture SMS automatique obligatoire pour les pharmacies pendant le pilote.
+Mise à jour : 13 novembre 2026 — décision métier consolidée et premier lot de code Android.
 
-## Principes non négociables
+## Principes communs
 
-1. Ne jamais demander aux clients ou Promoteurs d'autoriser NAXA à lire tous leurs SMS. Le SMS de débit est transmis volontairement via le partage Android vers le parcours NAXA prévu.
-2. Ne pas imposer à la pharmacie le transfert de son SMS de crédit pendant le pilote. La pharmacie confirme la réception du paiement depuis son espace NAXA, après contrôle de son portefeuille marchand.
-3. Automatiser la confirmation uniquement lorsqu'une confrontation fiable des deux preuves est possible : SMS de débit partagé par le payeur et SMS de crédit authentifié reçu chez le bénéficiaire.
-4. Si une preuve manque, est incomplète, ambiguë ou contradictoire, le paiement reste en attente et suit la voie de confirmation manuelle autorisée. Aucun statut « payé » ne doit être déduit du seul SMS de débit partagé.
-5. Ne jamais bloquer une commande ou dégrader le parcours client à cause d'une permission Android sensible non accordée.
+1. L'application Client ne lit jamais les notifications ou les SMS en arrière-plan. Le Client partage volontairement le SMS de débit.
+2. La lecture des notifications est réservée aux profils Pharmacie/Promoteur, Partenaire et Administrateur, après consentement NAXA et activation de l'accès spécial Android.
+3. L'accès Android aux notifications expose techniquement un flux large. NAXA filtre localement les titres exacts OrangeMoney et MobileMoney, n'envoie que les notifications reconnues et ne stocke pas le contenu brut.
+4. Un titre de notification n'est pas une métadonnée d'origine SMS authentifiée. Une notification détectée est un indice à rapprocher, toujours en revue manuelle ; elle ne peut pas déclencher seule une confirmation.
+5. Le récepteur SMS_RECEIVED et l'adresse d'origine fournie par Android sont réservés à la variante Admin. Seuls les identifiants stricts OrangeMoney et MobileMoney sont acceptés pour le circuit automatique Admin.
+6. Les codes secrets, PIN et OTP Mobile Money ne sont jamais demandés, lus, transmis ou enregistrés par NAXA.
+7. Aucun paiement n'est confirmé à partir de la seule génération USSD, de l'ouverture du composeur, d'un champ saisi ou d'une notification non rapprochée.
 
-## A. Paiement d'un achat Client → Pharmacie — phase pilote
+## A. Client → Pharmacie
 
-### Côté Client
-- Le Client paie la pharmacie par le canal Mobile Money retenu.
-- Il peut partager volontairement le SMS de débit depuis sa messagerie vers NAXA.
-- NAXA rattache la preuve à l'intention de paiement / commande lorsque les informations permettent une correspondance sûre.
-- Aucun droit RECEIVE_SMS n'est demandé au Client.
-- Le parcours doit rester simple : partage du message en quelques gestes, association à la commande, retour visible dans le suivi de commande.
+- Le Client choisit MTN Mobile Money ou Orange Money.
+- NAXA présente le nom du bénéficiaire, son numéro, son code marchand à six chiffres et le montant dû.
+- Sur Android, NAXA ouvre le composeur natif avec la commande préparée :
+  - MTN : *126*4*<code marchand 6 chiffres>*<montant>#.
+  - Orange : #150*47#. Le préremplissage du montant Orange n'est pas présumé ; il doit être confirmé par une documentation opérateur ou un essai réel.
+- Le Client confirme lui-même la commande et saisit son PIN uniquement dans l'interface de l'opérateur.
+- Après le débit, le Client partage volontairement son SMS avec NAXA. Le partage Android peut ne fournir que le texte ; si l'origine n'est pas transmise par une source système fiable, NAXA ne la considère pas authentifiée.
+- La Pharmacie vérifie le crédit réel et confirme dans sa Caisse. Le SMS partagé par le Client n'est pas un encaissement.
 
-### Côté Pharmacie
-- La Pharmacie reçoit la preuve partagée et voit la commande passer en « paiement à confirmer » (ou état métier équivalent).
-- Elle vérifie l'arrivée réelle des fonds sur son compte marchand et confirme depuis son espace NAXA.
-- Elle ne doit pas transférer son SMS de crédit, ni installer un lecteur SMS, pour chaque commande.
-- Cette confirmation manuelle est le mode normal du pilote. NAXA journalise l'identité de l'auteur, l'heure, la commande et la décision.
-- Si le SMS de débit n'a pas été partagé ou ne permet pas d'identifier la commande, le parcours manuel de vérification disponible reste utilisable ; ne pas fabriquer de correspondance.
+Interdictions côté Client : pas de lecteur de notifications, pas de READ_SMS, pas de RECEIVE_SMS.
 
-### Automatisation future — après la phase de confiance
-- La capture RECEIVE_SMS côté Pharmacie n'est pas requise au lancement.
-- Après au moins cinq mois d'utilisation pilote et de confiance acquise avec les pharmacies, réévaluer puis construire l'option de capture automatique sur un téléphone marchand enrôlé, uniquement avec consentement explicite et autorisation Android valide.
-- Quand NAXA possède les deux SMS et que les champs de rapprochement concordent de manière univoque, la confirmation peut être automatique.
-- Si la capture est absente, refusée ou non fiable, conserver la confirmation manuelle. Ne jamais rendre l'automatisme obligatoire.
-- L'hypothèse opérationnelle acceptée est de 5 à 10 livraisons quotidiennes environ par pharmacie durant le pilote : 5 à 10 partages volontaires du SMS par jour sont considérés comme un compromis acceptable le temps que NAXA évolue. Réexaminer cette charge avec les retours réels avant de la généraliser.
+## B. Abonnement Pharmacie payé par le Promoteur
 
-## B. Abonnement Promoteur → NAXA
+Dans le modèle actuel, l'abonnement pharmacie est payé depuis l'espace Promoteur. Le compagnon Standard peut :
+- préparer une intention d'abonnement sur le téléphone enrôlé ;
+- recevoir une notification candidate si l'accès spécial Android a été activé ;
+- transmettre le SMS de débit volontairement.
 
-### Côté Promoteur
-- Le Promoteur partage volontairement son SMS de débit vers NAXA Paiement / le parcours Android NAXA prévu.
-- L'application et le serveur déterminent le canal et rattachent le texte partagé à l'intention d'abonnement active.
-- Le Promoteur ne donne pas à NAXA la permission générale de lire ses SMS ; aucune permission RECEIVE_SMS n'est nécessaire à ce rôle.
-- Le SMS partagé constitue une preuve du débit déclaré et non, à lui seul, la preuve de crédit chez NAXA.
+La notification candidate est reliée à l'intention et conservée en revue manuelle. Elle ne clôt pas l'intention et ne constitue pas la preuve de débit de niveau 1. Le partage volontaire du SMS et la preuve de crédit Admin demeurent nécessaires pour le circuit actuel d'auto-confirmation à double preuve.
 
-### Côté Administrateur
-- Le téléphone Admin conserve le mode de réception automatique RECEIVE_SMS, avec consentement explicite, permission Android effectivement accordée et filtrage des expéditeurs attendus.
-- Le serveur confronte le SMS de débit partagé par le Promoteur et le SMS de crédit reçu chez NAXA : canal, montant, référence, numéro payeur, destination marchande, date/heure et unicité.
-- Si les deux preuves concordent sans ambiguïté et que la procédure métier l'autorise, NAXA confirme automatiquement le règlement et active/renouvelle l'abonnement.
-- En cas de SMS Admin non reçu, incomplet ou non rapproché, l'Administrateur peut vérifier le crédit et confirmer manuellement depuis le cockpit, ou partager volontairement le SMS de crédit à NAXA comme solution de secours.
-- Une anomalie, un doublon ou plusieurs paiements candidats bloque l'automatisme et déclenche une revue Admin.
+## C. Abonnement Partenaire
 
-## C. Rôles et permissions Android
+Le compagnon Standard peut enrôler les établissements pour lesquels l'utilisateur est propriétaire ou gestionnaire et transmettre les notifications candidates ou les SMS partagés. Le serveur conserve les champs extraits, l'empreinte du message et la source, sans enregistrer le SMS brut.
 
-| Rôle | Transmission / capture pendant le pilote | Permission RECEIVE_SMS |
-|---|---|---|
-| Client | Partage volontaire du SMS de débit | Non |
-| Pharmacie | Confirmation manuelle dans l'espace Pharmacie ; pas de transfert de son SMS | Non |
-| Promoteur | Partage volontaire du SMS de débit | Non |
-| Administrateur NAXA | Capture automatique du SMS de crédit ; partage manuel possible en secours | Oui, seulement avec consentement et autorisation Android |
+Limite du modèle actuel : le dépôt ne dispose pas encore d'un cycle de facturation Partenaire complet (tarif, intention, échéance, règlement et règle de réactivation). Les éléments reçus sont donc placés en revue manuelle et ne déclenchent aucune activation ou prolongation d'abonnement. Ce raccordement métier reste à construire.
 
-Le rôle est déterminé par l'identité et les autorisations métier validées côté serveur, jamais par la simple présence d'une permission Android. Un compte ne doit pas gagner des capacités parce que l'utilisateur a installé l'APK ou coché une permission.
+## D. Administrateur NAXA
 
-## D. Règles de sécurité et d'expérience
+La variante Admin accepte :
+- lecture facultative des notifications comme candidats de revue manuelle ;
+- récepteur Android SMS_RECEIVED, avec consentement NAXA et autorisation Android RECEIVE_SMS ;
+- partage manuel d'un SMS ;
+- contrôle du rapprochement et décision manuelle.
 
-- L'intention de paiement doit exister avant le rapprochement : identifiant de commande/règlement, montant, devise FCFA, canal, bénéficiaire, référence de destination, payeur attendu et fenêtre de validité.
-- Le partage d'un SMS est une entrée utilisateur non fiable : contrôler le contenu et ne jamais considérer son expéditeur déclaré par l'utilisateur comme authentifié.
-- Le SMS de crédit est une seconde preuve indépendante seulement s'il provient de la capture Android autorisée du téléphone bénéficiaire ou d'un processus de validation manuelle explicite.
-- Exiger une correspondance non ambiguë ; gérer idempotence, référence déjà consommée, montants différents, mauvaise destination, mauvais payeur, date hors fenêtre et messages incomplets.
-- Les états doivent être explicites : preuve de débit reçue, crédit à confirmer, rapprochement en cours, confirmé, refusé, doublon, ambigu ou revue manuelle.
-- La confirmation manuelle Pharmacie autorise la suite du flux métier mais doit rester auditée et pouvoir être révoquée/contestée selon les règles du paiement. Elle ne doit jamais être confondue avec une capture automatique du SMS.
-- Le statut paiement confirmé déclenche les actions aval prévues, sans sauter la préparation du stock : la demande de livraison ne devient disponible qu'après les étapes normales de préparation / prêt au retrait.
+Le circuit automatique existant reste réservé au vrai SMS reçu par le récepteur Admin, avec adresse d'origine brute exacte, destination NAXA figée, montant, canal, payeur, référence, heure et preuve de débit Promoteur de niveau 1. Une notification Android n'est jamais envoyée à l'endpoint de capture authentifiée.
 
-## E. Plan de livraison
+## E. Confidentialité et sécurité Android
 
-1. **Pilote immédiat** : partage volontaire du SMS Client et Promoteur ; confirmation manuelle par la Pharmacie ; capture automatique du crédit Admin ; secours par confirmation Admin manuelle ou partage volontaire de son SMS.
-2. **Raccordements et preuves** : créer les intentions, entrées de preuve et associations aux commandes/règlements ; assurer les statuts visibles, les contrôles serveur, les traces d'audit, les tests doublons/ambiguïtés et la recette Android réelle.
-3. **Évolution Pharmacie** : après au moins cinq mois de pilote, recueillir la confiance et les retours des pharmacies, puis implémenter la capture de SMS de crédit en option, appareil marchand enrôlé, sans imposer cette fonction.
-4. **Confrontation automatique** : activer seulement lorsque les deux SMS sont authentifiés/fiables et que les tests opérateur/appareil montrent une correspondance déterministe.
+- L'accès spécial aux notifications est demandé uniquement aux rôles autorisés et doit pouvoir être révoqué.
+- Le profil Client est explicitement exclu côté interface et côté service Android, même si un ancien consentement subsiste sur le téléphone.
+- RECEIVE_SMS reste déclarée uniquement dans le manifeste de la variante Admin.
+- Le lecteur local ne traite que les notifications dont le titre est exactement OrangeMoney ou MobileMoney ; les autres notifications sont ignorées.
+- Les données de paiement candidates sont structurées et l'empreinte SHA-256 est conservée ; le texte intégral n'est pas persisté.
+- Les erreurs, doublons, incohérences, preuves absentes et refus d'autorisation mènent à une revue manuelle.
 
-## F. Écart constaté dans le code au moment de la décision
+## F. Distribution et recette
 
-HEAD main inspecté : 1f12c17bc29537a43f77dbab2f3b8486821c9f92.
+La distribution reste privée par APK depuis le canal officiel NAXA, sans Play Store. L'avertissement Android sur l'installation depuis une source inconnue est accepté et doit être expliqué dans le guide d'installation.
 
-- L'API Promoteur actuelle /api/promoteur/paiements/capture est prévue pour une capture par compagnon enrôlé et exige notamment l'identifiant brut d'expéditeur ; elle n'est pas encore le parcours de partage volontaire non fiable décrit ci-dessus.
-- Le compagnon Android actuel demande RECEIVE_SMS selon le consentement sans réserver cette permission au seul rôle Admin, et son récepteur accepte encore Promoteur et Admin.
-- Le parcours de partage entrant Android (ACTION_SEND) n'est pas encore raccordé.
-- L'API Admin possède déjà une capture crédit authentifiée et un rapprochement avec les règlements Promoteur, ainsi qu'un chemin de confirmation automatique ; le rapprochement doit être renforcé pour exiger la preuve Promoteur partagée selon la présente décision.
-- Le parcours de paiement Client/Pharmacie doit être raccordé à cette décision et testé ; le présent document n'affirme pas qu'il est déjà implémenté.
-
-**Statut : décision métier validée pour le pilote ; intégration code non certifiée.** Aucun déploiement Production, aucune migration Production et aucune activation de capture SMS Pharmacie ne sont autorisés par cette décision.
+La recette doit couvrir de vrais téléphones Android et des SIM MTN/Orange, notamment le composeur USSD, double SIM, notifications, révocation de l'accès, titres d'expéditeur, messages tronqués, doublons et latence opérateur. Les essais simulés ne remplacent pas ces preuves.

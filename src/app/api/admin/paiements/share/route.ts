@@ -7,7 +7,11 @@ import { parsePromoteurPaymentSms } from "@/lib/promoteurPaymentSms";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Body = { deviceId?: string; deviceToken?: string; canal?: "orange_money" | "mtn_momo"; smsText?: string };
+type Body = {
+  deviceId?: string; deviceToken?: string; canal?: "orange_money" | "mtn_momo";
+  smsText?: string; sourceType?: "voluntary_sms_share" | "notification_listener_candidate";
+  senderTitle?: string;
+};
 
 export async function POST(request: Request) {
   try {
@@ -15,8 +19,13 @@ export async function POST(request: Request) {
     const body = await request.json() as Body;
     const canal = body.canal;
     const smsText = String(body.smsText ?? "").trim().slice(0, 8000);
+    const sourceType = body.sourceType ?? "voluntary_sms_share";
+    const senderTitle = String(body.senderTitle ?? "").trim();
     if (!accessToken || !body.deviceId || String(body.deviceToken ?? "").length < 32 ||
-        (canal !== "orange_money" && canal !== "mtn_momo") || smsText.length < 12) {
+        (canal !== "orange_money" && canal !== "mtn_momo") || smsText.length < 12 ||
+        !["voluntary_sms_share", "notification_listener_candidate"].includes(sourceType) ||
+        (sourceType === "notification_listener_candidate" &&
+          senderTitle !== (canal === "orange_money" ? "OrangeMoney" : "MobileMoney"))) {
       return NextResponse.json({ error: "SMS Admin partagé incomplet." }, { status: 400 });
     }
     const db = supabaseAdmin();
@@ -63,7 +72,9 @@ export async function POST(request: Request) {
       currency: "FCFA",
       payer_number: parsed.payerNumber,
       merchant_reference: device.merchant_reference,
-      sender_origin_id: "MANUAL_SHARE",
+      sender_origin_id: sourceType === "notification_listener_candidate"
+        ? "NOTIFICATION_LISTENER_CANDIDATE:" + senderTitle
+        : "MANUAL_SHARE",
       provider_occurred_at: parsed.occurredAt,
       sms_received_at: new Date().toISOString(),
       payload_sha256: hash,
@@ -75,7 +86,9 @@ export async function POST(request: Request) {
     if (admins?.length) await db.from("notifications").insert(admins.map((item: {id:string}) => ({
       user_id: item.id, type: "abonnement_capture_admin_a_revoir",
       titre: "SMS de crédit partagé · vérification requise",
-      corps: "Un SMS de crédit a été partagé volontairement depuis le compagnon Admin. Il n'est pas considéré comme une capture système et ne déclenche aucune confirmation automatique.",
+      corps: sourceType === "notification_listener_candidate"
+        ? "Une notification de paiement a été détectée sur le téléphone Admin. Son titre n'authentifie pas l'expéditeur SMS ; vérification manuelle obligatoire."
+        : "Un SMS de crédit a été partagé volontairement depuis le compagnon Admin. Il n'est pas considéré comme une capture système et ne déclenche aucune confirmation automatique.",
     })));
     return NextResponse.json({ received: true, eventId: event.id, status: "manual_review" }, { status: 202 });
   } catch {

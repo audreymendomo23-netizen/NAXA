@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 type Body = {
   deviceId?: string; deviceToken?: string; canal?: "orange_money" | "mtn_momo";
   smsText?: string; payerNumber?: string; amount?: number; paidAt?: string; reference?: string;
+  sourceType?: "voluntary_sms_share" | "notification_listener_candidate";
+  senderTitle?: string; smsReceivedAt?: string;
 };
 
 const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
@@ -23,8 +25,17 @@ export async function POST(request: Request) {
     const deviceToken = String(body.deviceToken ?? "");
     const canal = body.canal;
     const smsText = String(body.smsText ?? "").trim().slice(0, 8000);
+    const sourceType = body.sourceType ?? "voluntary_sms_share";
+    const senderTitle = String(body.senderTitle ?? "").trim();
+    const smsReceivedAt = new Date(String(body.smsReceivedAt ?? new Date().toISOString()));
     if (!accessToken || !deviceId || deviceToken.length < 32 ||
-        (canal !== "orange_money" && canal !== "mtn_momo") || smsText.length > 8000) {
+        (canal !== "orange_money" && canal !== "mtn_momo") || smsText.length > 8000 ||
+        !["voluntary_sms_share", "notification_listener_candidate"].includes(sourceType) ||
+        (sourceType === "notification_listener_candidate" &&
+          (senderTitle !== (canal === "orange_money" ? "OrangeMoney" : "MobileMoney") ||
+           !Number.isFinite(smsReceivedAt.getTime()) ||
+           smsReceivedAt.getTime() > Date.now() + 60_000 ||
+           smsReceivedAt.getTime() < Date.now() - 24 * 60 * 60_000))) {
       return NextResponse.json({ error: "Déclaration de paiement incomplète." }, { status: 400 });
     }
 
@@ -78,14 +89,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Date de paiement hors de la fenêtre de vérification." }, { status: 400 });
     }
 
-    const extractedProof = Boolean(parsed && parsed.direction === "payer_debit" && parsed.success &&
+    const extractedProof = sourceType === "voluntary_sms_share" &&
+      Boolean(parsed && parsed.direction === "payer_debit" && parsed.success &&
       parsed.amount === amount && parsed.reference &&
       String(parsed.reference).toUpperCase() === reference.toUpperCase());
     const smsHash = smsText ? createHash("sha256").update(smsText).digest("hex") : null;
     const details = {
       level: extractedProof ? 1 : 3,
       status: extractedProof ? "coherent_needs_operator_confirmation" : "manual_review",
-      source: extractedProof ? "promoter_voluntary_sms_share" : "promoter_manual_entry",
+      source: sourceType === "notification_listener_candidate"
+        ? "promoter_notification_candidate"
+        : extractedProof ? "promoter_voluntary_sms_share" : "promoter_manual_entry",
+      sourceType,
+      senderTitle: senderTitle || null,
+      smsReceivedAt: sourceType === "notification_listener_candidate" ? smsReceivedAt.toISOString() : null,
+      notificationTitleIsNotAuthenticatedSmsOrigin: sourceType === "notification_listener_candidate",
       parser: parsed?.parser ?? "none",
       quality: parsed?.quality ?? "unrecognized",
       direction: parsed?.direction ?? null,
@@ -131,7 +149,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       received: true, reglementId,
       status: extractedProof ? "payer_sms_shared_waiting_admin_credit" : "manual_review",
-      message: "Déclaration reçue. L'abonnement ne sera activé qu'après rapprochement avec le SMS de crédit Admin ou confirmation manuelle.",
+      message: sourceType === "notification_listener_candidate"
+        ? "Notification reçue comme indice de paiement. Elle n'authentifie pas l'expéditeur SMS et nécessite le rapprochement Admin."
+        : "Déclaration reçue. L'abonnement ne sera activé qu'après rapprochement avec le SMS de crédit Admin ou confirmation manuelle.",
     }, { status: 202 });
   } catch {
     return NextResponse.json({ error: "Service de partage SMS Promoteur indisponible." }, { status: 503 });

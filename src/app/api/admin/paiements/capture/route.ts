@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     const expectedSender = canal === "orange_money" ? "OrangeMoney" : "MobileMoney";
-    if (normalize(senderOriginAddress) !== normalize(expectedSender) || /\d/.test(senderOriginAddress)) {
+    if (senderOriginAddress !== expectedSender) {
       await notifyAdmins(db, "Le telephone Admin a recu un SMS dont l'expediteur brut n'est pas l'identifiant officiel attendu. Aucun renouvellement automatique.");
       return NextResponse.json({ received: true, status: "manual_review", message: "Expediteur SMS non reconnu. Aucune confirmation automatique." }, { status: 202 });
     }

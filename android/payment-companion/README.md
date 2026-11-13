@@ -1,61 +1,69 @@
-# NAXA Paiement Android — architecture pilote
+# NAXA Paiement Android — distribution privée
 
-La référence métier est [l'architecture de paiement pilote](../../docs/ARCHITECTURE_PAIEMENT_PILOTE.md).
+La référence métier est l'architecture des paiements dans ../../docs/ARCHITECTURE_PAIEMENT_PILOTE.md.
 
-## Variantes privées
+## Variantes APK privées — sans Play Store
 
-Le même code produit deux APK privées, sans Play Store :
-
-| APK | Comptes | Autorisation SMS |
+| Variante | Profils | Permissions / accès |
 |---|---|---|
-| Standard `cm.naxa.paymentcompanion` | Client et Promoteur | Aucune permission `RECEIVE_SMS` |
-| Admin `cm.naxa.paymentcompanion.admin` | Administrateur uniquement | `RECEIVE_SMS` avec consentement NAXA + autorisation Android |
+| Standard cm.naxa.paymentcompanion | Client, Promoteur/Pharmacie, Partenaire | Pas de RECEIVE_SMS. Accès spécial aux notifications facultatif pour Promoteur et Partenaire uniquement. Client explicitement bloqué. |
+| Admin cm.naxa.paymentcompanion.admin | Administrateur | RECEIVE_SMS avec consentement et autorisation Android ; lecteur de notifications facultatif après consentement. |
 
-La variante Standard reçoit les SMS uniquement lorsque la personne choisit explicitement **Partager → NAXA Paiement**. Elle permet de choisir la commande (Client) ou l'intention d'abonnement préparée (Promoteur), d'extraire les données prises en charge, puis de compléter ou corriger les champs avant transmission.
+L'installation se fait par APK depuis le canal officiel NAXA. Android peut demander d'autoriser cette source à installer des applications ; NAXA ne contourne pas cet avertissement.
 
-## Parcours Client → Pharmacie
+## Règles de lecture des notifications
 
-1. Le Client règle la commande auprès de la pharmacie.
-2. Depuis son SMS de débit, il choisit Partager → NAXA Paiement.
-3. Le compagnon propose ses commandes de livraison qui attendent le paiement.
-4. Il préremplit numéro, montant, date et référence lorsque ces éléments existent dans le SMS. Le montant par défaut est celui de la commande et la date par défaut est l'heure locale `Africa/Douala`.
-5. Le Client vérifie et transmet. NAXA conserve les champs déclarés et une empreinte SHA-256 du texte partagé, jamais le corps SMS brut.
-6. Pendant le pilote, la pharmacie vérifie le crédit réellement reçu et confirme manuellement dans sa Caisse. La confirmation passe toujours par le ticket POS lié à la commande ; le SMS du Client ne suffit pas à encaisser.
+Android accorde au lecteur un accès technique au flux général des notifications du téléphone. L'utilisateur doit activer cet accès spécial dans les paramètres Android après avoir donné son consentement dans NAXA.
 
-En l'absence de SMS, le Client peut saisir les détails manuellement. Le montant et la date sont préremplis, mais restent modifiables et sont marqués comme générés ou saisis manuellement.
+Le service :
+- refuse toujours le profil Client ;
+- n'agit que pour les rôles promoteur, partenaire et admin, avec consentement ;
+- filtre localement les seuls titres exacts OrangeMoney et MobileMoney ;
+- transmet uniquement un message qui passe les filtres de forme et les règles de collecte du profil ;
+- ne transmet pas le reste des notifications ;
+- classe chaque notification comme candidat non authentifié et ne confirme aucun paiement.
 
-## Parcours Promoteur → NAXA
+Le titre d'une notification n'est pas l'adresse d'origine brute d'un SMS. Pour cette raison, une notification Admin est transmise à la revue manuelle et jamais à l'API de capture SMS authentifiée.
 
-1. Le Promoteur se connecte dans la variante Standard.
-2. Il choisit Orange Money ou MTN MoMo et prépare l'intention d'abonnement sur son téléphone.
-3. Après le transfert, il partage son SMS de débit avec NAXA Paiement.
-4. Le compagnon extrait les champs disponibles, préremplit le montant de l'abonnement et la date locale si le SMS ne fournit pas l'heure, puis transmet la déclaration.
-5. Le téléphone Administrateur capte automatiquement le SMS de crédit si et seulement si le consentement NAXA, la permission Android et l'identifiant opérateur exact sont tous valides.
+## Client → Pharmacie
 
-La confirmation automatique exige deux preuves indépendantes sur la même référence : déclaration de débit Promoteur issue du partage et crédit reçu/capturé par Admin. Une déclaration manuelle, un SMS Admin seul ou une correspondance ambiguë restent en revue Admin.
+1. Le Client sélectionne MTN ou Orange dans l'espace Client.
+2. NAXA affiche nom, numéro et code marchand à six chiffres ainsi que le montant.
+3. MTN : préparation *126*4*<code 6 chiffres>*<montant>#.
+4. Orange : préparation #150*47# ; les étapes et le montant doivent être confirmés chez l'opérateur sur SIM réelle.
+5. Android ouvre le composeur ; le Client confirme la commande puis saisit son PIN chez l'opérateur.
+6. Le Client partage le SMS de débit avec NAXA. Aucun lecteur de notification ou accès SMS en arrière-plan n'est demandé.
 
-L'Administrateur peut également partager manuellement son SMS de crédit en secours. Cet événement est toujours classé en revue manuelle et ne déclenche jamais à lui seul l'auto-confirmation.
+## Promoteur / Pharmacie
 
-## Consentement et restriction Android — Admin uniquement
+Le Promoteur prépare une intention d'abonnement liée à son appareil. Il peut partager son SMS de débit ou activer la détection des notifications. Une notification candidate ne clôt pas l'intention et ne compte pas comme preuve payer-SMS de niveau 1 ; le SMS volontairement partagé reste requis pour le rapprochement automatique existant.
 
-La variante Admin présente une case de consentement explicite, conservée dans le coffre chiffré Android Keystore. Après enrôlement et consentement, elle demande séparément la permission Android `RECEIVE_SMS`. Le récepteur vérifie à nouveau le rôle `admin`, le consentement, la permission et le canal autorisé avant extraction et juste avant l'envoi réseau.
+## Partenaire
 
-Android classe `RECEIVE_SMS` comme permission dangereuse et *hard-restricted*. L'installateur doit l'autoriser dans l'allowlist de permissions restreintes. Le simple téléchargement APK, le transfert Bluetooth ou le réglage « installer des applications inconnues » ne garantissent pas cette allowlist. Tester les installateurs et appareils cibles ; ne jamais désactiver Play Protect ni contourner Android. Si l'autorisation est refusée, utiliser le partage manuel du SMS Admin ou la confirmation manuelle.
+Le compagnon enrôle les partenaires actifs où le compte possède un rôle owner ou manager. Le lecteur de notifications et le partage volontaire transmettent les données extraites à la revue manuelle. Le cycle de facturation Partenaire (tarif, intention, règlement et activation) n'existe pas encore dans le produit : aucune notification ou SMS ne peut donc activer un abonnement Partenaire.
+
+## Administrateur
+
+La variante Admin permet trois chemins distincts :
+1. SMS_RECEIVED Android : vraie adresse d'origine disponible, expéditeur exact OrangeMoney ou MobileMoney, contrôles côté serveur ; c'est le seul chemin pouvant participer à la double preuve d'auto-confirmation Promoteur.
+2. NotificationListener : candidat de revue manuelle, jamais une capture d'origine authentifiée.
+3. Partage manuel : revue manuelle, jamais auto-confirmation.
+
+RECEIVE_SMS demeure uniquement dans src/admin/AndroidManifest.xml. Le service de notifications est dans le manifeste commun mais son gate runtime interdit le Client.
 
 ## Configuration technique
 
 - Android Gradle Plugin 9.4.0 ; Gradle CI 9.6.0 ; JDK 17.
 - compileSdk 36 ; targetSdk 36 ; minSdk 26.
-- Version 1.3.0 (versionCode 4).
-- Kotlin intégré à AGP ; JUnit 4.13.2.
-- Le workflow compile, teste et assemble `standardDebug` et `adminDebug`. Les APK du workflow sont des APK **Debug** internes, non signés Release et non destinés à la distribution pilote.
-- Les essais réels de partage depuis les applications SMS, les autorisations d'installation Admin, et les tests avec de vrais SMS Orange/MTN restent nécessaires avant distribution.
+- Tests unitaires couvrant le blocage Client et les identifiants exacts.
+- Les APK Debug de CI ne sont pas des APK Release signés destinés à la distribution.
 
-## Endpoints utilisés
+## Endpoints
 
-- Promoteur : `POST /api/promoteur/paiements/device/register`, `POST /api/promoteur/paiements/intent`, `POST /api/promoteur/paiements/share`.
-- Client : `GET /api/client/paiements/livraison/pending`, `POST /api/client/paiements/livraison/share`.
-- Admin auto : `POST /api/admin/paiements/device/register`, `POST /api/admin/paiements/capture`.
-- Admin secours : `POST /api/admin/paiements/share` (revue manuelle uniquement).
+- Promoteur : /api/promoteur/paiements/device/register, /api/promoteur/paiements/intent, /api/promoteur/paiements/share, /api/promoteur/paiements/notification-candidate.
+- Partenaire : /api/partenaire/paiements/device/register, /api/partenaire/paiements/notification-candidate.
+- Client : /api/client/paiements/livraison/pending, /api/client/paiements/livraison/share.
+- Admin capture authentifiée : /api/admin/paiements/device/register, /api/admin/paiements/capture.
+- Admin secours et notifications candidates : /api/admin/paiements/share.
 
-Aucun SMS brut n'est conservé par les nouveaux endpoints de partage. Le serveur conserve les champs extraits/déclarés et, lorsque le message a été partagé, son empreinte SHA-256 afin de détecter une réutilisation identique sans archiver le texte intégral.
+Les nouveaux chemins de candidature ne conservent pas le corps SMS brut et ne font aucune activation. Les essais opérateur et téléphones réels restent obligatoires.

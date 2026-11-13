@@ -1,36 +1,60 @@
-# NAXA — État d’implémentation des paiements marchands et USSD
+# NAXA — état de développement des paiements marchands, USSD et notifications
 
 Date : 13 novembre 2026  
-Périmètre : premier lot de développement sur `main`.
+Branche cible : main  
+Statut : PARTIEL — code intégré, recette Android réelle et facturation Partenaire incomplètes.
 
-## Implémenté dans ce lot
+## Présent sur main
 
-- Table dédiée `naxa_merchant_payment_destinations`, avec une configuration distincte par pharmacie/partenaire et par canal MTN/Orange.
-- Code marchand strictement limité à six chiffres, nom du bénéficiaire et téléphone marchand contrôlés.
-- Journal append-only `naxa_merchant_payment_destination_audit` pour les créations et mises à jour.
-- RPC d’écriture réservé à `service_role`; aucune lecture directe des tables de configuration ou d’audit par `anon` ou `authenticated`.
-- Écran Promoteur pour gérer les coordonnées des pharmacies du réseau actif.
-- Écran Partenaire pour les propriétaires et gestionnaires de partenaires actifs.
-- API de paiement Client limitée à la réservation du Client connecté, utilisant le canal choisi et la configuration active de la pharmacie concernée.
-- Génération MTN : `*126*4*<code marchand 6 chiffres>*<montant FCFA>#`.
-- Préparation Orange : `#150*47#`.
-- Ouverture du composeur natif Android via URI `tel:`, sans permission `CALL_PHONE` et sans déclenchement automatique de l’appel.
-- Affichage au Client du bénéficiaire, téléphone, code marchand et montant avant paiement.
-- Test de cohérence source `scripts/test-merchant-payment-ussd.cjs`.
+### Configuration marchande
+- naxa_merchant_payment_destinations sépare MTN et Orange par pharmacie ou partenaire.
+- Nom du bénéficiaire, numéro marchand et code exactement à six chiffres.
+- Journal d'audit de création / mise à jour.
+- Écrans de configuration dans /pharmacie/promoteur/paiements et /partenaire/paiements, limités aux gestionnaires autorisés.
+- Le RPC d'écriture et les tables restent réservés au serveur service_role.
 
-## Limites explicitement non clôturées
+### Client et USSD
+- Le Client récupère les coordonnées actives de la pharmacie liée à sa réservation.
+- L'écran affiche bénéficiaire, téléphone, code marchand et montant.
+- Android ouvre le composeur avec MTN *126*4*<code six chiffres>*<montant># ou Orange #150*47#.
+- Le Client confirme lui-même la commande et entre son code secret uniquement chez l'opérateur.
+- Le Client ne dispose d'aucun lecteur de notifications ni de permission READ_SMS / RECEIVE_SMS.
+- Le Client partage volontairement le SMS après débit ; le texte partagé ne fournit pas nécessairement une origine SMS authentifiée.
 
-- La migration doit être appliquée et vérifiée sur Replay avant tout usage d’environnement partagé. Aucune migration Production n’est autorisée par ce lot.
-- Le parcours USSD doit être validé sur des appareils Android physiques et des SIM MTN/Orange. L’ouverture du composeur ne prouve pas que l’opérateur accepte toutes les étapes.
-- MTN est généré avec code marchand et montant préremplis. Orange utilise le point d’entrée `#150*47#`; le préremplissage du bénéficiaire et du montant n’est pas revendiqué.
-- Les coordonnées partenaires sont enregistrées, mais le paiement de prestations partenaires n’a pas encore d’intention de paiement reliée à cette configuration.
-- Le lecteur Android de notifications pour Pharmacie, Partenaire et Admin n’est pas implémenté dans ce lot.
-- La séparation de la variante Android Client (aucun lecteur) et des variantes Pharmacie/Partenaire/Admin reste à réaliser et à tester.
-- Les flux d’abonnement Pharmacie/Partenaire, le rapprochement notifications + SMS et les tests de confirmation des paiements restent ouverts.
-- Le Client conserve exclusivement le partage volontaire de SMS ; l’origine réelle de l’expéditeur ne peut être considérée authentifiée que si une source Android fiable fournit cette métadonnée.
+### Promoteur / Pharmacie
+- Enrôlement Android Promoteur et intention d'abonnement existants.
+- Nouveau lecteur de notifications facultatif, limité par un gate à Promoteur, Partenaire et Admin ; le profil Client est rejeté.
+- Les notifications Promoteur sont reliées à une intention et sauvegardées dans une table candidate en revue manuelle, sans clôturer l'intention ni créer le niveau 1 de preuve.
+- Le partage volontaire du SMS conserve le circuit payer-SMS existant.
+- Le SMS reçu par Admin via SMS_RECEIVED reste nécessaire pour la double preuve automatique.
 
-## Critère de statut
+### Partenaire
+- Enrôlement des appareils des partenaires actifs où l'utilisateur est propriétaire ou gestionnaire.
+- Notification candidate et partage volontaire transmis au serveur.
+- Table de candidats protégée par RLS, sans accès direct client et sans stockage du texte brut.
+- Cycle d'abonnement Partenaire non existant : aucun tarif, aucune intention et aucune règle d'activation n'ont été introduits. Tous les candidats sont en revue manuelle ; pas d'activation automatique.
 
-Statut : **PARTIEL — développement initial intégré au dépôt, non déclaré AU VERT**.
+### Admin
+- Le récepteur Admin SMS_RECEIVED reste le seul chemin qui dispose de l'adresse d'origine brute Android et qui peut entrer dans la vérification automatique existante.
+- Identifiants stricts : OrangeMoney et MobileMoney (comparaison exacte côté Android et API).
+- La lecture des notifications Admin et le partage manuel passent en revue manuelle ; ils ne sont pas transmis comme expéditeur authentifié.
+- RECEIVE_SMS reste déclarée uniquement dans le manifeste de la variante Admin.
 
-Aucun paiement ne doit être marqué confirmé sur la seule base de la génération USSD, de l’ouverture du composeur, d’une déclaration manuelle ou d’une notification non rapprochée.
+## Migrations ajoutées dans ce lot
+
+- 20261113180000_partner_payment_notification_capture.sql : appareils Partenaire + candidats de notification / partage.
+- 20261113180500_promoteur_payment_notification_candidates.sql : candidats notification Promoteur reliés à une intention active.
+- Les deux tables utilisent RLS, révoquent les accès directs anon/authenticated et n'accordent l'accès qu'à service_role.
+
+## Limites / preuves encore requises
+
+- Appliquer les migrations uniquement sur Supabase Replay et vérifier les ACL/RLS.
+- Compiler et tester les variantes Android Standard/Admin.
+- Vérifier sur téléphones réels le filtrage des notifications sur Samsung, Tecno, Infinix et autres appareils.
+- Tester les SIM Orange et MTN, les codes USSD, double SIM et le flux après retour du composeur.
+- Vérifier les notifications tronquées, les doublons, la révocation du consentement, et l'absence de transmission de notifications non pertinentes.
+- Confirmer avec Orange le parcours complet après #150*47# ; le préremplissage du montant n'est pas affirmé.
+- Construire le cycle de facturation Partenaire avant toute auto-confirmation ou activation d'abonnement.
+- Créer des APK Release signés et tester la distribution APK privée.
+
+Aucune migration Supabase Production, aucun déploiement Vercel Production et aucune déclaration AU VERT ne sont couverts par ce lot.

@@ -5,39 +5,21 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SmsOriginClassifierTest {
-    @Test
-    fun acceptsOrangeMoneySender() {
+    @Test fun acceptsOnlyExactOrangeSenderId() {
         assertEquals("orange_money", SmsOriginClassifier.channelFromRawOrigin("OrangeMoney"))
+        assertNull(SmsOriginClassifier.channelFromRawOrigin("ORANGEMONEY"))
+        assertNull(SmsOriginClassifier.channelFromRawOrigin("Orange-Money"))
     }
 
-    @Test
-    fun acceptsMtnMobileMoneySender() {
+    @Test fun acceptsOnlyExactMtnSenderId() {
         assertEquals("mtn_momo", SmsOriginClassifier.channelFromRawOrigin("MobileMoney"))
+        assertNull(SmsOriginClassifier.channelFromRawOrigin("MOBILEMONEY"))
+        assertNull(SmsOriginClassifier.channelFromRawOrigin("Mobile Money"))
     }
 
-    @Test
-    fun acceptsCaseAndFormattingVariantsOfAllowedSenderIds() {
-        assertEquals("orange_money", SmsOriginClassifier.channelFromRawOrigin("ORANGE-MONEY"))
-        assertEquals("mtn_momo", SmsOriginClassifier.channelFromRawOrigin("mobile money"))
-    }
-
-    @Test
-    fun rejectsNumericSenderIds() {
-        assertNull(SmsOriginClassifier.channelFromRawOrigin("237650123456"))
-        assertNull(SmsOriginClassifier.channelFromRawOrigin("12345"))
-    }
-
-    @Test
-    fun rejectsUnknownSenderIds() {
-        assertNull(SmsOriginClassifier.channelFromRawOrigin("Orange"))
-        assertNull(SmsOriginClassifier.channelFromRawOrigin("MTN"))
-        assertNull(SmsOriginClassifier.channelFromRawOrigin("NAXA"))
-    }
-
-    @Test
-    fun rejectsNullAndBlankSenders() {
-        assertNull(SmsOriginClassifier.channelFromRawOrigin(null))
-        assertNull(SmsOriginClassifier.channelFromRawOrigin(""))
-        assertNull(SmsOriginClassifier.channelFromRawOrigin("   "))
+    @Test fun rejectsNumericAndUnknownSenderIds() {
+        listOf("237650123456", "12345", "Orange", "MTN", "NAXA", "", "   ", null).forEach {
+            assertNull(SmsOriginClassifier.channelFromRawOrigin(it))
+        }
     }
 }

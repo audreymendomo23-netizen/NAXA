@@ -51,7 +51,7 @@ class PaymentShareActivity : Activity() {
         root.addView(status)
         setContentView(scroll)
 
-        if (role !in listOf("client", "promoteur", "admin")) {
+        if (role !in listOf("client", "promoteur", "partenaire", "admin")) {
             status.text = "Aucun compte NAXA connecté. Ouvrez l'application, connectez votre compte, puis partagez de nouveau le SMS."
             root.addView(Button(this).apply { text = "Fermer"; setOnClickListener { finish() } })
             return
@@ -91,7 +91,13 @@ class PaymentShareActivity : Activity() {
             "promoteur" -> if (smsText.isNotBlank())
                 "Vérifiez la preuve de débit. Elle sera confrontée au SMS de crédit reçu par NAXA."
             else "Saisie manuelle de secours. Sans SMS de débit partagé, le dossier restera à vérifier par l'Administrateur."
+            "partenaire" -> "Le SMS partagé est transmis comme élément à rapprocher par NAXA. Il ne confirme pas un abonnement Partenaire."
             else -> "Partage de secours du SMS de crédit Admin. Ce partage est soumis à vérification manuelle et ne confirme jamais seul un abonnement."
+        }
+
+        if (role == "partenaire") {
+            buildPartnerShareForm()
+            return
         }
 
         if (role == "client") {
@@ -183,6 +189,76 @@ class PaymentShareActivity : Activity() {
             text = "La transmission confirme uniquement la déclaration. La pharmacie doit vérifier le crédit reçu ; l'Administrateur doit rapprocher le débit Promoteur avec son SMS de crédit."
             textSize = 12f
             setPadding(0, dp(12), 0, 0)
+        })
+    }
+
+    private fun buildPartnerShareForm() {
+        val raw = SecureVault.get(this, "partner_payment_devices") ?: "[]"
+        val partnerDevices = try {
+            val json = org.json.JSONArray(raw)
+            (0 until json.length()).mapNotNull { json.optJSONObject(it) }
+        } catch (_: Exception) { emptyList() }
+        if (partnerDevices.isEmpty()) {
+            status.text = "Aucun partenaire actif enrôlé pour ce compte. Reconnectez-vous avec un compte propriétaire ou gestionnaire."
+            root.addView(Button(this).apply { text = "Fermer"; setOnClickListener { finish() } })
+            return
+        }
+        if (smsText.isBlank()) {
+            status.text = "Pour transmettre un SMS, ouvrez le message de transaction puis choisissez Partager → NAXA Paiement."
+        }
+        root.addView(TextView(this).apply {
+            text = "Établissement concerné"
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        val partnerSpinner = Spinner(this)
+        partnerSpinner.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            partnerDevices.map { it.optString("partnerName", "Partenaire") }
+        )
+        root.addView(partnerSpinner)
+        root.addView(TextView(this).apply {
+            text = "Opérateur du SMS"
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, dp(8), 0, dp(4))
+        })
+        val channelSpinner = Spinner(this)
+        channelSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Orange Money", "MTN Mobile Money"))
+        root.addView(channelSpinner)
+        root.addView(TextView(this).apply {
+            text = "NAXA conserve les informations extraites et l'empreinte du message, pas son contenu brut. Le dossier reste en revue manuelle tant que le cycle d'abonnement Partenaire n'est pas raccordé."
+            textSize = 12f
+            setPadding(0, dp(8), 0, dp(12))
+        })
+        root.addView(Button(this).apply {
+            text = "Transmettre le SMS à NAXA"
+            isEnabled = smsText.length >= 12
+            setOnClickListener {
+                val device = partnerDevices.getOrNull(partnerSpinner.selectedItemPosition)
+                if (device == null) {
+                    status.text = "Sélectionnez le partenaire concerné."
+                    return@setOnClickListener
+                }
+                val selectedChannel = if (channelSpinner.selectedItemPosition == 0) "orange_money" else "mtn_momo"
+                isEnabled = false
+                status.text = "Transmission du SMS en revue manuelle…"
+                executor.execute {
+                    try {
+                        val result = NaxaApi.submitPartnerSmsCandidate(
+                            this@PaymentShareActivity,
+                            device.optString("partnerId"), device.optString("deviceId"), device.optString("deviceToken"),
+                            selectedChannel, smsText, "voluntary_sms_share"
+                        )
+                        runOnUiThread {
+                            status.text = result.optString("message", "Élément transmis à NAXA pour vérification.")
+                        }
+                    } catch (error: Exception) {
+                        runOnUiThread {
+                            isEnabled = true
+                            status.text = error.message ?: "Transmission du SMS impossible."
+                        }
+                    }
+                }
+            }
         })
     }
 
