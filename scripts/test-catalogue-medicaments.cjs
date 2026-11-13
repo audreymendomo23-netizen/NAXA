@@ -296,3 +296,18 @@ test("sécurité CIMA : vue publique invoker et fonction interne sans paramètre
   assert.match(cimaPhotoInvokerMigration, /with \(security_barrier = true, security_invoker = true\)/);
   assert.match(cimaPhotoInvokerMigration, /revoke all on private\.cima_photo_projection_internal from public, anon, authenticated, service_role/);
 });
+
+const imageImporter = fs.readFileSync(path.join(root, "scripts/medicaments-images-cameroun.mjs"), "utf8");
+
+test("import photos : utilise la vraie file CIS/CIP et les colonnes de provenance existantes", () => {
+  assert.match(imageImporter, /from\("medicaments_images"\)/);
+  assert.match(imageImporter, /select\("cis,cip_code,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut"\)/);
+  assert.match(imageImporter, /eq\("cis", row\.cis\)\.eq\("cip_code", row\.cip_code\)/);
+  assert.match(imageImporter, /from\("medicaments_referentiel_sources"\)/);
+  assert.match(imageImporter, /\["a_traiter", "sans_image_source", "erreur"\]/);
+  assert.match(imageImporter, /GTIN exact/);
+  assert.match(imageImporter, /CC BY-SA 4\.0/);
+  assert.match(imageImporter, /Wikimedia Commons/);
+  assert.match(imageImporter, /statut: "image_stockee"/);
+  assert.doesNotMatch(imageImporter, /photo_path|photo_source_url|photo_licence|photo_attribution|photo_verifiee_le/);
+});
