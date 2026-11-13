@@ -41,7 +41,7 @@ L'identifiant brut `OrangeMoney` / `MobileMoney` sert uniquement à sélectionne
 
 Le système conserve uniquement les champs structurés nécessaires (direction débit/crédit, canal, montant, ID de transaction, date, numéros partiellement masqués, libellé marchand), la provenance et une empreinte SHA-256. Le corps brut SMS/notification ne doit pas persister.
 
-Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paiement. Le moteur de rapprochement doit d'abord retrouver un ID de transaction commun, puis contrôler le canal, les directions opposées, le montant, le payeur, le bénéficiaire et la cohérence temporelle. Une paire cohérente, unique et non déjà consommée peut confirmer la transaction. SMS manquant, ID absent, écart, doublon ou ambiguïté restent en attente / revue manuelle ; l'absence de SMS dans NAXA ne signifie pas que l'opérateur n'a pas exécuté le paiement.
+Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paiement. Le moteur retrouve d'abord l'ID de transaction commun, puis contrôle le canal, les directions opposées, le montant et la destination. Le numéro du payeur est comparé lorsqu'il est disponible des deux côtés : son absence sur un côté ne bloque pas à elle seule une paire dont l'ID, le canal et le montant concordent ; une contradiction entre deux numéros présents impose la revue manuelle. Les incohérences temporelles, doublons ou ambiguïtés restent en revue. L'absence d'un SMS dans NAXA n'est jamais un verdict d'échec opérateur.
 
 ## État d'implémentation constaté — 13 novembre 2026
 
@@ -49,13 +49,14 @@ Un SMS seul, un succès déclaré ou une notification ne confirme jamais un paie
 - Le consentement SMS serveur est indépendant du consentement NotificationListener ; Client et Promoteur restent exclus de la capture système.
 - Le SMS bénéficiaire est enregistré avec les champs extraits et un hash, sans texte brut. Il ne confirme jamais seul.
 - **Pour les règlements Promoteur → NAXA, les preuves débit et crédit sont conservées séparément sous le même ID de transaction ; la confirmation ne dépend plus du libellé expéditeur.**
-- **Pour Client → Pharmacie/Partenaire → Caisse, le moteur générique de rapprochement et le déclenchement Caisse ne sont pas encore raccordés** : l'événement bénéficiaire reste en attente et la Caisse garde son contrôle actuel.
+- **Pour Client → Pharmacie, le moteur SQL de rapprochement et ses deux déclencheurs sont présents dans Replay et versionnés dans `main`** : ils se lancent dès que la déclaration débit ou le SMS crédit arrive, quel que soit l'ordre. La paire cohérente passe à `matched_waiting_pos` ; la création du ticket POS et la confirmation financière finale dans la réservation ne sont pas encore raccordées.
+- Client → Partenaire n'est pas raccordé au registre de réservation et de paiement.
 - La collecte réelle reste conditionnée à l'autorisation Android RECEIVE_SMS ; chaque téléphone/installateur doit être vérifié en pratique.
 
 ## Processus métier
 
 ### Client → Pharmacie
-Cible : le Client partage le SMS de débit et le téléphone Pharmacie collecte le SMS de crédit reçu sur le compte marchand. Les messages peuvent venir de téléphones différents. Le rapprochement par ID commun, canal, sens débit/crédit, montant, payeur, bénéficiaire et temps doit confirmer la paire unique, puis alimenter la Caisse. **Ce raccordement générique Client → Pharmacie n'est pas encore implémenté** : aujourd'hui le SMS bénéficiaire est conservé en attente et la Caisse utilise encore le processus manuel. L'absence de SMS dans NAXA n'est pas un verdict d'échec opérateur.
+Le Client partage le SMS de débit et le téléphone Pharmacie collecte le SMS de crédit du compte marchand. Les messages peuvent venir de téléphones différents et arriver dans n'importe quel ordre. Le déclenchement automatique appelle le rapprochement par ID commun, canal, sens débit/crédit, montant et destination. Le numéro payeur sert de contrôle complémentaire lorsqu'il est présent des deux côtés ; son absence isolée n'empêche plus la paire d'être rapprochée. **État actuel :** la paire passe à `matched_waiting_pos`, mais ne crée pas encore le ticket POS et ne finalise pas le statut de paiement de la réservation. L'absence de SMS dans NAXA n'est pas un verdict d'échec opérateur.
 
 ### Promoteur → NAXA
 Le Promoteur partage le SMS de débit. L'Admin reçoit le SMS de crédit NAXA sur son téléphone. Les deux preuves sont stockées séparément sous le même ID de transaction ; la confirmation contrôle aussi canal, sens, montant, destination, payeur et fenêtre horaire. Le libellé expéditeur sert uniquement au filtrage à la collecte.
@@ -76,7 +77,7 @@ Le montant attendu et la date/heure courante sont générés depuis l'intention 
 - `OrangeMoney` / `MobileMoney` : filtre de collecte uniquement, jamais un critère de confirmation financière.
 - Si un SMS n'arrive pas sur le téléphone surveillé, conserver l'état « preuve bénéficiaire non reçue » / « à vérifier » ; ne pas conclure à un échec de transaction chez l'opérateur.
 - Utiliser RLS et des droits service-role uniquement pour les tables techniques.
-- Les nouvelles collectes restent `manual_review` jusqu'à rapprochement et décision métier.
+- Les nouvelles collectes restent `manual_review` jusqu'au rapprochement ; les paires concordantes passent à `coherent_unconfirmed` en attendant le raccordement financier final et la Caisse.
 - Ne pas déployer en Production ni appliquer une migration Production pendant ce chantier.
 
 ## Recette obligatoire
