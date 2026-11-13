@@ -111,7 +111,7 @@ as $function$
   select
     o.id,p.id,p.name,p.city,p.neighborhood,o.name,o.category,o.description,o.service_area_label,o.price_fcfa,
     coalesce(nullif(trim(provider.specialty),''),nullif(trim(o.category),'')),
-    coalesce(provider.is_open,false),
+    coalesce(provider.is_open and timezone('Africa/Douala',now())::time < provider.closes_at,false),
     coalesce(provider.is_open
       and timezone('Africa/Douala',now())::time >= provider.opens_at
       and timezone('Africa/Douala',now())::time < provider.closes_at,false),
