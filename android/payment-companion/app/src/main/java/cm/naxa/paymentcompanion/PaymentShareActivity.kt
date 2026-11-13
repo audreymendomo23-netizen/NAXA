@@ -61,9 +61,9 @@ class PaymentShareActivity : Activity() {
 
     private fun loadClientOrders() {
         status.text = if (smsText.isNotBlank()) {
-            "SMS partagé reçu. Chargement des commandes en attente de paiement…"
+            "SMS partagé reçu. Chargement des livraisons et réservations Partenaire à rapprocher…"
         } else {
-            "Chargement de vos commandes de livraison à payer…"
+            "Chargement de vos paiements en attente (livraisons et réservations Partenaire)…"
         }
         executor.execute {
             try {
@@ -73,7 +73,7 @@ class PaymentShareActivity : Activity() {
                 runOnUiThread {
                     orders = list
                     if (orders.isEmpty()) {
-                        status.text = "Aucune commande de livraison n'attend une déclaration de paiement. Vérifiez que la pharmacie a accepté la commande."
+                        status.text = "Aucune livraison ou réservation Partenaire confirmée ne nécessite de déclaration de paiement."
                         root.addView(Button(this).apply { text = "Fermer"; setOnClickListener { finish() } })
                     } else buildForm()
                 }
@@ -86,8 +86,8 @@ class PaymentShareActivity : Activity() {
     private fun buildForm() {
         status.text = when (role) {
             "client" -> if (smsText.isNotBlank())
-                "Choisissez la commande concernée, vérifiez les données extraites puis transmettez la déclaration à la pharmacie."
-            else "Saisie manuelle : montant et date préremplis à partir de la commande et de l'heure locale du Cameroun."
+                "Choisissez la livraison ou la réservation Partenaire concernée, vérifiez les données extraites puis transmettez la déclaration."
+            else "Saisie manuelle : montant et date préremplis à partir de la réservation et de l'heure locale du Cameroun."
             "promoteur" -> if (smsText.isNotBlank())
                 "Vérifiez la preuve de débit. Elle sera confrontée au SMS de crédit reçu par NAXA."
             else "Saisie manuelle de secours. Sans SMS de débit partagé, le dossier restera à vérifier par l'Administrateur."
@@ -107,13 +107,15 @@ class PaymentShareActivity : Activity() {
 
         if (role == "client") {
             root.addView(TextView(this).apply {
-                text = "Commande à rapprocher"
+                text = "Livraison ou réservation à rapprocher"
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
             val labels = orders.map { order ->
-                "Commande " + order.optString("id").take(8).uppercase() + " · " +
-                    order.optString("pharmacyName") + " · " +
-                    order.optInt("expectedAmount").toString() + " FCFA"
+                order.optString("paymentLabel").ifBlank {
+                    "Commande " + order.optString("id").take(8).uppercase() + " · " +
+                        order.optString("pharmacyName")
+                } + " · " + order.optInt("expectedAmount").toString() + " FCFA · " +
+                    (if (order.optString("channel") == "mtn_momo") "MTN" else "Orange")
             }
             root.addView(Spinner(this).apply {
                 adapter = ArrayAdapter(this@PaymentShareActivity, android.R.layout.simple_spinner_dropdown_item, labels)
@@ -191,7 +193,10 @@ class PaymentShareActivity : Activity() {
         }
         root.addView(submitButton)
         root.addView(TextView(this).apply {
-            text = "La transmission confirme uniquement la déclaration. La pharmacie doit vérifier le crédit reçu ; l'Administrateur doit rapprocher le débit Promoteur avec son SMS de crédit."
+            text = if (role == "client" && selectedOrder?.optString("paymentType") == "partner_reservation")
+                "La transmission enregistre uniquement votre déclaration. Le Partenaire doit recevoir le SMS de crédit sur son téléphone ; NAXA rapprochera les deux SMS avant d'autoriser le retrait."
+            else
+                "La transmission confirme uniquement la déclaration. La pharmacie doit vérifier le crédit reçu ; l'Administrateur doit rapprocher le débit Promoteur avec son SMS de crédit."
             textSize = 12f
             setPadding(0, dp(12), 0, 0)
         })
@@ -353,10 +358,17 @@ class PaymentShareActivity : Activity() {
                         .put("paidAt", if (smsDate != null && smsDate == paidAtIso) "sms_extracted" else if (paidAt.text.toString() == dateDefault) "generated_default" else "manual_entry")
                         .put("reference", if (smsReference != null && smsReference == enteredReference) "sms_extracted" else "manual_entry")
                         .put("payerNumber", if (smsPayer != null && smsPayer == enteredNumber) "sms_extracted" else if (enteredNumber.isBlank()) "not_provided" else "manual_entry")
-                    NaxaApi.submitClientPayment(
-                        this, order.getString("id"), channel, smsText, enteredNumber,
-                        enteredAmount, paidAtIso, enteredReference, sources
-                    )
+                    if (order.optString("paymentType") == "partner_reservation") {
+                        NaxaApi.submitClientUniversePayment(
+                            this, order.getString("id"), channel, smsText, enteredNumber,
+                            enteredAmount, paidAtIso, enteredReference, sources
+                        )
+                    } else {
+                        NaxaApi.submitClientPayment(
+                            this, order.getString("id"), channel, smsText, enteredNumber,
+                            enteredAmount, paidAtIso, enteredReference, sources
+                        )
+                    }
                 } else {
                     NaxaApi.submitPromoterPayment(
                         this, channel, smsText, enteredNumber, enteredAmount, paidAtIso, enteredReference
