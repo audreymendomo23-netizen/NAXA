@@ -14,7 +14,7 @@
 >
 > ## État des migrations et de la distribution
 >
-> Les migrations `20261113110000_payment_sms_declarations_and_dual_proof_guard.sql` et `20261113111000_promoteur_payment_require_dual_sms_proofs.sql` sont présentes dans le dépôt. Leur application sur une base Replay n'est pas attestée par le présent audit ; elles ne doivent pas être considérées comme appliquées en Production. Aucun déploiement Production n'est couvert par cette mise à jour.
+> Les migrations `20261113152922_payment_sms_declarations_and_dual_proof_guard.sql` et `20261113152925_promoteur_payment_require_dual_sms_proofs.sql` sont présentes dans le dépôt. Leur application sur une base Replay n'est pas attestée par le présent audit ; elles ne doivent pas être considérées comme appliquées en Production. Aucun déploiement Production n'est couvert par cette mise à jour.
 >
 > La CI Android avait confirmé la compilation, les tests unitaires et l'assemblage Debug des deux variantes sur le commit antérieur `c7bc186bdfe3ad38db4c2db83c9df1f109e24763`. Les APK Release signés, l'allowlist réelle de la permission SMS sur un téléphone Admin, les SMS Orange/MTN de production et les E2E Client→Caisse / Promoteur→Admin restent à valider sur les environnements/appareils autorisés.
 >
