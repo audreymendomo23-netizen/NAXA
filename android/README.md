@@ -32,6 +32,7 @@ gradle :app:assembleDebug
 - Contrôle serveur `ageVerified` obligatoire pour les comptes connectés ; la déclaration visiteur locale ne remplace pas ce contrôle.
 - Jetons Supabase chiffrés AES-GCM avec une clé non exportable Android Keystore.
 - Recherche catalogue médicaments via `GET /api/medicaments/recherche?q=...`, sans prix ni stock fictif.
+- Scanner natif : prise de photo via l'appareil photo Android, sélection d'image/PDF et OCR ML Kit embarqué sur l'appareil ; PDF limités à 10 pages et 40 Mo.
 - Recherche de pharmacies proches via permission GPS explicite et `GET /api/pharmacies/proches?lat=...&lng=...`.
 - Notifications natives FCM : permission Android demandée dans le profil, enregistrement Bearer, synchronisation lors de rotation du jeton et révocation à la déconnexion.
 - Les bases natives existantes de BLE, rappels et notifications sont conservées, mais leur raccordement complet aux écrans Compose reste à faire.
@@ -40,6 +41,6 @@ Tests JVM présents : `CatalogueRepositoryTest` et `PharmacyRepositoryTest` vali
 
 ## Limites explicites
 
-Cette tranche est un socle natif de connexion et de navigation, pas encore l'ensemble des parcours client, pharmacie, Promoteur, Admin, Responsable, comptable, pharmacien, gestionnaire de stock ou livreur. Les écrans Catalogue, scanner caméra, panier, commandes, livraison, ERP, offline et synchronisation métier restent à implémenter et à tester contre les API autorisées.
+Cette tranche couvre le contrôle de majorité, l'authentification, le catalogue, la recherche de pharmacies et le scanner local image/PDF. Elle ne couvre pas encore l'ensemble des parcours client, pharmacie, Promoteur, Admin, Responsable, comptable, pharmacien, gestionnaire de stock ou livreur. Le panier, les commandes, la livraison, les fonctions ERP, le mode offline métier et la synchronisation complète restent à implémenter et à tester contre les API autorisées.
 
 Aucun APK signé de production n'est généré ici. Le build Gradle, les tests instrumentés, la recette sur appareils Android et la signature de release doivent être exécutés avant toute diffusion. La distribution prévue reste l'APK signé depuis le site officiel NAXA, sans publication Play Store.

@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -218,8 +219,9 @@ private fun NativeHome(
     onLogout: () -> Unit
 ) {
     var selected by remember { mutableIntStateOf(0) }
-    val labels = listOf("Accueil", "Rechercher", "Achats", "Profil")
-    val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.Default.ShoppingBag, Icons.Default.Person)
+    var cataloguePrefill by remember { mutableStateOf("") }
+    val labels = listOf("Accueil", "Rechercher", "Scanner", "Achats", "Profil")
+    val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.Default.CameraAlt, Icons.Default.ShoppingBag, Icons.Default.Person)
     Scaffold(bottomBar = {
         NavigationBar(containerColor = Color.White) {
             labels.forEachIndexed { index, label ->
@@ -257,15 +259,22 @@ private fun NativeHome(
                     Text("Vos services", fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     PharmaciesScreen(pharmacies)
                     FeatureCard("Dispositifs médicaux", "Catalogue des dispositifs médicaux.")
-                    FeatureCard("Scanner", "Le scanner natif caméra et ordonnance sera intégré dans le prochain lot.")
                 }
-                1 -> CatalogueScreen(catalogue)
-                2 -> {
+                1 -> CatalogueScreen(
+                    catalogue,
+                    initialQuery = cataloguePrefill,
+                    onInitialQueryConsumed = { cataloguePrefill = "" }
+                )
+                2 -> NativeScannerScreen(onSearchCatalog = { query ->
+                    cataloguePrefill = query
+                    selected = 1
+                })
+                3 -> {
                     if (profile == null) {
                         FeatureCard("Achats et commandes", "Connectez-vous pour consulter vos achats et vos commandes.")
                         TextButton(onClick = onSignIn) { Text("Se connecter") }
                     } else {
-                        FeatureCard("Achats et commandes", "Le suivi sera relié aux services métier autorisés pour votre compte.")
+                        FeatureCard("Achats et commandes", "Le parcours natif de consultation et de suivi des achats reste à raccorder.")
                     }
                 }
                 else -> {
@@ -287,7 +296,11 @@ private fun NativeHome(
 
 
 @Composable
-private fun CatalogueScreen(repository: CatalogueRepository) {
+private fun CatalogueScreen(
+    repository: CatalogueRepository,
+    initialQuery: String = "",
+    onInitialQueryConsumed: () -> Unit = {}
+) {
     var query by remember { mutableStateOf("") }
     var medicines by remember { mutableStateOf<List<NativeMedicine>>(emptyList()) }
     var notice by remember { mutableStateOf<String?>(null) }
@@ -295,6 +308,13 @@ private fun CatalogueScreen(repository: CatalogueRepository) {
     var loading by remember { mutableStateOf(false) }
     var searched by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) {
+            query = initialQuery
+            onInitialQueryConsumed()
+        }
+    }
 
     Column(Modifier.fillMaxWidth()) {
         Text("Catalogue médicaments", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
