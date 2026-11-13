@@ -8,11 +8,24 @@ import android.content.Intent
 import android.os.Build
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class NaxaFirebaseMessagingService : FirebaseMessagingService() {
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(TOKEN_KEY, token).apply()
+        serviceScope.launch {
+            try {
+                FcmRegistrationRepository(SecureTokenStore(applicationContext)).register(token)
+            } catch (_: Exception) {
+                // Registration is retried after the next successful app sign-in/settings visit.
+            }
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
