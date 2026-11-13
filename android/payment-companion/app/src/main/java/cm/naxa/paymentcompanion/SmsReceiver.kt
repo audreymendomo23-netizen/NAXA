@@ -15,6 +15,18 @@ class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
+        val appContext = context.applicationContext
+        val hasExplicitConsent = SecureVault.get(appContext, "sms_consent_granted") == "true"
+        if (!hasExplicitConsent) return
+
+        val hasAndroidPermission =
+            appContext.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+        if (!hasAndroidPermission) return
+
+        val role = SecureVault.get(appContext, "companion_role")
+        if (role != "promoteur" && role != "admin") return
+
+        // Consent and Android permission are checked before extracting SMS data.
         val messages: Array<SmsMessage> = try {
             Telephony.Sms.Intents.getMessagesFromIntent(intent)
         } catch (_: Exception) {
@@ -24,13 +36,6 @@ class SmsReceiver : BroadcastReceiver() {
 
         val rawOrigin = messages[0].originatingAddress
         val channel = SmsOriginClassifier.channelFromRawOrigin(rawOrigin)
-        val appContext = context.applicationContext
-        val hasAndroidPermission =
-            appContext.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-        val hasExplicitConsent = SecureVault.get(appContext, "sms_consent_granted") == "true"
-
-        // Defense in depth: no SMS body is read or transmitted unless both
-        // consent layers and the operator sender allowlist are satisfied.
         if (!SmsCaptureGate.canCapture(hasExplicitConsent, hasAndroidPermission, channel)) return
 
         val body = StringBuilder()
