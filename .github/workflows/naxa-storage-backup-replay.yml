@@ -1,0 +1,90 @@
+name: NAXA Replay Storage backup rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naxa-replay-storage-backup
+  cancel-in-progress: false
+
+jobs:
+  storage-backup:
+    name: Export binaire Storage — Replay uniquement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Validate Replay-only secrets
+        shell: bash
+        env:
+          STORAGE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+          STORAGE_ADMIN_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+          ENCRYPTION_KEY: ${{ secrets.NAXA_BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$STORAGE_URL" || { echo "::error::Missing Replay Storage URL"; exit 1; }
+          test -n "$STORAGE_ADMIN_KEY" || { echo "::error::Missing Replay server key"; exit 1; }
+          test -n "$ENCRYPTION_KEY" || { echo "::error::Missing backup encryption key"; exit 1; }
+          test "$STORAGE_URL" = "https://pwfftcsjyeibxxqhwysw.supabase.co" || {
+            echo "::error::Refusing any Storage target other than the dedicated NAXA Replay project"
+            exit 1
+          }
+          case "$STORAGE_ADMIN_KEY" in
+            sb_publishable_*) echo "::error::A publishable key cannot enumerate private Storage objects"; exit 1 ;;
+          esac
+
+      - name: Checkout main
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Export all Replay Storage buckets read-only
+        shell: bash
+        env:
+          NAXA_BACKUP_STORAGE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+          NAXA_BACKUP_STORAGE_SERVICE_ROLE_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+          NAXA_BACKUP_STORAGE_PROJECT_REF: pwfftcsjyeibxxqhwysw
+        run: |
+          set -euo pipefail
+          node scripts/backup-storage.cjs
+          test -s backup/storage/manifest.json
+
+      - name: Archive and encrypt Storage export
+        shell: bash
+        env:
+          NAXA_BACKUP_ENCRYPTION_KEY: ${{ secrets.NAXA_BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          tar -czf backup/naxa-storage-backup.tar.gz -C backup/storage .
+          test -s backup/naxa-storage-backup.tar.gz
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
+            -in backup/naxa-storage-backup.tar.gz \
+            -out backup/naxa-storage-backup.tar.gz.enc
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -pass env:NAXA_BACKUP_ENCRYPTION_KEY \
+            -in backup/naxa-storage-backup.tar.gz.enc \
+            -out backup/verify.tar.gz
+          cmp backup/naxa-storage-backup.tar.gz backup/verify.tar.gz
+          sha256sum backup/naxa-storage-backup.tar.gz.enc > backup/naxa-storage-backup.tar.gz.enc.sha256
+          rm -f backup/naxa-storage-backup.tar.gz backup/verify.tar.gz
+          rm -rf backup/storage
+
+      - name: Store encrypted Replay rehearsal artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: naxa-replay-storage-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            backup/naxa-storage-backup.tar.gz.enc
+            backup/naxa-storage-backup.tar.gz.enc.sha256
+          if-no-files-found: error
+          retention-days: 90
