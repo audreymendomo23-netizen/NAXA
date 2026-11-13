@@ -66,7 +66,9 @@ assert.match(component, /Mon suivi santé/, "le nouvel accueil doit être prése
 assert.match(component, /grid gap-5 sm:grid-cols-2 lg:grid-cols-3/, "les appareils doivent apparaître en grandes cartes photographiques responsives");
 assert.match(component, /import \{ DeviceIllustration \} from "@\/components\/suivi\/DeviceIllustration"/, "le catalogue doit utiliser le composant d’illustration des dispositifs");
 assert.match(component, /<DeviceIllustration deviceKey=\{device\.key\} label=\{"Illustration : "\+device\.name\}/, "chaque carte de dispositif doit afficher son image sémantique");
-assert.match(deviceIllustrations, /role="img" aria-label=\{label \|\| deviceNames\[deviceKey\]/, "les illustrations doivent être accessibles au lecteur d’écran");
+assert.match(deviceIllustrations, /const accessibleLabel = label \|\| deviceNames\[deviceKey\] \|\| "Dispositif de suivi"/, "un libellé accessible doit être calculé pour chaque illustration");
+assert.match(deviceIllustrations, /role="img" aria-label=\{accessibleLabel\}/, "le libellé accessible doit être exposé au lecteur d’écran");
+assert.match(deviceIllustrations, /alt=\{`Photo de référence — \$\{accessibleLabel\}`\}/, "les photos doivent avoir un texte alternatif explicite");
 assert.match(deviceIllustrations, /<svg viewBox="0 0 300 300"/, "chaque illustration doit être un visuel SVG autonome");
 const photoMapMatch = deviceIllustrations.match(/const DEVICE_PHOTOS:[\s\S]*?= \{([\s\S]*?)\n\};/);
 assert.ok(photoMapMatch, "le catalogue photographique des dispositifs doit exister");

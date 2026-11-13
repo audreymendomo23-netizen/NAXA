@@ -11,9 +11,9 @@ Les autres expéditeurs, notamment les expéditeurs numériques, sont ignorés. 
 
 ## Configuration
 - Android Gradle Plugin : 9.4.0.
-- Kotlin Android plugin : 2.3.10.
+- Kotlin : compilateur intégré à Android Gradle Plugin 9.4.0 (aucun plugin Kotlin redondant).
 - Gradle : 9.6.0 ; JDK 17 ou supérieur.
-- compileSdk 37 ; targetSdk 36 ; minSdk 26.
+- compileSdk 36 ; targetSdk 36 ; minSdk 26.
 - Aucune dépendance AndroidX tierce requise.
 Ouvrir `android/payment-companion` dans Android Studio. Le wrapper binaire `gradle-wrapper.jar` n'est pas inclus.
 
@@ -21,7 +21,7 @@ Ouvrir `android/payment-companion` dans Android Studio. Le wrapper binaire `grad
 Saisir les URL HTTPS NAXA et Supabase, la clé publique Supabase, l'e-mail et le mot de passe, puis choisir Promoteur ou Admin. La session Supabase et les jetons appareil sont chiffrés avec Android Keystore. L'enrôlement Admin enregistre séparément Orange et MTN.
 
 ## Limite critique de distribution
-`RECEIVE_SMS` est une permission restreinte. Play Protect peut bloquer une application téléchargée depuis un navigateur ou une autre source Internet. Ne pas désactiver Play Protect et ne pas contourner cette restriction. La capture automatique exige un canal de distribution autorisé permettant l'allowlist de cette permission. Tant que ce canal n'est pas validé sur un vrai téléphone, le fallback officiel reste le formulaire manuel/SMS collé dans NAXA et la confirmation Admin.
+`RECEIVE_SMS` est une permission Android hard-restricted (fortement restreinte par le système). Play Protect peut bloquer une application téléchargée depuis un navigateur ou une autre source Internet. Ne pas désactiver Play Protect et ne pas contourner cette restriction. La capture automatique exige un canal de distribution autorisé permettant l'allowlist de cette permission. Tant que ce canal n'est pas validé sur un vrai téléphone, le fallback officiel reste le formulaire manuel/SMS collé dans NAXA et la confirmation Admin.
 
 ## Contrat backend conservé
 - Promoteur : `POST /api/promoteur/paiements/device/register` et `POST /api/promoteur/paiements/capture`.

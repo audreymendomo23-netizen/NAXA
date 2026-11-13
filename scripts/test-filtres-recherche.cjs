@@ -10,10 +10,10 @@ const migrationAssureurActif = fs.readFileSync(path.join(root, "supabase/migrati
 const migrationRpcSecurity = fs.readFileSync(path.join(root, "supabase/migrations/20261112055000_public_search_rpc_security_hardening.sql"), "utf8");
 
 test("GPS : aucune demande intrusive au chargement ; activation explicite du filtre Distance", () => {
-  assert.match(page, /useState<"pending"\|"gps"\|"fallback">\("fallback"\)/);
+  assert.match(page, /useState<"pending"\|"gps"\|"manual"\|"fallback">\("fallback"\)/);
   assert.doesNotMatch(page, /useEffect\(\(\)=>\{void actualiserPosition\(\)\}/);
   assert.match(page, /onClick=\{\(\)=>void activerDistance\(\)\}/);
-  assert.match(page, /if\(locationStatus!=="gps"\)\{if\(await actualiserPosition\(\)\)/);
+  assert.match(page, /if\(locationStatus!=="gps"&&locationStatus!=="manual"\)\{if\(await actualiserPosition\(\)\)/);
   assert.match(page, /La position GPS est nécessaire pour filtrer par distance/);
 });
 
@@ -25,9 +25,9 @@ test("GPS : la position réelle détermine la ville et les coordonnées de reche
 });
 
 test("Ville éloignée : le rayon RPC ne coupe pas Douala quand le GPS est à Yaoundé", () => {
-  assert.match(page, /const pointRecherche=rayonKm&&locationStatus==="gps"\?coords:villeFiltre==="Douala"\?DOUALA:villeFiltre==="Yaoundé"\?YAOUNDE:coords/);
-  assert.match(page, /const rayonRecherche=rayonKm&&locationStatus==="gps"\?Number\(rayonKm\):villeFiltre\?35:20/);
-  assert.match(page, /distance_km:locationStatus==="gps"\?calculerDistanceKm\(coords\.lat,coords\.lng,r\.lat,r\.lng\):r\.distance_km/);
+  assert.match(page, /const pointRecherche=villeFiltre==="Douala"\?DOUALA:villeFiltre==="Yaoundé"\?CENTRE_CAPITALE:coords\?\?CENTRE_CAMEROUN/);
+  assert.match(page, /const rayonRecherche=rayonKm&&\(locationStatus==="gps"\|\|locationStatus==="manual"\)\?Number\(rayonKm\):villeFiltre\?35:2000/);
+  assert.match(page, /distance_km:coords&&\(locationStatus==="gps"\|\|locationStatus==="manual"\)\?calculerDistanceKm\(coords\.lat,coords\.lng,r\.lat,r\.lng\):r\.distance_km/);
   assert.match(page, /p_lat:pointRecherche\.lat,p_lng:pointRecherche\.lng,p_rayon_km:rayonRecherche/);
   assert.match(page, /locationStatus,villeFiltre,rayonKm\]\)/);
 });
