@@ -262,9 +262,11 @@ test("photos : le chargement client borne la concurrence et complète les varian
   assert.ok(recherche.includes("Wikimedia Commons"));
   assert.ok(recherche.includes("Recherche directe par EAN/GTIN"));
   assert.ok(recherche.includes("barcodePayload.photos ?? {"));
-  assert.ok(recherche.includes("photo?.provider === \"catalogue_local_verifie\""));
+  assert.ok(recherche.includes('photo.provider === "catalogue_local_verifie"'));
   assert.ok(recherche.includes("imageVariants: photos"));
-  assert.ok(resultats.includes("barcodePayload.photos?.boite"));
+  assert.ok(recherche.includes("imageVariants: photos"));
+  assert.ok(resultats.includes("barcodePayload.photos ?? {"));
+  assert.ok(resultats.includes('barcodePayload.photo?.kind === "comprime"'));
   assert.ok(resultats.includes('barcodePayload.photo?.kind === "boite"'));
   assert.ok(resultats.includes('barcodePayload.photo?.kind === "comprime"'));
   assert.ok(resultats.includes("photoPayload.photos?.comprime"));
@@ -275,7 +277,22 @@ test("photos : le chargement client borne la concurrence et complète les varian
   assert.ok(recherche.includes("item.barcode"));
   assert.ok(resultats.includes("item.barcode"));
   assert.ok(photoResolver.includes("Un code-barres est un identifiant"));
-  assert.ok(resultats.includes("Math.min(2,ciblesPhoto.length)"));
+  assert.ok(resultats.includes("Math.min(2, ciblesPhoto.length)"));
+  assert.ok(resultats.includes("imageVariants.comprime.url"));
   assert.ok(resultats.includes("AEMPS / CIMA"));
   assert.ok(photoRoute.includes("aucune_source_gratuite_trouvee"));
+});
+
+
+const cimaPhotoInvokerMigration = fs.readFileSync(path.join(root, "supabase/migration_311_cima_photo_invoker_projection.sql"), "utf8");
+
+test("sécurité CIMA : vue publique invoker et fonction interne sans paramètre limitée à la projection filtrée", () => {
+  assert.match(cimaPhotoInvokerMigration, /alter view public\.medicaments_cima_photos_public set schema private/);
+  assert.match(cimaPhotoInvokerMigration, /alter view private\.cima_photo_projection_internal set \(security_invoker = true\)/);
+  assert.match(cimaPhotoInvokerMigration, /create function private\.read_cima_photo_projection\(\)/);
+  assert.match(cimaPhotoInvokerMigration, /returns setof private\.cima_photo_projection_internal/);
+  assert.match(cimaPhotoInvokerMigration, /security definer\s+set search_path = ''/);
+  assert.match(cimaPhotoInvokerMigration, /grant execute on function private\.read_cima_photo_projection\(\) to anon, authenticated, service_role/);
+  assert.match(cimaPhotoInvokerMigration, /with \(security_barrier = true, security_invoker = true\)/);
+  assert.match(cimaPhotoInvokerMigration, /revoke all on private\.cima_photo_projection_internal from public, anon, authenticated, service_role/);
 });
