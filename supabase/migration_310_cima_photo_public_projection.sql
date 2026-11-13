@@ -7,8 +7,8 @@ begin;
 
 do $$
 begin
-  if to_regclass('private.medicamentos_cima_bdpm_jobs') is null then
-    raise exception 'La table privée private.medicamentos_cima_bdpm_jobs doit exister avant la projection photo CIMA.';
+  if to_regclass('private.medicaments_cima_bdpm_jobs') is null then
+    raise exception 'La table privée private.medicaments_cima_bdpm_jobs doit exister avant la projection photo CIMA.';
   end if;
 end
 $$;
@@ -29,7 +29,7 @@ select
   forme.image_url as image_forme_url,
   forme.updated_at as photo_forme_updated_at,
   nullif(trim(j.donnees_cima ->> 'labtitular'), '') as titulaire_cima
-from private.medicamentos_cima_bdpm_jobs j
+from private.medicaments_cima_bdpm_jobs j
 left join lateral (
   select validated.image_url, validated.updated_at
   from (

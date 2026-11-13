@@ -207,6 +207,8 @@ test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont int
 const cimaPhotoProjection = fs.readFileSync(path.join(root, "supabase/migration_310_cima_photo_public_projection.sql"), "utf8");
 
 test("CIMA pré-calculé : projection publique strictement filtrée et reliée au CIS exact", () => {
+  assert.match(cimaPhotoProjection, /private\.medicaments_cima_bdpm_jobs/);
+  assert.doesNotMatch(cimaPhotoProjection, /private\.medicamentos_cima_bdpm_jobs/);
   assert.match(cimaPhotoProjection, /create or replace view public\.medicaments_cima_photos_public/);
   assert.match(cimaPhotoProjection, /security_barrier = true/);
   assert.match(cimaPhotoProjection, /j\.statut = 'correspondance_forte'/);
