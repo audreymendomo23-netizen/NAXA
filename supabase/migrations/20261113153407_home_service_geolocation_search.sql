@@ -59,6 +59,7 @@ revoke all on function public.get_home_service_catalog_nearby(double precision,d
 grant execute on function public.get_home_service_catalog_nearby(double precision,double precision,double precision) to service_role;
 
 create or replace function public.request_home_service_with_location(
+  p_client_id uuid,
   p_offer_id uuid,p_area_label text,p_exact_address text,p_contact_phone text,
   p_preferred_at timestamptz,p_client_note text,
   p_shared_latitude double precision,p_shared_longitude double precision,p_accuracy_m double precision
@@ -67,13 +68,13 @@ returns uuid
 language plpgsql security definer set search_path=''
 as $function$
 declare
-  v_uid uuid:=auth.uid();
+  v_uid uuid:=p_client_id;
   v_offer public.home_service_offers%rowtype;
   v_partner public.partners%rowtype;
   v_request_id uuid;
   v_location_shared_at timestamptz;
 begin
-  if v_uid is null then raise exception 'Connexion requise' using errcode='28000'; end if;
+  if v_uid is null then raise exception 'Identité client requise' using errcode='28000'; end if;
   if not exists(select 1 from public.profiles p where p.id=v_uid and p.role='client') then
     raise exception 'Compte client requis' using errcode='42501';
   end if;
@@ -115,7 +116,7 @@ begin
 end;
 $function$;
 
-revoke all on function public.request_home_service_with_location(uuid,text,text,text,timestamptz,text,double precision,double precision,double precision) from public,anon;
-grant execute on function public.request_home_service_with_location(uuid,text,text,text,timestamptz,text,double precision,double precision,double precision) to authenticated;
+revoke all on function public.request_home_service_with_location(uuid,uuid,text,text,text,timestamptz,text,double precision,double precision,double precision) from public,anon,authenticated;
+grant execute on function public.request_home_service_with_location(uuid,uuid,text,text,text,timestamptz,text,double precision,double precision,double precision) to service_role;
 
 commit;
