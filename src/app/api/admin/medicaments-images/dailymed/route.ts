@@ -113,52 +113,74 @@ export async function GET(request: NextRequest) {
   try {
     const rxUrl = new URL(RXNORM + "/approximateTerm.json");
     rxUrl.searchParams.set("term", query);
-    rxUrl.searchParams.set("maxEntries", "8");
+    rxUrl.searchParams.set("maxEntries", "5");
     rxUrl.searchParams.set("option", "1");
-    const rxPayload = await fetchJson(rxUrl.toString());
-    const rxCandidates = extractRxNormCandidates(rxPayload);
-
-    const found = new Map<string, { spl: AnyRecord; matchedBy: string; rx: RxCandidate | null }>();
     const directUrl = new URL(DAILYMED + "/spls.json");
     directUrl.searchParams.set("drug_name", query);
+    directUrl.searchParams.set("name_type", "both");
     directUrl.searchParams.set("pagesize", "20");
-    for (const spl of extractSpls(await fetchJson(directUrl.toString()))) {
+
+    const [rxPayload, directPayload] = await Promise.all([
+      fetchJson(rxUrl.toString()).catch(() => null),
+      fetchJson(directUrl.toString()),
+    ]);
+    const rxCandidates = extractRxNormCandidates(rxPayload);
+    const found = new Map<string, { spl: AnyRecord; matchedBy: string; rx: RxCandidate | null }>();
+
+    for (const spl of extractSpls(directPayload)) {
       if (typeof spl.setid === "string") found.set(spl.setid, { spl, matchedBy: "recherche directe DailyMed", rx: null });
     }
 
-    for (const candidate of rxCandidates) {
+    const rxLookups = await Promise.all(rxCandidates.map(async (candidate) => {
       const url = new URL(DAILYMED + "/spls.json");
       url.searchParams.set("rxcui", candidate.rxcui);
       url.searchParams.set("pagesize", "20");
-      for (const spl of extractSpls(await fetchJson(url.toString()))) {
+      try {
+        return { candidate, spls: extractSpls(await fetchJson(url.toString())) };
+      } catch {
+        return { candidate, spls: [] as AnyRecord[] };
+      }
+    }));
+    for (const lookup of rxLookups) {
+      for (const spl of lookup.spls) {
         if (typeof spl.setid === "string" && !found.has(spl.setid)) {
-          found.set(spl.setid, { spl, matchedBy: "RxNorm " + candidate.name, rx: candidate });
+          found.set(spl.setid, {
+            spl,
+            matchedBy: "RxNorm " + lookup.candidate.name,
+            rx: lookup.candidate,
+          });
         }
       }
     }
 
-    const results: DailyCandidate[] = [];
-    for (const [setid, entry] of [...found.entries()].slice(0, 8)) {
-      if (!/^[0-9a-f-]{36}$/i.test(setid)) continue;
-      const xml = await fetchXml(DAILYMED + "/spls/" + encodeURIComponent(setid) + ".xml");
-      const filename = xml ? splImageFilename(xml) : null;
+    const selected = [...found.entries()].slice(0, 6);
+    const results = await Promise.all(selected.map(async ([setid, entry]): Promise<DailyCandidate> => {
       let imageUrl: string | null = null;
-      let imageName: string | null = filename;
-      if (filename) {
-        const mediaPayload = await fetchJson(DAILYMED + "/spls/" + encodeURIComponent(setid) + "/media.json");
-        const wanted = filename.split("/").pop()?.toLowerCase();
-        const match = extractImageMedia(mediaPayload).find((item) => {
-          const name = item.name.split("/").pop()?.toLowerCase();
-          let urlName = "";
-          try { urlName = new URL(item.url).pathname.split("/").pop()?.toLowerCase() ?? ""; } catch { /* URL ignorée */ }
-          return name === wanted || urlName === wanted;
-        });
-        if (match) {
-          imageUrl = match.url;
-          imageName = match.name || filename;
+      let imageName: string | null = null;
+      try {
+        if (/^[0-9a-f-]{36}$/i.test(setid)) {
+          const xml = await fetchXml(DAILYMED + "/spls/" + encodeURIComponent(setid) + ".xml");
+          const filename = xml ? splImageFilename(xml) : null;
+          imageName = filename;
+          if (filename) {
+            const mediaPayload = await fetchJson(DAILYMED + "/spls/" + encodeURIComponent(setid) + "/media.json");
+            const wanted = filename.split("/").pop()?.toLowerCase();
+            const match = extractImageMedia(mediaPayload).find((item) => {
+              const name = item.name.split("/").pop()?.toLowerCase();
+              let urlName = "";
+              try { urlName = new URL(item.url).pathname.split("/").pop()?.toLowerCase() ?? ""; } catch { /* URL ignorée */ }
+              return name === wanted || urlName === wanted;
+            });
+            if (match) {
+              imageUrl = match.url;
+              imageName = match.name || filename;
+            }
+          }
         }
+      } catch (error) {
+        console.warn("NAXA_DAILYMED_SPL_IMAGE_UNAVAILABLE", setid, error instanceof Error ? error.message : "unknown");
       }
-      results.push({
+      return {
         setid,
         title: typeof entry.spl.title === "string" ? entry.spl.title : "Notice SPL sans titre",
         publishedDate: typeof entry.spl.published_date === "string" ? entry.spl.published_date : null,
@@ -169,8 +191,8 @@ export async function GET(request: NextRequest) {
         imageName,
         imageKind: imageUrl ? "comprime" : null,
         labelUrl: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + encodeURIComponent(setid),
-      } as DailyCandidate);
-    }
+      };
+    }));
 
     return NextResponse.json({
       query,
