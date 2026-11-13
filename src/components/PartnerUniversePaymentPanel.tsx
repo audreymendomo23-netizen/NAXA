@@ -63,8 +63,10 @@ export function PartnerUniversePaymentPanel({
   const [canal,setCanal]=useState<"orange_money"|"mtn_momo"|null>(null);
   const [smsText,setSmsText]=useState("");
   const [payerNumber,setPayerNumber]=useState("");
-  const [amount,setAmount]=useState(String(totalFcfa));
-  const [paidAt,setPaidAt]=useState(localDateTimeValue);
+  const [defaultAmount]=useState(String(totalFcfa));
+  const [amount,setAmount]=useState(defaultAmount);
+  const [defaultPaidAt]=useState(localDateTimeValue);
+  const [paidAt,setPaidAt]=useState(defaultPaidAt);
   const [reference,setReference]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -140,8 +142,8 @@ export function PartnerUniversePaymentPanel({
           reservationId,canal,smsText,payerNumber,amount:numericAmount,
           paidAt:cameroonDateTimeToIso(paidAt),reference:reference.trim(),
           fieldSources:{
-            amount:numericAmount===totalFcfa?"generated_default":"manual_entry",
-            paidAt:"manual_entry",
+            amount:numericAmount===Number(defaultAmount)?"generated_default":"manual_entry",
+            paidAt:paidAt===defaultPaidAt?"generated_default":"manual_entry",
             reference:"manual_entry",
             payerNumber:payerNumber.trim()?"manual_entry":"not_provided",
           },
