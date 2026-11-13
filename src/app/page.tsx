@@ -271,7 +271,7 @@ export default function Accueil() {
 
   const messagePosition =
     position === "active"
-      ? t.positionEnregistree
+      ? t.positionDetectee
       : position === "indisponible"
         ? t.localisationIndisponible
         : position === "recherche"

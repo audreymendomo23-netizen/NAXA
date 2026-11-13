@@ -21,7 +21,7 @@ Ouvrir `android/payment-companion` dans Android Studio. Le wrapper binaire `grad
 Saisir les URL HTTPS NAXA et Supabase, la clé publique Supabase, l'e-mail et le mot de passe, puis choisir Promoteur ou Admin. La session Supabase et les jetons appareil sont chiffrés avec Android Keystore. L'enrôlement Admin enregistre séparément Orange et MTN.
 
 ## Limite critique de distribution
-`RECEIVE_SMS` est une permission Android hard-restricted (fortement restreinte par le système). Play Protect peut bloquer une application téléchargée depuis un navigateur ou une autre source Internet. Ne pas désactiver Play Protect et ne pas contourner cette restriction. La capture automatique exige un canal de distribution autorisé permettant l'allowlist de cette permission. Tant que ce canal n'est pas validé sur un vrai téléphone, le fallback officiel reste le formulaire manuel/SMS collé dans NAXA et la confirmation Admin.
+`RECEIVE_SMS` est une permission Android hard-restricted (fortement restreinte par le système). Play Protect peut bloquer une application téléchargée depuis un navigateur ou une autre source Internet. Ne pas recommander de désactiver Play Protect ni de contourner cette restriction. La capture automatique exige un canal de distribution autorisé permettant l'allowlist de cette permission. Tant que ce canal n'est pas validé sur un vrai téléphone, le fallback officiel reste le formulaire manuel/SMS collé dans NAXA et la confirmation Admin.
 
 ## Contrat backend conservé
 - Promoteur : `POST /api/promoteur/paiements/device/register` et `POST /api/promoteur/paiements/capture`.
