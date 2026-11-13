@@ -58,7 +58,8 @@ export function DeliveryPaymentSelector({
   const [reference, setReference] = useState(paymentReference ?? "");
   const [payerNumber, setPayerNumber] = useState("");
   const [amount, setAmount] = useState(String(totalArticles + fraisLivraison));
-  const [paidAt, setPaidAt] = useState(localDateTimeValue);
+  const [defaultPaidAt] = useState(localDateTimeValue);
+  const [paidAt, setPaidAt] = useState(defaultPaidAt);
   const [details, setDetails] = useState<PaymentDetails | null>(null);
   const [financialConfirmation, setFinancialConfirmation] = useState<FinancialConfirmationState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -161,7 +162,7 @@ export function DeliveryPaymentSelector({
           reference: reference.trim(),
           fieldSources: {
             amount: numericAmount === totalArticles + fraisLivraison ? "generated_default" : "manual_entry",
-            paidAt: "manual_entry",
+            paidAt: paidAt === defaultPaidAt ? "generated_default" : "manual_entry",
             payerNumber: payerNumber.trim() ? "manual_entry" : "not_provided",
             reference: "manual_entry",
           },
