@@ -145,8 +145,14 @@ begin
 
   if (select count(*) from pg_policies
       where schemaname='public' and tablename='partner_independent_agreement_templates'
-        and cmd='SELECT' and policyname in ('partner_independent_templates_published_read','partner_independent_templates_admin_archived_read'))<>2 then
-    raise exception 'FAIL: non-overlapping published/Admin template read policies missing';
+        and cmd='SELECT' and policyname='partner_independent_templates_read')<>1 then
+    raise exception 'FAIL: single controlled template read policy missing';
+  end if;
+  if to_regclass('public.partner_independent_agreements_template_idx') is null
+    or to_regclass('public.partner_independent_agreements_accepted_by_idx') is null
+    or to_regclass('public.partner_independent_agreements_approved_by_idx') is null
+    or to_regclass('public.partner_independent_agreements_revoked_by_idx') is null then
+    raise exception 'FAIL: agreement foreign-key indexes are incomplete';
   end if;
 
   if has_function_privilege('authenticated','public.partner_independent_agreement_accept(uuid)','EXECUTE') is not true
