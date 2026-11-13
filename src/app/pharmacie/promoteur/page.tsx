@@ -5,6 +5,7 @@ import RapportsALaDemande from "@/components/RapportsALaDemande";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { fcfa } from "@/lib/ranking";
 import { CaisseSecurityManager } from "@/components/pharmacie/CaisseSecurityManager";
+import { PromoteurSecuriteIntelligente } from "@/components/pharmacie/PromoteurSecuriteIntelligente";
 import { AvisRappelsLotsPromoteur } from "@/components/pharmacie/AvisRappelsLotsPromoteur";
 import { loadPromoteurAccess } from "@/lib/promoteur-access";
 import { PromoteurHashRedirect } from "@/components/pharmacie/PromoteurHashRedirect";
@@ -272,6 +273,53 @@ export async function PromoteurDashboard({ section = "overview" }: { section?: s
   const stats = (statsData ?? null) as Stats | null;
   const caissesActives = operationalCaisses.filter((x) => x.actif).length;
   const caissesBloquees = operationalCaisses.filter((x) => !x.actif).length;
+
+  if (section === "securite") {
+    const securityPharmacies = (pharmacies ?? []).filter(pharmacy =>
+      activeLinkIds.has(pharmacy.id) && pharmacy.actif && pharmacy.visible_recherche && pharmacy.archivee_le === null
+    );
+    const scopedIds = securityPharmacies.map(pharmacy => pharmacy.id);
+    if (!scopedIds.length) {
+      return <main className="min-h-dvh bg-naxa-green-50 p-4 text-naxa-green-900">
+        <section className="mx-auto max-w-5xl rounded-2xl border border-naxa-green-100 bg-white p-5">
+          <h1 className="text-xl font-extrabold">Sécurité intelligente</h1>
+          <p className="mt-2 text-sm">Aucune pharmacie opérationnelle n’est actuellement autorisée dans votre réseau. Aucun équipement hors périmètre n’est chargé.</p>
+        </section>
+      </main>;
+    }
+    const [
+      installationsResult,
+      gatewaysResult,
+      camerasResult,
+      connectionsResult,
+      discoveriesResult,
+      eventsResult,
+    ] = await Promise.all([
+      adminDb.from("naxa_security_installations").select("id,pharmacie_id,status,legal_review_status,privacy_notice_status,updated_at").in("pharmacie_id", scopedIds),
+      adminDb.from("naxa_security_gateways").select("id,pharmacie_id,label,serial_number,firmware_version,tunnel_status,last_seen_at").in("pharmacie_id", scopedIds),
+      adminDb.from("naxa_security_cameras").select("id,pharmacie_id,status,model,zone_label").in("pharmacie_id", scopedIds),
+      adminDb.from("naxa_security_camera_connections").select("id,pharmacie_id,camera_id,adapter_key,protocol,connection_status,last_tested_at,last_error_code,is_primary").in("pharmacie_id", scopedIds),
+      adminDb.from("naxa_security_camera_discovery_candidates").select("id,pharmacie_id,gateway_id,device_id,source_address,device_types,device_scopes,endpoints,status,first_seen_at,last_seen_at").in("pharmacie_id", scopedIds).order("last_seen_at", { ascending: false }).limit(200),
+      adminDb.from("naxa_security_events").select("id,pharmacie_id,camera_id,event_type,source_type,severity,status,summary,confidence,detected_at,received_at").in("pharmacie_id", scopedIds).order("detected_at", { ascending: false }).limit(200),
+    ]);
+    const registryAvailable = !installationsResult.error && !gatewaysResult.error && !camerasResult.error
+      && !connectionsResult.error && !discoveriesResult.error && !eventsResult.error;
+    return <main data-promoteur-section="securite" className="min-h-dvh bg-naxa-green-50 px-3 py-4 text-naxa-green-900 sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-[1600px]">
+        <PromoteurSecuriteIntelligente
+          pharmacies={securityPharmacies.map(({ id, nom, ville, quartier }) => ({ id, nom, ville, quartier }))}
+          installations={(installationsResult.data ?? []) as never}
+          gateways={(gatewaysResult.data ?? []) as never}
+          cameras={(camerasResult.data ?? []) as never}
+          connections={(connectionsResult.data ?? []) as never}
+          discoveryCandidates={(discoveriesResult.data ?? []) as never}
+          events={(eventsResult.data ?? []) as never}
+          registryAvailable={registryAvailable}
+        />
+      </div>
+    </main>;
+  }
+
   const alert = linksError || caissesError || pharmaciesError || statsError || ecartsCaisseError || pharmacistSessionsResult.error || stockSessionsResult.error || staffProfilesResult.error || accountingError || networkSalesError;
   const contractAmount = abonnement?.montant_mensuel ?? convention?.montant_mensuel ?? null;
   const contractStatus = abonnement?.statut ?? convention?.statut ?? null;

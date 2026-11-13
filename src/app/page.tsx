@@ -19,7 +19,7 @@ import {
   type Langue,
 } from "@/lib/accueil-textes";
 
-type EtatPosition = "inconnue" | "recherche" | "active" | "defaut";
+type EtatPosition = "inconnue" | "recherche" | "active" | "indisponible";
 
 const puce =
   "inline-flex min-h-11 items-center gap-2 rounded-full border border-naxa-green-100 bg-white px-3 text-sm font-semibold text-naxa-green-900 hover:bg-naxa-green-100";
@@ -258,7 +258,7 @@ export default function Accueil() {
 
   function localiser() {
     if (!navigator.geolocation) {
-      setPosition("defaut");
+      setPosition("indisponible");
       return;
     }
     setPosition("recherche");
@@ -272,8 +272,8 @@ export default function Accueil() {
   const messagePosition =
     position === "active"
       ? t.positionEnregistree
-      : position === "defaut"
-        ? t.yaoundeDefaut
+      : position === "indisponible"
+        ? t.localisationIndisponible
         : position === "recherche"
           ? t.localisationEnCours
           : null;

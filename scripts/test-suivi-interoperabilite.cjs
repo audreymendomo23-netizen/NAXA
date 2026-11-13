@@ -44,7 +44,10 @@ for (const key of [
 assert.match(component, /createWorker\("fra\+eng"\)/, "OCR local français/anglais requis");
 assert.match(component, /BarcodeDetector/, "détection de codes-barres/QR requise");
 assert.match(component, /acceptAllDevices: true/, "détection Bluetooth multi-appareils requise");
-assert.match(component, /service:"body_composition"/, "profil Bluetooth de balance impédancemètre manquant");
+assert.match(component, /\["body_composition","body_composition_measurement"\]/, "profil Bluetooth de balance impédancemètre manquant");
+const bleProtocol = fs.readFileSync("src/lib/suivi/ble-protocols.js", "utf8");
+assert.match(bleProtocol, /"body_composition"/, "service GATT Body Composition absent des services autorisés");
+assert.match(bleProtocol, /body_composition: \{ service: "body_composition", characteristic: "body_composition_measurement" \}/, "décodeur Body Composition absent");
 assert.match(component, /montre_connectee:/, "adaptateur de montre connectée manquant");
 assert.match(component, /applyScannedValue/, "préremplissage contrôlé du scan manquant");
 assert.match(component, /from\("naxa_push_subscriptions"\)\.upsert/, "inscription Push requise");

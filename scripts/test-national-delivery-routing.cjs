@@ -51,7 +51,7 @@ test("Google Maps : l'itinéraire est universel et s'ouvre sur téléphone", () 
 
 test("le client ne voit que le montant total de livraison, sans détail de distance ni de commission", () => {
   const checkout = read("src/app/commande/nouvelle/page.tsx");
-  assert.match(checkout, /Frais de livraison : \{deliveryFee\.toLocaleString/);
+  assert.match(checkout, /Frais de livraison : \{deliveryQuote\.fee\.toLocaleString/);
   assert.doesNotMatch(checkout, /Distance routière calculée/);
   assert.doesNotMatch(checkout, /commission_naxa|commissionNaxa|commission NAXA/i);
   assert.doesNotMatch(checkout, /Tarif minimum 1 500 FCFA/);

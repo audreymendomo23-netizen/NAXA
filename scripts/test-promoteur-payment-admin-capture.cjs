@@ -23,9 +23,10 @@ const declarationFix = read("supabase/migrations/20261111023000_promoteur_paymen
 const sqlTest = read("supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql");
 const androidRoot = "android/payment-companion/";
 const androidManifest = read(androidRoot + "app/src/main/AndroidManifest.xml");
-const androidReceiver = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsReceiver.java");
-const androidApi = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/NaxaApi.java");
-const androidVault = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SecureVault.java");
+const androidReceiver = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsReceiver.kt");
+const androidClassifier = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsOriginClassifier.kt");
+const androidApi = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/NaxaApi.kt");
+const androidVault = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SecureVault.kt");
 const androidBuild = read(androidRoot + "app/build.gradle");
 const androidRootBuild = read(androidRoot + "build.gradle");
 const androidReadme = read(androidRoot + "README.md");
@@ -119,14 +120,15 @@ test("compagnon Android : ne demande que RECEIVE_SMS et n'accede pas à READ_SMS
   assert.doesNotMatch(androidManifest, /android\.permission\.READ_SMS/);
   assert.doesNotMatch(androidManifest, /NotificationListenerService/);
   assert.match(androidReceiver, /Telephony\.Sms\.Intents\.getMessagesFromIntent/);
-  assert.match(androidReceiver, /getOriginatingAddress\(\)/);
+  assert.match(androidReceiver, /originatingAddress/);
   assert.doesNotMatch(androidReceiver, /getDisplayOriginatingAddress/);
 });
 
 test("compagnon Android : filtre uniquement les identifiants alphanumeriques officiels", () => {
-  assert.match(androidReceiver, /ORANGEMONEY/);
-  assert.match(androidReceiver, /MOBILEMONEY/);
-  assert.match(androidReceiver, /normalized\.matches\("\[0-9\]\+"\)/);
+  assert.match(androidClassifier, /ORANGEMONEY/);
+  assert.match(androidClassifier, /MOBILEMONEY/);
+  assert.match(androidClassifier, /normalized\.matches\(Regex\("\[0-9\]\+"\)\)/);
+  assert.match(androidReceiver, /SmsOriginClassifier\.channelFromRawOrigin/);
   assert.match(androidApi, /api\/admin\/paiements\/capture/);
   assert.match(androidApi, /api\/promoteur\/paiements\/capture/);
 });
@@ -141,7 +143,7 @@ test("compagnon Android : jetons chiffres par Android Keystore AES-GCM", () => {
 
 test("compagnon Android : versions Gradle/API et restriction Play Protect documentees", () => {
   assert.match(androidRootBuild, /9\.4\.0/);
-  assert.match(androidBuild, /compileSdk 37/);
+  assert.match(androidBuild, /compileSdk 36/);
   assert.match(androidBuild, /targetSdk 36/);
   assert.match(androidReadme, /hard-restricted/);
   assert.match(androidReadme, /Play Protect/);
