@@ -27,6 +27,7 @@ export function SuiviProfessionalWorkspaceShell({children}:{children:ReactNode})
         </div>
         <nav aria-label="Navigation professionnel de santé" className="mt-4 flex flex-wrap gap-2">
           <Link href="/suivi/professionnel/patients" className="min-h-10 rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#123D68]">Patients suivis</Link>
+          <Link href="/suivi/professionnel/disponibilites" className="min-h-10 rounded-xl border border-white/40 px-3 py-2 text-sm font-bold text-white">Mes disponibilités</Link>
           <Link href="/suivi/professionnel/demande" className="min-h-10 rounded-xl border border-white/40 px-3 py-2 text-sm font-bold text-white">Mon accréditation</Link>
           <Link href="/suivi" className="min-h-10 rounded-xl border border-white/40 px-3 py-2 text-sm font-bold text-white">Retour NAXA</Link>
         </nav>
