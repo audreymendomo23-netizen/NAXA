@@ -70,18 +70,20 @@ jobs:
 
           if parsed.scheme not in ("postgres", "postgresql"):
               fail("NAXA_DATABASE_URL must be a PostgreSQL URI.")
-          if port != 5432:
-              fail("Use PostgreSQL port 5432.")
+          if port not in (5432, 6543):
+              fail("Use port 5432 (Session Pooler) or 6543 (Transaction Pooler).")
           if parsed.path.rstrip("/") not in ("", "/postgres"):
               fail("The connection URI must target the postgres database.")
 
           direct_host = f"db.{project_ref}.supabase.co"
           if host == direct_host and username == "postgres":
               mode = "direct"
-          elif host.endswith(".pooler.supabase.com") and username == f"postgres.{project_ref}":
+          elif host.endswith(".pooler.supabase.com") and username == f"postgres.{project_ref}" and port == 5432:
               mode = "session-pooler"
+          elif host.endswith(".pooler.supabase.com") and username == f"postgres.{project_ref}" and port == 6543:
+              mode = "transaction-pooler"
           else:
-              fail("URI must match this project's direct endpoint (db.<project>.supabase.co / postgres) or official Session Pooler (postgres.<project> / *.pooler.supabase.com).")
+              fail("URI must match this project direct endpoint or official Supabase Session Pooler (5432) / Transaction Pooler (6543), with username postgres.<project-ref>.")
 
           query = parse_qsl(parsed.query, keep_blank_values=True)
           if not any(key.lower() == "sslmode" for key, _ in query):
