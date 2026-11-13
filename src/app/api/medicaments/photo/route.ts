@@ -180,20 +180,25 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const localPhoto = await verifiedLocalPhoto(query);
-  if (localPhoto) {
-    const photos = { boite: localPhoto, comprime: null };
-    return NextResponse.json({ photo: localPhoto, photos, source: "catalogue_local_verifie" }, {
-      headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" }
-    });
-  }
-
-  const photos = await rechercherPhotosMedicament(query);
+  // Une photo locale vérifiée reste prioritaire, mais ne doit pas empêcher
+  // la récupération de la seconde vue (forme pharmaceutique) depuis une source libre.
+  const [localPhoto, externalPhotos] = await Promise.all([
+    verifiedLocalPhoto(query),
+    rechercherPhotosMedicament(query)
+  ]);
+  const photos = {
+    boite: localPhoto?.kind === "boite" ? localPhoto : externalPhotos.boite,
+    comprime: localPhoto?.kind === "comprime" ? localPhoto : externalPhotos.comprime
+  };
   const selected = photos.boite ?? photos.comprime;
+  const sources = [...new Set(
+    [photos.boite?.provider, photos.comprime?.provider].filter((value): value is string => Boolean(value))
+  )];
   return NextResponse.json({
     photo: selected,
     photos,
-    source: selected?.provider ?? "aucune_source_gratuite_trouvee"
+    source: selected?.provider ?? "aucune_source_gratuite_trouvee",
+    sources
   }, {
     headers: { "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=2592000" }
   });
