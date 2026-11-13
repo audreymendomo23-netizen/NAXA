@@ -26,10 +26,20 @@ export async function POST(request: Request) {
       .select("partner_id,member_role,partners!inner(id,name,status)")
       .eq("user_id", auth.user.id).in("member_role", ["owner", "manager"]);
     if (error) return NextResponse.json({ error: "Accès aux partenaires indisponible." }, { status: 503 });
-    const active = (memberships ?? []).filter((item: any) => item.partners?.status === "active");
+    type PartnerInfo = { id: string; name: string; status: string };
+    const rows = (memberships ?? []) as unknown as Array<{
+      partner_id: string;
+      partners: PartnerInfo | PartnerInfo[] | null;
+    }>;
+    const active = rows
+      .map((row) => ({
+        ...row,
+        partner: Array.isArray(row.partners) ? row.partners[0] ?? null : row.partners,
+      }))
+      .filter((row) => row.partner?.status === "active");
     if (!active.length) return NextResponse.json({ error: "Un rôle propriétaire ou gestionnaire d'un partenaire actif est requis." }, { status: 403 });
 
-    const devices = [];
+    const devices: Array<{ partnerId: string; partnerName: string; deviceId: string; deviceToken: string }> = [];
     for (const membership of active) {
       const token = createDeviceToken();
       const { data: device, error: saveError } = await db.from("naxa_partner_payment_devices").upsert({
@@ -43,7 +53,8 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       }, { onConflict: "partner_id,user_id,installation_id" }).select("id,partner_id").single();
       if (saveError || !device) return NextResponse.json({ error: "Enrôlement du partenaire impossible." }, { status: 503 });
-      devices.push({ partnerId: device.partner_id, partnerName: membership.partners.name, deviceId: device.id, deviceToken: token });
+      if (!membership.partner) continue;
+      devices.push({ partnerId: device.partner_id, partnerName: membership.partner.name, deviceId: device.id, deviceToken: token });
     }
     return NextResponse.json({ devices }, { headers: { "Cache-Control": "no-store" } });
   } catch {

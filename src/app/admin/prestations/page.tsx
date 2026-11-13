@@ -48,7 +48,7 @@ export default async function AdminHomeServices({ searchParams }: { searchParams
             <form action={setAdminHomeServicePartnerLocation} className="mt-3 space-y-3">
               <input type="hidden" name="partner_id" value={partner.id}/>
               <GeolocalisationChamps className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" initialLatitude={partner.latitude==null?null:Number(partner.latitude)} initialLongitude={partner.longitude==null?null:Number(partner.longitude)}/>
-              <button disabled={locationError} className="min-h-10 rounded-xl bg-[#064B2A] px-4 text-sm font-bold text-white disabled:opacity-40">Enregistrer la position de référence</button>
+              <button disabled={!!locationError} className="min-h-10 rounded-xl bg-[#064B2A] px-4 text-sm font-bold text-white disabled:opacity-40">Enregistrer la position de référence</button>
             </form>
           </article>;
         })}</div>}
