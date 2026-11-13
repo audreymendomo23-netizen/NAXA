@@ -7,7 +7,29 @@ import { BulleErreur } from "@/components/BulleErreur";
 import { textes } from "@/lib/accueil-textes";
 import { AlerteDisponibilite } from "@/components/AlerteDisponibilite";
 
-type MedicamentRecherche = { id: string; name: string; brand: string | null; activeIngredient: string | null; barcode?: string | null; form: string | null; definition: string | null; indications: string | null; imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null; imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null; safetyInformation?: { warnings: string | null; adverseReactions: string | null; contraindications: string | null; precautions: string | null; source: string | null; sourceUrl: string; updatedAt: string | null } | null; sourceDetails?: { name: string; role: string; url: string; updatedAt?: string | null }[]; imageVariants?: { boite: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null; comprime: { url: string; sourceUrl: string; licence: string; attribution: string | null; title: string; kind: "boite" | "comprime"; provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie" } | null }; synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee"; partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null; localInformationValidated: boolean; localInformationSource: string | null; cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string };
+type MedicamentPhotoItem = {
+  url: string;
+  sourceUrl: string;
+  licence: string;
+  attribution: string | null;
+  title: string;
+  kind: "boite" | "comprime";
+  provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
+  updatedAt?: string | null;
+};
+type MedicamentRecherche = {
+  id: string; name: string; brand: string | null; activeIngredient: string | null;
+  barcode?: string | null; form: string | null; definition: string | null; indications: string | null;
+  imageUrl: string | null; imageSource: string | null; imageSourceUrl?: string | null;
+  imageLicense?: string | null; imageAttribution?: string | null; imageTitle?: string | null;
+  safetyInformation?: { warnings: string | null; adverseReactions: string | null; contraindications: string | null; precautions: string | null; source: string | null; sourceUrl: string; updatedAt: string | null } | null;
+  sourceDetails?: { name: string; role: string; url: string; updatedAt?: string | null }[];
+  imageVariants?: { boite: MedicamentPhotoItem | null; comprime: MedicamentPhotoItem | null };
+  synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee";
+  partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null;
+  localInformationValidated: boolean; localInformationSource: string | null;
+  cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string
+};
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
 const CACHE_RECHERCHE_KEY = "naxa-medicament-search-v1";
 type CacheRecherche = { updatedAt: number; byQuery: Record<string, MedicamentRecherche[]>; corpus: MedicamentRecherche[] };
@@ -175,7 +197,11 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
 
         // Recherche indépendante : une photo ne peut jamais être attribuée à un autre résultat.
         // Deux workers maximum : ils séquencent les appels externes et protègent les quotas gratuits.
-        const ciblesPhoto = results.filter((item) => !item.imageUrl).slice(0, 10);
+        // Rechercher aussi les vues manquantes d'un résultat déjà illustré :
+        // une boîte connue ne doit pas empêcher l'ajout de la forme pharmaceutique.
+        const ciblesPhoto = results.filter((item) =>
+          !item.imageUrl || !item.imageVariants?.boite || !item.imageVariants?.comprime
+        ).slice(0, 10);
         if (ciblesPhoto.length) {
           const imageUpdates = new Map<string, MedicamentRecherche>();
           let prochainIndexPhoto = 0;
@@ -192,53 +218,75 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
               ].filter((value): value is string => Boolean(value));
               if (!photoQueries.length) continue;
               try {
-                let imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> | null = null;
+                const imageVariants: NonNullable<MedicamentRecherche["imageVariants"]> = {
+                  boite: item.imageVariants?.boite ?? null,
+                  comprime: item.imageVariants?.comprime ?? null
+                };
                 for (const photoQuery of photoQueries) {
+                  // Le GTIN fournit généralement la boîte ; la recherche par nom
+                  // complète ensuite la forme pharmaceutique sans remplacer la vue validée.
+                  if (imageVariants.boite && imageVariants.comprime) break;
                   const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(photoQuery), {
                     signal: controller.signal
                   });
                   if (!photoResponse.ok) continue;
                   const payload = await photoResponse.json() as {
                     photos?: {
-                      boite?: {
-                        url: string; sourceUrl: string; licence: string; attribution: string | null;
-                        title: string; kind: "boite" | "comprime";
-                        provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
-                      } | null;
-                      comprime?: {
-                        url: string; sourceUrl: string; licence: string; attribution: string | null;
-                        title: string; kind: "boite" | "comprime";
-                        provider?: "cima_aemps" | "wikimedia_commons" | "open_products_facts" | "catalogue_local_verifie";
-                      } | null;
+                      boite?: MedicamentPhotoItem | null;
+                      comprime?: MedicamentPhotoItem | null;
                     };
                   };
-                  const candidateVariants: NonNullable<MedicamentRecherche["imageVariants"]> = {
-                    boite: payload.photos?.boite ?? null,
-                    comprime: payload.photos?.comprime ?? null
-                  };
-                  if (candidateVariants.boite || candidateVariants.comprime) {
-                    imageVariants = candidateVariants;
-                    break;
-                  }
+                  imageVariants.boite = imageVariants.boite ?? payload.photos?.boite ?? null;
+                  imageVariants.comprime = imageVariants.comprime ?? payload.photos?.comprime ?? null;
                 }
-                if (!imageVariants) continue;
+                if (!imageVariants.boite && !imageVariants.comprime) continue;
                 const primary = imageVariants.boite ?? imageVariants.comprime;
                 if (!primary || controller.signal.aborted) continue;
-                const sourceName = primary.provider === "cima_aemps"
-                  ? "AEMPS / CIMA (Espagne) — référence visuelle indicative, non preuve d’AMM ou de présentation camerounaise"
-                  : primary.provider === "open_products_facts"
+
+                const providerLabel = (provider: MedicamentPhotoItem["provider"]) => provider === "cima_aemps"
+                  ? "AEMPS / CIMA"
+                  : provider === "open_products_facts"
                     ? "Open Products Facts"
-                    : primary.provider === "catalogue_local_verifie"
+                    : provider === "catalogue_local_verifie"
                       ? "Catalogue local NAXA"
                       : "Wikimedia Commons";
+                const displayedSourceName = [...new Set(
+                  [imageVariants.boite, imageVariants.comprime].filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
+                    .map((photo) => providerLabel(photo.provider))
+                )].join(" + ");
+                const imageSource = primary.provider === "cima_aemps"
+                  ? "AEMPS / CIMA (Espagne) — référence visuelle indicative, non preuve d’AMM ou de présentation camerounaise"
+                  : displayedSourceName;
+                const photoSourceDetails = [imageVariants.boite, imageVariants.comprime]
+                  .filter((photo): photo is MedicamentPhotoItem => Boolean(photo))
+                  .map((photo) => ({
+                    name: providerLabel(photo.provider),
+                    role: photo.provider === "cima_aemps"
+                      ? "référence étrangère indicative ; ne confirme ni la marque, ni le conditionnement camerounais"
+                      : photo.provider === "open_products_facts"
+                        ? "photo rattachée au GTIN exact ; licence CC BY-SA"
+                        : photo.provider === "catalogue_local_verifie"
+                          ? "photo locale dont la source et la licence ont été vérifiées"
+                          : "illustration sous licence vérifiée ; identité contrôlée par titre et catégories",
+                    url: photo.sourceUrl,
+                    updatedAt: photo.updatedAt ?? null
+                  }));
+                const sourceDetails = [...(item.sourceDetails ?? []), ...photoSourceDetails]
+                  .filter((detail, index, all) => all.findIndex((candidate) => candidate.url === detail.url) === index);
+                const source = [...new Set([
+                  ...item.source,
+                  ...photoSourceDetails.map((detail) => detail.name)
+                ])];
                 imageUpdates.set(item.id, {
                   ...item,
-                  imageUrl: primary.url,
-                  imageSource: sourceName + " — " + (primary.kind === "boite" ? "boîte" : "forme pharmaceutique") + " · " + primary.licence,
-                  imageSourceUrl: primary.sourceUrl,
-                  imageLicense: primary.licence,
-                  imageAttribution: primary.attribution,
-                  imageTitle: primary.title,
+                  imageUrl: item.imageUrl ?? primary.url,
+                  imageSource: item.imageSource ?? imageSource + " — " + (primary.kind === "boite" ? "boîte" : "forme pharmaceutique") + " · " + primary.licence,
+                  imageSourceUrl: item.imageSourceUrl ?? primary.sourceUrl,
+                  imageLicense: item.imageLicense ?? primary.licence,
+                  imageAttribution: item.imageAttribution ?? primary.attribution,
+                  imageTitle: item.imageTitle ?? primary.title,
+                  source,
+                  sourceDetails,
                   imageVariants
                 } satisfies MedicamentRecherche);
               } catch {
