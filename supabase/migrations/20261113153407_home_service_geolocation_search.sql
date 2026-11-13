@@ -38,13 +38,11 @@ begin
     raise exception 'Paramètres de proximité invalides' using errcode='22023';
   end if;
   return query
-  select o.id,p.id,p.name,p.city,p.neighborhood,o.name,o.category,o.description,o.service_area_label,o.price_fcfa,
+  select c.offer_id,c.partner_id,c.partner_name,c.city,c.neighborhood,
+    c.name,c.category,c.description,c.service_area_label,c.price_fcfa,
     round(d.distance_km::numeric,1)::double precision
-  from public.home_service_offers o
-  join public.partners p on p.id=o.partner_id
-  join public.partner_universes pu on pu.partner_id=p.id and pu.universe_slug='prestations' and pu.enabled=true
-  join public.universes u on u.slug='prestations' and u.enabled=true
-  join public.feature_flags ff on ff.flag_key='universe.prestations' and ff.enabled=true
+  from private.get_home_service_catalog() c
+  join public.partners p on p.id=c.partner_id
   cross join lateral (
     select 6371.0 * 2.0 * asin(least(1.0,sqrt(greatest(0.0,
       power(sin(radians((p.latitude::double precision-p_latitude)/2.0)),2)
@@ -52,9 +50,8 @@ begin
         * power(sin(radians((p.longitude::double precision-p_longitude)/2.0)),2)
     )))) as distance_km
   ) d
-  where o.status='active' and p.status='active' and p.partner_type='professionnel_domicile'
-    and p.latitude is not null and p.longitude is not null and d.distance_km<=p_radius_km
-  order by d.distance_km,o.category,o.name,p.name;
+  where p.latitude is not null and p.longitude is not null and d.distance_km<=p_radius_km
+  order by d.distance_km,c.category,c.name,c.partner_name;
 end;
 $function$;
 
