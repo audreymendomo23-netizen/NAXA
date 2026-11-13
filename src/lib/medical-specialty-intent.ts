@@ -73,7 +73,7 @@ export async function classifyMedicalSpecialtyIntent(query:string,allowExternalA
         signal:AbortSignal.timeout(8000),cache:"no-store"
       });
       if(response.ok){
-        const data=await response.json() as {candidates?:Array<{content?:{parts?:Array<{text?:string}>}}>}>;
+        const data = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
         const raw=data.candidates?.[0]?.content?.parts?.map(part=>part.text??"").join("\n")??"";
         const valid=validateIntent(parseModelJson(raw),query);
         if(valid)return valid;
@@ -89,7 +89,7 @@ export async function classifyMedicalSpecialtyIntent(query:string,allowExternalA
         signal:AbortSignal.timeout(8000),cache:"no-store"
       });
       if(response.ok){
-        const data=await response.json() as {choices?:Array<{message?:{content?:string}}>}>;
+        const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
         const valid=validateIntent(parseModelJson(data.choices?.[0]?.message?.content??""),query);
         if(valid)return valid;
       }
