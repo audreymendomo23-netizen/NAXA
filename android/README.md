@@ -9,11 +9,14 @@ Prérequis : Android Studio récent, JDK 17, Android SDK 35 et Gradle 8.9 (compa
 Dans `~/.gradle/gradle.properties` (ne pas committer ce fichier), définir :
 
 ```properties
+NAXA_BASE_URL=https://<hôte-api-naxa-validé>
 SUPABASE_URL=https://<projet>.supabase.co
 SUPABASE_ANON_KEY=<clé publique anon ou publishable>
 ```
 
-Les valeurs Firebase facultatives utilisées par les notifications sont `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_PROJECT_ID` et `FIREBASE_SENDER_ID`. Elles peuvent être passées par propriétés Gradle ou variables d'environnement. Aucune clé service-role/secret Supabase ne doit être intégrée à l'APK.
+La valeur par défaut du dépôt est `https://naxa-opal.vercel.app` d'après la métadonnée d'accueil GitHub, mais l'ancien module utilisait `https://nnaxa.vercel.app`. L'hôte final doit être confirmé avant un APK connecté/production.
+
+L'hôte API peut également être fourni par variable d'environnement `NAXA_BASE_URL`. Les valeurs Firebase facultatives utilisées par les notifications sont `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_PROJECT_ID` et `FIREBASE_SENDER_ID`. Elles peuvent être passées par propriétés Gradle ou variables d'environnement. Aucune clé service-role/secret Supabase ne doit être intégrée à l'APK.
 
 Ouvrir le dossier `android/` dans Android Studio, synchroniser Gradle, puis lancer la configuration `app`. La CI du dépôt installe Gradle 8.9 et Android API 35 automatiquement :
 
