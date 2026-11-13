@@ -16,7 +16,8 @@ const YAOUNDE=CENTRES_VILLES.Yaoundé;
 type Meta={id:string;ville:string|null;horaires:string|null;photo_url:string|null;photo_verified_at:string|null;slug:string|null;est_demo:boolean;visible_recherche:boolean;archivee_le:string|null};
 type Row=ResultatPharmacie&{ville:string;horaires:string|null;assureurIds:string[];demo?:boolean};
 type Assureur={id:string;nom:string;code:string|null};
-type CatalogItem={id:string;name:string;brand:string|null;activeIngredient:string|null;barcode?:string|null;form:string|null;definition:string|null;indications:string|null;imageUrl:string|null;imageSource:string|null;imageSourceUrl?:string|null;imageLicense?:string|null;imageAttribution?:string|null;availability:"disponible"|"indisponible"|"non_verifiee";partnerPharmacyCount:number|null;lowestPartnerPrice:number|null;cameroonRegulatoryReference?:string};
+type CatalogPhoto={url:string;sourceUrl:string;licence:string;attribution?:string|null;title?:string;kind:"boite"|"comprime";provider?:"cima_aemps"|"wikimedia_commons"|"open_products_facts"|"catalogue_local_verifie";updatedAt?:string|null};
+type CatalogItem={id:string;name:string;brand:string|null;activeIngredient:string|null;barcode?:string|null;form:string|null;definition:string|null;indications:string|null;imageUrl:string|null;imageSource:string|null;imageSourceUrl?:string|null;imageLicense?:string|null;imageAttribution?:string|null;imageVariants?:{boite:CatalogPhoto|null;comprime:CatalogPhoto|null};sourceDetails?:{name:string;role:string;url:string;updatedAt?:string|null}[];source?:string[];availability:"disponible"|"indisponible"|"non_verifiee";partnerPharmacyCount:number|null;lowestPartnerPrice:number|null;cameroonRegulatoryReference?:string};
 type Filters={stock:boolean;open:boolean;delivery:boolean;prescription:boolean;price:string;distance:string;rating:string};
 const fcfa=(n:number)=>new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f/g,"\u00a0")+" FCFA";
 const normaliserTermeRecherche=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
@@ -81,7 +82,162 @@ function ResultsContent(){
   },[params]);
  useEffect(()=>{const timer=window.setTimeout(()=>{const q=query.trim();setDebounced(q);const url=new URL(window.location.href);const bulkInitial=url.searchParams.get("bulk")==="1"&&q===url.searchParams.getAll("q").join(" ");if(!bulkInitial){url.searchParams.delete("bulk");url.searchParams.delete("q");if(q)url.searchParams.set("q",q);window.history.replaceState(window.history.state,"",url)}},300);return()=>window.clearTimeout(timer)},[query]);
  // Le GPS n’est demandé qu’à l’activation explicite du filtre Distance.
- useEffect(()=>{let active=true;const term=debounced.trim();if(term.length<2||basketMode||params.get("bulk")==="1"){setCatalogue([]);setCatalogueLoading(false);return()=>{active=false}}setCatalogueLoading(true);void(async()=>{try{const response=await fetch("/api/medicaments/recherche?q="+encodeURIComponent(term));if(!response.ok)throw new Error("catalogue");const payload=await response.json() as {results?:CatalogItem[]};let results=Array.isArray(payload.results)?payload.results:[];if(results.length===0&&/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(term)){try{const barcodeResponse=await fetch("/api/medicaments/photo?q="+encodeURIComponent(term));if(barcodeResponse.ok){const barcodePayload=await barcodeResponse.json() as {photo?:{url:string;sourceUrl:string;licence:string;attribution?:string|null;title?:string;provider?:string}|null};const photo=barcodePayload.photo;if(photo?.provider==="open_products_facts"&&photo.url&&photo.sourceUrl&&photo.licence){results=[{id:"opf-"+term,name:photo.title||"Médicament — code "+term,brand:null,activeIngredient:null,form:null,definition:null,indications:null,imageUrl:photo.url,imageSource:"Open Products Facts — emballage",imageSourceUrl:photo.sourceUrl,imageLicense:photo.licence,imageAttribution:photo.attribution??null,availability:"non_verifiee",partnerPharmacyCount:null,lowestPartnerPrice:null,cameroonRegulatoryReference:"https://dpml.cm/repertoireDesAmm/index.php"}]}}}catch{/* Recherche code-barres facultative : le catalogue normal reste disponible. */}}if(active)setCatalogue(results);const ciblesPhoto=results.filter((item)=>!item.imageUrl).slice(0,10);if(ciblesPhoto.length){const imageUpdates=new Map<string,Partial<CatalogItem>>();let indexPhoto=0;const workerPhoto=async()=>{while(active){const item=ciblesPhoto[indexPhoto++];if(!item)return;const barcode=(item.barcode??"").replace(/\D/g,"");const identity=[item.brand,item.name,item.activeIngredient].find((value):value is string=>Boolean(value&&value.trim().length>=3))?.trim();const photoQueries=[/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(barcode)?barcode:null,identity].filter((value):value is string=>Boolean(value));if(!photoQueries.length)continue;for(const photoQuery of photoQueries){try{const photoResponse=await fetch("/api/medicaments/photo?q="+encodeURIComponent(photoQuery));if(!photoResponse.ok)continue;const photoPayload=await photoResponse.json() as {photo?:{url:string;licence:string;sourceUrl:string;attribution?:string|null;title?:string;provider?:string}|null;photos?:{boite?:{url:string;licence:string;sourceUrl:string;attribution?:string|null;title?:string;provider?:string}|null;comprime?:{url:string;licence:string;sourceUrl:string;attribution?:string|null;title?:string;provider?:string}|null};source?:string};const photo=photoPayload.photo??photoPayload.photos?.boite??photoPayload.photos?.comprime;if(photo?.url&&photo.sourceUrl&&photo.licence){const sourceName=photoPayload.source==="catalogue_local_verifie"?"Catalogue local NAXA vérifié":photoPayload.source==="cima_aemps"?"AEMPS / CIMA":photoPayload.source==="open_products_facts"?"Open Products Facts":photoPayload.source==="wikimedia_commons"?"Wikimedia Commons":"Source gratuite vérifiée";imageUpdates.set(item.id,{id:item.id,imageUrl:photo.url,imageSource:sourceName,imageSourceUrl:photo.sourceUrl,imageLicense:photo.licence,imageAttribution:photo.attribution??null});break;}}catch{/* Un fournisseur indisponible n'empêche pas d'essayer la source suivante. */}}}};void Promise.all(Array.from({length:Math.min(2,ciblesPhoto.length)},()=>workerPhoto())).then(()=>{if(!active||!imageUpdates.size)return;setCatalogue((current)=>current.map((item)=>{const update=imageUpdates.get(item.id);return update?{...item,...update}:item}))}).catch(()=>undefined)}}catch{if(active)setCatalogue([])}finally{if(active)setCatalogueLoading(false)}})();return()=>{active=false}},[debounced,basketMode]);
+ useEffect(() => {
+  let active = true;
+  const term = debounced.trim();
+  if (term.length < 2 || basketMode || params.get("bulk") === "1") {
+    setCatalogue([]);
+    setCatalogueLoading(false);
+    return () => { active = false; };
+  }
+  setCatalogueLoading(true);
+  void (async () => {
+    try {
+      const response = await fetch("/api/medicaments/recherche?q=" + encodeURIComponent(term));
+      if (!response.ok) throw new Error("catalogue");
+      const payload = await response.json() as { results?: CatalogItem[] };
+      let results = Array.isArray(payload.results) ? payload.results : [];
+
+      if (results.length === 0 && /^(?:\\d{8}|\\d{12}|\\d{13}|\\d{14})$/.test(term)) {
+        try {
+          const barcodeResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(term));
+          if (barcodeResponse.ok) {
+            const barcodePayload = await barcodeResponse.json() as {
+              photo?: CatalogPhoto | null;
+              photos?: { boite?: CatalogPhoto | null; comprime?: CatalogPhoto | null };
+            };
+            const photos = {
+              boite: barcodePayload.photos?.boite ?? barcodePayload.photo ?? null,
+              comprime: barcodePayload.photos?.comprime ?? null
+            };
+            const primary = photos.boite ?? photos.comprime;
+            if (primary?.url && primary.sourceUrl && primary.licence) {
+              results = [{
+                id: "barcode-" + term,
+                name: primary.title || "Médicament — code " + term,
+                brand: null,
+                activeIngredient: null,
+                barcode: term,
+                form: null,
+                definition: null,
+                indications: null,
+                imageUrl: primary.url,
+                imageSource: primary.provider === "catalogue_local_verifie"
+                  ? "Catalogue local NAXA vérifié"
+                  : primary.provider === "open_products_facts"
+                    ? "Open Products Facts"
+                    : "Référence photo vérifiée",
+                imageSourceUrl: primary.sourceUrl,
+                imageLicense: primary.licence,
+                imageAttribution: primary.attribution ?? null,
+                imageVariants: photos,
+                source: [primary.provider ?? "source_image_verifiee"],
+                availability: "non_verifiee",
+                partnerPharmacyCount: null,
+                lowestPartnerPrice: null,
+                cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php"
+              }];
+            }
+          }
+        } catch {
+          // Une fiche code-barres absente n'empêche pas la recherche normale.
+        }
+      }
+
+      if (active) setCatalogue(results);
+      const ciblesPhoto = results.filter((item) =>
+        !item.imageUrl || !item.imageVariants?.boite || !item.imageVariants?.comprime
+      ).slice(0, 10);
+      if (ciblesPhoto.length) {
+        const imageUpdates = new Map<string, Partial<CatalogItem>>();
+        let indexPhoto = 0;
+        const workerPhoto = async () => {
+          while (active) {
+            const item = ciblesPhoto[indexPhoto++];
+            if (!item) return;
+            const barcode = (item.barcode ?? "").replace(/\\D/g, "");
+            const identity = [item.brand, item.name, item.activeIngredient]
+              .find((value): value is string => Boolean(value && value.trim().length >= 3))?.trim();
+            const photoQueries = [
+              /^(?:\\d{8}|\\d{12}|\\d{13}|\\d{14})$/.test(barcode) ? barcode : null,
+              identity
+            ].filter((value): value is string => Boolean(value));
+            if (!photoQueries.length) continue;
+
+            try {
+              const variants = {
+                boite: item.imageVariants?.boite ?? null,
+                comprime: item.imageVariants?.comprime ?? null
+              };
+              for (const photoQuery of photoQueries) {
+                if (variants.boite && variants.comprime) break;
+                const photoResponse = await fetch("/api/medicaments/photo?q=" + encodeURIComponent(photoQuery));
+                if (!photoResponse.ok) continue;
+                const photoPayload = await photoResponse.json() as {
+                  photo?: CatalogPhoto | null;
+                  photos?: { boite?: CatalogPhoto | null; comprime?: CatalogPhoto | null };
+                };
+                variants.boite = variants.boite ?? photoPayload.photos?.boite ?? photoPayload.photo ?? null;
+                variants.comprime = variants.comprime ?? photoPayload.photos?.comprime ?? null;
+              }
+              if (!variants.boite && !variants.comprime) continue;
+              const primary = variants.boite ?? variants.comprime;
+              if (!primary || !active) continue;
+              const photoList = [variants.boite, variants.comprime]
+                .filter((photo): photo is CatalogPhoto => Boolean(photo));
+              const labelFor = (photo: CatalogPhoto) => photo.provider === "cima_aemps"
+                ? "AEMPS / CIMA"
+                : photo.provider === "open_products_facts"
+                  ? "Open Products Facts"
+                  : photo.provider === "catalogue_local_verifie"
+                    ? "Catalogue local NAXA"
+                    : "Wikimedia Commons";
+              const photoSourceDetails = photoList.map((photo) => ({
+                name: labelFor(photo),
+                role: photo.provider === "cima_aemps"
+                  ? "référence étrangère indicative ; ne confirme pas le conditionnement camerounais"
+                  : photo.provider === "open_products_facts"
+                    ? "photo rattachée au GTIN exact ; licence CC BY-SA"
+                    : photo.provider === "catalogue_local_verifie"
+                      ? "photo locale dont la source et la licence ont été vérifiées"
+                      : "image sous licence vérifiée ; identité contrôlée",
+                url: photo.sourceUrl,
+                updatedAt: photo.updatedAt ?? null
+              }));
+              imageUpdates.set(item.id, {
+                imageUrl: item.imageUrl ?? primary.url,
+                imageSource: item.imageSource ?? [...new Set(photoList.map(labelFor))].join(" + "),
+                imageSourceUrl: item.imageSourceUrl ?? primary.sourceUrl,
+                imageLicense: item.imageLicense ?? primary.licence,
+                imageAttribution: item.imageAttribution ?? primary.attribution ?? null,
+                imageVariants: variants,
+                source: [...new Set([...(item.source ?? []), ...photoSourceDetails.map((detail) => detail.name)])],
+                sourceDetails: [...(item.sourceDetails ?? []), ...photoSourceDetails]
+                  .filter((detail, index, all) => all.findIndex((candidate) => candidate.url === detail.url) === index)
+              });
+            } catch {
+              // Une source non disponible n'empêche pas les autres résultats.
+            }
+          }
+        };
+        void Promise.all(
+          Array.from({ length: Math.min(2, ciblesPhoto.length) }, () => workerPhoto())
+        ).then(() => {
+          if (!active || !imageUpdates.size) return;
+          setCatalogue((current) => current.map((item) => {
+            const update = imageUpdates.get(item.id);
+            return update ? { ...item, ...update } : item;
+          }));
+        }).catch(() => undefined);
+      }
+    } catch {
+      if (active) setCatalogue([]);
+    } finally {
+      if (active) setCatalogueLoading(false);
+    }
+  })();
+  return () => { active = false; };
+ },[debounced,basketMode,params]);
  useEffect(()=>{let active=true;if(!debounced&&!basketMode){setRows([]);setLoading(false);setError("");return()=>{active=false}}if(locationStatus==="pending"){setLoading(true);return()=>{active=false}}setLoading(true);setError("");
  void(async()=>{try{const sb=supabaseBrowser();const items=pValues.map(v=>({produit_id:v.split(":")[0],quantite:Math.max(1,Math.min(10,Number(v.split(":")[1])||1))}));const pointRecherche=rayonKm&&locationStatus==="gps"?coords:villeFiltre==="Douala"?DOUALA:villeFiltre==="Yaoundé"?YAOUNDE:coords;const rayonRecherche=rayonKm&&locationStatus==="gps"?Number(rayonKm):villeFiltre?35:20;const response=basketMode?await sb.rpc("search_pharmacies_panier",{p_items:items,p_lat:pointRecherche.lat,p_lng:pointRecherche.lng,p_rayon_km:rayonRecherche}):params.get("bulk")==="1"?await sb.rpc("search_pharmacies_bulk",{p_terms:bulkTerms,p_quantities:bulkTerms.map((_,index)=>bulkQuantities[index]??1),p_lat:pointRecherche.lat,p_lng:pointRecherche.lng,p_rayon_km:rayonRecherche}):await sb.rpc("search_pharmacies",{p_terms:[debounced],p_lat:pointRecherche.lat,p_lng:pointRecherche.lng,p_rayon_km:rayonRecherche});if(response.error)throw response.error;const data=(response.data??[]) as ResultatPharmacie[];const ids=data.map(r=>r.pharmacie_id);let meta=new Map<string,Meta>();if(ids.length){const m=await sb.from("pharmacies").select("id,ville,horaires,photo_url,photo_verified_at,slug,est_demo,visible_recherche,archivee_le").in("id",ids);if(!m.error)meta=new Map(((m.data??[]) as Meta[]).map(x=>[x.id,x]))}const productIds=[...new Set(data.flatMap(r=>r.items.map(i=>i.produit_id)))];let rx=new Set<string>();if(productIds.length){const q=await sb.from("produits").select("id,categorie,precautions").in("id",productIds);rx=q.error?new Set<string>():new Set(((q.data??[]) as Array<{id:string;categorie:string|null;precautions:string|null}>).filter(x=>/\b(ordonnance|prescription)\b/i.test([x.categorie,x.precautions].filter(Boolean).join(" "))).map(x=>x.id))}const conv=ids.length?await sb.from("marketplace_assurance_conventions").select("pharmacie_id,assureur_id,date_debut,date_fin").in("pharmacie_id",ids):{data:[],error:null};if(conv.error)throw conv.error;const today=new Date().toISOString().slice(0,10);const assureurIdsByPharmacy=new Map<string,string[]>();for(const convention of (conv.data??[]) as Array<{pharmacie_id:string;assureur_id:string;date_debut:string|null;date_fin:string|null}>){if((!convention.date_debut||convention.date_debut<=today)&&(!convention.date_fin||convention.date_fin>=today)){const list=assureurIdsByPharmacy.get(convention.pharmacie_id)??[];list.push(convention.assureur_id);assureurIdsByPharmacy.set(convention.pharmacie_id,list);}}const mapped=data.filter(r=>{const pharmacy=meta.get(r.pharmacie_id);return Boolean(pharmacy)&&pharmacy!.est_demo!==true&&pharmacy!.visible_recherche===true&&!pharmacy!.archivee_le}).map(r=>({...r,ville:meta.get(r.pharmacie_id)?.ville||"Douala",horaires:meta.get(r.pharmacie_id)?.horaires??null,distance_km:locationStatus==="gps"?calculerDistanceKm(coords.lat,coords.lng,r.lat,r.lng):r.distance_km,assureurIds:assureurIdsByPharmacy.get(r.pharmacie_id)??[],photo_path:(meta.get(r.pharmacie_id)?.photo_url && meta.get(r.pharmacie_id)?.photo_verified_at && meta.get(r.pharmacie_id)!.photo_url!.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) ? meta.get(r.pharmacie_id)!.photo_url : r.photo_path ?? null)}));if(!active)return;setRxIds(rx);setRows(mapped);setCheapest(mapped.length?[...mapped].sort((a,b)=>totalRecherche(a,basketMode,pValues,bulkTerms,bulkQuantities)-totalRecherche(b,basketMode,pValues,bulkTerms,bulkQuantities))[0].pharmacie_id:null)}catch{if(active){setRows([]);setError("La recherche est momentanément indisponible. Réessayez.")}}finally{if(active)setLoading(false)}})();return()=>{active=false}},[debounced,coords.lat,coords.lng,basketMode,pValues.join("|"),bulkTerms.join("|"),bulkQuantities.join("|"),locationStatus,villeFiltre,rayonKm]);
  const sorted=useMemo(()=>{const list=[...(rows??[])];if(sort==="prix")list.sort((a,b)=>{if(basketMode||bulkTerms.length){const completeA=a.trouves>=a.demandes,completeB=b.trouves>=b.demandes;if(completeA!==completeB)return completeA?-1:1;}return(totalRecherche(a,basketMode,pValues,bulkTerms,bulkQuantities)-totalRecherche(b,basketMode,pValues,bulkTerms,bulkQuantities))*(ascending?1:-1)});if(sort==="distance")list.sort((a,b)=>Number(a.distance_km)-Number(b.distance_km));return list},[rows,sort,ascending,basketMode,pValues.join("|"),bulkTerms.join("|"),bulkQuantities.join("|")]);
@@ -156,7 +312,7 @@ function ResultsContent(){
    {!loading&&!error&&(query.trim()||basketMode||bulkTerms.length>0)&&filtered.length===0&&<p role="status" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">{assurancesSelectionnees.length?"Aucune pharmacie partenaire ne possède actuellement une convention active correspondant à l’assurance sélectionnée et aux autres filtres.":"Aucune pharmacie partenaire ne correspond à tous les filtres sélectionnés."}</p>}
    {error&&<div role="alert" className="mt-4 rounded-2xl border border-red-200 bg-white p-4 text-sm text-red-800"><p>{error}</p><button type="button" onClick={()=>setDebounced(query.trim())} className="mt-2 font-bold underline">Réessayer</button></div>}
    {loading&&<div className="mt-5 space-y-4" aria-label="Chargement des pharmacies">{[0,1,2].map(n=><div key={n} className="animate-pulse rounded-[20px] bg-white p-4 shadow-sm"><div className="h-5 w-2/3 rounded bg-[#E5EEE8]"/><div className="mt-3 h-4 w-1/2 rounded bg-[#E5EEE8]"/><div className="mt-5 h-9 w-1/3 rounded bg-[#E5EEE8]"/></div>)}</div>}
-   {!loading&&!error&&query.trim()&&<section className="mt-5 space-y-3" aria-live="polite"><div className="rounded-[20px] bg-white p-5 shadow-sm"><h2 className="font-extrabold">Catalogue des médicaments</h2><p className="mt-2 text-sm text-[#53685C]">Les fiches restent visibles même lorsqu’aucune pharmacie partenaire ne propose une offre confirmée. Le stock, le prix et la localisation ne sont affichés que pour des offres partenaires vérifiées.</p></div>{catalogueLoading&&<p className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Recherche dans le catalogue…</p>}{!catalogueLoading&&catalogue.length===0&&<div className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Aucune fiche correspondante n’a été trouvée dans les sources interrogées. Essayez le nom de la substance active.</div>}{catalogue.map((m)=> <article key={m.id} className="relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 pr-14 shadow-sm"><button type="button" onClick={()=>toggleFavori({id:m.id,nom:m.name,dosage:m.form,photo_url:m.imageUrl,prix:null,pharmacie:"Prix et pharmacie à confirmer",demo:true})} aria-label={favoriIds.has(m.id)?`Retirer ${m.name} des favoris`:`Ajouter ${m.name} aux favoris`} aria-pressed={favoriIds.has(m.id)} className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 ${favoriIds.has(m.id)?"border-red-200 bg-red-50 text-red-600":"border-red-200 bg-white text-red-500"}`}><IconeNAXA name="heart" size={20} filled={favoriIds.has(m.id)}/></button><div className="flex items-start gap-3"><img src={m.imageUrl||"/medicaments/placeholder.svg"} onError={(e)=>{e.currentTarget.onerror=null;e.currentTarget.src="/medicaments/placeholder.svg";if(m.imageUrl)setCatalogue((current)=>current.map((item)=>item.id===m.id?{...item,imageUrl:null,imageSource:null,imageSourceUrl:null,imageLicense:null,imageAttribution:null}:item))}} alt={m.imageUrl?`Image de référence — ${m.name}`:"Illustration neutre : photo non disponible"} title={m.imageSource?`${m.imageSource}${m.imageLicense?" · "+m.imageLicense:""}`:"Photo non disponible"} className="h-24 w-24 shrink-0 rounded-xl border border-[#E4ECE6] bg-slate-50 object-contain" loading="lazy"/><div className="min-w-0"><h3 className="font-extrabold text-[#0B3D26]">{m.name}</h3>{m.brand&&<p className="text-sm text-[#53685C]">{m.brand}</p>}{m.activeIngredient&&<p className="mt-1 text-sm"><strong>Substance active :</strong> {m.activeIngredient}</p>}{m.form&&<p className="text-sm"><strong>Forme :</strong> {m.form}</p>}</div></div>{m.definition&&<p className="mt-3 text-sm text-[#53685C]"><strong>Description :</strong> {m.definition}</p>}{m.indications&&<p className="mt-2 text-sm text-[#53685C]"><strong>Indications générales :</strong> {m.indications}</p>}{m.imageUrl&&<p className="mt-2 text-xs text-[#78621B]">Photo de référence uniquement : le conditionnement peut différer de celui vendu au Cameroun.</p>}{m.imageSourceUrl&&m.imageLicense&&<p className="mt-2 text-xs text-[#53685C]">Image : {m.imageAttribution&&<span>{m.imageAttribution} · </span>}<a href={m.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">source et licence</a> — {m.imageLicense}</p>}<p className={`mt-3 rounded-lg px-3 py-2 text-xs font-semibold ${m.availability==="disponible"?"bg-emerald-50 text-emerald-800":m.availability==="indisponible"?"bg-slate-100 text-slate-700":"bg-amber-50 text-amber-900"}`}>{m.availability==="disponible"?"Stock confirmé chez "+(m.partnerPharmacyCount??0)+" pharmacie(s) partenaire(s)"+(m.lowestPartnerPrice!==null?" · dès "+fcfa(m.lowestPartnerPrice):""):m.availability==="indisponible"?"Aucune offre disponible dans le réseau partenaire.":"Disponibilité non vérifiée : contactez une pharmacie pour confirmation."}</p>{filtered.length===0&&<p className="mt-2 text-xs text-[#53685C]">Les résultats de pharmacies peuvent aussi être limités par vos filtres ou votre localisation.</p>}{m.cameroonRegulatoryReference&&<a href={m.cameroonRegulatoryReference} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold underline">Vérifier l’autorisation au Cameroun (DPML)</a>}</article>)}</section>}
+   {!loading&&!error&&query.trim()&&<section className="mt-5 space-y-3" aria-live="polite"><div className="rounded-[20px] bg-white p-5 shadow-sm"><h2 className="font-extrabold">Catalogue des médicaments</h2><p className="mt-2 text-sm text-[#53685C]">Les fiches restent visibles même lorsqu’aucune pharmacie partenaire ne propose une offre confirmée. Le stock, le prix et la localisation ne sont affichés que pour des offres partenaires vérifiées.</p></div>{catalogueLoading&&<p className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Recherche dans le catalogue…</p>}{!catalogueLoading&&catalogue.length===0&&<div className="rounded-xl bg-white p-4 text-sm text-[#53685C]">Aucune fiche correspondante n’a été trouvée dans les sources interrogées. Essayez le nom de la substance active.</div>}{catalogue.map((m)=> <article key={m.id} className="relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 pr-14 shadow-sm"><button type="button" onClick={()=>toggleFavori({id:m.id,nom:m.name,dosage:m.form,photo_url:m.imageUrl,prix:null,pharmacie:"Prix et pharmacie à confirmer",demo:true})} aria-label={favoriIds.has(m.id)?`Retirer ${m.name} des favoris`:`Ajouter ${m.name} aux favoris`} aria-pressed={favoriIds.has(m.id)} className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 ${favoriIds.has(m.id)?"border-red-200 bg-red-50 text-red-600":"border-red-200 bg-white text-red-500"}`}><IconeNAXA name="heart" size={20} filled={favoriIds.has(m.id)}/></button><div className="flex items-start gap-3"><div className="flex shrink-0 gap-1.5"><img src={m.imageUrl||"/medicaments/placeholder.svg"} onError={(e)=>{e.currentTarget.onerror=null;e.currentTarget.src="/medicaments/placeholder.svg";if(m.imageUrl)setCatalogue((current)=>current.map((item)=>item.id===m.id?{...item,imageUrl:null,imageSource:null,imageSourceUrl:null,imageLicense:null,imageAttribution:null}:item))}} alt={m.imageUrl?"Image de référence du médicament":"Illustration neutre : photo non disponible"} title={m.imageSource?m.imageSource:"Photo non disponible"} className="h-24 w-24 shrink-0 rounded-xl border border-[#E4ECE6] bg-slate-50 object-contain" loading="lazy"/>{m.imageVariants?.comprime?.url&&m.imageVariants.comprime.url!==m.imageUrl&&<img src={m.imageVariants.comprime.url} onError={(e)=>{e.currentTarget.onerror=null;e.currentTarget.src="/medicaments/placeholder.svg"}} alt="Référence visuelle de la forme pharmaceutique — vérifier le produit local" title={m.imageVariants.comprime.licence} className="h-24 w-24 shrink-0 rounded-xl border border-[#E4ECE6] bg-slate-50 object-contain" loading="lazy"/>}</div><div className="min-w-0"><h3 className="font-extrabold text-[#0B3D26]">{m.name}</h3>{m.brand&&<p className="text-sm text-[#53685C]">{m.brand}</p>}{m.activeIngredient&&<p className="mt-1 text-sm"><strong>Substance active :</strong> {m.activeIngredient}</p>}{m.form&&<p className="text-sm"><strong>Forme :</strong> {m.form}</p>}</div></div>{m.definition&&<p className="mt-3 text-sm text-[#53685C]"><strong>Description :</strong> {m.definition}</p>}{m.indications&&<p className="mt-2 text-sm text-[#53685C]"><strong>Indications générales :</strong> {m.indications}</p>}{m.imageUrl&&<p className="mt-2 text-xs text-[#78621B]">Photo de référence uniquement : le conditionnement peut différer de celui vendu au Cameroun.</p>}{m.imageSourceUrl&&m.imageLicense&&<p className="mt-2 text-xs text-[#53685C]">Image : {m.imageAttribution&&<span>{m.imageAttribution} · </span>}<a href={m.imageSourceUrl} target="_blank" rel="noreferrer" className="underline">source et licence</a> — {m.imageLicense}</p>}{m.imageVariants&&<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#53685C]">{m.imageVariants.boite&&<a href={m.imageVariants.boite.sourceUrl} target="_blank" rel="noreferrer" className="underline">Boîte · {m.imageVariants.boite.licence}{m.imageVariants.boite.attribution?" · "+m.imageVariants.boite.attribution:""}</a>}{m.imageVariants.comprime&&<a href={m.imageVariants.comprime.sourceUrl} target="_blank" rel="noreferrer" className="underline">Forme pharmaceutique · {m.imageVariants.comprime.licence}{m.imageVariants.comprime.attribution?" · "+m.imageVariants.comprime.attribution:""}</a>}</div>}<p className={`mt-3 rounded-lg px-3 py-2 text-xs font-semibold ${m.availability==="disponible"?"bg-emerald-50 text-emerald-800":m.availability==="indisponible"?"bg-slate-100 text-slate-700":"bg-amber-50 text-amber-900"}`}>{m.availability==="disponible"?"Stock confirmé chez "+(m.partnerPharmacyCount??0)+" pharmacie(s) partenaire(s)"+(m.lowestPartnerPrice!==null?" · dès "+fcfa(m.lowestPartnerPrice):""):m.availability==="indisponible"?"Aucune offre disponible dans le réseau partenaire.":"Disponibilité non vérifiée : contactez une pharmacie pour confirmation."}</p>{filtered.length===0&&<p className="mt-2 text-xs text-[#53685C]">Les résultats de pharmacies peuvent aussi être limités par vos filtres ou votre localisation.</p>}{m.cameroonRegulatoryReference&&<a href={m.cameroonRegulatoryReference} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold underline">Vérifier l’autorisation au Cameroun (DPML)</a>}</article>)}</section>}
    {!loading&&!query.trim()&&!basketMode&&<div className="mt-5 rounded-[20px] bg-white p-5 text-sm text-[#53685C]">Saisissez un médicament pour voir les pharmacies partenaires qui l&apos;ont en stock.</div>}
    <div className="mt-5 space-y-4">{filtered.map((r,index)=>{const item=r.items[0],price=totalPrix(r),isCheapest=r.pharmacie_id===cheapest,href=item?`/offre/${r.pharmacie_id}/${item.produit_id}`:"/client",photo=r.photo_path&&(r.photo_path.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`)||/^\/pharmacies\/[a-zA-Z0-9._-]+$/.test(r.photo_path))?r.photo_path:null;
     return <article key={r.pharmacie_id} style={{animationDelay:`${Math.min(index*80,400)}ms`}} className="naxa-enter relative rounded-[20px] border border-[#E4ECE6] bg-white p-4 shadow-[0_6px_18px_rgba(0,0,0,0.08)] transition-transform active:scale-[0.99]"><button type="button" onClick={()=>item&&toggleFavori({id:item.produit_id,nom:item.nom,dosage:item.dosage,photo_url:null,prix:Number(item.prix)||0,pharmacie:r.nom,demo:false})} disabled={!item} aria-label={item?(favoriIds.has(item.produit_id)?`Retirer ${item.nom} des favoris`:`Ajouter ${item.nom} aux favoris`):"Favori indisponible"} aria-pressed={item?favoriIds.has(item.produit_id):false} className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-transform active:scale-95 disabled:opacity-40 ${item&&favoriIds.has(item.produit_id)?"border-red-200 bg-red-50 text-red-600":"border-[#D8E5DC] bg-white text-red-500"}`}><IconeNAXA name="heart" size={20} filled={Boolean(item&&favoriIds.has(item.produit_id))}/></button>
