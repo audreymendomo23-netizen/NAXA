@@ -183,6 +183,39 @@ object NaxaApi {
             .optJSONArray("orders") ?: JSONArray()
     }
 
+    fun prepareClientUniversePayment(context: Context, reservationId: String, channel: String): JSONObject {
+        require(channel == "orange_money" || channel == "mtn_momo") { "Canal de paiement invalide." }
+        val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
+        val access = SupabaseSession.getAccessToken(context)
+        return HttpClient.get(
+            SupabaseSession.trimSlash(base) + "/api/pay/universe/" + reservationId +
+                "?canal=" + channel,
+            access
+        )
+    }
+
+    fun submitClientUniversePayment(
+        context: Context, reservationId: String, channel: String, smsText: String?,
+        payerNumber: String, amount: Int, paidAt: String, reference: String,
+        fieldSources: JSONObject
+    ): JSONObject {
+        val base = SecureVault.get(context, "naxa_base_url") ?: error("URL NAXA manquante.")
+        val access = SupabaseSession.getAccessToken(context)
+        val body = JSONObject()
+            .put("reservationId", reservationId)
+            .put("canal", channel)
+            .put("smsText", smsText ?: "")
+            .put("payerNumber", payerNumber)
+            .put("amount", amount)
+            .put("paidAt", paidAt)
+            .put("reference", reference)
+            .put("fieldSources", fieldSources)
+        return HttpClient.post(
+            SupabaseSession.trimSlash(base) + "/api/client/paiements/univers/share",
+            access, null, body
+        )
+    }
+
     fun submitClientPayment(
         context: Context, reservationId: String, channel: String, smsText: String?,
         payerNumber: String, amount: Int, paidAt: String, reference: String,
