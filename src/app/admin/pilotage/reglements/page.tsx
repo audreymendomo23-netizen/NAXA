@@ -17,10 +17,11 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
   const query = await searchParams;
   await requireAdminActive("/admin/pilotage/reglements");
   const db = supabaseAdmin();
-  const [{ data: pending, error: pendingError }, { data: recent, error: recentError }, { data: adminSmsEvents, error: adminSmsEventsError }] = await Promise.all([
+  const [{ data: pending, error: pendingError }, { data: recent, error: recentError }, { data: adminSmsEvents, error: adminSmsEventsError }, { data: collectedEvidence, error: collectedEvidenceError }] = await Promise.all([
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,preuve_path,destination_snapshot,declared_at,created_at,verification_deadline_at,verification_level,verification_status,verification_details").eq("statut", "en_attente").order("created_at", { ascending: true }).limit(100),
     db.from("abonnement_promoteur_reglements").select("id,promoteur_id,montant,canal,canal_autre,compte_payeur,reference,paye_le,statut,numero_recu,identifiant_paiement,periode_au,declared_at,destination_snapshot,created_at,motif_contestation").neq("statut", "en_attente").order("created_at", { ascending: false }).limit(50),
     db.from("naxa_admin_payment_capture_events").select("id,canal,transaction_reference,amount,payer_number,merchant_reference,sender_origin_id,sms_received_at,match_status,reglement_id").order("created_at", { ascending: false }).limit(50),
+    db.from("naxa_payment_evidence_intake").select("id,workspace_type,workspace_id,canal,source_type,source_package,direction,success,amount,transaction_reference,payer_number_tail,merchant_number_tail,merchant_label,provider_occurred_at,match_status,received_at").order("received_at", { ascending: false }).limit(100),
   ]);
   const paymentRows = [...(pending ?? []), ...(recent ?? [])];
   const promoterIds = [...new Set(paymentRows.map(r => r.promoteur_id).filter((id): id is string => typeof id === "string" && id.length > 0))];
@@ -120,6 +121,24 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
         {event.reglement_id
           ? <Link href={"/admin/pilotage/reglements#paiement-" + event.reglement_id} className="mt-2 inline-block text-sm font-bold text-[#0147BB] underline">Ouvrir le dossier de paiement</Link>
           : <p className="mt-2 text-xs font-semibold text-amber-900">Aucun dossier unique identifié. Ce SMS partagé manuellement ou cette réception sans déclaration Promoteur ne crée pas de règlement. Le rapprochement manuel reste nécessaire.</p>}
+      </article>)}
+    </section>
+    <section className="space-y-3 rounded-2xl border border-amber-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-black">Preuves reçues du lecteur Android et SMS partagés ({collectedEvidence?.length ?? 0})</h2>
+        <span className="text-xs text-slate-500">Pharmacie · Partenaire · Admin</span>
+      </div>
+      {collectedEvidenceError && <p role="alert" className="text-sm text-amber-900">Le registre de collecte n'est pas disponible. Vérifiez l'application de la migration dédiée sur Replay.</p>}
+      {!collectedEvidenceError && !collectedEvidence?.length && <p className="text-sm text-slate-600">Aucun nouvel élément de collecte.</p>}
+      {!collectedEvidenceError && collectedEvidence?.map((event) => <article key={event.id} className="rounded-xl border border-slate-200 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-bold">{event.workspace_type === "pharmacie" ? "Pharmacie" : event.workspace_type === "partner" ? "Partenaire" : "Administrateur"} · {event.canal === "orange_money" ? "Orange Money" : "MTN Mobile Money"} · {event.amount ? money(event.amount) : "Montant non extrait"}</p>
+          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">À rapprocher · {event.match_status}</span>
+        </div>
+        <p className="mt-1 break-all text-sm">Référence : <strong>{event.transaction_reference ?? "Non extraite"}</strong> · Mouvement : {event.direction} · Succès détecté : {event.success ? "Oui" : "Non / inconnu"}</p>
+        <p className="text-xs text-slate-600">Source : {event.source_type === "notification" ? "Notification " + (event.source_package ?? "application inconnue") : "SMS partagé volontairement"} · Espace : {event.workspace_id} · Payeur : …{event.payer_number_tail ?? "—"} · Marchand : …{event.merchant_number_tail ?? "—"}</p>
+        <p className="text-xs text-slate-600">Date opérateur : {date(event.provider_occurred_at)} · Reçu : {date(event.received_at)}</p>
+        <p className="mt-2 text-xs font-semibold text-amber-900">Élément de collecte uniquement : aucune confirmation ni activation d'abonnement n'a été effectuée.</p>
       </article>)}
     </section>
     <section className="space-y-3">

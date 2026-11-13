@@ -1,18 +1,12 @@
 package cm.naxa.paymentcompanion
 
-/**
- * Notification access is an Android special access. It is intentionally denied
- * to Clients even if a stale consent value exists on the device.
- */
+/** Notification reader is limited to Pharmacy, Partner and Admin profiles. */
 object NotificationCaptureGate {
-    fun channelFromTitle(title: String?): String? = when (title?.trim()) {
-        "OrangeMoney" -> "orange_money"
-        "MobileMoney" -> "mtn_momo"
-        else -> null
-    }
+    fun channelFromSourcePackage(packageName: String?): String? =
+        PaymentNotificationSourceClassifier.channelFromPackage(packageName)
 
-    fun canCapture(role: String?, explicitConsent: Boolean, senderTitle: String?): Boolean {
-        if (!explicitConsent || role !in listOf("promoteur", "partenaire", "admin")) return false
-        return channelFromTitle(senderTitle) != null
+    fun canCapture(role: String?, explicitConsent: Boolean, sourcePackage: String?): Boolean {
+        if (!explicitConsent || role !in setOf("pharmacie", "partenaire", "admin")) return false
+        return channelFromSourcePackage(sourcePackage) != null
     }
 }

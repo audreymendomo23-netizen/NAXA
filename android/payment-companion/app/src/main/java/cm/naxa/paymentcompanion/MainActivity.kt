@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private var promoterRadioId: Int = View.NO_ID
     private var clientRadioId: Int = View.NO_ID
     private var partnerRadioId: Int = View.NO_ID
+    private var pharmacyRadioId: Int = View.NO_ID
     private var notificationConsent: CheckBox? = null
     private var notificationControls: LinearLayout? = null
 
@@ -68,33 +69,44 @@ class MainActivity : Activity() {
             setPadding(0, dp(16), 0, dp(6))
         })
         roleGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
-        if (BuildConfig.ADMIN_CAPTURE_ENABLED) {
-            val admin = RadioButton(this).apply {
-                id = View.generateViewId()
-                text = "Administrateur · téléphone bénéficiaire NAXA"
-                isChecked = true
+        when {
+            BuildConfig.ADMIN_CAPTURE_ENABLED -> {
+                roleGroup.addView(RadioButton(this).apply {
+                    id = View.generateViewId()
+                    text = "Administrateur · téléphone bénéficiaire NAXA"
+                    isChecked = true
+                })
             }
-            roleGroup.addView(admin)
-        } else {
-            val client = RadioButton(this).apply {
-                id = View.generateViewId()
-                text = "Client · paiement d'une commande pharmacie"
-                isChecked = true
+            BuildConfig.PROFESSIONAL_CAPTURE_ENABLED -> {
+                val pharmacy = RadioButton(this).apply {
+                    id = View.generateViewId()
+                    text = "Pharmacie · paiement / réception de l'établissement"
+                    isChecked = true
+                }
+                pharmacyRadioId = pharmacy.id
+                val partner = RadioButton(this).apply {
+                    id = View.generateViewId()
+                    text = "Partenaire · paiement d'abonnement"
+                }
+                partnerRadioId = partner.id
+                roleGroup.addView(pharmacy)
+                roleGroup.addView(partner)
             }
-            clientRadioId = client.id
-            val promoter = RadioButton(this).apply {
-                id = View.generateViewId()
-                text = "Promoteur / Pharmacie · abonnement NAXA"
+            else -> {
+                val client = RadioButton(this).apply {
+                    id = View.generateViewId()
+                    text = "Client · paiement d'une commande pharmacie"
+                    isChecked = true
+                }
+                clientRadioId = client.id
+                val promoter = RadioButton(this).apply {
+                    id = View.generateViewId()
+                    text = "Promoteur · abonnement NAXA"
+                }
+                promoterRadioId = promoter.id
+                roleGroup.addView(client)
+                roleGroup.addView(promoter)
             }
-            promoterRadioId = promoter.id
-            val partner = RadioButton(this).apply {
-                id = View.generateViewId()
-                text = "Partenaire · paiement d'abonnement"
-            }
-            partnerRadioId = partner.id
-            roleGroup.addView(client)
-            roleGroup.addView(promoter)
-            roleGroup.addView(partner)
         }
         root.addView(roleGroup)
 
@@ -122,16 +134,8 @@ class MainActivity : Activity() {
             smsConsent?.setOnCheckedChangeListener { _, checked -> applySmsConsentChoice(checked) }
         }
 
-        createNotificationControls(root, BuildConfig.ADMIN_CAPTURE_ENABLED)
-        if (!BuildConfig.ADMIN_CAPTURE_ENABLED) {
-            roleGroup.setOnCheckedChangeListener { _, checkedId ->
-                if (checkedId == clientRadioId) {
-                    SecureVault.put(this, "notification_consent_granted", "false")
-                    syncNotificationListenerComponent()
-                }
-                notificationControls?.visibility = if (checkedId == clientRadioId) View.GONE else View.VISIBLE
-            }
-            notificationControls?.visibility = if (roleGroup.checkedRadioButtonId == clientRadioId) View.GONE else View.VISIBLE
+        if (BuildConfig.ADMIN_CAPTURE_ENABLED || BuildConfig.PROFESSIONAL_CAPTURE_ENABLED) {
+            createNotificationControls(root, alwaysVisible = true)
         }
 
         connectButton = Button(this).apply {
@@ -216,11 +220,10 @@ class MainActivity : Activity() {
 
     private fun selectedRole(): String {
         if (BuildConfig.ADMIN_CAPTURE_ENABLED) return "admin"
-        return when (roleGroup.checkedRadioButtonId) {
-            promoterRadioId -> "promoteur"
-            partnerRadioId -> "partenaire"
-            else -> "client"
+        if (BuildConfig.PROFESSIONAL_CAPTURE_ENABLED) {
+            return if (roleGroup.checkedRadioButtonId == partnerRadioId) "partenaire" else "pharmacie"
         }
+        return if (roleGroup.checkedRadioButtonId == promoterRadioId) "promoteur" else "client"
     }
 
     private fun connectAndEnroll() {
@@ -250,13 +253,15 @@ class MainActivity : Activity() {
                     connectButton.isEnabled = true
                     statusText.text = when (role) {
                         "client" -> "Compte Client connecté. Partagez un SMS de débit ou utilisez la saisie manuelle."
-                        "promoteur" -> "Compte Promoteur enrôlé. Le partage SMS et la lecture facultative des notifications sont disponibles."
-                        "partenaire" -> "Compte Partenaire enrôlé. Partagez un SMS ou activez la lecture facultative des notifications."
+                        "promoteur" -> "Compte Promoteur enrôlé. Le partage volontaire du SMS reste disponible ; aucun lecteur de notifications."
+                        "pharmacie" -> "Compte Pharmacie enrôlé. Lecteur de notifications facultatif ; partage SMS également disponible."
+                        "partenaire" -> "Compte Partenaire enrôlé. Lecteur de notifications facultatif ; partage SMS également disponible."
                         else -> "Compte Administrateur enrôlé. Les mécanismes restent désactivés sans consentement et autorisations Android."
                     }
                     syncNotificationListenerComponent()
                     if (role == "admin" && SecureVault.get(this, "sms_consent_granted") == "true") requestSmsPermission()
-                    if (role != "client" && SecureVault.get(this, "notification_consent_granted") == "true") openNotificationAccessSettings()
+                    if (role in listOf("admin", "pharmacie", "partenaire") &&
+                        SecureVault.get(this, "notification_consent_granted") == "true") openNotificationAccessSettings()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -277,7 +282,7 @@ class MainActivity : Activity() {
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
         })
         panel.addView(TextView(this).apply {
-            text = "Accès Android sensible : le système expose à NAXA le flux général des notifications. NAXA filtre localement les seuls titres exacts OrangeMoney et MobileMoney et n'envoie que les éléments de paiement reconnus. Le titre d'une notification n'authentifie jamais l'expéditeur SMS et ne confirme jamais un paiement."
+            text = "Accès Android sensible : Android expose techniquement à NAXA le flux général des notifications. Le lecteur reste réservé à Pharmacie, Partenaire et Admin et filtre localement les applications de paiement reconnues. Une notification ne confirme jamais seule un paiement."
             textSize = 12f
             setPadding(0, dp(4), 0, dp(8))
         })
@@ -289,8 +294,13 @@ class MainActivity : Activity() {
         notificationConsent?.setOnCheckedChangeListener { _, checked ->
             SecureVault.put(this, "notification_consent_granted", checked.toString())
             syncNotificationListenerComponent()
-            if (checked) openNotificationAccessSettings()
-            else statusText.text = "Lecture automatique désactivée. Le partage volontaire du SMS reste disponible."
+            if (checked) {
+                executor.execute { runCatching { NaxaApi.setNotificationConsent(this, true) } }
+                openNotificationAccessSettings()
+            } else {
+                executor.execute { runCatching { NaxaApi.setNotificationConsent(this, false) } }
+                statusText.text = "Lecture automatique désactivée. Le partage volontaire du SMS reste disponible."
+            }
         }
         panel.addView(Button(this).apply {
             text = "Gérer l'accès Android aux notifications"
@@ -306,9 +316,10 @@ class MainActivity : Activity() {
     }
 
     private fun syncNotificationListenerComponent(): Boolean {
+        if (!BuildConfig.ADMIN_CAPTURE_ENABLED && !BuildConfig.PROFESSIONAL_CAPTURE_ENABLED) return false
         val role = SecureVault.get(this, "companion_role")
         val consent = SecureVault.get(this, "notification_consent_granted") == "true"
-        val allowed = consent && role in listOf("admin", "promoteur", "partenaire")
+        val allowed = consent && role in listOf("admin", "pharmacie", "partenaire")
         packageManager.setComponentEnabledSetting(
             ComponentName(this, NaxaNotificationListenerService::class.java),
             if (allowed) PackageManager.COMPONENT_ENABLED_STATE_ENABLED

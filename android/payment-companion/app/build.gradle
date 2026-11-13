@@ -20,12 +20,21 @@ android {
             dimension "distribution"
             applicationId "cm.naxa.paymentcompanion"
             buildConfigField "boolean", "ADMIN_CAPTURE_ENABLED", "false"
+            buildConfigField "boolean", "PROFESSIONAL_CAPTURE_ENABLED", "false"
+        }
+        professional {
+            dimension "distribution"
+            applicationId "cm.naxa.paymentcompanion.professional"
+            versionNameSuffix "-professional"
+            buildConfigField "boolean", "ADMIN_CAPTURE_ENABLED", "false"
+            buildConfigField "boolean", "PROFESSIONAL_CAPTURE_ENABLED", "true"
         }
         admin {
             dimension "distribution"
             applicationId "cm.naxa.paymentcompanion.admin"
             versionNameSuffix "-admin"
             buildConfigField "boolean", "ADMIN_CAPTURE_ENABLED", "true"
+            buildConfigField "boolean", "PROFESSIONAL_CAPTURE_ENABLED", "false"
         }
     }
 

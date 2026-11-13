@@ -69,3 +69,10 @@ RECEIVE_SMS demeure uniquement dans src/admin/AndroidManifest.xml. Le service de
 - Admin secours et notifications candidates : /api/admin/paiements/share.
 
 Les nouveaux chemins de candidature ne conservent pas le corps SMS brut et ne font aucune activation. Les essais opérateur et téléphones réels restent obligatoires.
+
+
+## Séparation du lecteur Android (13 novembre 2026)
+
+Trois APK sont produites : Standard (Client + Promoteur), Professionnelle (Pharmacie + Partenaire) et Admin. Le service `NaxaNotificationListenerService` a été retiré du manifeste commun : il est déclaré seulement dans les manifestes Professionnel et Admin. L'APK Standard ne contient donc pas le lecteur et n'affiche pas de contrôle d'accès aux notifications.
+
+Le lecteur Professionnel/Admin exige le consentement explicite dans NAXA et l'accès spécial Android. Le filtre local n'accepte que les paquets MTN MoMo / Orange Money listés dans `PaymentNotificationSourceClassifier`. La capture SMS système RECEIVE_SMS reste réservée à Admin et garde son consentement distinct. Toute notification/SMS collecté est conservé en revue manuelle ; le texte brut n'est pas persisté et aucune activation d'abonnement ne se fait depuis le seul événement.

@@ -6,10 +6,8 @@ import android.service.notification.StatusBarNotification
 import java.util.concurrent.Executors
 
 /**
- * Processes only notifications whose title exactly matches the operator sender IDs.
- * Android grants access to the notification stream globally; filtering happens locally.
- * Notification titles are untrusted candidates and are never passed to the trusted SMS
- * capture endpoint or used as an authenticated sender address.
+ * Android notification access is broad; NAXA filters locally by the exact
+ * payment-app package allowlist and transmits no unrelated notifications.
  */
 class NaxaNotificationListenerService : NotificationListenerService() {
     companion object {
@@ -18,28 +16,34 @@ class NaxaNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val item = sbn ?: return
+        val sourcePackage = item.packageName
+        if (sourcePackage == packageName) return
         val appContext = applicationContext
-        if (item.packageName == packageName) return
         val role = SecureVault.get(appContext, "companion_role")
         val consent = SecureVault.get(appContext, "notification_consent_granted") == "true"
-        val extras = item.notification?.extras ?: return
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim() ?: return
-        if (!NotificationCaptureGate.canCapture(role, consent, title)) return
+        val channel = NotificationCaptureGate.channelFromSourcePackage(sourcePackage) ?: return
+        if (!NotificationCaptureGate.canCapture(role, consent, sourcePackage)) return
 
-        val text = sequenceOf(
-            extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
-            extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-        ).filterNotNull().map { it.trim() }.firstOrNull { it.length >= 12 } ?: return
-        if (text.length > 8000) return
+        val extras = item.notification?.extras ?: return
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
+        val text = buildString {
+            append(extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty())
+            append(" ")
+            append(extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty())
+            extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.forEach {
+                append(" ")
+                append(it?.toString().orEmpty())
+            }
+        }.trim()
+        if (text.length !in 12..8000) return
         val receivedAt = item.postTime.takeIf { it > 0L } ?: System.currentTimeMillis()
-        val sourcePackage = item.packageName.take(180)
 
         EXECUTOR.execute {
             val currentRole = SecureVault.get(appContext, "companion_role")
             val currentConsent = SecureVault.get(appContext, "notification_consent_granted") == "true"
-            if (!NotificationCaptureGate.canCapture(currentRole, currentConsent, title)) return@execute
+            if (!NotificationCaptureGate.canCapture(currentRole, currentConsent, sourcePackage)) return@execute
             try {
-                NaxaApi.sendNotificationCandidate(appContext, title, text, sourcePackage, receivedAt)
+                NaxaApi.sendNotificationCandidate(appContext, channel, title, text, sourcePackage, receivedAt)
                 SecureVault.put(appContext, "last_notification_candidate_at", System.currentTimeMillis().toString())
                 SecureVault.put(appContext, "last_notification_candidate_status", "manual_review")
             } catch (error: Exception) {

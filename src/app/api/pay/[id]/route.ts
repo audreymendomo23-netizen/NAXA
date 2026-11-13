@@ -17,7 +17,7 @@ export async function GET(
 
     const { data: reservation, error } = await sb
       .from("reservations")
-      .select("client_id,total,frais_livraison,pharmacie_id,partner_id,statut,expires_at,mode,paiement_mode,paiement_statut,commande_statut,livraison_confirmee_stock_at")
+      .select("client_id,total,frais_livraison,pharmacie_id,statut,expires_at,mode,paiement_mode,paiement_statut,commande_statut,livraison_confirmee_stock_at")
       .eq("id", id)
       .eq("client_id", auth.user.id)
       .single();
@@ -47,17 +47,11 @@ export async function GET(
     if (!channel) return NextResponse.json({ error: "Sélectionnez d'abord un opérateur de paiement." }, { status: 409 });
 
     const db = supabaseAdmin();
-    let destinationQuery = db.from("naxa_merchant_payment_destinations")
+    const destinationQuery = db.from("naxa_merchant_payment_destinations")
       .select("merchant_name,merchant_phone,merchant_code,canal,is_active")
+      .eq("pharmacie_id", reservation.pharmacie_id)
       .eq("canal", channel)
       .eq("is_active", true);
-    if (reservation.pharmacie_id) {
-      destinationQuery = destinationQuery.eq("pharmacie_id", reservation.pharmacie_id);
-    } else if (reservation.partner_id) {
-      destinationQuery = destinationQuery.eq("partner_id", reservation.partner_id);
-    } else {
-      return NextResponse.json({ error: "Bénéficiaire marchand introuvable pour cette réservation." }, { status: 409 });
-    }
     const { data: destination, error: destinationError } = await destinationQuery.maybeSingle();
 
     if (destinationError || !destination || destination.canal !== channel ||

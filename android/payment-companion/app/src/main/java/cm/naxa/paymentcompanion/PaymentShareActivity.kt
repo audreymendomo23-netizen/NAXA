@@ -51,7 +51,7 @@ class PaymentShareActivity : Activity() {
         root.addView(status)
         setContentView(scroll)
 
-        if (role !in listOf("client", "promoteur", "partenaire", "admin")) {
+        if (role !in listOf("client", "promoteur", "pharmacie", "partenaire", "admin")) {
             status.text = "Aucun compte NAXA connecté. Ouvrez l'application, connectez votre compte, puis partagez de nouveau le SMS."
             root.addView(Button(this).apply { text = "Fermer"; setOnClickListener { finish() } })
             return
@@ -91,12 +91,17 @@ class PaymentShareActivity : Activity() {
             "promoteur" -> if (smsText.isNotBlank())
                 "Vérifiez la preuve de débit. Elle sera confrontée au SMS de crédit reçu par NAXA."
             else "Saisie manuelle de secours. Sans SMS de débit partagé, le dossier restera à vérifier par l'Administrateur."
+            "pharmacie" -> "Le SMS partagé est transmis à NAXA pour rapprochement d'un paiement Pharmacie."
             "partenaire" -> "Le SMS partagé est transmis comme élément à rapprocher par NAXA. Il ne confirme pas un abonnement Partenaire."
             else -> "Partage de secours du SMS de crédit Admin. Ce partage est soumis à vérification manuelle et ne confirme jamais seul un abonnement."
         }
 
         if (role == "partenaire") {
             buildPartnerShareForm()
+            return
+        }
+        if (role == "pharmacie") {
+            buildPharmacyShareForm()
             return
         }
 
@@ -187,6 +192,46 @@ class PaymentShareActivity : Activity() {
         root.addView(submitButton)
         root.addView(TextView(this).apply {
             text = "La transmission confirme uniquement la déclaration. La pharmacie doit vérifier le crédit reçu ; l'Administrateur doit rapprocher le débit Promoteur avec son SMS de crédit."
+            textSize = 12f
+            setPadding(0, dp(12), 0, 0)
+        })
+    }
+
+    private fun buildPharmacyShareForm() {
+        root.addView(TextView(this).apply {
+            text = "Opérateur du SMS partagé"
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        val spinner = Spinner(this)
+        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Orange Money", "MTN Mobile Money"))
+        root.addView(spinner)
+        root.addView(Button(this).apply {
+            text = "Transmettre le SMS à NAXA pour rapprochement"
+            isEnabled = smsText.length >= 12
+            setOnClickListener {
+                val channel = if (spinner.selectedItemPosition == 0) "orange_money" else "mtn_momo"
+                isEnabled = false
+                status.text = "Transmission du SMS…"
+                executor.execute {
+                    try {
+                        val result = NaxaApi.submitProfessionalSharedSms(this@PaymentShareActivity, channel, smsText)
+                        runOnUiThread {
+                            status.text = result.optString(
+                                "message",
+                                "SMS transmis. Il reste à rapprocher de l'intention de paiement ; aucun abonnement n'est confirmé par le partage seul."
+                            )
+                        }
+                    } catch (error: Exception) {
+                        runOnUiThread {
+                            isEnabled = true
+                            status.text = error.message ?: "Transmission du SMS impossible."
+                        }
+                    }
+                }
+            }
+        })
+        root.addView(TextView(this).apply {
+            text = "Le partage Android ne permet pas à lui seul d'authentifier l'expéditeur. Le texte brut n'est pas conservé par NAXA."
             textSize = 12f
             setPadding(0, dp(12), 0, 0)
         })

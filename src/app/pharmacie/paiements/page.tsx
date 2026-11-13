@@ -26,7 +26,7 @@ async function loadPharmacyScope() {
   const { data: businessFunction, error: functionError } = await sb.rpc("naxa_business_function");
   if (
     functionError || !profile || profile.actif !== true ||
-    !["pharmacie", "responsable"].includes(profile.role ?? "") ||
+    profile.role !== "pharmacie" ||
     !["pharmacie", "responsable"].includes(businessFunction ?? "") ||
     !profile.pharmacie_id
   ) redirect("/");

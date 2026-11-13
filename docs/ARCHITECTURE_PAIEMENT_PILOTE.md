@@ -1,66 +1,79 @@
-# NAXA — architecture des paiements mobiles
+# NAXA — architecture de paiement : USSD, preuves SMS et notifications Android
 
-Mise à jour : 13 novembre 2026 — décision métier consolidée et premier lot de code Android.
+**Version de développement — 13 novembre 2026.** Ce document décrit la cible métier et distingue le code déjà présent des points restant à valider.
 
-## Principes communs
+## Règles selon le profil
 
-1. L'application Client ne lit jamais les notifications ou les SMS en arrière-plan. Le Client partage volontairement le SMS de débit.
-2. La lecture des notifications est réservée aux profils Pharmacie/Promoteur, Partenaire et Administrateur, après consentement NAXA et activation de l'accès spécial Android.
-3. L'accès Android aux notifications expose techniquement un flux large. NAXA filtre localement les titres exacts OrangeMoney et MobileMoney, n'envoie que les notifications reconnues et ne stocke pas le contenu brut.
-4. Un titre de notification n'est pas une métadonnée d'origine SMS authentifiée. Une notification détectée est un indice à rapprocher, toujours en revue manuelle ; elle ne peut pas déclencher seule une confirmation.
-5. Le récepteur SMS_RECEIVED et l'adresse d'origine fournie par Android sont réservés à la variante Admin. Seuls les identifiants stricts OrangeMoney et MobileMoney sont acceptés pour le circuit automatique Admin.
-6. Les codes secrets, PIN et OTP Mobile Money ne sont jamais demandés, lus, transmis ou enregistrés par NAXA.
-7. Aucun paiement n'est confirmé à partir de la seule génération USSD, de l'ouverture du composeur, d'un champ saisi ou d'une notification non rapprochée.
+| Profil Android | Lecteur de notifications | Partage volontaire SMS | Réception SMS système |
+|---|---|---|---|
+| Client / Standard | Interdit | Oui, SMS de débit | Non |
+| Promoteur / Standard | Non | Oui, SMS de débit | Non |
+| Pharmacie / Professionnel | Oui, facultatif après consentement | Oui | Non |
+| Partenaire / Professionnel | Oui, facultatif après consentement | Oui | Non |
+| Administrateur / Admin | Oui, facultatif après consentement | Oui | Oui, consentement et permission distincts |
 
-## A. Client → Pharmacie
+Le Client ne doit pas recevoir une demande d'accès aux notifications. Le Promoteur reste sans lecteur de notifications selon la dernière règle métier.
 
-- Le Client choisit MTN Mobile Money ou Orange Money.
-- NAXA présente le nom du bénéficiaire, son numéro, son code marchand à six chiffres et le montant dû.
-- Sur Android, NAXA ouvre le composeur natif avec la commande préparée :
-  - MTN : *126*4*<code marchand 6 chiffres>*<montant>#.
-  - Orange : #150*47#. Le préremplissage du montant Orange n'est pas présumé ; il doit être confirmé par une documentation opérateur ou un essai réel.
-- Le Client confirme lui-même la commande et saisit son PIN uniquement dans l'interface de l'opérateur.
-- Après le débit, le Client partage volontairement son SMS avec NAXA. Le partage Android peut ne fournir que le texte ; si l'origine n'est pas transmise par une source système fiable, NAXA ne la considère pas authentifiée.
-- La Pharmacie vérifie le crédit réel et confirme dans sa Caisse. Le SMS partagé par le Client n'est pas un encaissement.
+## Configuration marchande par entité
 
-Interdictions côté Client : pas de lecteur de notifications, pas de READ_SMS, pas de RECEIVE_SMS.
+Chaque Pharmacie et Partenaire configure ses coordonnées séparément pour MTN et Orange : nom de bénéficiaire, numéro marchand, code marchand exact de 6 chiffres et activation du canal. Les zéros de tête sont conservés. Une entité ne peut pas lire ni modifier la configuration d'une autre. Les coordonnées globales de paiement NAXA sont exclusivement réservées aux règlements dus à NAXA.
 
-## B. Abonnement Pharmacie payé par le Promoteur
+## Parcours USSD Client Android
 
-Dans le modèle actuel, l'abonnement pharmacie est payé depuis l'espace Promoteur. Le compagnon Standard peut :
-- préparer une intention d'abonnement sur le téléphone enrôlé ;
-- recevoir une notification candidate si l'accès spécial Android a été activé ;
-- transmettre le SMS de débit volontairement.
+MTN : NAXA construit `*126*4*CODEMARCHAND*MONTANT#`, sans espace, avec code marchand de 6 chiffres et montant provenant de l'intention de paiement. Orange : NAXA ouvre `#150*47#`. Le parcours de saisie suivant Orange, y compris le préremplissage du bénéficiaire et du montant, doit être confirmé sur SIM réelle ou par documentation opérateur ; ne pas inventer de syntaxe.
 
-La notification candidate est reliée à l'intention et conservée en revue manuelle. Elle ne clôt pas l'intention et ne constitue pas la preuve de débit de niveau 1. Le partage volontaire du SMS et la preuve de crédit Admin demeurent nécessaires pour le circuit actuel d'auto-confirmation à double preuve.
+NAXA ouvre le composeur natif. Le Client vérifie le destinataire, valide lui-même l'appel / USSD et saisit le code secret uniquement dans l'interface de l'opérateur. NAXA ne reçoit, ne demande, ne lit et ne stocke jamais le code secret. L'ouverture du composeur ou le retour de l'USSD n'est jamais une preuve de paiement.
 
-## C. Abonnement Partenaire
+## Distribution Android hors Play Store
 
-Le compagnon Standard peut enrôler les établissements pour lesquels l'utilisateur est propriétaire ou gestionnaire et transmettre les notifications candidates ou les SMS partagés. Le serveur conserve les champs extraits, l'empreinte du message et la source, sans enregistrer le SMS brut.
+Distribution directe des APK par le site / canal officiel NAXA, sans Play Store. L'avertissement Android d'installation depuis une source inconnue est accepté. Trois variantes sont prévues :
+- Standard : Client et Promoteur. Aucun service NotificationListener dans le manifeste fusionné ; pas de RECEIVE_SMS.
+- Professionnel : Pharmacie et Partenaire. NotificationListener uniquement, aucun RECEIVE_SMS.
+- Admin : NotificationListener et RECEIVE_SMS, deux mécanismes à consentement distinct.
 
-Limite du modèle actuel : le dépôt ne dispose pas encore d'un cycle de facturation Partenaire complet (tarif, intention, échéance, règlement et règle de réactivation). Les éléments reçus sont donc placés en revue manuelle et ne déclenchent aucune activation ou prolongation d'abonnement. Ce raccordement métier reste à construire.
+Le service NotificationListener est déclaré seulement dans les manifestes Professionnel et Admin. L'accès Android aux notifications reste techniquement large : le filtrage local réduit ce qui est traité/transmis mais ne réduit pas le périmètre technique de l'autorisation accordée par Android. Le lecteur filtre les paquets MTN/Orange reconnus. L'utilisateur peut retirer le consentement NAXA et l'accès Android séparément.
 
-## D. Administrateur NAXA
+## Collecte et preuve
 
-La variante Admin accepte :
-- lecture facultative des notifications comme candidats de revue manuelle ;
-- récepteur Android SMS_RECEIVED, avec consentement NAXA et autorisation Android RECEIVE_SMS ;
-- partage manuel d'un SMS ;
-- contrôle du rapprochement et décision manuelle.
+Le Client partage lui-même son SMS. Android `ACTION_SEND` ne fournit généralement que le texte, pas l'identifiant système d'origine du SMS ; le texte ne peut donc pas prouver l'émetteur à lui seul. L'identifiant exact `OrangeMoney` / `MobileMoney` n'est fiable que si reçu d'une vraie métadonnée système, comme un SMS capturé par le récepteur Admin avec permission.
 
-Le circuit automatique existant reste réservé au vrai SMS reçu par le récepteur Admin, avec adresse d'origine brute exacte, destination NAXA figée, montant, canal, payeur, référence, heure et preuve de débit Promoteur de niveau 1. Une notification Android n'est jamais envoyée à l'endpoint de capture authentifiée.
+Les applications Pharmacie / Partenaire / Admin peuvent lire les notifications pertinentes après activation volontaire. Les champs extraits, le paquet source, le type de mouvement, le montant, la référence, les numéros partiellement masqués, la date et une empreinte SHA-256 sont conservés. Le texte brut SMS/notification ne doit pas persister.
 
-## E. Confidentialité et sécurité Android
+Tous les éléments entrent en rapprochement non confirmé. Une preuve extraite, un succès déclaré ou une notification seule ne confirme jamais un paiement. Le moteur doit comparer l'intention : canal, montant, payeur, bénéficiaire, référence unique, date et direction débit/crédit. Les anomalies, doublons, ambiguïtés et sources non authentifiées vont en revue manuelle.
 
-- L'accès spécial aux notifications est demandé uniquement aux rôles autorisés et doit pouvoir être révoqué.
-- Le profil Client est explicitement exclu côté interface et côté service Android, même si un ancien consentement subsiste sur le téléphone.
-- RECEIVE_SMS reste déclarée uniquement dans le manifeste de la variante Admin.
-- Le lecteur local ne traite que les notifications dont le titre est exactement OrangeMoney ou MobileMoney ; les autres notifications sont ignorées.
-- Les données de paiement candidates sont structurées et l'empreinte SHA-256 est conservée ; le texte intégral n'est pas persisté.
-- Les erreurs, doublons, incohérences, preuves absentes et refus d'autorisation mènent à une revue manuelle.
+## Processus métier
 
-## F. Distribution et recette
+### Client → Pharmacie
+Le Client partage la preuve de débit. La pharmacie rapproche avec le crédit réellement reçu dans son compte marchand et valide dans la Caisse. Le paiement est marqué payé seulement après vérification du règlement reçu.
 
-La distribution reste privée par APK depuis le canal officiel NAXA, sans Play Store. L'avertissement Android sur l'installation depuis une source inconnue est accepté et doit être expliqué dans le guide d'installation.
+### Promoteur → NAXA
+Le Promoteur partage le SMS de débit. L'Admin reçoit le crédit par capture SMS de son téléphone, notification ou partage, puis confronte les deux preuves. Le mécanisme actuel de double preuve reste obligatoire.
 
-La recette doit couvrir de vrais téléphones Android et des SIM MTN/Orange, notamment le composeur USSD, double SIM, notifications, révocation de l'accès, titres d'expéditeur, messages tronqués, doublons et latence opérateur. Les essais simulés ne remplacent pas ces preuves.
+### Pharmacie / Partenaire → NAXA
+Les notifications et SMS partagés sont collectés pour le rapprochement des abonnements. Les abonnements Pharmacie ont un modèle existant ; il reste à raccorder le registre commun à leurs intentions réelles d'abonnement. Le schéma Replay consulté n'a pas de modèle d'abonnement/tarif Partenaire : aucun montant ni renouvellement Partenaire ne doit être inventé avant définition métier.
+
+## Formulaire universel
+
+Le montant attendu et la date/heure courante sont générés depuis l'intention et le fuseau Africa/Douala. Quand le SMS est partagé, les champs réellement extraits remplacent les valeurs générées et leur provenance est indiquée. Sans SMS, les valeurs générées restent modifiables avant transmission. Distinguer toujours valeur générée, saisie manuelle, champ extrait et champ vérifié indépendamment.
+
+## Sécurité et audit
+
+- Authentifier le compte NAXA, le profil actif, l'appartenance à l'entité et le jeton d'appareil à chaque appel.
+- Consentement NAXA et accès spécial Android sont deux conditions obligatoires de lecture.
+- Ne jamais persister les SMS/notifications bruts, codes PIN ou secrets.
+- Conserver les empreintes anti-doublon et les données structurées strictement nécessaires.
+- Utiliser RLS et des droits service-role uniquement pour les tables techniques.
+- Les nouvelles collectes restent `manual_review` jusqu'à rapprochement et décision métier.
+- Ne pas déployer en Production ni appliquer une migration Production pendant ce chantier.
+
+## Recette obligatoire
+
+- Manifeste fusionné Standard : pas de NotificationListener / RECEIVE_SMS.
+- Professionnel : NotificationListener présent, RECEIVE_SMS absent.
+- Admin : NotificationListener et RECEIVE_SMS présents.
+- Tests unitaires des rôles, des paquets source, du consentement et des refus.
+- Tests de révocation et d'accès refusé au serveur.
+- Tests de codes marchands 5, 6 et 7 chiffres, zéros initiaux, séparation des entités.
+- Tests de partage SMS tronqué, émetteur non vérifiable, doublons, mauvais montant/canal.
+- E2E sur vrais téléphones Android, SIM MTN et Orange, SIM double, tests USSD et notifications réelles.
+- Aucun état AU VERT avant les preuves de ces tests réels.
