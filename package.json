@@ -19,8 +19,6 @@
     "prebuild": "npm run quality && node scripts/copy-pdf-worker.cjs",
     "test:storage:e2e": "node scripts/storage-e2e.cjs",
     "predev": "node scripts/copy-pdf-worker.cjs",
-    "import:dailymed-images": "node scripts/dailymed-images-candidates.mjs",
-    "test:dailymed-api": "node --test scripts/test-dailymed-images-candidates.cjs",
     "test:android-notification-capture": "node scripts/test-android-notification-capture.cjs"
   },
   "dependencies": {
