@@ -59,9 +59,11 @@ export async function POST(request: Request) {
     else if (device.workspace_type === "pharmacie") scopeValid = profile.role === "pharmacie" && profile.pharmacie_id === device.workspace_id;
     else if (device.workspace_type === "partner") {
       const { data: membership } = await db.from("partner_members")
-        .select("partner_id,partners!inner(status)").eq("partner_id", device.workspace_id)
+        .select("partner_id").eq("partner_id", device.workspace_id)
         .eq("user_id", auth.user.id).in("member_role", ["owner", "manager"]).maybeSingle();
-      scopeValid = Boolean(membership && membership.partners?.status === "active");
+      const { data: partner } = await db.from("partners").select("id,status")
+        .eq("id", device.workspace_id).maybeSingle();
+      scopeValid = Boolean(membership && partner?.status === "active");
     }
     if (!scopeValid) return NextResponse.json({ error: "Espace non autorisé à lire les notifications." }, { status: 403 });
     const parsed = parsePromoteurPaymentSms(text, channel);
