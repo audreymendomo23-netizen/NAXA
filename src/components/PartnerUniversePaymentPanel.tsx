@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { buildTelephoneUri } from "@/lib/merchant-payment";
+import { parsePromoteurPaymentSms } from "@/lib/promoteurPaymentSms";
 
 type Props = {
   reservationId: string;
@@ -65,9 +66,13 @@ export function PartnerUniversePaymentPanel({
   const [payerNumber,setPayerNumber]=useState("");
   const [defaultAmount]=useState(String(totalFcfa));
   const [amount,setAmount]=useState(defaultAmount);
+  const [amountSource,setAmountSource]=useState<"generated_default"|"sms_extracted"|"manual_entry">("generated_default");
   const [defaultPaidAt]=useState(localDateTimeValue);
   const [paidAt,setPaidAt]=useState(defaultPaidAt);
+  const [paidAtSource,setPaidAtSource]=useState<"generated_default"|"sms_extracted"|"manual_entry">("generated_default");
   const [reference,setReference]=useState("");
+  const [referenceSource,setReferenceSource]=useState<"sms_extracted"|"manual_entry">("manual_entry");
+  const [payerNumberSource,setPayerNumberSource]=useState<"sms_extracted"|"manual_entry"|"not_provided">("not_provided");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
@@ -98,6 +103,11 @@ export function PartnerUniversePaymentPanel({
   async function chooseChannel(next:"orange_money"|"mtn_momo") {
     if(busy) return;
     setBusy(true);setError("");setMessage("");setDetails(null);setCanal(next);
+    setSmsText("");
+    setPayerNumber("");setPayerNumberSource("not_provided");
+    setReference("");setReferenceSource("manual_entry");
+    setAmount(defaultAmount);setAmountSource("generated_default");
+    setPaidAt(defaultPaidAt);setPaidAtSource("generated_default");
     try {
       const response=await fetch("/api/pay/universe/"+encodeURIComponent(reservationId)+"?canal="+next,{cache:"no-store"});
       const result=await response.json().catch(()=>({})) as PaymentDetails & {error?:string};
@@ -127,6 +137,29 @@ export function PartnerUniversePaymentPanel({
     } finally {setBusy(false);}
   }
 
+  function handleSmsTextChange(value:string) {
+    setSmsText(value);
+    if(!canal) return;
+    const parsed=parsePromoteurPaymentSms(value,canal);
+    if(!parsed||parsed.direction!=="payer_debit"||parsed.success!==true) return;
+    if(parsed.amount!==null) {
+      setAmount(String(parsed.amount));
+      setAmountSource("sms_extracted");
+    }
+    if(parsed.reference) {
+      setReference(parsed.reference);
+      setReferenceSource("sms_extracted");
+    }
+    if(parsed.payerNumber) {
+      setPayerNumber(parsed.payerNumber);
+      setPayerNumberSource("sms_extracted");
+    }
+    if(parsed.occurredAt) {
+      setPaidAt(isoToCameroonDateTime(parsed.occurredAt));
+      setPaidAtSource("sms_extracted");
+    }
+  }
+
   async function submit() {
     if(!canal||!details||busy) return;
     const numericAmount=Number(amount);
@@ -142,10 +175,10 @@ export function PartnerUniversePaymentPanel({
           reservationId,canal,smsText,payerNumber,amount:numericAmount,
           paidAt:cameroonDateTimeToIso(paidAt),reference:reference.trim(),
           fieldSources:{
-            amount:numericAmount===Number(defaultAmount)?"generated_default":"manual_entry",
-            paidAt:paidAt===defaultPaidAt?"generated_default":"manual_entry",
-            reference:"manual_entry",
-            payerNumber:payerNumber.trim()?"manual_entry":"not_provided",
+            amount:amountSource,
+            paidAt:paidAtSource,
+            reference:referenceSource,
+            payerNumber:payerNumberSource,
           },
         }),
       });
@@ -213,19 +246,20 @@ export function PartnerUniversePaymentPanel({
       {details.ussd&&<a href={buildTelephoneUri(details.ussd)} className="flex min-h-12 items-center justify-center rounded-xl bg-naxa-green-900 px-4 py-3 text-center font-bold text-white">Ouvrir le composeur {canal==="mtn_momo"?"MTN":"Orange"}</a>}
       <p className="text-xs text-slate-600">Vérifiez le bénéficiaire et validez vous-même chez l'opérateur. Votre code secret reste uniquement dans l'interface de l'opérateur.</p>
       <label className="block text-sm font-semibold">SMS de débit partagé (facultatif)
-        <textarea value={smsText} onChange={e=>setSmsText(e.target.value)} className="champ mt-1 min-h-24" placeholder="Collez ici le SMS de confirmation de débit, ou utilisez Partager → NAXA Paiement sur Android."/>
+        <textarea value={smsText} onChange={e=>handleSmsTextChange(e.target.value)} className="champ mt-1 min-h-24" placeholder="Collez ici le SMS de confirmation de débit, ou utilisez Partager → NAXA Paiement sur Android."/>
+        <span className="mt-1 block text-xs font-normal text-slate-500">Les champs reconnus sont préremplis automatiquement. Vérifiez-les et corrigez-les avant l'envoi ; toute correction manuelle désactive le rapprochement automatique de ce SMS.</span>
       </label>
       <label className="block text-sm font-semibold">ID / Référence de transaction
-        <input value={reference} onChange={e=>setReference(e.target.value)} className="champ mt-1" maxLength={120} placeholder="ID commun aux deux SMS"/>
+        <input value={reference} onChange={e=>{setReference(e.target.value);setReferenceSource("manual_entry");}} className="champ mt-1" maxLength={120} placeholder="ID commun aux deux SMS"/>
       </label>
       <label className="block text-sm font-semibold">Montant déclaré (FCFA)
-        <input type="number" min="1" value={amount} onChange={e=>setAmount(e.target.value)} className="champ mt-1"/>
+        <input type="number" min="1" value={amount} onChange={e=>{setAmount(e.target.value);setAmountSource("manual_entry");}} className="champ mt-1"/>
       </label>
       <label className="block text-sm font-semibold">Date et heure du paiement
-        <input type="datetime-local" value={paidAt} onChange={e=>setPaidAt(e.target.value)} className="champ mt-1"/>
+        <input type="datetime-local" value={paidAt} onChange={e=>{setPaidAt(e.target.value);setPaidAtSource("manual_entry");}} className="champ mt-1"/>
       </label>
       <label className="block text-sm font-semibold">Numéro payeur (facultatif si absent des SMS)
-        <input value={payerNumber} onChange={e=>setPayerNumber(e.target.value)} className="champ mt-1" maxLength={40} placeholder="6XX XX XX XX"/>
+        <input value={payerNumber} onChange={e=>{setPayerNumber(e.target.value);setPayerNumberSource(e.target.value.trim()?"manual_entry":"not_provided");}} className="champ mt-1" maxLength={40} placeholder="6XX XX XX XX"/>
       </label>
       <button type="button" disabled={busy||reference.trim().length<5} onClick={()=>void submit()} className="btn btn-vert w-full">{busy?"Transmission…":"Transmettre le SMS et ma déclaration"}</button>
       <p className="text-xs text-slate-500">Un SMS partagé remplit les champs mais ne confirme pas seul le paiement. NAXA attend aussi le SMS de crédit reçu par le partenaire.</p>
