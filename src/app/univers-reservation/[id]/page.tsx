@@ -15,6 +15,8 @@ type Receipt = {
   created_at: string;
   partner_name: string;
   universe_slug: string;
+  payment_mode: string | null;
+  payment_status: string;
   items: Item[];
 };
 const money = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n) + " FCFA";
@@ -41,7 +43,9 @@ export default async function ReservationUniversPage({ params, searchParams }: P
   const { data, error } = await sb.rpc("get_universe_reservation_receipt", { p_reservation_id: id });
   const receipt = ((data ?? []) as unknown as Receipt[])[0];
   if (error || !receipt) return <main className="mx-auto max-w-xl px-4 py-8"><Link href="/" className="font-bold underline">← Accueil NAXA</Link><section className="carte mt-5"><h1 className="text-xl font-extrabold">Réservation indisponible</h1><p className="mt-2 text-sm text-slate-600">Le reçu ne peut pas être chargé. Vérifiez que vous êtes connecté au compte ayant effectué la réservation, puis réessayez.</p></section></main>;
-  const canCancel = ["requested", "confirmed"].includes(receipt.status) && new Date(receipt.expires_at).getTime() > Date.now();
+  const canCancel = ["requested", "confirmed"].includes(receipt.status)
+    && new Date(receipt.expires_at).getTime() > Date.now()
+    && (receipt.payment_mode === null || receipt.payment_status === "awaiting_payment");
   const universe = receipt.universe_slug === "bebe-maman" ? "Bébé & Maman" : "Parapharmacie";
   return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={query.viderPanier} universeSlug={query.univers}/>
     <nav className="flex justify-end pt-3"><Link href={"/" + receipt.universe_slug} className="inline-flex min-h-10 items-center rounded-full border border-[#C8DDCF] px-4 text-sm font-bold text-[#0B3D26] underline-offset-2 hover:bg-[#EAF3ED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F6B3F]">Retour au catalogue</Link></nav>
@@ -60,6 +64,6 @@ export default async function ReservationUniversPage({ params, searchParams }: P
     />
     <section className="carte mt-4"><h2 className="font-extrabold">Articles réservés</h2><ul className="mt-3 space-y-3">{(receipt.items ?? []).map((item,i)=><li key={i} className="flex justify-between gap-3 border-b border-slate-100 pb-3 last:border-0"><div><p className="font-semibold">{item.product_name}</p><p className="text-sm text-slate-500">{item.quantity} × {money(item.unit_price_fcfa)}</p></div><p className="font-bold">{money(item.line_total_fcfa)}</p></li>)}</ul><div className="mt-3 flex justify-between border-t pt-3"><span className="font-bold">Total indicatif</span><strong>{money(receipt.total_fcfa)}</strong></div></section>
     {canCancel && <form action={annulerReservationUnivers} className="mt-4"><input type="hidden" name="reservation_id" value={receipt.reservation_id}/><button className="min-h-11 w-full rounded-xl border border-red-300 px-4 py-2 font-bold text-red-800">Annuler la réservation</button></form>}
-    <p className="mt-4 text-xs leading-5 text-slate-500">Le total est un récapitulatif de la réservation, pas un reçu de paiement. Ne vous déplacez qu’après confirmation de la disponibilité par le partenaire.</p>
+    <p className="mt-4 text-xs leading-5 text-slate-500">{receipt.payment_status === "confirmed" ? "Le paiement électronique est rapproché par NAXA. Le reçu de confirmation est affiché dans la section paiement ci-dessus." : "Le total est un récapitulatif de la réservation, pas un reçu de paiement. Un paiement électronique choisi reste à rapprocher par les deux SMS avant le retrait."} Ne vous déplacez qu’après confirmation de la disponibilité par le partenaire.</p>
   </main>;
 }
