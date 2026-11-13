@@ -91,19 +91,7 @@ export function PartnerUniversePaymentPanel({
     return ()=>window.clearInterval(timer);
   },[refresh,totalFcfa]);
 
-  useEffect(()=>{
-    if(!canal||details) return;
-    let active=true;
-    void fetch("/api/pay/universe/"+encodeURIComponent(reservationId)+"?canal="+canal,{cache:"no-store"})
-      .then(async response=>{
-        const data=await response.json().catch(()=>({})) as PaymentDetails & {error?:string};
-        if(!response.ok) throw new Error(data.error||"Coordonnées marchandes indisponibles.");
-        return data;
-      })
-      .then(value=>{if(active) setDetails(value);})
-      .catch(reason=>{if(active) setError(reason instanceof Error?reason.message:"Préparation du paiement impossible.");});
-    return ()=>{active=false;};
-  },[canal,details,reservationId]);
+
 
   async function chooseChannel(next:"orange_money"|"mtn_momo") {
     if(busy) return;
@@ -152,9 +140,8 @@ export function PartnerUniversePaymentPanel({
 
   if(!["confirmed","ready","picked_up"].includes(reservationStatus)||totalFcfa<=0) return null;
 
-  const confirmed=confirmation?.status==="financially_confirmed"&&confirmation.confirmation;
-  if(confirmed) {
-    const c=confirmation.confirmation!;
+  if(confirmation?.status==="financially_confirmed"&&confirmation.confirmation) {
+    const c=confirmation.confirmation;
     return <section className="carte mt-4 space-y-3">
       <div>
         <h2 className="font-extrabold text-emerald-800">Paiement confirmé par NAXA</h2>
