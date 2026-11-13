@@ -171,13 +171,13 @@ export async function updateHomeServicePartnerLocation(form: FormData) {
 }
 
 export async function resetHomeServicePartnerLocation(form: FormData) {
-  const { memberships } = await context();
+  const { user, memberships } = await context();
   const partnerId = String(form.get("partner_id") ?? "");
   if (!uuid(partnerId) || !memberships.some((m: any) => m.partner_id === partnerId)) fail();
   const db = supabaseAdmin();
   const { error } = await (db as any).rpc("set_professional_partner_location", {
     p_partner_id: partnerId,
-    p_user_id: (await supabaseServer().auth.getUser()).data.user?.id,
+    p_user_id: user.id,
     p_latitude: null,
     p_longitude: null,
   });
