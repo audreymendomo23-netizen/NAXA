@@ -85,8 +85,11 @@ export async function POST(request: Request) {
 
     const expectedSender = canal === "orange_money" ? "OrangeMoney" : "MobileMoney";
     if (senderOriginAddress !== expectedSender) {
-      await notifyAdmins(db, "Le telephone Admin a recu un SMS dont l'expediteur brut n'est pas l'identifiant officiel attendu. Aucun renouvellement automatique.");
-      return NextResponse.json({ received: true, status: "manual_review", message: "Expediteur SMS non reconnu. Aucune confirmation automatique." }, { status: 202 });
+      return NextResponse.json({
+        received: true,
+        status: "filtered_out",
+        message: "SMS ignore hors du filtre de collecte. Ce resultat ne constitue pas un verdict sur le paiement.",
+      }, { status: 202 });
     }
 
     const parsed = parsePromoteurPaymentSms(smsText, canal, senderOriginAddress) ??
@@ -132,7 +135,7 @@ export async function POST(request: Request) {
     }
 
     const { data: pendingRows, error: pendingError } = await db.from("abonnement_promoteur_reglements")
-      .select("id,promoteur_id,montant,canal,compte_payeur,paye_le,declared_at,verification_deadline_at,destination_snapshot,statut")
+      .select("id,promoteur_id,montant,canal,compte_payeur,reference,paye_le,declared_at,verification_deadline_at,destination_snapshot,statut")
       .eq("statut", "en_attente").eq("canal", canal).eq("montant", parsed.amount)
       .lte("declared_at", new Date(smsReceivedAt.getTime() + 5 * 60_000).toISOString())
       .gte("verification_deadline_at", smsReceivedAt.toISOString())
@@ -144,6 +147,7 @@ export async function POST(request: Request) {
       const destinationReference = snapshot?.reference_destination;
       if (typeof destinationReference !== "string" || !destinationReference ||
           normalize(destinationReference) !== normalize(device.merchant_reference)) return false;
+      if (normalize(String(row.reference ?? "")) !== normalize(String(parsed.reference ?? ""))) return false;
       const declaredPhone = phoneTail(row.compte_payeur);
       if (!declaredPhone || declaredPhone !== phoneTail(parsed.payerNumber)) return false;
       if (providerAt && row.paye_le) {
