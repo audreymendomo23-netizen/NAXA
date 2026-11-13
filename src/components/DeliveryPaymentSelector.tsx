@@ -14,7 +14,7 @@ type Props = {
   fraisLivraison: number;
 };
 
-type PaymentDetails = { code_marchand: string; total: number; devise?: string };
+type PaymentDetails = { canal: "mtn_momo" | "orange_money"; merchant_name: string; merchant_phone: string; merchant_code: string; code_marchand: string; total: number; ussd: string; devise?: string };
 
 function localDateTimeValue() {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -175,12 +175,24 @@ export function DeliveryPaymentSelector({
 
     {mode && mode !== "especes_livraison" && <>
       <div className="rounded-xl bg-emerald-50 p-3">
-        <p className="text-xs font-semibold text-emerald-900">Code marchand de la pharmacie</p>
-        {details?.code_marchand
-          ? <p className="mt-1 text-xl font-black tracking-widest">{details.code_marchand}</p>
-          : <p className="mt-1 text-sm text-slate-600">Chargement du code marchand…</p>}
-        <p className="mt-2 text-sm text-emerald-950">Montant à payer : <strong>{(totalArticles + fraisLivraison).toLocaleString("fr-FR")} FCFA</strong></p>
+        <p className="text-xs font-semibold text-emerald-900">Bénéficiaire du paiement</p>
+        {details
+          ? <>
+              <p className="mt-1 text-lg font-black">{details.merchant_name}</p>
+              <p className="text-sm text-emerald-950">Téléphone : <strong>{details.merchant_phone}</strong></p>
+              <p className="mt-2 text-xs font-semibold text-emerald-900">Code marchand · 6 chiffres</p>
+              <p className="text-xl font-black tracking-widest">{details.merchant_code}</p>
+            </>
+          : <p className="mt-1 text-sm text-slate-600">Chargement des coordonnées marchandes…</p>}
+        <p className="mt-2 text-sm text-emerald-950">Montant exact à payer : <strong>{(totalArticles + fraisLivraison).toLocaleString("fr-FR")} FCFA</strong></p>
       </div>
+      {details?.ussd && <a
+        href={buildTelephoneUri(details.ussd)}
+        className="flex min-h-12 w-full items-center justify-center rounded-xl bg-naxa-green-900 px-4 py-3 text-center font-bold text-white"
+      >
+        Ouvrir le composeur et préparer le paiement {mode === "mtn_marchand" ? "MTN" : "Orange"}
+      </a>}
+      <p className="text-xs text-slate-600">Après ouverture du composeur, vérifiez le bénéficiaire et confirmez vous-même la commande chez l'opérateur. Votre code secret est saisi uniquement dans l'interface MTN ou Orange, jamais dans NAXA.</p>
       <div className="rounded-xl border border-emerald-100 p-3">
         <p className="font-bold">Après le paiement</p>
         <p className="mt-1 text-sm text-slate-600">Sur Android, ouvrez le SMS de confirmation, choisissez Partager puis « NAXA Paiement ». Les informations extraites rempliront automatiquement la déclaration. Vous pourrez corriger les champs manquants avant l'envoi.</p>
