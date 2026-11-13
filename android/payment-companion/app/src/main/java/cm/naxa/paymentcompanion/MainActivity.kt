@@ -125,6 +125,10 @@ class MainActivity : Activity() {
         createNotificationControls(root, BuildConfig.ADMIN_CAPTURE_ENABLED)
         if (!BuildConfig.ADMIN_CAPTURE_ENABLED) {
             roleGroup.setOnCheckedChangeListener { _, checkedId ->
+                if (checkedId == clientRadioId) {
+                    SecureVault.put(this, "notification_consent_granted", "false")
+                    syncNotificationListenerComponent()
+                }
                 notificationControls?.visibility = if (checkedId == clientRadioId) View.GONE else View.VISIBLE
             }
             notificationControls?.visibility = if (roleGroup.checkedRadioButtonId == clientRadioId) View.GONE else View.VISIBLE
@@ -185,6 +189,7 @@ class MainActivity : Activity() {
             setPadding(0, dp(18), 0, 0)
         })
         setContentView(scroll)
+        syncNotificationListenerComponent()
         if (BuildConfig.ADMIN_CAPTURE_ENABLED) refreshCaptureStatus()
         else statusText.text = "Connectez-vous avec votre compte Client, Promoteur ou Partenaire."
     }
@@ -249,6 +254,7 @@ class MainActivity : Activity() {
                         "partenaire" -> "Compte Partenaire enrôlé. Partagez un SMS ou activez la lecture facultative des notifications."
                         else -> "Compte Administrateur enrôlé. Les mécanismes restent désactivés sans consentement et autorisations Android."
                     }
+                    syncNotificationListenerComponent()
                     if (role == "admin" && SecureVault.get(this, "sms_consent_granted") == "true") requestSmsPermission()
                     if (role != "client" && SecureVault.get(this, "notification_consent_granted") == "true") openNotificationAccessSettings()
                 }
@@ -282,6 +288,7 @@ class MainActivity : Activity() {
         panel.addView(notificationConsent)
         notificationConsent?.setOnCheckedChangeListener { _, checked ->
             SecureVault.put(this, "notification_consent_granted", checked.toString())
+            syncNotificationListenerComponent()
             if (checked) openNotificationAccessSettings()
             else statusText.text = "Lecture automatique désactivée. Le partage volontaire du SMS reste disponible."
         }
@@ -298,17 +305,30 @@ class MainActivity : Activity() {
         panel.visibility = if (alwaysVisible) View.VISIBLE else View.GONE
     }
 
+    private fun syncNotificationListenerComponent(): Boolean {
+        val role = SecureVault.get(this, "companion_role")
+        val consent = SecureVault.get(this, "notification_consent_granted") == "true"
+        val allowed = consent && role in listOf("admin", "promoteur", "partenaire")
+        packageManager.setComponentEnabledSetting(
+            ComponentName(this, NaxaNotificationListenerService::class.java),
+            if (allowed) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP
+        )
+        return allowed
+    }
+
     private fun openNotificationAccessSettings() {
-        if (SecureVault.get(this, "notification_consent_granted") != "true") return
-        if (SecureVault.get(this, "companion_role") !in listOf("admin", "promoteur", "partenaire")) return
+        if (!syncNotificationListenerComponent()) return
         startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
 
     private fun refreshNotificationStatus() {
         if (!::statusText.isInitialized) return
         val role = SecureVault.get(this, "companion_role")
-        if (role == "client") {
+        if (role == "client" || role !in listOf("admin", "promoteur", "partenaire")) {
             notificationControls?.visibility = View.GONE
+            syncNotificationListenerComponent()
             return
         }
         val consent = SecureVault.get(this, "notification_consent_granted") == "true"
