@@ -45,6 +45,18 @@ export function extractMedia(payload) {
   ) : [];
 }
 
+/** Extrait uniquement la référence SPLIMAGE (vue du comprimé/gélule), pas les schémas de notice. */
+export function extractSplImageFilename(xml) {
+  if (typeof xml !== "string" || !xml) return null;
+  const subjectBlocks = xml.match(/<(?:[A-Za-z0-9_-]+:)?subjectOf\\b[^>]*>[\\s\\S]*?<\\/(?:[A-Za-z0-9_-]+:)?subjectOf>/gi) ?? [];
+  for (const block of subjectBlocks) {
+    if (!/<(?:[A-Za-z0-9_-]+:)?code\\b[^>]*\\bcode=["']SPLIMAGE["']/i.test(block)) continue;
+    const reference = block.match(/<(?:[A-Za-z0-9_-]+:)?reference\\b[^>]*\\bvalue=["']([^"']+)["']/i);
+    if (reference?.[1]) return reference[1].replace(/&amp;/g, "&").trim();
+  }
+  return null;
+}
+
 export function titleMatches(identity, title) {
   const wanted = tokens(identity);
   const actual = new Set(tokens(title));
@@ -119,16 +131,18 @@ export function resolveRxNormTerms(term) {
 
 export function buildCandidateUpdate(row, ref, candidates, rxnormCandidates = []) {
   const first = candidates[0];
+  const splImage = first.splimage ?? first.media?.[0] ?? null;
   return {
-    image_url: null,
+    image_url: splImage?.url ?? null,
     image_path: null,
-    source_nom: "DailyMed — National Library of Medicine (SPL)",
+    source_nom: "DailyMed — NLM / SPLIMAGE",
     source_url: first.label_url,
-    licence: "Droits de chaque média non fournis par l'API — validation juridique obligatoire avant toute publication",
+    licence: "Droits de reproduction de l'image SPLIMAGE à confirmer auprès du titulaire avant affichage public",
     statut: "correspondance_a_verifier",
     methode_correspondance: JSON.stringify({
-      provider: "DailyMed v2",
-      match: "nom générique/substance active vers titre SPL; non équivalent à une identité de conditionnement",
+      provider: "RxNorm → DailyMed v2 / SPLIMAGE",
+      match: "RxCUI résolu via RxNorm puis notice SPL DailyMed; image SPLIMAGE de forme orale solide, non preuve du conditionnement commercial",
+      splimage_name: splImage?.name ?? null,
       cis: row.cis,
       cip_code: row.cip_code,
       nom_bdpm: ref.nom,
@@ -148,6 +162,16 @@ async function fetchJson(url) {
   if (response.status === 404) return null;
   if (!response.ok) throw new Error("DailyMed HTTP " + response.status);
   return response.json();
+}
+
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: { Accept: "application/xml,text/xml", "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(12000)
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("DailyMed SPL XML HTTP " + response.status);
+  return response.text();
 }
 
 export async function searchDailyMed(identity) {
@@ -176,8 +200,21 @@ export async function searchDailyMed(identity) {
 
 export async function getSplMedia(setid) {
   if (!/^[0-9a-f-]{36}$/i.test(String(setid ?? ""))) return [];
-  const payload = await fetchJson(BASE + "/spls/" + encodeURIComponent(setid) + "/media.json");
-  return extractMedia(payload);
+  const encoded = encodeURIComponent(setid);
+  const xml = await fetchText(BASE + "/spls/" + encoded + ".xml");
+  const filename = extractSplImageFilename(xml ?? "");
+  if (!filename) return [];
+  const payload = await fetchJson(BASE + "/spls/" + encoded + "/media.json");
+  const media = extractMedia(payload);
+  const wanted = filename.split("/").pop()?.toLowerCase();
+  if (!wanted) return [];
+  const matched = media.find((item) => {
+    const name = String(item.name ?? "").split("/").pop()?.toLowerCase();
+    let urlName = "";
+    try { urlName = new URL(item.url).pathname.split("/").pop()?.toLowerCase() ?? ""; } catch { /* URL refusée */ }
+    return name === wanted || urlName === wanted;
+  });
+  return matched ? [{ ...matched, splimage: true }] : [];
 }
 
 function getRestBase() {
@@ -253,6 +290,7 @@ async function main() {
             published_date: spl.published_date ?? null,
             label_url: labelUrl,
             matched_identity: spl.matched_identity,
+            splimage: { name: media[0].name, mime_type: media[0].mime_type, url: media[0].url },
             media: media.map((item) => ({ name: item.name, mime_type: item.mime_type, url: item.url }))
           });
           report.media += media.length;
