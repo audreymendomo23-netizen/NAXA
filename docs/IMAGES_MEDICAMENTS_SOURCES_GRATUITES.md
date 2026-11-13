@@ -43,9 +43,12 @@ L'API de recherche rapproche cette projection par CIS BDPM exact. Les boîtes CI
 
 ## Vérifications à effectuer après intégration
 
-- La saisie d'un EAN/GTIN exact dans les deux interfaces de recherche déclenche une lecture OPF uniquement lorsque la recherche catalogue ne renvoie aucun résultat ; un code sans fiche médicament revient sans image et ne déclenche aucune recherche textuelle de secours.\n- Une recherche BDPM utilise le CIS exact pour récupérer les photos pré-calculées via la projection publique CIMA ; aucun accès public direct à la table privée n'est autorisé.\n- Les photos CIMA nécessitent un champ `fotos[].fecha` valide et une URL exacte rattachée au numéro d'enregistrement CIMA.
+- La saisie d'un EAN/GTIN exact dans les deux interfaces de recherche déclenche une lecture OPF uniquement lorsque la recherche catalogue ne renvoie aucun résultat ; un code sans fiche médicament revient sans image et ne déclenche aucune recherche textuelle de secours.
+- Une recherche BDPM utilise le CIS exact pour récupérer les photos pré-calculées via la projection publique CIMA ; aucun accès public direct à la table privée n'est autorisé.
+- Les photos CIMA nécessitent un champ `fotos[].fecha` valide et une URL exacte rattachée au numéro d'enregistrement CIMA.
 
-- Migration requise : `supabase/migration_310_cima_photo_public_projection.sql` (ne pas appliquer à Production sans ordre explicite).\n- npm run test:catalogue-medicaments
+- Migration requise : `supabase/migration_310_cima_photo_public_projection.sql` (ne pas appliquer à Production sans ordre explicite).
+- `npm run test:catalogue-medicaments`
 - npx tsc --noEmit
 - Recette visuelle sur plusieurs marques et DCI, avec vérification séparée des images de boîte et de forme pharmaceutique.
 - Vérification de disponibilité des sources depuis le runtime de l'application. Une source gratuite peut être indisponible temporairement ; le fallback placeholder doit rester opérationnel.
