@@ -1,34 +1,42 @@
 name: Android native build
+
 on:
   push:
     branches: [main]
     paths:
+      - "android/app/**"
       - "android/payment-companion/**"
       - ".github/workflows/android-native-build.yml"
   pull_request:
     paths:
+      - "android/app/**"
       - "android/payment-companion/**"
       - ".github/workflows/android-native-build.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: naxa-android-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
-  build:
-    name: Kotlin compile and unit tests · standard + professional + admin
+  main-app:
+    name: NAXA main app · Compose · tests + debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-      - name: Prepare Android SDK 36
+
+      - name: Install Android SDK 35
         shell: bash
         run: |
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
@@ -37,23 +45,102 @@ jobs:
             echo "sdkmanager introuvable dans $SDK_ROOT/cmdline-tools" >&2
             exit 1
           fi
-          SDKMANAGER_DIR="$(dirname "$SDKMANAGER")"
-          echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Set up Gradle 8.9 (AGP 8.7.3)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Compile, test and assemble NAXA main app
+        working-directory: android
+        run: |
+          gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Publish internal main-app debug APK
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: naxa-main-app-debug-internal
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  payment-companion:
+    name: Payment companion · standard + professional + admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager introuvable dans $SDK_ROOT/cmdline-tools" >&2
+            exit 1
+          fi
           printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-      - name: Set up Gradle 9.6.0
+
+      - name: Set up Gradle 9.6.0 (AGP 9.4.0)
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.6.0"
-      - name: Compile, test and assemble both private variants
+
+      - name: Compile, test and assemble all private variants
         working-directory: android/payment-companion
         run: |
           gradle --no-daemon --stacktrace \
             :app:testStandardDebugUnitTest :app:assembleStandardDebug \
             :app:testProfessionalDebugUnitTest :app:assembleProfessionalDebug \
             :app:testAdminDebugUnitTest :app:assembleAdminDebug
-      - name: Publish internal debug APKs only
+
+      - name: Verify profile permissions and native capture components
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}/build-tools/36.0.0/aapt"
+          APK_ROOT="android/payment-companion/app/build/outputs/apk"
+          check_variant() {
+            local variant="$1"
+            local expect_capture="$2"
+            local apk="$APK_ROOT/$variant/debug/app-$variant-debug.apk"
+            test -s "$apk"
+            local permissions manifest
+            permissions="$("$AAPT" dump permissions "$apk")"
+            manifest="$("$AAPT" dump xmltree "$apk" AndroidManifest.xml)"
+            if [ "$expect_capture" = "yes" ]; then
+              grep -q "android.permission.RECEIVE_SMS" <<<"$permissions"
+              grep -q "SmsReceiver" <<<"$manifest"
+              grep -q "NaxaNotificationListenerService" <<<"$manifest"
+            else
+              if grep -q "android.permission.RECEIVE_SMS" <<<"$permissions"; then
+                echo "RECEIVE_SMS interdit dans la variante $variant" >&2
+                exit 1
+              fi
+              if grep -q "SmsReceiver\|NaxaNotificationListenerService" <<<"$manifest"; then
+                echo "Composant de capture interdit dans la variante $variant" >&2
+                exit 1
+              fi
+            fi
+            echo "Manifest profile check PASS: $variant"
+          }
+          check_variant standard no
+          check_variant professional yes
+          check_variant admin yes
+
+      - name: Publish private debug APKs only
         if: success()
         uses: actions/upload-artifact@v5
         with:
