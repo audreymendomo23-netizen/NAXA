@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    name: Kotlin compile and unit tests
+    name: Kotlin compile and unit tests · standard + admin
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -46,14 +46,19 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.6.0"
-      - name: Compile Kotlin app and run unit tests
+      - name: Compile, test and assemble both private variants
         working-directory: android/payment-companion
-        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
-      - name: Publish debug APK for internal verification only
+        run: |
+          gradle --no-daemon --stacktrace \
+            :app:testStandardDebugUnitTest :app:assembleStandardDebug \
+            :app:testAdminDebugUnitTest :app:assembleAdminDebug
+      - name: Publish internal debug APKs only
         if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: naxa-payment-companion-debug
-          path: android/payment-companion/app/build/outputs/apk/debug/app-debug.apk
+          name: naxa-payment-companion-private-debug-variants
+          path: |
+            android/payment-companion/app/build/outputs/apk/standard/debug/app-standard-debug.apk
+            android/payment-companion/app/build/outputs/apk/admin/debug/app-admin-debug.apk
           if-no-files-found: error
           retention-days: 7

@@ -115,11 +115,11 @@ export default async function ReglementsAdminPage({ searchParams }: { searchPara
           </span>
         </div>
         <p className="mt-1 break-all text-sm">Référence : <strong>{event.transaction_reference}</strong></p>
-        <p className="text-xs text-slate-600">Expéditeur : {event.sender_origin_id} · Payeur : {event.payer_number ?? "—"} · Reçu : {date(event.sms_received_at)}</p>
+        <p className="text-xs text-slate-600">Expéditeur : {event.sender_origin_id === "MANUAL_SHARE" ? "Partage manuel Admin" : event.sender_origin_id} · Payeur : {event.payer_number ?? "—"} · Reçu : {date(event.sms_received_at)}</p>
         <p className="text-xs text-slate-600">Destination : {event.merchant_reference}</p>
         {event.reglement_id
           ? <Link href={"/admin/pilotage/reglements#paiement-" + event.reglement_id} className="mt-2 inline-block text-sm font-bold text-[#0147BB] underline">Ouvrir le dossier de paiement</Link>
-          : <p className="mt-2 text-xs font-semibold text-amber-900">Aucun dossier unique identifié. Le rapprochement manuel reste nécessaire.</p>}
+          : <p className="mt-2 text-xs font-semibold text-amber-900">Aucun dossier unique identifié. Ce SMS partagé manuellement ou cette réception sans déclaration Promoteur ne crée pas de règlement. Le rapprochement manuel reste nécessaire.</p>}
       </article>)}
     </section>
     <section className="space-y-3">

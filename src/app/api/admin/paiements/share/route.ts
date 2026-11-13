@@ -42,10 +42,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "SMS de crédit incomplet ou non reconnu. Utilisez la vérification manuelle Admin." }, { status: 422 });
     }
     const hash = createHash("sha256").update(smsText).digest("hex");
+    const { data: possibleReglements } = await db.from("abonnement_promoteur_reglements")
+      .select("id,compte_payeur,montant,canal,reference")
+      .eq("canal", canal).eq("montant", parsed.amount)
+      .eq("reference", parsed.reference).eq("statut", "en_attente").limit(3);
+    const exactMatches = (possibleReglements ?? []).filter((row: any) =>
+      String(row.reference ?? "").toUpperCase() === String(parsed.reference).toUpperCase() &&
+      String(row.compte_payeur ?? "").replace(/\\D/g, "").slice(-9) === String(parsed.payerNumber ?? "").replace(/\\D/g, "").slice(-9)
+    );
+    const linkedReglementId = exactMatches.length === 1 ? exactMatches[0].id : null;
     const { data: event, error } = await db.from("naxa_admin_payment_capture_events").insert({
       admin_id: auth.user.id,
       device_id: device.id,
-      reglement_id: null,
+      reglement_id: linkedReglementId,
       canal,
       direction: "merchant_credit",
       success: true,

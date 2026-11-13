@@ -54,6 +54,13 @@ begin
     raise exception 'La RPC ne verifie pas tous les elements necessaires avant renouvellement';
   end if;
 
+  if position('source_level=1' in replace(v_confirm,' ',''))=0
+     or position('source_type=''payer_sms''' in v_confirm)=0
+     or position('source_level=2' in replace(v_confirm,' ',''))=0
+     or position('source_type=''merchant_sms''' in v_confirm)=0 then
+    raise exception 'La confirmation automatique ne requiert pas explicitement les deux preuves indépendantes';
+  end if;
+
   select pg_get_functiondef(
     'public.promoteur_soumettre_reglement(uuid,integer,text,text,text,text,timestamptz,text,jsonb)'::regprocedure
   ) into v_submit;

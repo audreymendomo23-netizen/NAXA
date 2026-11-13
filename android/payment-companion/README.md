@@ -1,68 +1,61 @@
-# Mise à jour prioritaire — règle de paiement pilote (13/11/2026)
+# NAXA Paiement Android — architecture pilote
 
-La décision métier validée dans [docs/ARCHITECTURE_PAIEMENT_PILOTE.md](../../docs/ARCHITECTURE_PAIEMENT_PILOTE.md) prévaut sur la description historique ci-dessous.
+La référence métier est [l'architecture de paiement pilote](../../docs/ARCHITECTURE_PAIEMENT_PILOTE.md).
 
-- Client : partage volontaire de son SMS de débit vers NAXA ; aucune permission RECEIVE_SMS.
-- Pharmacie : confirmation manuelle dans son espace, après vérification du crédit réel ; aucun transfert du SMS pharmacie pendant le pilote.
-- Promoteur : partage volontaire de son SMS de débit ; aucune permission RECEIVE_SMS.
-- Administrateur : conserve la réception automatique du SMS de crédit avec consentement explicite et permission Android valide. En cas d'échec, confirmation manuelle ou partage volontaire du SMS Admin.
-- L'automatisation par confrontation exige les deux preuves fiables. La capture SMS côté Pharmacie sera réévaluée après au moins cinq mois de pilote et de confiance acquise, sans devenir obligatoire.
+## Variantes privées
 
-**Écart de code à ce commit :** l'APK décrite ci-dessous implémente encore l'ancien mécanisme de capture automatique Promoteur/Admin. Elle n'est pas encore conforme à la nouvelle règle pilote et ne doit pas être présentée comme telle avant adaptation et tests. Le présent ajout met à jour la consigne, pas le comportement de l'APK.
+Le même code produit deux APK privées, sans Play Store :
 
----
+| APK | Comptes | Autorisation SMS |
+|---|---|---|
+| Standard `cm.naxa.paymentcompanion` | Client et Promoteur | Aucune permission `RECEIVE_SMS` |
+| Admin `cm.naxa.paymentcompanion.admin` | Administrateur uniquement | `RECEIVE_SMS` avec consentement NAXA + autorisation Android |
 
-# NAXA Payment Companion (Android)
+La variante Standard reçoit les SMS uniquement lorsque la personne choisit explicitement **Partager → NAXA Paiement**. Elle permet de choisir la commande (Client) ou l'intention d'abonnement préparée (Promoteur), d'extraire les données prises en charge, puis de compléter ou corriger les champs avant transmission.
 
-## Implémentation
-Le compagnon Android est écrit en Kotlin. Les six sources Java ont été converties sans changer les routes HTTP NAXA, les rôles Promoteur/Admin, le chiffrement Android Keystore ni le filtrage local des expéditeurs SMS.
+## Parcours Client → Pharmacie
 
-## Distribution privée
-NAXA Paiement est une application fermée, non destinée au grand public et non distribuée par le Play Store. Les canaux prévus sont :
-- transfert privé par Bluetooth ;
-- téléchargement depuis le site officiel NAXA ;
-- partage direct du fichier APK.
+1. Le Client règle la commande auprès de la pharmacie.
+2. Depuis son SMS de débit, il choisit Partager → NAXA Paiement.
+3. Le compagnon propose ses commandes de livraison qui attendent le paiement.
+4. Il préremplit numéro, montant, date et référence lorsque ces éléments existent dans le SMS. Le montant par défaut est celui de la commande et la date par défaut est l'heure locale `Africa/Douala`.
+5. Le Client vérifie et transmet. NAXA conserve les champs déclarés et une empreinte SHA-256 du texte partagé, jamais le corps SMS brut.
+6. Pendant le pilote, la pharmacie vérifie le crédit réellement reçu et confirme manuellement dans sa Caisse. La confirmation passe toujours par le ticket POS lié à la commande ; le SMS du Client ne suffit pas à encaisser.
 
-Le canal de transfert du fichier ne change pas les contrôles d'installation Android. L'application ne demande pas de désactiver Play Protect et ne contourne pas les restrictions système.
+En l'absence de SMS, le Client peut saisir les détails manuellement. Le montant et la date sont préremplis, mais restent modifiables et sont marqués comme générés ou saisis manuellement.
 
-## Consentement et autorisation SMS — règle obligatoire
-La capture automatique est désactivée par défaut et repose sur trois conditions cumulatives :
-1. **Consentement explicite dans l'application** : l'utilisateur coche « J'autorise explicitement NAXA Paiement à traiter ces SMS de transaction ». Le choix est stocké dans le coffre chiffré Android Keystore. Décocher la case désactive immédiatement le traitement côté application.
-2. **Permission Android** : après le consentement et l'enrôlement, l'application demande séparément `RECEIVE_SMS` au système. Le consentement de l'application ne remplace jamais la permission Android.
-3. **Expéditeur autorisé** : seuls les identifiants exacts `OrangeMoney` et `MobileMoney` sont acceptés. Les autres expéditeurs sont ignorés.
+## Parcours Promoteur → NAXA
 
-Le compagnon transmet par HTTPS le texte du SMS reçu provenant de ces expéditeurs pour le rapprochement du paiement. Il ne consulte ni les contacts, ni l'historique SMS, ni les messages provenant d'autres expéditeurs. Le serveur reste le seul décideur de la validation et du renouvellement.
+1. Le Promoteur se connecte dans la variante Standard.
+2. Il choisit Orange Money ou MTN MoMo et prépare l'intention d'abonnement sur son téléphone.
+3. Après le transfert, il partage son SMS de débit avec NAXA Paiement.
+4. Le compagnon extrait les champs disponibles, préremplit le montant de l'abonnement et la date locale si le SMS ne fournit pas l'heure, puis transmet la déclaration.
+5. Le téléphone Administrateur capte automatiquement le SMS de crédit si et seulement si le consentement NAXA, la permission Android et l'identifiant opérateur exact sont tous valides.
 
-### Restriction Android à respecter
-La permission `android.permission.RECEIVE_SMS` est classée par Android comme dangereuse et **hard-restricted**. Pour que le système puisse l'accorder, l'installateur enregistré doit aussi placer cette permission sur la liste autorisée (*allowlist*). Le dialogue de consentement utilisateur seul ne peut pas lever cette restriction.
+La confirmation automatique exige deux preuves indépendantes sur la même référence : déclaration de débit Promoteur issue du partage et crédit reçu/capturé par Admin. Une déclaration manuelle, un SMS Admin seul ou une correspondance ambiguë restent en revue Admin.
 
-Cela doit être vérifié sur les appareils cibles pour chacun des canaux d'installation prévus (Bluetooth, site NAXA, APK direct). Si Android refuse la permission parce que l'installateur ne l'a pas autorisée, l'application affiche clairement l'état bloqué et n'effectue aucune capture automatique. Ne jamais contourner cette restriction ni désactiver Play Protect. Le parcours manuel de déclaration/vérification du paiement reste disponible dans NAXA.
+L'Administrateur peut également partager manuellement son SMS de crédit en secours. Cet événement est toujours classé en revue manuelle et ne déclenche jamais à lui seul l'auto-confirmation.
 
-L'utilisateur peut retirer son consentement dans l'application à tout moment. Il peut également retirer la permission Android dans Paramètres > Applications > NAXA Paiement > Autorisations > SMS.
+## Consentement et restriction Android — Admin uniquement
+
+La variante Admin présente une case de consentement explicite, conservée dans le coffre chiffré Android Keystore. Après enrôlement et consentement, elle demande séparément la permission Android `RECEIVE_SMS`. Le récepteur vérifie à nouveau le rôle `admin`, le consentement, la permission et le canal autorisé avant extraction et juste avant l'envoi réseau.
+
+Android classe `RECEIVE_SMS` comme permission dangereuse et *hard-restricted*. L'installateur doit l'autoriser dans l'allowlist de permissions restreintes. Le simple téléchargement APK, le transfert Bluetooth ou le réglage « installer des applications inconnues » ne garantissent pas cette allowlist. Tester les installateurs et appareils cibles ; ne jamais désactiver Play Protect ni contourner Android. Si l'autorisation est refusée, utiliser le partage manuel du SMS Admin ou la confirmation manuelle.
 
 ## Configuration technique
-- Android Gradle Plugin : 9.4.0.
-- Kotlin : compilateur intégré à Android Gradle Plugin 9.4.0.
-- Gradle : 9.6.0 ; JDK 17.
+
+- Android Gradle Plugin 9.4.0 ; Gradle CI 9.6.0 ; JDK 17.
 - compileSdk 36 ; targetSdk 36 ; minSdk 26.
-- Version Android : 1.2.0 (versionCode 3).
-- Aucune dépendance AndroidX tierce requise.
-Ouvrir `android/payment-companion` dans Android Studio. Le wrapper binaire `gradle-wrapper.jar` n'est pas inclus.
+- Version 1.3.0 (versionCode 4).
+- Kotlin intégré à AGP ; JUnit 4.13.2.
+- Le workflow compile, teste et assemble `standardDebug` et `adminDebug`. Les APK du workflow sont des APK **Debug** internes, non signés Release et non destinés à la distribution pilote.
+- Les essais réels de partage depuis les applications SMS, les autorisations d'installation Admin, et les tests avec de vrais SMS Orange/MTN restent nécessaires avant distribution.
 
-## Enrôlement
-Saisir les URL HTTPS NAXA et Supabase, la clé publique Supabase, l'e-mail et le mot de passe, puis choisir Promoteur ou Admin. La session Supabase et les jetons appareil sont chiffrés avec Android Keystore. L'enrôlement Admin enregistre séparément Orange et MTN.
+## Endpoints utilisés
 
-## Contrat backend conservé
-- Promoteur : `POST /api/promoteur/paiements/device/register` et `POST /api/promoteur/paiements/capture`.
-- Admin : `POST /api/admin/paiements/device/register` et `POST /api/admin/paiements/capture`.
-- Champs conservés : `deviceId`, `deviceToken`, `canal`, `smsText`, `senderOriginAddress`, `smsReceivedAt`.
-- Le serveur reste seul décisionnaire de la validation du paiement et du renouvellement d'abonnement.
+- Promoteur : `POST /api/promoteur/paiements/device/register`, `POST /api/promoteur/paiements/intent`, `POST /api/promoteur/paiements/share`.
+- Client : `GET /api/client/paiements/livraison/pending`, `POST /api/client/paiements/livraison/share`.
+- Admin auto : `POST /api/admin/paiements/device/register`, `POST /api/admin/paiements/capture`.
+- Admin secours : `POST /api/admin/paiements/share` (revue manuelle uniquement).
 
-## Tests et statut
-- Tests existants de classification des expéditeurs : six tests unitaires.
-- Tests ajoutés du verrou consentement + permission Android + expéditeur : cinq tests unitaires.
-- Le récepteur re-vérifie le consentement chiffré et la permission système avant de lire/transmettre le corps du SMS.
-- Le build Kotlin / tests et la génération de l'APK Debug doivent être confirmés par le workflow déclenché après les changements de cette version.
-- Les tests sur téléphone réel restent nécessaires pour confirmer le comportement d'installation et l'allowlist `RECEIVE_SMS` sur les versions Android et appareils retenus.
-
-La construction du consentement est intégrée au code ; la validation des droits installateur et le test terrain restent distincts.
+Aucun SMS brut n'est conservé par les nouveaux endpoints de partage. Le serveur conserve les champs extraits/déclarés et, lorsque le message a été partagé, son empreinte SHA-256 afin de détecter une réutilisation identique sans archiver le texte intégral.
