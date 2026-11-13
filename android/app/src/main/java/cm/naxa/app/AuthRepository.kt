@@ -123,10 +123,18 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
         if (!profile.optBoolean("active", false)) throw IOException("Compte inactif ou suspendu.")
         val userId = response.optJSONObject("user")?.optString("id").orEmpty()
         if (userId.isBlank()) throw IOException("Identité de session absente.")
+        val ageVerified = profile.optBoolean("ageVerified", false)
+        if (!ageVerified) {
+            throw NaxaHttpException(
+                403,
+                "AGE_VERIFICATION_REQUIRED",
+                "La vérification de majorité de ce compte doit être terminée avant l'accès."
+            )
+        }
         return NaxaProfile(
             userId = userId,
             role = profile.optString("role", "Compte NAXA"),
-            ageVerified = profile.optBoolean("ageVerified", false)
+            ageVerified = true
         )
     }
 
@@ -143,6 +151,7 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
                 val message = when (code) {
                     "AUTH_REQUIRED", "AUTH_INVALID", "invalid_grant" -> "Identifiants invalides ou session expirée."
                     "PROFILE_INACTIVE" -> "Compte inactif ou suspendu."
+                    "AGE_VERIFICATION_REQUIRED" -> "La vérification de majorité de ce compte doit être terminée."
                     "PROFILE_LOOKUP_UNAVAILABLE", "AUTH_UNAVAILABLE" -> "Service temporairement indisponible. Réessayez."
                     else -> payload.optString("msg")
                         .ifBlank { payload.optString("message") }
