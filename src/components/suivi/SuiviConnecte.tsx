@@ -144,11 +144,11 @@ export function SuiviConnecte() {
   const [selectedDeviceKey, setSelectedDeviceKey] = useState<string | null>(null);
   const [measurementSheetOpen, setMeasurementSheetOpen] = useState(false);
   const [accent, setAccent] = useState<"Forêt"|"Océan"|"Prune"|"Ambre">("Forêt");
-  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:ReturnType<typeof window.setTimeout>; retries:number; reconnect?:()=>Promise<void> }>());
+  const bluetoothSessions = useRef(new Map<string, { device:any; retryTimer?:number; retries:number; reconnect?:()=>Promise<void> }>());
   const nativeDeviceRows=useRef(new Map<string,{id:string;deviceKey:string;name:string}>());
   const nativeReconnectRequested=useRef(new Set<string>());
   const nativeDevicePromises=useRef(new Map<string,Promise<string>>());
-  const measurementRefreshTimer = useRef<ReturnType<typeof window.setTimeout>|null>(null);
+  const measurementRefreshTimer = useRef<number|null>(null);
 
   const load = useCallback(async () => {
     const { data: userData } = await sb.auth.getUser();
@@ -1377,7 +1377,7 @@ export function SuiviConnecte() {
     deviceRow.device_brand=deviceInfo.manufacturer??deviceRow.device_brand;
     deviceRow.device_model=String(deviceInfo.model??connected.name??deviceRow.device_model??item.name).slice(0,120);
 
-    const session = { device:connected, retries:0 as number, retryTimer:undefined as ReturnType<typeof setTimeout>|undefined };
+    const session = { device:connected, retries:0 as number, retryTimer:undefined as number|undefined };
     bluetoothSessions.current.set(String(connected.id),session);
     const persist = async (service:any, characteristic:any, data:DataView) => {
       const decoded = decodeStandardGattMeasurement(bluetoothShortUuid(service.uuid),bluetoothShortUuid(characteristic.uuid),data,String(connected.id));
