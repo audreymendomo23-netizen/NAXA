@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const fail = () => redirect("/partenaire/prestations?erreur=action");
@@ -143,4 +143,50 @@ export async function saveHomeServiceReminderPreferences(form: FormData) {
 
   revalidatePath("/partenaire/prestations/parametres");
   redirect("/partenaire/prestations/parametres?ok=1");
+}
+
+
+export async function updateHomeServicePartnerLocation(form: FormData) {
+  const { user, memberships } = await context();
+  const partnerId = String(form.get("partner_id") ?? "");
+  const latText = String(form.get("lat") ?? "").trim();
+  const lngText = String(form.get("lng") ?? "").trim();
+  const lat = Number(latText);
+  const lng = Number(lngText);
+  if (!uuid(partnerId) || !memberships.some((m: any) => m.partner_id === partnerId) ||
+      !latText || !lngText || !Number.isFinite(lat) || lat < -90 || lat > 90 ||
+      !Number.isFinite(lng) || lng < -180 || lng > 180) fail();
+
+  const db = supabaseAdmin();
+  const { data, error } = await db.from("partners").update({
+    provider_latitude: lat,
+    provider_longitude: lng,
+    provider_location_updated_at: new Date().toISOString(),
+    provider_location_updated_by: user.id,
+    updated_at: new Date().toISOString(),
+  }).eq("id", partnerId).eq("partner_type", "professionnel_domicile")
+    .eq("status", "active").select("id").maybeSingle();
+  if (error || !data) fail();
+  revalidatePath("/partenaire/prestations");
+  revalidatePath("/prestations");
+  redirect("/partenaire/prestations?ok=position");
+}
+
+export async function resetHomeServicePartnerLocation(form: FormData) {
+  const { memberships } = await context();
+  const partnerId = String(form.get("partner_id") ?? "");
+  if (!uuid(partnerId) || !memberships.some((m: any) => m.partner_id === partnerId)) fail();
+  const db = supabaseAdmin();
+  const { data, error } = await db.from("partners").update({
+    provider_latitude: null,
+    provider_longitude: null,
+    provider_location_updated_at: null,
+    provider_location_updated_by: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", partnerId).eq("partner_type", "professionnel_domicile")
+    .eq("status", "active").select("id").maybeSingle();
+  if (error || !data) fail();
+  revalidatePath("/partenaire/prestations");
+  revalidatePath("/prestations");
+  redirect("/partenaire/prestations?ok=position_reinitialisee");
 }
