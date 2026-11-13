@@ -2,10 +2,20 @@
 
 ## Source et endpoints
 
-NAXA utilise l'API REST officielle DailyMed v2 (NLM/NIH), en HTTPS et sans clé API :
+NAXA utilise l'API REST officielle DailyMed v2 (NLM/NIH) et RxNorm/RxNav (NLM), en HTTPS. Ces endpoints publics ne nécessitent pas de clé pour les fonctions utilisées :
 - recherche SPL : `/dailymed/services/v2/spls.json?drug_name=...&name_type=generic&pagesize=20`
 - médias d'une notice : `/dailymed/services/v2/spls/{SETID}/media.json`
 - notice source : `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={SETID}`
+
+## Rapprochement des noms avec RxNorm
+
+Avant la recherche DailyMed, le script interroge l'API RxNorm/RxNav de la NLM :
+- recherche exacte/normalisée via `/REST/rxcui.json?name=...&search=2&allsrc=0` ;
+- récupération des noms de concepts via `/REST/rxcui/{RXCUI}/properties.json` ;
+- si aucun résultat normalisé n'est trouvé, recours au rapprochement approximatif `/REST/approximateTerm.json?term=...&maxEntries=10&option=1` ;
+- les noms RxNorm obtenus élargissent les termes de recherche DailyMed et les RXCUI sont conservés pour audit.
+
+Les scores RxNorm ne sont pas des probabilités et ne prouvent pas l'équivalence d'un médicament, de son dosage, de sa forme ou de son conditionnement. Le rapprochement reste une aide lexicale ; aucune substitution de CIS/CIP ni publication automatique n'en découle.
 
 ## Règle de sécurité éditoriale
 
