@@ -65,7 +65,7 @@ jobs:
               username = unquote(parsed.username or "")
               password = unquote(parsed.password or "")
               host = (parsed.hostname or "").lower()
-              port = parsed.port
+              port = parsed.port or 5432
           except ValueError:
               fail("NAXA_DATABASE_URL is not a valid PostgreSQL connection URI.")
 
