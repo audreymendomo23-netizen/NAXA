@@ -70,7 +70,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
         photo_path: string | null; photo_url: string | null; photo_source_url: string | null;
         photo_licence: string | null; photo_verifiee_le: string | null;
       }>) {
-        if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url?.startsWith("https://") || /cima\.aemps\.es|commons\.wikimedia\.org|openfoodfacts\.org/i.test(product.photo_source_url)) continue;
+        if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url?.startsWith("https://") || /cima\.aemps\.es|commons\.wikimedia\.org|openproductsfacts\.org|openfoodfacts\.org|dailymed\.nlm\.nih\.gov/i.test(product.photo_source_url)) continue;
         const url = product.photo_path
           ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
           : product.photo_url;
@@ -113,7 +113,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       // Ne pas montrer la photo d'une marque lorsque la requête ne nomme que sa DCI.
       if (!exactIdentityMatch(query, identity)) continue;
       if (unrequestedCombination(query, product.dci ?? "")) continue;
-      if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url || /cima\.aemps\.es|commons\.wikimedia\.org|openfoodfacts\.org/i.test(product.photo_source_url)) continue;
+      if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url || /cima\.aemps\.es|commons\.wikimedia\.org|openproductsfacts\.org|openfoodfacts\.org|dailymed\.nlm\.nih\.gov/i.test(product.photo_source_url)) continue;
       const url = product.photo_path
         ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
         : product.photo_url;
@@ -153,7 +153,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       .not("source_url", "is", null)
       .limit(30);
     for (const image of (images ?? []) as ImageRow[]) {
-      if (!image.licence?.trim() || !image.source_url?.startsWith("https://") || /cima\.aemps\.es|commons\.wikimedia\.org|openfoodfacts\.org/i.test(image.source_url) || /^(?:CIMA|AEMPS|Wikimedia Commons|Open Products Facts)$/i.test(image.source_nom.trim())) continue;
+      if (!image.licence?.trim() || !image.source_url?.startsWith("https://") || /cima\.aemps\.es|commons\.wikimedia\.org|openproductsfacts\.org|openfoodfacts\.org|dailymed\.nlm\.nih\.gov/i.test(image.source_url) || /^(?:CIMA|AEMPS|Wikimedia Commons|Open Products Facts)$/i.test(image.source_nom.trim())) continue;
       const url = image.image_path
         ? sb.storage.from("medicaments").getPublicUrl(image.image_path).data.publicUrl
         : image.image_url;
