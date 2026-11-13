@@ -29,6 +29,7 @@ const deliveryProofMigration = read("supabase/migrations/20261113152922_payment_
 const sqlTest = read("supabase/tests/promoteur_payment_admin_sms_auto_confirm.sql");
 const androidRoot = "android/payment-companion/";
 const androidManifest = read(androidRoot + "app/src/main/AndroidManifest.xml");
+const androidProfessionalManifest = read(androidRoot + "app/src/professional/AndroidManifest.xml");
 const androidAdminManifest = read(androidRoot + "app/src/admin/AndroidManifest.xml");
 const androidShareActivity = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/PaymentShareActivity.kt");
 const androidParser = read(androidRoot + "app/src/main/java/cm/naxa/paymentcompanion/SmsPaymentParser.kt");
@@ -149,7 +150,10 @@ test("compagnon Android : la variante standard ne déclare aucune permission de 
   assert.match(androidShareActivity, /Intent\.ACTION_SEND/);
   assert.match(androidShareActivity, /EXTRA_TEXT/);
   assert.match(androidAdminManifest, /android\.permission\.RECEIVE_SMS/);
-  assert.doesNotMatch(androidAdminManifest, /READ_SMS|NotificationListenerService/);
+  assert.match(androidProfessionalManifest, /NotificationListenerService/);
+  assert.doesNotMatch(androidProfessionalManifest, /RECEIVE_SMS|READ_SMS/);
+  assert.match(androidAdminManifest, /NotificationListenerService/);
+  assert.match(androidAdminManifest, /android\.permission\.RECEIVE_SMS/);
   assert.match(androidReceiver, /Telephony\.Sms\.Intents\.getMessagesFromIntent/);
   assert.match(androidReceiver, /originatingAddress/);
   assert.match(androidReceiver, /role, hasExplicitConsent, hasAndroidPermission/);
