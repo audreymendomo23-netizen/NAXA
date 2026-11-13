@@ -25,18 +25,18 @@ gradle :app:testDebugUnitTest
 gradle :app:assembleDebug
 ```
 
-## Première tranche livrée dans le dépôt
+## Fonctionnalités natives intégrées
 
-- Interface native Compose : connexion et espace d'accueil avec navigation basse.
-- Connexion e-mail/mot de passe via Supabase Auth REST.
-- Validation de session par `GET /api/v1/auth/session` avec Bearer token.
-- Renouvellement du jeton via refresh token.
-- Jetons conservés chiffrés AES-GCM avec clé non exportable Android Keystore.
-- Recherche réelle du catalogue médicaments par `GET /api/medicaments/recherche?q=...`.
-- Affichage strict des statuts stock : disponible, indisponible ou non vérifié ; aucun prix inventé.
-- Tests unitaires de parsing du catalogue et de non-invention de stock/prix.
-- Déconnexion distante et effacement local.
-- Notifications Firebase et services natifs existants conservés pour intégration ultérieure.
+- Interface Jetpack Compose : déclaration de majorité visiteur, connexion, navigation et espace Client public/compte.
+- Connexion e-mail/mot de passe Supabase Auth REST, vérification Bearer sur `GET /api/v1/auth/session`, renouvellement et déconnexion.
+- Contrôle serveur `ageVerified` obligatoire pour les comptes connectés ; la déclaration visiteur locale ne remplace pas ce contrôle.
+- Jetons Supabase chiffrés AES-GCM avec une clé non exportable Android Keystore.
+- Recherche catalogue médicaments via `GET /api/medicaments/recherche?q=...`, sans prix ni stock fictif.
+- Recherche de pharmacies proches via permission GPS explicite et `GET /api/pharmacies/proches?lat=...&lng=...`.
+- Notifications natives FCM : permission Android demandée dans le profil, enregistrement Bearer, synchronisation lors de rotation du jeton et révocation à la déconnexion.
+- Les bases natives existantes de BLE, rappels et notifications sont conservées, mais leur raccordement complet aux écrans Compose reste à faire.
+
+Tests JVM présents : `CatalogueRepositoryTest` et `PharmacyRepositoryTest` valident les données catalogue/pharmacie et l'absence de prix, stocks ou distances inventés. La CI Android exécute les tests puis `assembleDebug` et conserve un APK debug temporaire comme artefact interne, jamais comme APK de production.
 
 ## Limites explicites
 
