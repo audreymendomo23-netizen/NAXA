@@ -101,34 +101,20 @@ create policy suivi_professional_weekly_availability_self_delete
 
 create or replace function private.get_home_service_catalog_for_client()
 returns table(
-  offer_id uuid,
-  partner_id uuid,
-  partner_name text,
-  city text,
-  neighborhood text,
-  name text,
-  category text,
-  description text,
-  service_area_label text,
-  price_fcfa integer,
-  specialty text,
-  available_today boolean,
-  available_now boolean,
-  today_opens_at time without time zone,
-  today_closes_at time without time zone
+  offer_id uuid,partner_id uuid,partner_name text,city text,neighborhood text,
+  name text,category text,description text,service_area_label text,price_fcfa integer,
+  specialty text,available_today boolean,available_now boolean,
+  today_opens_at time without time zone,today_closes_at time without time zone
 )
 language sql stable security definer set search_path=''
 as $function$
   select
     o.id,p.id,p.name,p.city,p.neighborhood,o.name,o.category,o.description,o.service_area_label,o.price_fcfa,
-    provider.specialty,
+    coalesce(nullif(trim(provider.specialty),''),nullif(trim(o.category),'')),
     coalesce(provider.is_open,false),
-    coalesce(
-      provider.is_open
+    coalesce(provider.is_open
       and timezone('Africa/Douala',now())::time >= provider.opens_at
-      and timezone('Africa/Douala',now())::time < provider.closes_at,
-      false
-    ),
+      and timezone('Africa/Douala',now())::time < provider.closes_at,false),
     case when provider.is_open then provider.opens_at else null end,
     case when provider.is_open then provider.closes_at else null end
   from public.home_service_offers o
@@ -137,22 +123,15 @@ as $function$
   join public.universes u on u.slug='prestations' and u.enabled=true
   join public.feature_flags ff on ff.flag_key='universe.prestations' and ff.enabled=true
   left join lateral (
-    select
-      coalesce(nullif(trim(sp.specialty),''),nullif(trim(o.category),'')) as specialty,
-      av.is_open,av.opens_at,av.closes_at
+    select sp.specialty,av.is_open,av.opens_at,av.closes_at
     from public.partner_members pm
     join public.profiles account on account.id=pm.user_id and account.actif=true
-    join public.suivi_professionals sp
-      on sp.user_id=pm.user_id
-      and sp.verified=true
-      and sp.verification_status='verified'
-      and (sp.verification_expires_at is null or sp.verification_expires_at>now())
+    left join public.suivi_professionals sp on sp.user_id=pm.user_id
     left join public.suivi_professional_weekly_availability av
-      on av.user_id=pm.user_id
-      and av.weekday=extract(isodow from timezone('Africa/Douala',now()))::smallint
-    where pm.partner_id=p.id
-      and pm.member_role in ('owner','manager','operator')
-    order by case pm.member_role when 'owner' then 0 when 'manager' then 1 else 2 end,pm.created_at
+      on av.user_id=pm.user_id and av.weekday=extract(isodow from timezone('Africa/Douala',now()))::smallint
+    where pm.partner_id=p.id and pm.member_role in ('owner','manager','operator')
+    order by coalesce(av.is_open,false) desc,
+      case pm.member_role when 'owner' then 0 when 'manager' then 1 else 2 end,pm.created_at
     limit 1
   ) provider on true
   where o.status='active'
