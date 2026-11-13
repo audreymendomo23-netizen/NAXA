@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { deviceTokenFromRequest } from "@/lib/appareil-token";
-import { parsePromoteurPaymentSms } from "@/lib/promoteurPaymentSms";
+import { isPayerSmsEligibleForAutomaticMatch, parsePromoteurPaymentSms } from "@/lib/promoteurPaymentSms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,13 +76,11 @@ export async function POST(request: Request) {
         paidAt.getTime() < now.getTime() - 7 * 24 * 60 * 60_000) {
       return NextResponse.json({ error: "Date de paiement invalide ou trop ancienne." }, { status: 400 });
     }
-    const parsedProof = Boolean(
-      extractedPayer?.quality === "complete" &&
-      Number.isSafeInteger(extractedPayer.amount) && Number(extractedPayer.amount) > 0 &&
-      Boolean(extractedPayer.reference) &&
-      !amountWasCorrected && !referenceWasCorrected &&
-      (!extractedPayer.occurredAt || !dateWasCorrected)
-    );
+    const parsedProof = isPayerSmsEligibleForAutomaticMatch(extractedPayer,{
+      amountManuallyEdited:amountWasCorrected,
+      referenceManuallyEdited:referenceWasCorrected,
+      dateManuallyEdited:dateWasCorrected,
+    });
     const smsHash = smsText ? createHash("sha256").update(smsText).digest("hex") : null;
     const fieldSources = {
       amount: extractedPayer?.amount !== null && extractedPayer?.amount !== undefined && !amountWasCorrected
