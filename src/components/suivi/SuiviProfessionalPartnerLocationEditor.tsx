@@ -69,7 +69,7 @@ export function SuiviProfessionalPartnerLocationEditor({partners}:{partners:Prof
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={()=>void useGps(partner.partner_id)} disabled={busy===partner.partner_id} className="min-h-10 rounded-lg border border-blue-300 px-3 text-sm font-bold text-blue-900 disabled:opacity-50">{busy===partner.partner_id?"Localisation…":"Définir avec ma position actuelle"}</button>
               <button className="min-h-10 rounded-lg bg-[#123D68] px-4 text-sm font-bold text-white">Enregistrer ma position</button>
-              <button type="button" onClick={()=>update(partner.partner_id,{lat:"",lng:""})} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold text-slate-700">Revenir à la position Admin</button>
+              <button type="button" onClick={()=>update(partner.partner_id,{lat:"",lng:""})} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold text-slate-700">Effacer ma position (puis enregistrer)</button>
             </div>
             <p className="text-xs leading-5 text-slate-500">{admin?"La position Admin reste conservée en secours.":"L’Admin pourra définir une position de référence en secours."} Aucune géolocalisation continue n’est activée.</p>
           </form>
