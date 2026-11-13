@@ -42,22 +42,26 @@ export async function POST(request: Request) {
     }
 
     const parsed = smsText ? parsePromoteurPaymentSms(smsText, canal) : null;
-    // A shared but unrecognized/incomplete SMS is preserved for manual review.
-    // Only a recognized successful payer-debit message with an ID can auto-match.
-    const payerSms = parsed?.direction === "payer_debit" && parsed.success === true && parsed.reference
+    // Keep parsed fields for prefill, but automatic matching requires a complete SMS.
+    const extractedPayer = parsed?.direction === "payer_debit" && parsed.success === true
       ? parsed
       : null;
-    const amount = payerSms?.amount ?? Number(body.amount ?? (Number(reservation.total) + Number(reservation.frais_livraison)));
+    const payerSms = extractedPayer?.quality === "complete" &&
+      Number.isSafeInteger(extractedPayer.amount) && Number(extractedPayer.amount) > 0 &&
+      Boolean(extractedPayer.reference)
+      ? extractedPayer
+      : null;
+    const amount = extractedPayer?.amount ?? Number(body.amount ?? (Number(reservation.total) + Number(reservation.frais_livraison)));
     if (!Number.isSafeInteger(amount) || amount <= 0) return NextResponse.json({ error: "Montant déclaré invalide." }, { status: 400 });
-    const reference = String(payerSms?.reference ?? body.reference ?? "").trim();
+    const reference = String(extractedPayer?.reference ?? body.reference ?? "").trim();
     if (reference.length < 5 || reference.length > 120 || !/^[\p{L}\p{N}\s_./-]+$/u.test(reference)) {
       return NextResponse.json({ error: "ID / Référence de transaction obligatoire (5 caractères minimum). Le SMS partagé n'a pas permis de l'extraire automatiquement." }, { status: 400 });
     }
-    const payerNumber = String(payerSms?.payerNumber ?? body.payerNumber ?? "").trim().slice(0, 40);
+    const payerNumber = String(extractedPayer?.payerNumber ?? body.payerNumber ?? "").trim().slice(0, 40);
     if (payerNumber && (digits(payerNumber).length < 8 || digits(payerNumber).length > 15)) {
       return NextResponse.json({ error: "Numéro payeur invalide." }, { status: 400 });
     }
-    const paidAtRaw = payerSms?.occurredAt ?? String(body.paidAt ?? new Date().toISOString());
+    const paidAtRaw = extractedPayer?.occurredAt ?? String(body.paidAt ?? new Date().toISOString());
     const paidAt = new Date(paidAtRaw);
     const now = new Date();
     if (!Number.isFinite(paidAt.getTime()) || paidAt.getTime() > now.getTime() + 5 * 60_000 ||
@@ -67,16 +71,17 @@ export async function POST(request: Request) {
     const parsedProof = Boolean(payerSms);
     const smsHash = smsText ? createHash("sha256").update(smsText).digest("hex") : null;
     const fieldSources = {
-      amount: payerSms?.amount !== null && payerSms?.amount !== undefined
+      amount: extractedPayer?.amount !== null && extractedPayer?.amount !== undefined
         ? "sms_extracted"
         : body.fieldSources?.amount === "manual_entry" ? "manual_entry" : "generated_default",
-      paidAt: payerSms?.occurredAt
+      paidAt: extractedPayer?.occurredAt
         ? "sms_extracted"
         : body.fieldSources?.paidAt === "manual_entry" ? "manual_entry"
           : body.fieldSources?.paidAt === "generated_default" ? "generated_default" : "client_declared",
-      reference: payerSms?.reference ? "sms_extracted" : "manual_entry",
-      payerNumber: payerSms?.payerNumber ? "sms_extracted" : payerNumber ? "manual_entry" : "not_provided",
-      sms: !smsText ? "not_shared" : payerSms ? "recognized_payer_debit" : "shared_unrecognized_manual_review",
+      reference: extractedPayer?.reference ? "sms_extracted" : "manual_entry",
+      payerNumber: extractedPayer?.payerNumber ? "sms_extracted" : payerNumber ? "manual_entry" : "not_provided",
+      sms: !smsText ? "not_shared" : payerSms ? "recognized_complete_payer_debit"
+        : extractedPayer ? "shared_incomplete_manual_review" : "shared_unrecognized_manual_review",
     };
 
     const { data: saved, error: saveError } = await db.rpc("naxa_client_declarer_paiement_livraison_v2", {
