@@ -1,5 +1,6 @@
 package cm.naxa.app
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -10,7 +11,8 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-class FcmRegistrationRepository(private val tokenStore: SecureTokenStore) {
+class FcmRegistrationRepository(context: Context, private val tokenStore: SecureTokenStore) {
+    private val appContext = context.applicationContext
     private val http = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
@@ -29,6 +31,15 @@ class FcmRegistrationRepository(private val tokenStore: SecureTokenStore) {
                 .post(JSONObject().put("token", fcmToken).toString().toRequestBody(jsonType))
                 .build()
         )
+    }
+
+    suspend fun unregisterCurrentDevice() = withContext(Dispatchers.IO) {
+        val prefs = appContext.getSharedPreferences(NaxaFirebaseMessagingService.PREFS, Context.MODE_PRIVATE)
+        val token = prefs.getString(NaxaFirebaseMessagingService.TOKEN_KEY, null)
+        if (!token.isNullOrBlank()) {
+            unregister(token)
+            prefs.edit().remove(NaxaFirebaseMessagingService.TOKEN_KEY).apply()
+        }
     }
 
     suspend fun unregister(fcmToken: String) = withContext(Dispatchers.IO) {
