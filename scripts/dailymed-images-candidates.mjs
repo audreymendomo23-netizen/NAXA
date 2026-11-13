@@ -15,6 +15,7 @@
 import { pathToFileURL } from "node:url";
 
 const BASE = "https://dailymed.nlm.nih.gov/dailymed/services/v2";
+const RXNORM_BASE = "https://rxnav.nlm.nih.gov/REST";
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -53,7 +54,56 @@ export function titleMatches(identity, title) {
   return hits.length >= required;
 }
 
-export function buildCandidateUpdate(row, ref, candidates) {
+export function extractRxNormCandidates(payload) {
+  const group = payload?.approximateGroup ?? payload?.rxnormdata?.approximateGroup ?? {};
+  const raw = group?.candidate ?? [];
+  return (Array.isArray(raw) ? raw : raw ? [raw] : []).filter((item) => item?.rxcui && item?.name)
+    .map((item) => ({ rxcui: String(item.rxcui), name: String(item.name), score: Number(item.score ?? 0),
+      rank: Number(item.rank ?? 0), source: item.source ? String(item.source) : null }));
+}
+
+export async function resolveRxNormTerms(term) {
+  const normalizedUrl = new URL(RXNORM_BASE + "/rxcui.json");
+  normalizedUrl.searchParams.set("name", term);
+  normalizedUrl.searchParams.set("search", "2");
+  normalizedUrl.searchParams.set("allsrc", "0");
+  const normalizedResponse = await fetch(normalizedUrl, {
+    headers: { Accept: "application/json", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(12000)
+  });
+  if (normalizedResponse.ok) {
+    const payload = await normalizedResponse.json();
+    const ids = payload?.idGroup?.rxnormId ?? [];
+    const names = [];
+    for (const rxcui of (Array.isArray(ids) ? ids : ids ? [ids] : []).slice(0, 5)) {
+      const detailUrl = new URL(RXNORM_BASE + "/rxcui/" + encodeURIComponent(rxcui) + "/properties.json");
+      const response = await fetch(detailUrl, {
+        headers: { Accept: "application/json", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(12000)
+      });
+      if (response.ok) {
+        const p = (await response.json())?.properties;
+        if (p?.name) names.push({ rxcui: String(rxcui), name: p.name, score: null, rank: null, source: "RXNORM_NORMALIZED" });
+      }
+      await wait(DELAY_MS);
+    }
+    if (names.length) return names;
+  } else if (normalizedResponse.status !== 404) {
+    throw new Error("RxNorm normalized search HTTP " + normalizedResponse.status);
+  }
+  const approximateUrl = new URL(RXNORM_BASE + "/approximateTerm.json");
+  approximateUrl.searchParams.set("term", term);
+  approximateUrl.searchParams.set("maxEntries", "10");
+  approximateUrl.searchParams.set("option", "1");
+  const response = await fetch(approximateUrl, {
+    headers: { Accept: "application/json", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(12000)
+  });
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error("RxNorm approximate search HTTP " + response.status);
+  }
+  return extractRxNormCandidates(await response.json());
+}
+
+export function buildCandidateUpdate(row, ref, candidates, rxnormCandidates = []) {
   const first = candidates[0];
   return {
     image_url: null,
@@ -68,6 +118,7 @@ export function buildCandidateUpdate(row, ref, candidates) {
       cis: row.cis,
       cip_code: row.cip_code,
       nom_bdpm: ref.nom,
+      rxnorm_candidates: rxnormCandidates,
       spl_candidates: candidates
     })
   };
@@ -142,10 +193,20 @@ async function main() {
     if (!ref?.nom) { report.no_match++; continue; }
     report.searched++;
     const ingredients = String(ref.substances_actives ?? "").split(/[;,|]/).map((x) => x.trim()).filter(Boolean);
-    const identities = [...new Set([ref.nom, ...ingredients])].slice(0, 4);
+    const baseIdentities = [...new Set([ref.nom, ...ingredients])].slice(0, 4);
     const found = new Map();
+    const rxnormCandidates = [];
     try {
-      for (const identity of identities) {
+      const identities = new Set(baseIdentities);
+      for (const identity of baseIdentities) {
+        const resolved = await resolveRxNormTerms(identity);
+        for (const candidate of resolved) {
+          rxnormCandidates.push({ query: identity, ...candidate });
+          identities.add(candidate.name);
+        }
+        await wait(DELAY_MS);
+      }
+      for (const identity of [...identities].slice(0, 12)) {
         const spls = await searchDailyMed(identity);
         for (const spl of spls) {
           if (spl.setid) found.set(spl.setid, { ...spl, matched_identity: identity });
@@ -175,7 +236,7 @@ async function main() {
         continue;
       }
       report.candidates += candidates.length;
-      const update = buildCandidateUpdate(row, ref, candidates);
+      const update = buildCandidateUpdate(row, ref, candidates, rxnormCandidates);
       if (!DRY_RUN) {
         const key = new URLSearchParams({ cis: "eq." + row.cis, cip_code: "eq." + row.cip_code });
         await supabase("/medicaments_images?" + key, {
