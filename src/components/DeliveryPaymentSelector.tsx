@@ -15,6 +15,21 @@ type Props = {
 };
 
 type PaymentDetails = { canal: "mtn_momo" | "orange_money"; merchant_name: string; merchant_phone: string; merchant_code: string; code_marchand: string; total: number; ussd: string; devise?: string };
+type FinancialConfirmationState = {
+  status: string;
+  transactionReference?: string | null;
+  confirmation?: {
+    receiptNumber: string;
+    channel: "mtn_momo" | "orange_money";
+    transactionReference: string;
+    amount: number;
+    merchantName: string | null;
+    merchantPhone: string | null;
+    providerOccurredAt: string | null;
+    merchantSmsReceivedAt: string;
+    confirmedAt: string;
+  };
+};
 
 function localDateTimeValue() {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -45,6 +60,7 @@ export function DeliveryPaymentSelector({
   const [amount, setAmount] = useState(String(totalArticles + fraisLivraison));
   const [paidAt, setPaidAt] = useState(localDateTimeValue);
   const [details, setDetails] = useState<PaymentDetails | null>(null);
+  const [financialConfirmation, setFinancialConfirmation] = useState<FinancialConfirmationState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -65,7 +81,32 @@ export function DeliveryPaymentSelector({
   }, []);
 
   useEffect(() => {
-    if (!stockConfirmedAt || !mode || mode === "especes_livraison" || paymentStatus === "effectue") return;
+    if (paymentStatus !== "a_verifier") {
+      setFinancialConfirmation(null);
+      return;
+    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch(
+          "/api/client/paiements/livraison/confirmation/" + encodeURIComponent(reservationId),
+          { cache: "no-store" }
+        );
+        if (!response.ok) return;
+        const value = await response.json() as FinancialConfirmationState;
+        if (active) setFinancialConfirmation(value);
+      } catch {
+        // La déclaration reste en attente ; une indisponibilité réseau ne change pas son état financier.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 10000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [reservationId, paymentStatus]);
+
+  useEffect(() => {
+    if (!stockConfirmedAt || !mode || mode === "especes_livraison" ||
+        paymentStatus === "effectue" || paymentStatus === "a_verifier") return;
     let active = true;
     void fetch("/api/pay/" + encodeURIComponent(reservationId), { cache: "no-store" })
       .then(async response => {
@@ -151,10 +192,39 @@ export function DeliveryPaymentSelector({
   }
 
   if (paymentStatus === "a_verifier") {
-    return <section className="carte space-y-2">
-      <h2 className="font-extrabold">Déclaration transmise</h2>
-      <p className="text-sm text-amber-900">La pharmacie doit encore rapprocher votre déclaration avec le crédit réellement reçu. Votre commande n'est pas encore considérée comme payée.</p>
-      {paymentReference && <p className="text-sm">Référence : <strong>{paymentReference}</strong></p>}
+    const confirmation = financialConfirmation?.confirmation;
+    const isFinanciallyConfirmed = financialConfirmation?.status === "financially_confirmed_waiting_pos" && Boolean(confirmation);
+    const isAwaitingMerchant = financialConfirmation?.status === "awaiting_merchant_sms";
+    const isManualReview = financialConfirmation?.status === "manual_review";
+    return <section className="carte space-y-3">
+      {isFinanciallyConfirmed && confirmation
+        ? <>
+            <div>
+              <h2 className="font-extrabold text-emerald-800">Paiement confirmé par NAXA</h2>
+              <p className="mt-1 text-sm text-emerald-900">Les SMS de débit du payeur et de crédit de la pharmacie ont été rapprochés par leur ID de transaction et leurs informations concordantes.</p>
+            </div>
+            <dl className="grid gap-2 rounded-xl border border-emerald-200 p-3 text-sm sm:grid-cols-2">
+              <div><dt className="text-slate-500">Reçu de rapprochement NAXA</dt><dd className="font-extrabold">{confirmation.receiptNumber}</dd></div>
+              <div><dt className="text-slate-500">Montant confirmé</dt><dd className="font-extrabold">{confirmation.amount.toLocaleString("fr-FR")} FCFA</dd></div>
+              <div><dt className="text-slate-500">ID de transaction</dt><dd className="break-all font-semibold">{confirmation.transactionReference}</dd></div>
+              <div><dt className="text-slate-500">Opérateur</dt><dd className="font-semibold">{confirmation.channel === "orange_money" ? "Orange Money" : "MTN Mobile Money"}</dd></div>
+              <div><dt className="text-slate-500">Bénéficiaire</dt><dd className="font-semibold">{confirmation.merchantName ?? "Pharmacie"}</dd></div>
+              <div><dt className="text-slate-500">Date de confirmation</dt><dd className="font-semibold">{new Date(confirmation.confirmedAt).toLocaleString("fr-FR", { timeZone: "Africa/Douala" })}</dd></div>
+            </dl>
+            <p className="text-sm text-slate-700">La transaction est financièrement confirmée. La pharmacie doit encore enregistrer le ticket POS dans sa session Caisse ; cette étape comptable ne remet pas en cause le rapprochement des deux SMS.</p>
+          </>
+        : <>
+            <h2 className="font-extrabold">Déclaration transmise</h2>
+            <p className="text-sm text-amber-900">
+              {isManualReview
+                ? "Les informations reçues présentent un écart ou une ambiguïté. Le dossier reste en revue manuelle ; NAXA ne présume pas d'un échec opérateur."
+                : isAwaitingMerchant
+                  ? "Votre SMS de débit est enregistré. NAXA attend le SMS de crédit sur le téléphone de la pharmacie. L'absence de ce SMS dans NAXA ne signifie pas que l'opérateur a échoué."
+                  : "NAXA attend les deux éléments nécessaires au rapprochement. Le paiement n'est pas encore confirmé dans NAXA."}
+            </p>
+            {(paymentReference || financialConfirmation?.transactionReference) &&
+              <p className="text-sm">ID / Référence : <strong>{paymentReference ?? financialConfirmation?.transactionReference}</strong></p>}
+          </>}
     </section>;
   }
 
