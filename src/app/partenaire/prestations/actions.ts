@@ -158,15 +158,13 @@ export async function updateHomeServicePartnerLocation(form: FormData) {
       !Number.isFinite(lng) || lng < -180 || lng > 180) fail();
 
   const db = supabaseAdmin();
-  const { data, error } = await db.from("partners").update({
-    provider_latitude: lat,
-    provider_longitude: lng,
-    provider_location_updated_at: new Date().toISOString(),
-    provider_location_updated_by: user.id,
-    updated_at: new Date().toISOString(),
-  }).eq("id", partnerId).eq("partner_type", "professionnel_domicile")
-    .eq("status", "active").select("id").maybeSingle();
-  if (error || !data) fail();
+  const { error } = await (db as any).rpc("set_professional_partner_location", {
+    p_partner_id: partnerId,
+    p_user_id: user.id,
+    p_latitude: lat,
+    p_longitude: lng,
+  });
+  if (error) fail();
   revalidatePath("/partenaire/prestations");
   revalidatePath("/prestations");
   redirect("/partenaire/prestations?ok=position");
@@ -177,15 +175,13 @@ export async function resetHomeServicePartnerLocation(form: FormData) {
   const partnerId = String(form.get("partner_id") ?? "");
   if (!uuid(partnerId) || !memberships.some((m: any) => m.partner_id === partnerId)) fail();
   const db = supabaseAdmin();
-  const { data, error } = await db.from("partners").update({
-    provider_latitude: null,
-    provider_longitude: null,
-    provider_location_updated_at: null,
-    provider_location_updated_by: null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", partnerId).eq("partner_type", "professionnel_domicile")
-    .eq("status", "active").select("id").maybeSingle();
-  if (error || !data) fail();
+  const { error } = await (db as any).rpc("set_professional_partner_location", {
+    p_partner_id: partnerId,
+    p_user_id: (await supabaseServer().auth.getUser()).data.user?.id,
+    p_latitude: null,
+    p_longitude: null,
+  });
+  if (error) fail();
   revalidatePath("/partenaire/prestations");
   revalidatePath("/prestations");
   redirect("/partenaire/prestations?ok=position_reinitialisee");
