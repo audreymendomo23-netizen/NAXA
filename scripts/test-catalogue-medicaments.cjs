@@ -234,7 +234,7 @@ test("CIMA pré-calculé : projection publique strictement filtrée et reliée a
   assert.match(route, /matchExactNom/);
   assert.match(route, /normaliserTerme\(match\.nom\) === normaliserTerme\(item\.name\)/);
   assert.match(route, /parts\[4\] !== row\.nregistro/);
-  assert.match(route, /updatedAt,/);
+  assert.match(route, /provider: "cima_aemps",\\s+updatedAt\\s*\\n\\s*};/);
 });
 
 test("photos : le chargement client borne la concurrence et conserve la provenance réelle", () => {
