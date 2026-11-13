@@ -2,9 +2,19 @@
 
 import { useState } from "react";
 
-export function GeolocalisationChamps({ className = "champ mt-1" }: { className?: string }) {
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
+export function GeolocalisationChamps({
+  className = "champ mt-1",
+  initialLatitude = null,
+  initialLongitude = null,
+  required = true,
+}: {
+  className?: string;
+  initialLatitude?: number | null;
+  initialLongitude?: number | null;
+  required?: boolean;
+}) {
+  const [lat, setLat] = useState(initialLatitude == null ? "" : String(initialLatitude));
+  const [lng, setLng] = useState(initialLongitude == null ? "" : String(initialLongitude));
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState<"gps" | "saisie_manuelle">("saisie_manuelle");
@@ -63,8 +73,8 @@ export function GeolocalisationChamps({ className = "champ mt-1" }: { className?
   return <section className="space-y-2">
     <input type="hidden" name="geo_source_type" value={source}/>
     <div className="grid grid-cols-2 gap-3">
-      <label className="block text-sm font-semibold">Latitude<input name="lat" type="number" step="any" min="-90" max="90" required value={lat} onChange={e => { setLat(e.target.value); setSource("saisie_manuelle"); }} className={className}/></label>
-      <label className="block text-sm font-semibold">Longitude<input name="lng" type="number" step="any" min="-180" max="180" required value={lng} onChange={e => { setLng(e.target.value); setSource("saisie_manuelle"); }} className={className}/></label>
+      <label className="block text-sm font-semibold">Latitude<input name="lat" type="number" step="any" min="-90" max="90" required={required} value={lat} onChange={e => { setLat(e.target.value); setSource("saisie_manuelle"); }} className={className}/></label>
+      <label className="block text-sm font-semibold">Longitude<input name="lng" type="number" step="any" min="-180" max="180" required={required} value={lng} onChange={e => { setLng(e.target.value); setSource("saisie_manuelle"); }} className={className}/></label>
     </div>
     <button type="button" onClick={localiser} disabled={loading} className="btn w-full border border-naxa-green-700 text-naxa-green-900 disabled:opacity-60">
       {loading ? "Recherche de la position…" : "◎ Utiliser ma position pour remplir les coordonnées"}
