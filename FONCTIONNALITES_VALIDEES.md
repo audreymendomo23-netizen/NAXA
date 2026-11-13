@@ -1,3 +1,16 @@
+## Décision validée — Architecture des paiements pilote (13/11/2026)
+
+- **Client → Pharmacie :** partage volontaire du SMS de débit par le Client ; la Pharmacie confirme manuellement depuis son espace après contrôle du crédit réel, sans transférer son propre SMS pendant le pilote.
+- **Automatisation Pharmacie différée :** après au moins cinq mois de pilote et de confiance établie, réévaluer la capture optionnelle du SMS de crédit sur un téléphone marchand ; comparaison des deux SMS et confirmation automatique uniquement si le rapprochement est univoque.
+- **Promoteur → NAXA :** partage volontaire du SMS de débit par le Promoteur ; le téléphone Admin conserve la capture automatique du SMS de crédit avec consentement et autorisation Android.
+- **Confirmation abonnement :** rapprochement des deux preuves et activation automatique uniquement en cas de concordance fiable ; sinon confirmation manuelle Admin ou partage volontaire du SMS Admin en secours.
+- **Permissions :** aucun RECEIVE_SMS pour Client, Pharmacie ou Promoteur dans le pilote. Permission réservée au téléphone Administrateur enrôlé.
+- **Charge pilote acceptée :** environ 5 à 10 partages Client par jour pour les livraisons ; ce compromis est réévalué selon les retours des pharmacies.
+- Détail de l'architecture et des garde-fous : [docs/ARCHITECTURE_PAIEMENT_PILOTE.md](docs/ARCHITECTURE_PAIEMENT_PILOTE.md).
+- **État d'implémentation :** décision validée ; partage Android, permissions par rôle, raccordement commande Client/Pharmacie et tests de bout en bout restent à implémenter/valider. La décision ne constitue pas une preuve de fonctionnalité opérationnelle.
+
+---
+
 ## P2 — Workflow Livreur : état de l'audit (06/11/2026)
 
 - **Statut : 🟡 Implémentation source avancée et recettes SQL Replay réussies ; non certifié vert intégral.**
