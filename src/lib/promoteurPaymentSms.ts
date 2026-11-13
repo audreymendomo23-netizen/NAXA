@@ -11,6 +11,7 @@ export type PaymentSmsCandidate = {
   merchantNumber: string | null;
   merchantLabel: string | null;
   senderId: string | null;
+  /** Legacy diagnostic only: whether the label matches the local collection filter. Never financial proof. */
   senderTrusted: boolean;
   parser: "rules" | "ai";
   quality: "complete" | "incomplete" | "informative_only";
@@ -49,7 +50,7 @@ function parseProviderDate(value: string | undefined): string | null {
   if (!Number.isFinite(date.getTime())) return null;
   return date.toISOString();
 }
-function trustedSender(senderId: string | null, channel: PaymentChannel): boolean {
+function matchesCollectionFilter(senderId: string | null, channel: PaymentChannel): boolean {
   const expected = channel === "orange_money" ? "OrangeMoney" : "MobileMoney";
   return senderId === expected;
 }
@@ -60,7 +61,7 @@ function makeCandidate(
   fields: Partial<PaymentSmsCandidate>
 ): PaymentSmsCandidate {
   return {
-    channel, direction, senderId, senderTrusted: trustedSender(senderId, channel),
+    channel, direction, senderId, senderTrusted: matchesCollectionFilter(senderId, channel),
     success: fields.success === true, amount: fields.amount ?? null,
     reference: fields.reference ?? null, occurredAt: fields.occurredAt ?? null,
     payerNumber: fields.payerNumber ?? null, merchantNumber: fields.merchantNumber ?? null,
@@ -153,7 +154,6 @@ export function validatePromoteurPaymentSms(
     if (parsed.amount !== expected.amount) reasons.push("Montant différent du tarif de l'abonnement.");
     if (!parsed.reference || normalizePaymentReference(parsed.reference).length < 5) reasons.push("Référence financière absente ou inexploitable.");
     if (!parsed.occurredAt) reasons.push("Date et heure réelles de transaction absentes ou non interprétables.");
-    if (!parsed.senderTrusted) reasons.push("Identifiant expéditeur brut différent de l'identifiant officiel attendu.");
     if (parsed.occurredAt) {
       const occurred = new Date(parsed.occurredAt).getTime();
       if (!Number.isFinite(occurred) || occurred > now.getTime() + 5 * 60_000) reasons.push("Date de transaction invalide ou future.");
