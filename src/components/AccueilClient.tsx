@@ -36,8 +36,9 @@ type Produit = {
 type Pharmacie = {
   id: string; nom: string; ville: string | null; quartier: string | null;
   adresse: string | null; lat: number | null; lng: number | null; de_garde: boolean; photo_url: string | null; photo_verified_at: string | null; horaires: string | null; stock_updated_at: string | null;
+  distanceKm?: number | null; distanceRoutiereKm?: number | null; dureeTrajetMinutes?: number | null; googleMapsUrl?: string | null; livraison_active?: boolean; telephone?: string | null;
 };
-type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; imageType?: "photo-verifiee" | "photo-source" | "illustration"; periode: string | null; horaires?: string | null; source: string };
+type GardeAuto = { id: string; nom: string; quartier: string | null; telephone: string | null; autresTelephones: string[]; imageUrl: string | null; imageType?: "photo-verifiee" | "photo-source" | "illustration"; periode: string | null; horaires?: string | null; source: string; ville?: string | null; region?: string | null; lat?: number | null; lng?: number | null };
 type StockRow = {
   produit_id: string; pharmacie_id: string; prix: number; quantite: number;
   date_peremption: string | null;
@@ -354,8 +355,8 @@ export function AccueilClient() {
 
   const pharmaciesProches = useMemo(() => pharmacies.map(p => ({
     ...p,
-    distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : null,
-  })).filter(p => p.distanceKm === null || p.distanceKm <= 30).sort((a,b) => (a.distanceKm ?? 999)-(b.distanceKm ?? 999)), [pharmacies,coord]);
+    distanceKm: coord && p.lat != null && p.lng != null ? distance(coord.lat,coord.lng,p.lat,p.lng) : p.distanceKm ?? null,
+  })).sort((a,b) => (a.distanceRoutiereKm ?? a.distanceKm ?? 999999)-(b.distanceRoutiereKm ?? b.distanceKm ?? 999999)).slice(0,12), [pharmacies,coord]);
 
   // Une notification unique annonce la pharmacie réellement la plus proche dès que
   // le GPS est autorisé. OSRM fournit un temps routier estimé, pas un trafic en direct.
@@ -364,8 +365,7 @@ export function AccueilClient() {
     const candidates = pharmacies
       .filter((p) => p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng))
       .map((p) => ({ ...p, distanceKm: distance(coord.lat, coord.lng, p.lat as number, p.lng as number) }))
-      .filter((p) => p.distanceKm <= 30)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+      .sort((a, b) => (a.distanceRoutiereKm ?? a.distanceKm) - (b.distanceRoutiereKm ?? b.distanceKm));
     const nearest = candidates[0];
     if (!nearest) return;
     const key = `${coord.lat.toFixed(4)}:${coord.lng.toFixed(4)}:${nearest.id}`;
@@ -399,9 +399,13 @@ export function AccueilClient() {
     return () => { cancelled = true; };
   }, [coord, pharmacies]);
   const distanceProduit = (p: Produit) => coord && p.pharmacieLat != null && p.pharmacieLng != null ? distance(coord.lat,coord.lng,p.pharmacieLat,p.pharmacieLng) : p.distanceKm;
-  const gardes: GardeAuto[] = gardesAutomatiques.length
-    ? gardesAutomatiques.slice(0,4)
-    : pharmaciesProches.filter(p => p.de_garde).slice(0,4).map(p => ({ id: p.id, nom: p.nom, quartier: p.quartier || p.ville, telephone: null, autresTelephones: [], imageUrl: p.photo_url && p.photo_verified_at && p.photo_url.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pharmacies-photos/`) ? p.photo_url : null, periode: null, source: "NAXA" }));
+  const gardesTriees = [...gardesAutomatiques].sort((a,b) => {
+    if (!coord) return 0;
+    const distanceA = a.lat != null && a.lng != null ? distance(coord.lat, coord.lng, a.lat, a.lng) : Number.POSITIVE_INFINITY;
+    const distanceB = b.lat != null && b.lng != null ? distance(coord.lat, coord.lng, b.lat, b.lng) : Number.POSITIVE_INFINITY;
+    return distanceA - distanceB;
+  });
+  const gardes: GardeAuto[] = gardesTriees.slice(0,4);
   const nombreSlidesProduits = Math.ceil(produits.length / 2);
   const soumettre = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -426,12 +430,25 @@ export function AccueilClient() {
   };
   const localiser = useCallback(() => {
     if (!navigator.geolocation) {
-      notifierNAXA("La géolocalisation n’est pas disponible sur cet appareil. Vous pouvez toujours consulter la liste des pharmacies.");
+      notifierNAXA("La géolocalisation n’est pas disponible sur cet appareil. Vous pouvez toujours consulter la liste nationale des pharmacies.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      pos => setCoord({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => notifierNAXA("Position non accessible. Autorisez le GPS ou consultez les pharmacies sans distance calculée."),
+      pos => {
+        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoord(point);
+        void (async () => {
+          try {
+            const response = await fetch("/api/pharmacies/proches?lat=" + encodeURIComponent(String(point.lat)) + "&lng=" + encodeURIComponent(String(point.lng)), { cache: "no-store" });
+            const payload = await response.json() as { ok?: boolean; pharmacies?: Pharmacie[]; message?: string };
+            if (!response.ok || payload.ok !== true || !Array.isArray(payload.pharmacies)) throw new Error(payload.message || "Classement national indisponible");
+            setPharmacies(payload.pharmacies);
+          } catch {
+            notifierNAXA("Votre GPS est actif, mais le classement national des pharmacies n’a pas pu être actualisé. Les données déjà chargées restent visibles.");
+          }
+        })();
+      },
+      () => notifierNAXA("Position non accessible. Autorisez le GPS ou choisissez une localité manuellement dans la recherche."),
       { enableHighAccuracy: true, maximumAge: 60000, timeout: 12000 },
     );
   }, []);
