@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rechercherPhotosMedicament, type MedicamentPhoto } from "@/lib/medicaments/photos-externes";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type MedicamentPhoto = {
+  url: string; sourceUrl: string; licence: string; attribution: string | null;
+  title: string; kind: "boite" | "comprime"; provider: "catalogue_local_verifie";
+};
 
 function normalize(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -66,7 +70,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
         photo_path: string | null; photo_url: string | null; photo_source_url: string | null;
         photo_licence: string | null; photo_verifiee_le: string | null;
       }>) {
-        if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url?.startsWith("https://")) continue;
+        if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url?.startsWith("https://") || /cima\.aemps\.es|commons\.wikimedia\.org|openfoodfacts\.org/i.test(product.photo_source_url)) continue;
         const url = product.photo_path
           ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
           : product.photo_url;
@@ -109,7 +113,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       // Ne pas montrer la photo d'une marque lorsque la requête ne nomme que sa DCI.
       if (!exactIdentityMatch(query, identity)) continue;
       if (unrequestedCombination(query, product.dci ?? "")) continue;
-      if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url) continue;
+      if (!product.photo_licence || !product.photo_verifiee_le || !product.photo_source_url || /cima\.aemps\.es|commons\.wikimedia\.org|openfoodfacts\.org/i.test(product.photo_source_url)) continue;
       const url = product.photo_path
         ? sb.storage.from("medicaments").getPublicUrl(product.photo_path).data.publicUrl
         : product.photo_url;
@@ -149,7 +153,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       .not("source_url", "is", null)
       .limit(30);
     for (const image of (images ?? []) as ImageRow[]) {
-      if (!image.licence?.trim() || !image.source_url?.startsWith("https://")) continue;
+      if (!image.licence?.trim() || !image.source_url?.startsWith("https://") || /cima\.aemps\.es|commons\.wikimedia\.org|openfoodfacts\.org/i.test(image.source_url) || /^(?:CIMA|AEMPS|Wikimedia Commons|Open Products Facts)$/i.test(image.source_nom.trim())) continue;
       const url = image.image_path
         ? sb.storage.from("medicaments").getPublicUrl(image.image_path).data.publicUrl
         : image.image_url;
@@ -167,7 +171,7 @@ async function verifiedLocalPhoto(query: string): Promise<MedicamentPhoto | null
       };
     }
   } catch {
-    // La source locale est facultative : on poursuit avec la recherche externe.
+    // La photo locale est facultative : aucune source photographique externe n’est appelée.
   }
   return null;
 }
@@ -180,15 +184,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Une photo locale vérifiée reste prioritaire, mais ne doit pas empêcher
-  // la récupération de la seconde vue (forme pharmaceutique) depuis une source libre.
-  const [localPhoto, externalPhotos] = await Promise.all([
-    verifiedLocalPhoto(query),
-    rechercherPhotosMedicament(query)
-  ]);
+  // Seules les photos du catalogue NAXA, avec source, licence et date de vérification,
+  // peuvent être renvoyées. Aucun fournisseur photographique externe n’est interrogé.
+  const localPhoto = await verifiedLocalPhoto(query);
   const photos = {
-    boite: localPhoto?.kind === "boite" ? localPhoto : externalPhotos.boite,
-    comprime: localPhoto?.kind === "comprime" ? localPhoto : externalPhotos.comprime
+    boite: localPhoto?.kind === "boite" ? localPhoto : null,
+    comprime: localPhoto?.kind === "comprime" ? localPhoto : null
   };
   const selected = photos.boite ?? photos.comprime;
   const sources = [...new Set(
