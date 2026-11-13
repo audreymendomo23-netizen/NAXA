@@ -54,12 +54,15 @@ export async function POST(request:NextRequest){
     const unexpired=activeRows.filter(row=>!row.verification_expires_at||new Date(row.verification_expires_at).getTime()>Date.now());
     const ids=unexpired.map(row=>row.user_id);
     if(!ids.length)return NextResponse.json({results:[]},{headers:{"Cache-Control":"private, no-store"}});
+    const weekdayLabel=new Intl.DateTimeFormat("en-US",{timeZone:"Africa/Douala",weekday:"short"}).format(new Date());
+    const weekday:Record<string,number>={Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6,Sun:7};
+    const isoWeekday=weekday[weekdayLabel]??1;
     const [profilesResult,membersResult,availabilityResult]=await Promise.all([
       db.from("profiles").select("id,actif").in("id",ids).eq("actif",true),
       db.from("partner_members").select("user_id,member_role,partners!inner(id,name,city,neighborhood,latitude,longitude,provider_latitude,provider_longitude,status,partner_type)")
         .in("user_id",ids).eq("partners.status","active").eq("partners.partner_type","professionnel_domicile"),
       db.from("suivi_professional_weekly_availability").select("user_id,is_open,opens_at,closes_at")
-        .in("user_id",ids).eq("weekday",new Date(new Date().toLocaleString("en-US",{timeZone:"Africa/Douala"})).getDay()===0?7:new Date(new Date().toLocaleString("en-US",{timeZone:"Africa/Douala"})).getDay())
+        .in("user_id",ids).eq("weekday",isoWeekday)
     ]);
     if(profilesResult.error||membersResult.error||availabilityResult.error)throw profilesResult.error||membersResult.error||availabilityResult.error;
     const activeIds=new Set((profilesResult.data??[]).map((row:{id:string})=>row.id));
@@ -87,7 +90,7 @@ export async function POST(request:NextRequest){
         return 0;
       })[0];
       if(lat!==null&&lng!==null&&best.distance_km===null)return [];
-      if(lat!==null&&lng!==null&&best.distance_km!>radius)return [];
+      if(lat!==null&&lng!==null&&best.distance_km!==null&&best.distance_km>radius)return [];
       return [{
         user_id:row.user_id,professional_role:row.professional_role,display_name:row.display_name,
         specialty:row.specialty,partner_name:best.partner_name,city:best.city,neighborhood:best.neighborhood,
