@@ -119,6 +119,18 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
   const [horsConnexion, setHorsConnexion] = useState(false);
   const [resultatsEnCache, setResultatsEnCache] = useState(false);
 
+  // Signal visuel en lecture seule : aucun terme saisi ni résultat n'est transmis à la fée.
+  useEffect(() => {
+    const state = q.trim().length < 2 ? "idle"
+      : rechercheCatalogue === "chargement" ? "loading"
+      : rechercheCatalogue === "erreur" ? "failure"
+      : medicaments.length ? "results" : "empty";
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("naxa:fairy", { detail: { type: "search", state } }));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [q, rechercheCatalogue, medicaments.length]);
+
   useEffect(() => {
     const terme = q.trim();
     setHorsConnexion(!navigator.onLine);
