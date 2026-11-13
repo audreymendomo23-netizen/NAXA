@@ -33,7 +33,7 @@ jobs:
           node-version: "20"
       - name: Vérifier la configuration Supabase
         env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: https://eouwtuusnsuxaejsxknf.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           test -n "$SUPABASE_URL" || (echo "::error::Secret NEXT_PUBLIC_SUPABASE_URL manquant" && exit 1)
