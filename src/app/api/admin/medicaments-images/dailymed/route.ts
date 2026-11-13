@@ -66,16 +66,15 @@ function extractSpls(payload: AnyRecord | null): AnyRecord[] {
 }
 
 function splImageFilename(xml: string): string | null {
-  const subjectRegex = new RegExp("<(?:[A-Za-z0-9_-]+:)?subjectOf\\\\b[^>]*>([\\\\s\\\\S]*?)</(?:[A-Za-z0-9_-]+:)?subjectOf>", "gi");
+  const subjectRegex = new RegExp("<(?:[A-Za-z0-9_-]+:)?subjectOf\\b[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?subjectOf>", "gi");
   for (const match of xml.matchAll(subjectRegex)) {
     const block = match[1] ?? "";
-    if (!new RegExp("<(?:[A-Za-z0-9_-]+:)?code\\\\b[^>]*\\\\bcode=[\"']SPLIMAGE[\"']", "i").test(block)) continue;
-    const reference = block.match(new RegExp("<(?:[A-Za-z0-9_-]+:)?reference\\\\b[^>]*\\\\bvalue=[\"']([^\"']+)[\"']", "i"));
+    if (!new RegExp("<(?:[A-Za-z0-9_-]+:)?code\\b[^>]*\\bcode=[\"']SPLIMAGE[\"']", "i").test(block)) continue;
+    const reference = block.match(new RegExp("<(?:[A-Za-z0-9_-]+:)?reference\\b[^>]*\\bvalue=[\"']([^\"']+)[\"']", "i"));
     if (reference?.[1]) return reference[1].replace(/&amp;/g, "&").trim();
   }
   return null;
 }
-
 function extractImageMedia(payload: AnyRecord | null): Array<{ name: string; url: string; mimeType: string }> {
   const data = payload?.data as AnyRecord | undefined;
   const media = data?.media ?? payload?.media;
