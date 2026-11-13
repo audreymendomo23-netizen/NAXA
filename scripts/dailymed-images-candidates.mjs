@@ -151,12 +151,27 @@ async function fetchJson(url) {
 }
 
 export async function searchDailyMed(identity) {
-  const url = new URL(BASE + "/spls.json");
-  url.searchParams.set("drug_name", identity);
-  url.searchParams.set("name_type", "generic");
-  url.searchParams.set("pagesize", "20");
-  const payload = await fetchJson(url);
-  return extractSpls(payload).filter((spl) => titleMatches(identity, spl.title ?? spl.drug_name ?? ""));
+  // DailyMed v2 ne documente pas drug_name comme filtre de /spls.
+  // RxNorm résout d'abord le nom BDPM en RxCUI, puis DailyMed est interrogée
+  // directement avec son filtre officiel rxcui.
+  const resolved = await resolveRxNormTerms(identity);
+  const bySetId = new Map();
+  for (const candidate of resolved.slice(0, 8)) {
+    const url = new URL(BASE + "/spls.json");
+    url.searchParams.set("rxcui", candidate.rxcui);
+    url.searchParams.set("pagesize", "20");
+    const payload = await fetchJson(url);
+    for (const spl of extractSpls(payload)) {
+      if (spl?.setid) bySetId.set(String(spl.setid), {
+        ...spl,
+        rxnorm_rxcui: candidate.rxcui,
+        rxnorm_name: candidate.name,
+        rxnorm_score: candidate.score ?? null
+      });
+    }
+    await wait(DELAY_MS);
+  }
+  return [...bySetId.values()];
 }
 
 export async function getSplMedia(setid) {
