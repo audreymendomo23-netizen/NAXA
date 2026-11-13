@@ -62,7 +62,7 @@ export function extractRxNormCandidates(payload) {
       rank: Number(item.rank ?? 0), source: item.source ? String(item.source) : null }));
 }
 
-export async function resolveRxNormTerms(term) {
+async function fetchRxNormTerms(term) {
   const normalizedUrl = new URL(RXNORM_BASE + "/rxcui.json");
   normalizedUrl.searchParams.set("name", term);
   normalizedUrl.searchParams.set("search", "2");
@@ -101,6 +101,20 @@ export async function resolveRxNormTerms(term) {
     throw new Error("RxNorm approximate search HTTP " + response.status);
   }
   return extractRxNormCandidates(await response.json());
+}
+
+const rxNormCache = new Map();
+export function resolveRxNormTerms(term) {
+  const key = normalize(term);
+  if (!key) return Promise.resolve([]);
+  if (rxNormCache.has(key)) return rxNormCache.get(key);
+  const pending = fetchRxNormTerms(String(term).trim()).catch((error) => {
+    rxNormCache.delete(key);
+    throw error;
+  });
+  rxNormCache.set(key, pending);
+  if (rxNormCache.size > 500) rxNormCache.delete(rxNormCache.keys().next().value);
+  return pending;
 }
 
 export function buildCandidateUpdate(row, ref, candidates, rxnormCandidates = []) {
