@@ -8,12 +8,16 @@ begin
   select pg_get_functiondef('public.naxa_match_universe_payment_sms(uuid,text)'::regprocedure)
     into v_partner;
 
-  if position('pg_advisory_xact_lock' in v_delivery)=0 then
-    raise exception 'Le moteur Livraison ne sérialise pas la référence opérateur';
+  if position('pg_advisory_xact_lock' in v_delivery)=0
+     or position('pg_advisory_xact_lock' in v_delivery)>
+        position('select count(*) into v_record_count' in v_delivery) then
+    raise exception 'Le verrou Livraison doit être pris avant le comptage des dossiers candidats';
   end if;
 
-  if position('pg_advisory_xact_lock' in v_partner)=0 then
-    raise exception 'Le moteur Partenaire ne sérialise pas la référence opérateur';
+  if position('pg_advisory_xact_lock' in v_partner)=0
+     or position('pg_advisory_xact_lock' in v_partner)>
+        position('select count(*) into v_intent_count' in v_partner) then
+    raise exception 'Le verrou Partenaire doit être pris avant le comptage des intentions candidates';
   end if;
 
   if not has_function_privilege('service_role','public.naxa_match_delivery_payment_sms(uuid,text)','execute')
