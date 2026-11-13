@@ -192,8 +192,8 @@ export function PrestationsCatalogue({offers,initialQuery,assistanceMode}:{offer
             {nearbyEnabled&&distances.has(offer.offer_id)&&<p className="mt-2 text-sm font-bold text-[#064B2A]">À environ {distances.get(offer.offer_id)?.toFixed(1)} km (à vol d’oiseau)</p>}
             <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">{days[new Date().getDay()]}</p>
-              {offer.available_today&&offer.today_opens_at&&offer.today_closes_at
-                ? <p className="mt-1 text-sm font-bold text-emerald-800">{offer.available_now?"Ouvert maintenant":"Ouverture prévue aujourd’hui"} · {formatTime(offer.today_opens_at)} – {formatTime(offer.today_closes_at)}</p>
+              {offer.today_opens_at&&offer.today_closes_at
+                ? <p className={"mt-1 text-sm font-bold "+(offer.available_now?"text-emerald-800":offer.available_today?"text-blue-800":"text-slate-600")}>{offer.available_now?"Ouvert maintenant":offer.available_today?"Ouverture prévue aujourd’hui":"Fermé pour aujourd’hui"} · {formatTime(offer.today_opens_at)} – {formatTime(offer.today_closes_at)}</p>
                 : <p className="mt-1 text-sm font-semibold text-slate-600">Fermé aujourd’hui</p>}
             </div>
             <p className="mt-3 text-lg font-black">{offer.price_fcfa==null?"Tarif à confirmer":money(Number(offer.price_fcfa))}</p>
