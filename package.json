@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && serwist build",
     "start": "next start",
     "lint": "eslint .",
     "test:travel-taxi": "node scripts/test-travel-taxi.cjs",
@@ -24,7 +24,6 @@
     "test:dailymed-api": "node --test scripts/test-dailymed-images-candidates.cjs"
   },
   "dependencies": {
-    "@ducanh2912/next-pwa": "10.2.9",
     "@supabase/ssr": "0.5.2",
     "@supabase/supabase-js": "2.45.4",
     "next": "16.4.6",
@@ -36,7 +35,9 @@
     "@simplewebauthn/server": "14.1.0",
     "@simplewebauthn/browser": "13.2.2",
     "qrcode": "1.5.4",
-    "pdfjs-dist": "6.5.438"
+    "pdfjs-dist": "6.5.438",
+    "@serwist/next": "9.5.13",
+    "serwist": "9.5.13"
   },
   "devDependencies": {
     "@types/node": "20.14.0",
@@ -49,6 +50,8 @@
     "eslint": "10.14.0",
     "eslint-config-next": "16.4.6",
     "@types/web-push": "3.6.4",
-    "@types/qrcode": "1.5.5"
+    "@types/qrcode": "1.5.5",
+    "@serwist/cli": "9.5.13",
+    "esbuild": "0.28.2"
   }
 }

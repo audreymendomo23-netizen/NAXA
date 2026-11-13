@@ -6,14 +6,25 @@ const test = require("node:test");
 const root = path.join(__dirname, "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const nextConfig = fs.readFileSync(path.join(root, "next.config.mjs"), "utf8");
+const serwistConfig = fs.readFileSync(path.join(root, "serwist.config.js"), "utf8");
+const layout = fs.readFileSync(path.join(root, "src/app/layout.tsx"), "utf8");
 const worker = fs.readFileSync(path.join(root, "worker/sw.ts"), "utf8");
 
 test("la PWA utilise Serwist maintenu et retire next-pwa/Workbox legacy", () => {
   assert.equal(pkg.dependencies["@serwist/next"], "9.5.13");
   assert.equal(pkg.dependencies.serwist, "9.5.13");
+  assert.equal(pkg.devDependencies["@serwist/cli"], "9.5.13");
+  assert.equal(pkg.devDependencies.esbuild, "0.28.2");
   assert.equal(pkg.dependencies["@ducanh2912/next-pwa"], undefined);
-  assert.match(nextConfig, /@serwist\/next/);
-  assert.match(nextConfig, /swSrc: "worker\/sw\.ts"/);
+  assert.match(pkg.scripts.build, /next build && serwist build/);
+  assert.match(nextConfig, /reactStrictMode: true/);
+  assert.match(serwistConfig, /@serwist\/next\/config/);
+  assert.match(serwistConfig, /swSrc: "worker\/sw\.ts"/);
+  assert.match(serwistConfig, /swDest: "public\/sw\.js"/);
+  assert.match(serwistConfig, /precachePrerendered: false/);
+  assert.match(serwistConfig, /additionalPrecacheEntries/);
+  assert.match(serwistConfig, /url: "\/offline\.html"/);
+  assert.match(layout, /SerwistProvider swUrl="\/sw\.js"/);
   assert.match(worker, /new Serwist\(/);
 });
 
@@ -32,8 +43,8 @@ test("aucun cache API ni stockage privé Supabase n'est configuré", () => {
 });
 
 test("l'écran hors ligne est précaché et les caches privés historiques sont supprimés", () => {
-  assert.match(nextConfig, /additionalPrecacheEntries/);
-  assert.match(nextConfig, /\/offline\.html/);
+  assert.match(serwistConfig, /additionalPrecacheEntries/);
+  assert.match(serwistConfig, /\/offline\.html/);
   assert.match(worker, /url: "\/offline\.html"/);
   assert.match(worker, /naxa-pharmacy-login-v4/);
   assert.match(worker, /naxa-navigation-v4/);
