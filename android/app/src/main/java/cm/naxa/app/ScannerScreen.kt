@@ -40,8 +40,10 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     val repository = remember { ScannerRepository() }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
     var scanning by remember { mutableStateOf(false) }
     var extractedText by remember { mutableStateOf("") }
+    var medicineQuery by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var pageSummary by remember { mutableStateOf<String?>(null) }
 
@@ -49,6 +51,7 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
         scanning = true
         message = null
         extractedText = ""
+        medicineQuery = ""
         pageSummary = null
         scope.launch {
             try {
@@ -67,6 +70,11 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
             } catch (error: Exception) {
                 message = error.message ?: "Lecture impossible. Essayez une image ou un PDF plus net."
             } finally {
+                if (uri == pendingCameraUri) {
+                    pendingCameraFile?.delete()
+                    pendingCameraFile = null
+                    pendingCameraUri = null
+                }
                 scanning = false
             }
         }
@@ -76,8 +84,14 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
         ActivityResultContracts.TakePicture()
     ) { saved ->
         val uri = pendingCameraUri
-        if (saved && uri != null) analyze(uri)
-        else message = "La prise de photo a été annulée."
+        if (saved && uri != null) {
+            analyze(uri)
+        } else {
+            pendingCameraFile?.delete()
+            pendingCameraFile = null
+            pendingCameraUri = null
+            message = "La prise de photo a été annulée."
+        }
     }
 
     val documentLauncher = rememberLauncherForActivityResult(
@@ -110,9 +124,13 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
                             context.packageName + ".fileprovider",
                             photo
                         )
+                        pendingCameraFile = photo
                         pendingCameraUri = uri
                         cameraLauncher.launch(uri)
                     } catch (error: Exception) {
+                        pendingCameraFile?.delete()
+                        pendingCameraFile = null
+                        pendingCameraUri = null
                         message = error.message ?: "Impossible d'ouvrir la caméra."
                     }
                 }
@@ -150,7 +168,7 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
             Spacer(Modifier.height(12.dp))
             Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("Texte reconnu — modifiable", fontWeight = FontWeight.Bold, color = NaxaInk)
+                    Text("Texte reconnu — conservé sur le téléphone", fontWeight = FontWeight.Bold, color = NaxaInk)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = extractedText,
@@ -159,21 +177,26 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
                         minLines = 5,
                         maxLines = 10
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        "Vérifiez les noms et dosages avant toute recherche. L'OCR peut faire des erreurs.",
+                        "Saisissez uniquement le nom du médicament à rechercher. Ne transmettez pas le texte personnel de l'ordonnance.",
                         color = Color(0xFF65776F), fontSize = 11.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = medicineQuery,
+                        onValueChange = { medicineQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Nom du médicament ou substance") },
+                        singleLine = true
                     )
                     Spacer(Modifier.height(10.dp))
                     Button(
-                        enabled = !scanning,
+                        enabled = !scanning && medicineQuery.trim().length >= 2,
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            val query = extractedText.replace(Regex("\\s+"), " ").trim().take(100)
-                            if (query.length >= 2) onSearchCatalog(query)
-                        }
+                        onClick = { onSearchCatalog(medicineQuery.trim().take(100)) }
                     ) {
-                        Text("Rechercher dans le catalogue")
+                        Text("Rechercher ce médicament")
                     }
                 }
             }
@@ -181,7 +204,7 @@ internal fun NativeScannerScreen(onSearchCatalog: (String) -> Unit) {
 
         Spacer(Modifier.height(10.dp))
         Text(
-            "Confidentialité : le document original n'est pas envoyé automatiquement. Seul le texte que vous choisissez ensuite d'utiliser pour la recherche sera transmis au catalogue.",
+            "Confidentialité : le document original et le texte OCR ne sont pas envoyés automatiquement. Seul le nom que vous saisissez dans le champ de recherche est transmis au catalogue.",
             color = Color(0xFF87948E), fontSize = 11.sp
         )
     }

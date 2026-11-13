@@ -48,8 +48,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private val NaxaGreen = Color(0xFF087A55)
-private val NaxaInk = Color(0xFF17342B)
+internal val NaxaGreen = Color(0xFF087A55)
+internal val NaxaInk = Color(0xFF17342B)
 private val NaxaBackground = Color(0xFFF5F8F6)
 
 @Composable
