@@ -479,7 +479,8 @@ private fun PharmaciesScreen(repository: PharmacyRepository) {
 @Composable
 private fun NearbyPharmacyCard(pharmacy: NearbyPharmacy) {
     val distance = pharmacy.distanceRoadKm?.let { "${"%.1f".format(Locale.FRENCH, it)} km par la route" }
-        ?: "${"%.1f".format(Locale.FRENCH, pharmacy.distanceStraightKm)} km à vol d'oiseau"
+        ?: pharmacy.distanceStraightKm?.let { "${"%.1f".format(Locale.FRENCH, it)} km à vol d'oiseau" }
+        ?: "Distance indisponible"
     Card(
         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
