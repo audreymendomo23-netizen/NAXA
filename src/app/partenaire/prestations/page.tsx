@@ -59,7 +59,7 @@ export default async function PartnerHomeServices({ searchParams }: { searchPara
     .filter((r: any) => r.status === "confirmed" || r.status === "completed")
     .map((r: any) => r.id);
   const addressResult = addressEligibleIds.length
-    ? await sb.from("home_service_request_addresses")
+    ? await (sb as any).from("home_service_request_addresses")
         .select("request_id,exact_address,contact_phone,latitude,longitude,accuracy_m,location_shared_at")
         .in("request_id", addressEligibleIds)
     : { data: [], error: null };
