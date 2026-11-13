@@ -60,9 +60,6 @@ export async function POST(request:Request) {
       return NextResponse.json({error:"ID / Référence de transaction obligatoire (5 caractères minimum). Complétez-le si le SMS n'a pas été reconnu."},{status:400});
     }
     const payerNumber=String(payerSms?.payerNumber??body.payerNumber??"").trim().slice(0,40);
-    if(payerNumber&&digits(payerNumber).length!==digits(payerNumber).length) {
-      return NextResponse.json({error:"Numéro payeur invalide."},{status:400});
-    }
     if(payerNumber&& (digits(payerNumber).length<8||digits(payerNumber).length>15)) {
       return NextResponse.json({error:"Numéro payeur invalide."},{status:400});
     }
