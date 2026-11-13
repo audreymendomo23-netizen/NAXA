@@ -83,7 +83,17 @@ function strictImageIdentityTokens(value: string): string[] {
 }
 
 function plain(value: string | undefined): string {
-  return (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return (value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 }
 
 function kindOf(page: CommonsPage): "boite" | "comprime" | null {
@@ -106,11 +116,57 @@ function allowedCommercialLicense(info: CommonsImageInfo): { licence: string; at
   const short = plain(metadata.LicenseShortName?.value);
   const terms = plain(metadata.UsageTerms?.value);
   const url = plain(metadata.LicenseUrl?.value);
-  const allowed = /^(CC0(?:\s|$)|Public domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(short);
-  if (!allowed || /\b(?:NC|ND)\b/i.test(short + " " + terms)) return null;
-  if (!url && !/^Public domain/i.test(short) && !/^CC0/i.test(short)) return null;
-  const artist = plain(metadata.Artist?.value) || plain(metadata.Credit?.value);
+  const permission = plain(metadata.Permission?.value);
+  const restrictions = plain(metadata.Restrictions?.value);
+  const copyright = plain(metadata.Copyrighted?.value);
+  const licenceText = short + " " + terms;
+
+  // Liste blanche stricte : une mention CC partielle ou une URL quelconque
+  // ne suffit pas à établir un droit de réutilisation commerciale.
+  const ccBy = /^CC BY(?:-SA)?(?: \d+(?:\.\d+)*)?$/i.test(short);
+  const cc0 = /^CC0(?: \d+(?:\.\d+)*)?$/i.test(short);
+  const publicDomain = /^Public domain$/i.test(short);
+  if (!ccBy && !cc0 && !publicDomain) return null;
+  if (/\b(?:NC|ND)\b|non[\s-]?commercial|no[\s-]?derivatives|non[\s-]?derivative/i.test(licenceText)) return null;
+
+  if (ccBy) {
+    if (!url) return null;
+    try {
+      const licenceUrl = new URL(url);
+      if (licenceUrl.hostname !== "creativecommons.org" ||
+        !/^\/licenses\/by(?:-sa)?\/\d+(?:\.\d+)*\/?$/i.test(licenceUrl.pathname)) return null;
+      if (short.toLowerCase().includes("by-sa") !== licenceUrl.pathname.toLowerCase().includes("by-sa")) return null;
+    } catch {
+      return null;
+    }
+  } else if (cc0) {
+    if (url) {
+      try {
+        const licenceUrl = new URL(url);
+        if (licenceUrl.hostname !== "creativecommons.org" || !/^\/publicdomain\/zero\/\d+(?:\.\d+)*\/?$/i.test(licenceUrl.pathname)) return null;
+      } catch {
+        return null;
+      }
+    }
+  } else if (url) {
+    try {
+      const licenceUrl = new URL(url);
+      if (licenceUrl.hostname !== "creativecommons.org" || !/^\/publicdomain\/mark\/\d+(?:\.\d+)*\/?$/i.test(licenceUrl.pathname)) return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // La licence de la photographie ne libère pas automatiquement la marque,
+  // le graphisme de la boîte ou la forme protégée du médicament photographié.
+  const embeddedRights = permission + " " + restrictions + " " + copyright;
+  if (/all rights reserved|todos los derechos reservados|still the (?:copyright|patent)|(?:copyright|patent) property of|trademark.{0,80}(?:property|protected|reserved)|(?:packaging|package|box|carton|layout|design|tablet|pill|medicine).{0,100}(?:copyright|patent|trademark|protected|property of)|(?:copyright|patent|trademark).{0,100}(?:packaging|package|box|carton|layout|design|tablet|pill|medicine)/i.test(embeddedRights)) return null;
+
+  const artist = plain(metadata.Artist?.value) || plain(metadata.Credit?.value) || plain(metadata.Attribution?.value);
+  const attributionRequired = /^(?:true|yes|1)$/i.test(plain(metadata.AttributionRequired?.value));
+  if (attributionRequired && !artist) return null;
   return { licence: [short, terms, url].filter(Boolean).join(" — "), attribution: artist || null };
+}
 }
 
 function likelyCombinationMismatch(title: string, queryTokens: string[]): boolean {
@@ -251,37 +307,40 @@ function allowedCimaImageRights(
   const attribution = (photo.attribution ?? photo.auteur ?? photo.author ?? "").trim();
   const updatedAt = cimaPhotoUpdateDate(photo.fecha);
 
-  // L'AEMPS publie CIMA dans son catalogue officiel de données ouvertes.
-  // La date de mise à jour de chaque photo est fournie par fotos[].fecha.
-  // Sans cette date, NAXA ne peut pas appliquer correctement les conditions
-  // de réutilisation et n'affiche donc pas l'image.
-  if (!updatedAt) return null;
-
-  // Les restrictions explicites au niveau du média priment toujours sur la
-  // réutilisation générale des données ouvertes.
+  // L'ouverture des données CIMA ne prouve pas à elle seule les droits sur
+  // chaque photo : les images sont fournies par les titulaires d'AMM et peuvent
+  // contenir des marques ou dessins protégés. Exiger une licence explicite.
+  if (!updatedAt || !licence || !licenceUrl) return null;
   if (/\b(?:NC|ND)\b|non[\s-]?commercial|no[\s-]?derivatives|sin\s+obras\s+derivadas|todos\s+los\s+derechos\s+reservados|derechos\s+reservados/i.test(licence)) return null;
 
-  const hasExplicitLicence = Boolean(licence);
-  if (hasExplicitLicence) {
-    const permitted = /^(?:CC0(?:\s|$)|Public Domain(?:\s|$)|CC BY(?:-SA)?(?:\s|$))/i.test(licence);
-    if (!permitted) return null;
-    if (/^CC BY/i.test(licence) && !attribution && !medicine.labtitular) return null;
-    if (!licenceUrl && !/^CC0(?:\s|$)|^Public Domain(?:\s|$)/i.test(licence)) return null;
+  const ccBy = /^CC BY(?:-SA)?(?: \d+(?:\.\d+)*)?$/i.test(licence);
+  const cc0 = /^CC0(?: \d+(?:\.\d+)*)?$/i.test(licence);
+  const publicDomain = /^Public Domain$/i.test(licence);
+  if (!ccBy && !cc0 && !publicDomain) return null;
+  try {
+    const parsed = new URL(licenceUrl);
+    const validCc = /^\/licenses\/by(?:-sa)?\/\d+(?:\.\d+)*\/?$/i.test(parsed.pathname);
+    const validCc0 = /^\/publicdomain\/zero\/\d+(?:\.\d+)*\/?$/i.test(parsed.pathname);
+    const validPd = /^\/publicdomain\/mark\/\d+(?:\.\d+)*\/?$/i.test(parsed.pathname);
+    if (parsed.hostname !== "creativecommons.org" || !(validCc || validCc0 || validPd)) return null;
+    if (ccBy && licence.toLowerCase().includes("by-sa") !== parsed.pathname.toLowerCase().includes("by-sa")) return null;
+    if (cc0 && !validCc0) return null;
+    if (publicDomain && !validPd) return null;
+    if (ccBy && !attribution && !medicine.labtitular) return null;
+  } catch {
+    return null;
   }
 
   const titular = (medicine.labtitular ?? "").trim();
-  const policy = "Données ouvertes AEMPS/CIMA — réutilisation avec attribution : https://sede.aemps.gob.es/datos-abiertos/";
   return {
-    licence: [
-      hasExplicitLicence ? [licence, licenceUrl].filter(Boolean).join(" — ") : policy,
-      "photo mise à jour le " + updatedAt
-    ].filter(Boolean).join(" — "),
+    licence: [licence, licenceUrl, "photo mise à jour le " + updatedAt].join(" — "),
     attribution: [
       attribution || "AEMPS / CIMA",
       titular ? "titulaire AMM : " + titular : "",
       "photo mise à jour le " + updatedAt
     ].filter(Boolean).join(" — ")
   };
+}
 }
 
 function safeCimaImageUrl(
@@ -444,7 +503,10 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
     const categories = (product.categories_tags ?? []).join(" ").toLowerCase();
     if (!/\b(?:medicines?|medications?|pharmaceutical|drugs?)\b/.test(categories)) return null;
     const rawImage = product.image_front_url;
-    if (!rawImage) return null;
+    const frontImage = product.images?.front;
+    const uploader = (frontImage?.uploader ?? "").trim();
+    const uploadedAt = Number(frontImage?.uploaded_t ?? 0);
+    if (!rawImage || !uploader || !Number.isFinite(uploadedAt) || uploadedAt <= 0) return null;
     let image: URL;
     try {
       image = new URL(rawImage);
@@ -459,9 +521,8 @@ async function searchOpenProductsFactsByBarcode(barcode: string): Promise<Medica
       url: image.toString(),
       sourceUrl: "https://world.openproductsfacts.org/product/" + barcode,
       licence: "CC BY-SA (Open Products Facts — attribution et partage à l'identique requis).",
-      attribution: product.images?.front?.uploader
-        ? product.images.front.uploader + " — Open Products Facts (CC BY-SA)."
-        : "Contributeurs Open Products Facts (CC BY-SA).",
+      attribution: uploader + " — Open Products Facts (CC BY-SA 4.0) — image ajoutée le " +
+        new Date(uploadedAt * 1000).toISOString().slice(0, 10) + ".",
       title: [product.product_name, product.brands].filter(Boolean).join(" — ") || barcode,
       kind: "boite",
       provider: "open_products_facts"
