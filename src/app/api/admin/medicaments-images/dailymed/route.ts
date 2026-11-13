@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,11 +100,7 @@ async function adminContext() {
   if (profileError || roleError || profile?.role !== "admin" || profile.actif !== true || activeRole !== "admin") {
     return { response: NextResponse.json({ error: "Accès réservé à un administrateur NAXA actif." }, { status: 403 }) };
   }
-  try {
-    return { db: supabaseAdmin() };
-  } catch {
-    return { response: NextResponse.json({ error: "Service administratif indisponible." }, { status: 503 }) };
-  }
+  return { ok: true as const };
 }
 
 export async function GET(request: NextRequest) {
