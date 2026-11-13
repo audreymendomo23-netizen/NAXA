@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
 
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
@@ -59,7 +59,10 @@ export async function requestHomeService(form: FormData) {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/prestations");
 
-  const { data: requestId, error } = await (sb as any).rpc("request_home_service_with_location", {
+  let requestResult: any;
+  try {
+    requestResult = await (supabaseAdmin() as any).rpc("request_home_service_with_location", {
+    p_client_id: auth.user.id,
     p_offer_id: offerId,
     p_area_label: area,
     p_exact_address: address,
@@ -69,7 +72,11 @@ export async function requestHomeService(form: FormData) {
     p_shared_latitude: sharedLatitude,
     p_shared_longitude: sharedLongitude,
     p_accuracy_m: sharedAccuracy,
-  });
+    });
+  } catch {
+    redirect("/prestations?erreur=indisponible");
+  }
+  const { data: requestId, error } = requestResult;
   if (error || !requestId) redirect("/prestations?erreur=indisponible");
 
   revalidatePath("/prestations");
