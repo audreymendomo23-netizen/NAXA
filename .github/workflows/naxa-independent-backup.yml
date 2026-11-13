@@ -73,7 +73,7 @@ jobs:
               fail("NAXA_DATABASE_URL must be a PostgreSQL URI.")
           if port != 5432:
               fail("Use PostgreSQL port 5432.")
-          if parsed.path.rstrip("/") != "/postgres":
+          if parsed.path.rstrip("/") not in ("", "/postgres"):
               fail("The connection URI must target the postgres database.")
           if not password or password == "[YOUR-PASSWORD]":
               fail("The connection URI does not contain the real PostgreSQL Database Password.")
