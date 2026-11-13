@@ -138,14 +138,14 @@ export function PrestationsCatalogue({offers,initialQuery,assistanceMode}:{offer
     const aiSpecialties=intent.specialties.map(normalize);
     const aiKeywords=intent.keywords.map(normalize);
     const result=offers.filter(offer=>{
-      const nameHit=!q||closeMatch(query,offer.name)||closeMatch(query,offer.partner_name)
+      const nameHit=!hasQuery||closeMatch(query,offer.name)||closeMatch(query,offer.partner_name)
         ||closeMatch(query,offer.specialty??"")||closeMatch(query,offer.category);
       const intentHit=aiSpecialties.some(s=>normalize(offer.specialty??offer.category).includes(s)||s.includes(normalize(offer.specialty??offer.category)))
         ||aiKeywords.some(word=>normalize([offer.name,offer.specialty??"",offer.category,offer.description??""].join(" ")).includes(word));
-      const queryHit=!q||nameHit||intentHit;
+      const queryHit=!hasQuery||nameHit||intentHit;
       const availabilityHit=availability==="all"||(availability==="today"&&offer.available_today)||(availability==="now"&&offer.available_now);
       const distanceHit=!nearbyEnabled||distances.has(offer.offer_id);
-      const specialtyHit=!specialty||normalize(offer.specialty??"")===normalize(specialty);
+      const specialtyHit=!specialty||normalize(offer.specialty??offer.category)===normalize(specialty);
       return queryHit&&availabilityHit&&distanceHit&&specialtyHit;
     });
     if(nearbyEnabled)result.sort((a,b)=>(distances.get(a.offer_id)??Number.MAX_SAFE_INTEGER)-(distances.get(b.offer_id)??Number.MAX_SAFE_INTEGER));
