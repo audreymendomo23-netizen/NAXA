@@ -109,7 +109,7 @@ export function SuiviClinicalCasePanel({patientId,professionalId}:{patientId:str
           {caseRow.status!=="closed"&&<button type="button" disabled={busy} onClick={()=>void setCaseStatus("closed")} className="min-h-10 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-700">Clôturer définitivement</button>}
         </div>
       </div>
-      {caseRow.status==="active"?<div className="space-y-2 rounded-xl border bg-white p-3">
+      {caseRow.status==="active"?<><div className="space-y-2 rounded-xl border bg-white p-3">
         <b>Ajouter une mise à jour clinique</b>
         <label className="block text-sm font-semibold">Type d'entrée<select value={kind} onChange={e=>setKind(e.target.value as typeof kind)} className="champ mt-1 w-full"><option value="observation">Observation</option><option value="follow_up">Compte rendu de suivi</option><option value="diagnosis">Mise à jour du diagnostic</option></select></label>
         <textarea rows={3} maxLength={6000} value={note} onChange={e=>setNote(e.target.value)} className="champ w-full" placeholder={kind==="diagnosis"?"Nouveau diagnostic / appréciation clinique…":"Observation professionnelle…"} />
