@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdminActive } from "@/lib/admin/require-admin-active";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
@@ -46,21 +47,17 @@ export async function setAdminHomeServicePartnerLocation(form: FormData) {
       !Number.isFinite(lng) || lng < -180 || lng > 180) {
     redirect("/admin/prestations?erreur=position");
   }
-  const { data, error } = await sb.from("partners").update({
-    latitude: lat,
-    longitude: lng,
-    admin_location_updated_at: new Date().toISOString(),
-    admin_location_updated_by: auth.user.id,
-    updated_at: new Date().toISOString(),
-  }).eq("id",partnerId).eq("partner_type","professionnel_domicile").select("id").maybeSingle();
-  if(error || !data) redirect("/admin/prestations?erreur=position");
-  await sb.from("audit_log").insert({
-    actor_id:auth.user.id,
-    action:"partner.admin_location_updated",
-    entity_type:"partner",
-    entity_id:partnerId,
-    metadata:{latitude:lat,longitude:lng}
+  const db = supabaseAdmin();
+  const { error } = await (db as any).rpc("admin_set_professional_partner_location", {
+    p_partner_id: partnerId,
+    p_actor_id: auth.user.id,
+    p_latitude: lat,
+    p_longitude: lng,
   });
+  if(error) redirect("/admin/prestations?erreur=position");
+  const { data: updated } = await db.from("partners").select("latitude,longitude")
+    .eq("id",partnerId).eq("partner_type","professionnel_domicile").maybeSingle();
+  if(!updated || Number(updated.latitude)!==lat || Number(updated.longitude)!==lng) redirect("/admin/prestations?erreur=position");
   revalidatePath("/admin/prestations");
   revalidatePath("/partenaire/prestations");
   revalidatePath("/prestations");
