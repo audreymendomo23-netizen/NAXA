@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/server";
+import { supabasePublic } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function GET(request:NextRequest) {
   const radius=numberParam(params.get("rayon_km"),1,100);
   if(lat==null||lng==null||radius==null) return NextResponse.json({error:"Coordonnées GPS ou rayon invalides."},{status:400});
   try {
-    const {data,error} = await (supabaseAdmin() as any).rpc("get_home_service_catalog_nearby",{p_latitude:lat,p_longitude:lng,p_radius_km:radius});
+    const {data,error} = await (supabasePublic(0) as any).rpc("get_home_service_catalog_nearby",{p_latitude:lat,p_longitude:lng,p_radius_km:radius});
     if(error) {
       console.error("[NAXA] Recherche de prestations à proximité indisponible",error);
       return NextResponse.json({error:"La recherche géolocalisée est temporairement indisponible."},{status:503});
