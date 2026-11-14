@@ -238,19 +238,6 @@ class NaxaBleForegroundService : Service() {
             return JSONArray(String(cipher.doFinal(encrypted), Charsets.UTF_8))
         }
 
-        fun acknowledgeEvents(context: android.content.Context, ids: Set<String>) {
-            if (ids.isEmpty()) return
-            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-            synchronized(NaxaBleForegroundService::class.java) {
-                val old = decryptQueue(prefs.getString(QUEUE_KEY, null))
-                val next = JSONArray()
-                for (index in 0 until old.length()) {
-                    val item = old.optJSONObject(index) ?: continue
-                    if (!ids.contains(item.optString("eventId"))) next.put(item)
-                }
-                prefs.edit().putString(QUEUE_KEY, encryptQueue(next.toString())).apply()
-            }
-        }
     }
 
     private data class DeviceSession(
