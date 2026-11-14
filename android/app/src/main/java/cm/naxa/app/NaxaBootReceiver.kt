@@ -3,6 +3,7 @@ package cm.naxa.app
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,12 @@ class NaxaBootReceiver : BroadcastReceiver() {
 
         val owners = NaxaBleForegroundService.savedSessionOwners(context)
         if (owners.isEmpty()) return
+        val bluetoothPermission = if (Build.VERSION.SDK_INT >= 31) {
+            android.Manifest.permission.BLUETOOTH_CONNECT
+        } else {
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (context.checkSelfPermission(bluetoothPermission) != PackageManager.PERMISSION_GRANTED) return
         if (SecureTokenStore(context).read() == null) {
             NaxaBleForegroundService.stopForLogout(context)
             return
