@@ -81,6 +81,7 @@ const nativeBleService = fs.readFileSync("android/app/src/main/java/cm/naxa/app/
 const androidManifest = fs.readFileSync("android/app/src/main/AndroidManifest.xml", "utf8");
 const nativeMainActivity = fs.readFileSync("android/app/src/main/java/cm/naxa/app/MainActivity.kt", "utf8");
 const bootReceiver = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBootReceiver.kt", "utf8");
+const nativeReminderReceiver = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaReminderReceiver.kt", "utf8");
 const nativeSuiviRepository = fs.readFileSync("android/app/src/main/java/cm/naxa/app/SuiviBluetoothRepository.kt", "utf8");
 const nativeGattDecoder = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaGattMeasurementDecoder.kt", "utf8");
 const nativeGattUnitTests = fs.readFileSync("android/app/src/test/java/cm/naxa/app/NaxaGattMeasurementDecoderTest.kt", "utf8");
@@ -201,6 +202,9 @@ assert.match(nativeGattUnitTests, /decodesTemperatureAndOximetry/);
 assert.match(nativeGattUnitTests, /decodesWeightAndBodyComposition/);
 assert.match(nativeGattUnitTests, /rejectsMalformedAndUnknownFrames/);
 
+assert.match(bootReceiver, /class NaxaBootReceiver : BroadcastReceiver\\(\\)/, "le récepteur de démarrage doit être déclaré une seule fois dans son fichier dédié");
+assert.match(nativeReminderReceiver, /class NaxaReminderReceiver : AndroidBroadcastReceiver\\(\\)/, "le récepteur de rappels doit garder son propre type");
+assert.doesNotMatch(nativeReminderReceiver, /class NaxaBootReceiver/, "aucune seconde déclaration de NaxaBootReceiver ne doit bloquer la compilation Kotlin");
 assert.match(nativeBleService, /DEVICE_SERVICE_FILTERS/, "les profils GATT doivent être filtrés selon la catégorie choisie");
 assert.match(nativeBleService, /if \(serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F"\) continue/, "un appareil ne doit pas être accepté sur un profil GATT sans rapport avec sa catégorie");
 assert.match(nativeBleService, /fun requestScan\(context: android\.content\.Context, ownerId: String\)/, "le service doit exposer une commande de scan au code Compose");
