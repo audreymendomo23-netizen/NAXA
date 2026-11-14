@@ -106,6 +106,7 @@ assert.match(nativeBleService, /queue\.length\(\) - 300/, "la file BLE native do
 assert.match(nativeBleService, /"queueOverflow"/, "un dépassement de file BLE doit produire un événement explicite");
 assert.match(component, /detail\.type==="queueOverflow"/, "l'utilisateur doit être averti en cas de perte liée au débordement BLE");
 assert.match(nativeBleService, /FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE/, "la connexion BLE Android doit utiliser le type connectedDevice");
+assert.match(nativeBleService, /"180A" to "2A29"[\s\S]*?"180A" to "2A24"[\s\S]*?"180A" to "2A26"[\s\S]*?"180F" to "2A19"/, "les informations fabricant/modèle/firmware et la batterie doivent être découvertes en GATT");
 assert.match(androidManifest, /android:foregroundServiceType="connectedDevice"/, "le manifeste doit déclarer le service BLE connecté");
 assert.match(androidManifest, /\.NaxaBootReceiver/, "le manifeste doit déclarer le récepteur de redémarrage BLE");
 assert.match(bootReceiver, /AuthRepository\(SecureTokenStore\(context\)\)\.restoreSession\(\)/, "la reprise au redémarrage doit revalider le compte côté serveur");
