@@ -512,3 +512,17 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 **Conclusion :** l'inventaire prouve qu'il existe deux autres projets, mais leur contenu Auth n'a pas pu être vérifié à cette passe. Il est donc impossible d'affirmer que les comptes recherchés s'y trouvent ou non. Production n'a subi aucune écriture ni migration ; seule une requête SELECT agrégée a été tentée et rejetée. Aucun déploiement Vercel.
 
 **Point de reprise :** lorsque les bases seront accessibles, relancer uniquement le comptage agrégé Auth/profils sur Production et l'ancien Replay, sans afficher les adresses e-mail et sans modifier les utilisateurs.
+
+
+### Clôture du contrôle de publication Production (14/11/2026)
+
+**État final Vercel : READY — confirmé.**
+- Déploiement : `dpl_3RorCudtNALUXSS4yPTAaMWcQXqb`.
+- Commit servi : `4d86a1e94f9cff938ca6877325042cc9703d41c5` (branche `main`).
+- Alias attachés au déploiement : `nnaxa.vercel.app`, `naxa-opal.vercel.app`, `naxa-naxa3.vercel.app`, `naxa-git-main-naxa3.vercel.app`.
+- `aliasError: null`.
+- Erreurs runtime agrégées sur les 30 dernières minutes : aucune.
+- Logs runtime `error/fatal` pour ce déploiement sur la fenêtre de 30 minutes : aucun résultat.
+- Les 392 tests du build restent à 392 PASS / 0 FAIL (preuve des événements de build consultés).
+
+**Conclusion :** publication Production terminée et état Vercel vert. Cela confirme la disponibilité du déploiement et l'association des alias, mais ne remplace pas un parcours manuel authentifié dans l'interface Admin. Le contrôle navigateur Admin reste à effectuer.
