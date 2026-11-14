@@ -146,7 +146,7 @@ assert.ok(queueEnqueueBlock, "le chemin d'insertion BLE doit être présent");
 assert.doesNotMatch(queueEnqueueBlock[0], /firstRetained|queue\.length\(\) - 299|removeAt\(/, "la saturation ne doit plus tronquer les événements déjà acceptés");
 assert.match(queueEnqueueBlock[0], /putString\(OVERFLOW_KEY, encryptQueue\(markerQueue\.toString\(\)\)\)/, "le marqueur doit être durable sans consommer une place de mesure");
 assert.match(nativeMainActivity, /val droppedMeasurements = event\.optInt\("droppedMeasurementCount", -1\)/, "l'interface native doit lire le compte des mesures refusées");
-assert.match(nativeMainActivity, /File Bluetooth saturée:[\s\S]*?Synchronisez puis reconnectez les appareils/, "l'interface native doit afficher la saturation et la reprise manuelle");
+assert.match(nativeMainActivity, /File Bluetooth saturée\s*:[\s\S]*?Synchronisez puis reconnectez les appareils/, "l'interface native doit afficher la saturation et la reprise manuelle");
 assert.match(component, /detail\.type==="queueOverflow"/, "l'utilisateur web doit rester averti en cas de perte liée au débordement BLE");
 assert.match(nativeBleService, /FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE/, "la connexion BLE Android doit utiliser le type connectedDevice");
 assert.match(nativeBleService, /"180A" to "2A29"[\s\S]*?"180A" to "2A24"[\s\S]*?"180A" to "2A26"[\s\S]*?"180F" to "2A19"/, "les informations fabricant/modèle/firmware et la batterie doivent être découvertes en GATT");
