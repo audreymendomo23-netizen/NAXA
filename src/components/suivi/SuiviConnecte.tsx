@@ -252,7 +252,9 @@ export function SuiviConnecte() {
             if(!eventId||seen.has(eventId))continue;
             seen.add(eventId);
             detail.acknowledge=()=>{
-              try{native.acknowledgeBleEvents?.(JSON.stringify([eventId]));seen.delete(eventId);}catch{/* L'événement reste dans la file native. */}
+              try{native.acknowledgeBleEvents?.(JSON.stringify([eventId]));}
+              catch{/* L'événement reste dans la file native. */}
+              finally{seen.delete(eventId);}
             };
             detail.retry=()=>{seen.delete(eventId);};
             window.dispatchEvent(new CustomEvent("naxa-android-ble",{detail}));
