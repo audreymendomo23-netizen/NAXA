@@ -488,12 +488,34 @@ private fun NativeHome(
 
 private data class NativeBleDevice(val id: String, val name: String, val rssi: Int)
 
+private fun nativeDeviceConsentFamily(deviceKey: String): String? = when (deviceKey) {
+    "tensiometre", "thermometre", "oxymetre", "capteur_cardiaque_bluetooth" -> "constantes"
+    "glucometre", "balance", "balance_impedance" -> "metabolisme"
+    "podometre", "montre_connectee", "bracelet_activite" -> "activite"
+    else -> null
+}
+
+private fun nativeMeasurementConsentFamily(type: String): String? = when (type) {
+    "tension_systolique", "tension_diastolique", "frequence_cardiaque", "temperature",
+    "saturation_oxygene", "frequence_respiratoire", "debit_expiratoire", "ecg_note",
+    "capacite_vitale" -> "constantes"
+    "glycemie", "poids", "taille", "imc", "cholesterol_total", "masse_grasse",
+    "masse_musculaire", "masse_osseuse", "cetonemie", "acide_urique", "cholesterol_hdl",
+    "cholesterol_ldl" -> "metabolisme"
+    "pas_jour", "activite_minutes", "hydratation_ml" -> "activite"
+    "sommeil_heures" -> "sommeil"
+    "douleur_score", "humeur_score", "cycle_jour", "symptome_note" -> "bien_etre"
+    "medicament_pris" -> "traitements"
+    else -> null
+}
+
 @Composable
 private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) {
     val context = LocalContext.current
     var selectedDeviceKey by remember { mutableStateOf("capteur_cardiaque_bluetooth") }
     var devices by remember { mutableStateOf<List<NativeBleDevice>>(emptyList()) }
     var connectedDevices by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var nativeDeviceIds by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var consentFamilies by remember { mutableStateOf<Set<String>>(emptySet()) }
     var consentLoaded by remember { mutableStateOf(false) }
     var consentBusy by remember { mutableStateOf(false) }
@@ -547,6 +569,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         }
     }
 
+
     LaunchedEffect(ownerUserId) {
         while (true) {
             try {
@@ -564,7 +587,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             status = "Recherche Bluetooth en cours…"
                         }
                         "deviceFound" -> {
-                            if (event.optString("ownerUserId") == ownerUserId) {
+                            if (eventOwner == ownerUserId) {
                                 val id = event.optString("deviceId")
                                 if (id.isNotBlank() && devices.none { it.id == id }) {
                                     devices = devices + NativeBleDevice(
@@ -581,24 +604,80 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                         }
                         "connecting" -> status = "Connexion à ${event.optString("deviceName", "l’appareil")}…"
                         "connected" -> {
-                            if (event.optString("ownerUserId") == ownerUserId) {
+                            if (eventOwner == ownerUserId) {
                                 connectedDevices = connectedDevices + (event.optString("deviceId") to event.optString("deviceKey"))
                                 status = "Connexion Bluetooth établie. Vérification des profils GATT en cours."
                             }
                         }
                         "profiles" -> {
-                            if (event.optString("ownerUserId") == ownerUserId) {
-                                status = if (event.optInt("profileCount") > 0) "Profils Bluetooth détectés. La liaison est active."
-                                    else "Aucun profil GATT compatible avec cette famille. L’appareil va être déconnecté."
-                                if (event.optInt("profileCount") <= 0) {
-                                    NaxaBleForegroundService.requestDisconnect(context, event.optString("deviceId"))
-                                    connectedDevices = connectedDevices - event.optString("deviceId")
+                            if (eventOwner == ownerUserId) {
+                                val address = event.optString("deviceId")
+                                val deviceKey = event.optString("deviceKey")
+                                if (event.optInt("profileCount") > 0) {
+                                    val deviceName = devices.firstOrNull { it.id == address }?.name ?: "Appareil Bluetooth"
+                                    val deviceRowId = trackingRepository.ensureNativeDevice(
+                                        ownerUserId, deviceKey, deviceName, address, "Bluetooth SIG", deviceKey
+                                    )
+                                    nativeDeviceIds = nativeDeviceIds + (address to deviceRowId)
+                                    status = "Appareil enregistré. Profils GATT détectés; synchronisation active."
+                                } else {
+                                    status = "Aucun profil GATT compatible avec cette famille. L’appareil va être déconnecté."
+                                    NaxaBleForegroundService.requestDisconnect(context, address)
+                                    connectedDevices = connectedDevices - address
                                 }
                             }
                         }
                         "measurement" -> {
-                            if (eventId.isNotBlank() && seenMeasurementEvents.add(eventId)) {
-                                pendingMeasurements += 1
+                            if (eventOwner != ownerUserId) continue
+                            if (eventId.isBlank()) {
+                                status = "Événement BLE sans identifiant : conservé pour diagnostic."
+                                continue
+                            }
+                            if (seenMeasurementEvents.add(eventId)) pendingMeasurements += 1
+                            try {
+                                val address = event.optString("deviceId")
+                                val deviceKey = event.optString("deviceKey")
+                                val deviceFamily = nativeDeviceConsentFamily(deviceKey)
+                                if (deviceFamily == null || deviceFamily !in consentFamilies) {
+                                    status = "Mesure ignorée : le consentement de la famille de cet appareil n’est plus actif."
+                                } else {
+                                    val deviceName = event.optString("deviceName", "Appareil Bluetooth")
+                                    val serviceUuid = event.optString("serviceUuid")
+                                    val characteristicUuid = event.optString("characteristicUuid")
+                                    val deviceRowId = nativeDeviceIds[address] ?: trackingRepository.ensureNativeDevice(
+                                        ownerUserId, deviceKey, deviceName, address, serviceUuid, characteristicUuid
+                                    ).also { nativeDeviceIds = nativeDeviceIds + (address to it) }
+                                    val decoded = NaxaGattMeasurementDecoder.decode(
+                                        serviceUuid, characteristicUuid, event.optString("payloadHex"), address
+                                    )
+                                    val consented = decoded.filter { measurement ->
+                                        nativeMeasurementConsentFamily(measurement.measurementType) in consentFamilies
+                                    }
+                                    if (consented.isNotEmpty()) {
+                                        trackingRepository.persistNativeMeasurements(
+                                            ownerUserId, deviceRowId, eventId, deviceName, consented
+                                        )
+                                        status = "Mesure décodée et enregistrée dans l’historique NAXA."
+                                    } else {
+                                        status = if (decoded.isEmpty()) {
+                                            "Profil reçu : aucune valeur de ce profil n’est historisable dans le catalogue actuel."
+                                        } else {
+                                            "Mesure ignorée : le consentement de sa famille n’est pas actif."
+                                        }
+                                    }
+                                }
+                                NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
+                                pendingMeasurements = (pendingMeasurements - 1).coerceAtLeast(0)
+                            } catch (error: UnsupportedOperationException) {
+                                status = error.message ?: "Profil Bluetooth non pris en charge."
+                                NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
+                                pendingMeasurements = (pendingMeasurements - 1).coerceAtLeast(0)
+                            } catch (error: IllegalArgumentException) {
+                                status = error.message ?: "Trame Bluetooth invalide; événement écarté."
+                                NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
+                                pendingMeasurements = (pendingMeasurements - 1).coerceAtLeast(0)
+                            } catch (error: Exception) {
+                                status = "Mesure conservée dans la file Bluetooth chiffrée; synchronisation en attente."
                             }
                         }
                         "reconnecting" -> status = "Reconnexion Bluetooth automatique en cours…"
@@ -612,16 +691,18 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                         }
                         "queueOverflow" -> status = "Attention : la file Bluetooth a débordé. Vérifiez l’historique des mesures."
                     }
-                    if (eventId.isNotBlank() && event.optString("type") != "measurement") {
+                    if (eventId.isNotBlank() && eventType != "measurement") {
                         NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
                     }
                 }
             } catch (_: Exception) {
-                status = "Lecture des événements Bluetooth impossible. Les événements non acquittés sont conservés."
+                status = "Lecture/synchronisation Bluetooth indisponible. Les événements non acquittés restent chiffrés dans la file."
             }
-            kotlinx.coroutines.delay(1000)
+            kotlinx.coroutines.delay(1500)
         }
     }
+
+
 
     Column(
         Modifier.fillMaxSize().background(NaxaBackground).verticalScroll(rememberScrollState()).padding(20.dp)
@@ -765,13 +846,13 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         if (pendingMeasurements > 0) {
             Spacer(Modifier.height(12.dp))
             Text(
-                "$pendingMeasurements événement(s) de mesure attendent encore le moteur de synchronisation NAXA.",
+                "$pendingMeasurements événement(s) de mesure attendent une synchronisation confirmée.",
                 color = Color(0xFF9A6B00), fontSize = 12.sp
             )
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            "La découverte et la demande de connexion Android sont raccordées. L’enregistrement durable des appareils et le décodage/sauvegarde des mesures dans l’historique restent à intégrer avant activation complète.",
+            "Android décode les profils GATT pris en charge, enregistre les appareils et synchronise les mesures après contrôle du consentement. En cas de panne réseau, les événements restent dans la file locale chiffrée.",
             color = Color(0xFF65776F), fontSize = 12.sp
         )
     }
