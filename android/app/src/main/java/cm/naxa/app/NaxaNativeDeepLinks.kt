@@ -39,6 +39,7 @@ internal object NaxaNativeDeepLinks {
         if (
             path.isBlank() ||
             path.contains("//") ||
+            path.contains('\\') ||
             segments.any { it == "." || it == ".." } ||
             path.length > 512
         ) {
