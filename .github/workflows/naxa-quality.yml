@@ -34,3 +34,20 @@ jobs:
         run: npm install --no-audit --no-fund --no-progress
       - name: Qualité complète + build Next.js (Node 22)
         run: npm run quality && npm run build
+
+  workflow-validation:
+    name: GitHub Actions syntax and expression checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
+      - name: Validate all active workflows
+        run: "$HOME/go/bin/actionlint" -color .github/workflows/*.yml
