@@ -4,10 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "23 2 * * *"
-  # Validate the backup workflow automatically whenever its definition changes.
-  push:
-    paths:
-      - ".github/workflows/naxa-independent-backup.yml"
 
 permissions:
   contents: read
