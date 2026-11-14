@@ -1,4 +1,4 @@
-## Corrections des blocages CI / sécurité — 14/11/2026 10:xx (Africa/Douala)
+## Corrections des blocages CI / sécurité — 14/11/2026
 
 **État global : PARTIEL.** Les corrections ciblées sont enregistrées sur les branches principales GitHub/GitLab et les tests Replay correspondants passent. Les nouveaux runs Android/Qualité sont encore en cours au dernier contrôle ; Storage E2E et HIBP restent bloqués par des prérequis de secrets/plan, pas par un défaut SQL observé.
 
@@ -13,7 +13,7 @@
 
 ### Android — correction cause racine du pipeline GitLab
 
-- Pipeline GitLab initial `3068011398`, SHA `60c661d2` : **FAIL** avant compilation. La commande de licence contenait deux antislashs (`\\n`) et envoyait les caractères littéraux plutôt qu’un saut de ligne ; `sdkmanager` n’enregistrait donc pas les licences. Gradle réclamait aussi `build-tools;34.0.0`, absent de la liste téléchargée.
+- Pipeline GitLab initial `3068011398`, SHA `60c661d2` : **FAIL** avant compilation. La commande de licence contenait deux antislashs (`\\\\n`) et envoyait les caractères littéraux plutôt qu’un saut de ligne ; `sdkmanager` n’enregistrait donc pas les licences. Gradle réclamait aussi `build-tools;34.0.0`, absent de la liste téléchargée.
 - `.gitlab-ci.yml` GitLab `main` corrigé : séquence `printf 'y\\n'` réelle, `--sdk_root` explicite, vérification du fichier `licenses/android-sdk-license`, ajout de `build-tools;34.0.0` en plus des versions 35 et 36.
 - Workflow GitHub `.github/workflows/android-native-build.yml` corrigé de façon cohérente : vérification du fichier licence et installation du Build Tools 34. Le changement a aussi lancé le workflow Android GitHub.
 - Nouveau GitLab pipeline `3068018070`, SHA `1b3ec14a481f129cc517ed167d246e9ba9a5a676` : **running** au dernier contrôle, aucune preuve de succès finale encore.
