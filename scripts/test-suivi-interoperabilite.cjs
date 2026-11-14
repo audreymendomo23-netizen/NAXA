@@ -203,7 +203,7 @@ assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily,
 assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily, false\)/, "le retrait du consentement doit être disponible dans le parcours natif");
 assert.match(nativeSuiviRepository, /rest\/v1\/rpc\/suivi_set_family_consent/, "le dépôt Android doit utiliser la RPC de consentement contrôlée côté serveur");
 assert.match(nativeSuiviRepository, /Authorization", "Bearer \$token"/, "les appels de consentement natifs doivent utiliser la session Supabase du compte");
-assert.match(nativeMainActivity, /enabled = device\.id !in connectedDevices && consentLoaded && selectedFamily in consentFamilies/, "l’association d’un appareil doit aussi être bloquée sans consentement actif");
+assert.match(nativeMainActivity, /enabled = device\.id !in connectedDevices && !queueSaturated && consentLoaded && selectedFamily in consentFamilies/, "l’association d’un appareil doit être bloquée sans consentement et sans saturation");
 
 assert.match(nativeGattDecoder, /fun decode\(serviceUuid: String, characteristicUuid: String, payloadHex: String, deviceId: String\)/, "le parcours Compose doit disposer d’un décodeur GATT Kotlin natif");
 assert.match(nativeGattDecoder, /"180D" && characteristic == "2A37"/, "le décodeur natif doit couvrir la fréquence cardiaque standard");
