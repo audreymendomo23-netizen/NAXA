@@ -85,9 +85,8 @@ class NaxaBleForegroundService : Service() {
             try { decryptQueue(context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, null)).toString() } catch (_: Exception) { "[]" }
 
         fun savedSessionOwners(context: android.content.Context): Set<String> {
-            val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-                .getString(SESSIONS_KEY, "[]")
-            val sessions = try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            val sessions = try { decryptQueue(prefs.getString(SESSIONS_KEY, null)) } catch (_: Exception) { JSONArray() }
             return (0 until sessions.length()).mapNotNull { index ->
                 sessions.optJSONObject(index)?.optString("owner")?.takeIf { it.isNotBlank() }
             }.toSet()
@@ -217,8 +216,8 @@ class NaxaBleForegroundService : Service() {
     }
 
     private fun savedSessions(): JSONArray {
-        val raw = getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(SESSIONS_KEY, "[]")
-        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+        val raw = getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(SESSIONS_KEY, null)
+        return try { decryptQueue(raw) } catch (_: Exception) { JSONArray() }
     }
 
     private fun resumeSavedSessionsAfterAuth() {
@@ -462,7 +461,7 @@ class NaxaBleForegroundService : Service() {
         sessions.values.forEach { session ->
             array.put(JSONObject().put("address", session.device.address).put("key", session.key).put("owner", session.ownerId))
         }
-        getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(SESSIONS_KEY, array.toString()).apply()
+        getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(SESSIONS_KEY, encryptQueue(array.toString())).apply()
     }
 
     private fun stopAll() {
