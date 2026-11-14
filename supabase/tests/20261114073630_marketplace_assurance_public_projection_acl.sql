@@ -12,9 +12,8 @@ begin
   if not (coalesce(v_assureurs_options,'{}') @> array['security_barrier=true','security_invoker=true']) then
     raise exception 'marketplace_assureurs doit être security_barrier + security_invoker';
   end if;
-  if not (coalesce(v_conventions_options,'{}') @> array['security_barrier=true'])
-     or coalesce(v_conventions_options,'{}') @> array['security_invoker=true'] then
-    raise exception 'marketplace_assurance_conventions doit rester une projection security_barrier contrôlée';
+  if not (coalesce(v_conventions_options,'{}') @> array['security_barrier=true','security_invoker=true']) then
+    raise exception 'marketplace_assurance_conventions doit être security_barrier + security_invoker';
   end if;
 
   if not has_table_privilege('anon','public.marketplace_assureurs','SELECT')
@@ -33,14 +32,15 @@ begin
   if not has_column_privilege('anon','public.assurance_conventions','pharmacie_id','SELECT')
      or not has_column_privilege('anon','public.assurance_conventions','assureur_id','SELECT')
      or not has_column_privilege('anon','public.assurance_conventions','date_debut','SELECT')
-     or not has_column_privilege('anon','public.assurance_conventions','date_fin','SELECT') then
+     or not has_column_privilege('anon','public.assurance_conventions','date_fin','SELECT')
+     or not has_column_privilege('anon','public.assurance_conventions','statut','SELECT') then
     raise exception 'Colonnes publiques convention non accordées';
   end if;
   if has_table_privilege('anon','public.assurance_conventions','SELECT')
      or has_column_privilege('anon','public.assurance_conventions','reference_convention','SELECT')
      or has_column_privilege('anon','public.assurance_conventions','cree_par','SELECT')
      or has_column_privilege('anon','public.assurance_conventions','created_at','SELECT')
-     or has_column_privilege('anon','public.assurance_conventions','statut','SELECT') then
+     then
     raise exception 'Une colonne/table interne de convention est exposée à anon';
   end if;
 
