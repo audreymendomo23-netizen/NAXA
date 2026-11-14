@@ -167,7 +167,7 @@ assert.match(nativeAndroidBuild, /androidTestImplementation\("androidx\.test\.ex
 assert.match(nativeBleInstrumentationTests, /androidKeystoreQueueRefusesOverflowWithoutEvictingAndResumesAfterAck/);
 assert.match(nativeBleInstrumentationTests, /measurementSyncIsPersistedWithNetworkConstraint/);
 assert.match(nativeBleInstrumentationTests, /NaxaBleForegroundService\.enqueueEvent/);
-assert.match(nativeAndroidWorkflow, /android-emulator-runner@v2\.38\.0/);
+assert.match(nativeAndroidWorkflow, /reactivecircus\/android-emulator-runner@[0-9a-f]{40}/, "le runner Android doit être épinglé sur un SHA complet");
 assert.match(nativeAndroidWorkflow, /:app:connectedDebugAndroidTest/);
 assert.match(nativeBleService, /QUEUE_CAPACITY = NaxaBleQueuePolicy\.CAPACITY/, "la capacité native doit être centralisée à 300 événements");
 assert.match(nativeBleService, /if \(NaxaBleQueuePolicy\.isAtCapacity\(queue\.length\(\)\)\)/, "une file pleine doit refuser le nouvel événement au lieu d'éjecter un ancien");
