@@ -255,6 +255,64 @@ private fun NaxaRoot(
                         }
                     }
                 )
+            currentProfile != null && NaxaNativeRole.supportsPharmacyWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
+                NativeProfessionalWorkspaceScreen(
+                    profile = currentProfile,
+                    workspace = "pharmacy",
+                    onOpenNotifications = { showingNotifications = true },
+                    onLogout = {
+                        loading = true
+                        scope.launch {
+                            try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            NaxaBleForegroundService.stopForLogout(appContext)
+                            repository.signOut()
+                            profile = null
+                            guestMode = false
+                            error = null
+                            loading = false
+                        }
+                    }
+                )
+            currentProfile != null && NaxaNativeRole.supportsMedicalExamsWorkspace(
+                currentProfile.effectiveRole, currentProfile.activeWorkspace, currentProfile.activeCenterId
+            ) ->
+                NativeProfessionalWorkspaceScreen(
+                    profile = currentProfile,
+                    workspace = "medical_exams",
+                    onOpenNotifications = { showingNotifications = true },
+                    onLogout = {
+                        loading = true
+                        scope.launch {
+                            try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            NaxaBleForegroundService.stopForLogout(appContext)
+                            repository.signOut()
+                            profile = null
+                            guestMode = false
+                            error = null
+                            loading = false
+                        }
+                    }
+                )
+            currentProfile != null && NaxaNativeRole.supportsPartnerWorkspace(
+                currentProfile.effectiveRole, currentProfile.activeWorkspace, currentProfile.activePartnerId
+            ) ->
+                NativeProfessionalWorkspaceScreen(
+                    profile = currentProfile,
+                    workspace = "partner",
+                    onOpenNotifications = { showingNotifications = true },
+                    onLogout = {
+                        loading = true
+                        scope.launch {
+                            try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            NaxaBleForegroundService.stopForLogout(appContext)
+                            repository.signOut()
+                            profile = null
+                            guestMode = false
+                            error = null
+                            loading = false
+                        }
+                    }
+                )
             currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
                 UnsupportedNativeRoleScreen(
                     role = currentProfile.effectiveRole,
