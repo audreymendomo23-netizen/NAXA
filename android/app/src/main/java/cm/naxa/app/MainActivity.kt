@@ -493,8 +493,13 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
     val context = LocalContext.current
     var selectedDeviceKey by remember { mutableStateOf("capteur_cardiaque_bluetooth") }
     var devices by remember { mutableStateOf<List<NativeBleDevice>>(emptyList()) }
-    var connected by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var status by remember { mutableStateOf("Choisissez une famille de mesures puis recherchez les appareils à proximité.") }
+    var connectedDevices by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var consentFamilies by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var consentLoaded by remember { mutableStateOf(false) }
+    var consentBusy by remember { mutableStateOf(false) }
+    val trackingRepository = remember { SuiviBluetoothRepository(SecureTokenStore(context)) }
+    val scope = rememberCoroutineScope()
+    var status by remember { mutableStateOf("Vérification du consentement de suivi…") }
     var scanning by remember { mutableStateOf(false) }
     var pendingMeasurements by remember { mutableIntStateOf(0) }
     val seenMeasurementEvents = remember { mutableSetOf<String>() }
@@ -511,6 +516,23 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         "bracelet_activite" to "Bracelet d’activité",
         "podometre" to "Podomètre"
     )
+    val selectedFamily = when (selectedDeviceKey) {
+        "tensiometre", "thermometre", "oxymetre", "capteur_cardiaque_bluetooth" -> "constantes"
+        "glucometre", "balance", "balance_impedance" -> "metabolisme"
+        "podometre", "montre_connectee", "bracelet_activite" -> "activite"
+        else -> "constantes"
+    }
+    LaunchedEffect(ownerUserId) {
+        try {
+            consentFamilies = trackingRepository.loadGrantedFamilies(ownerUserId)
+            consentLoaded = true
+            status = "Consentements vérifiés. Choisissez une famille de mesures."
+        } catch (error: Exception) {
+            consentLoaded = false
+            status = error.message ?: "Impossible de vérifier les consentements. Le Bluetooth reste bloqué."
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
@@ -560,7 +582,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                         "connecting" -> status = "Connexion à ${event.optString("deviceName", "l’appareil")}…"
                         "connected" -> {
                             if (event.optString("ownerUserId") == ownerUserId) {
-                                connected = connected + event.optString("deviceId")
+                                connectedDevices = connectedDevices + (event.optString("deviceId") to event.optString("deviceKey"))
                                 status = "Connexion Bluetooth établie. Vérification des profils GATT en cours."
                             }
                         }
@@ -570,7 +592,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                     else "Aucun profil GATT compatible avec cette famille. L’appareil va être déconnecté."
                                 if (event.optInt("profileCount") <= 0) {
                                     NaxaBleForegroundService.requestDisconnect(context, event.optString("deviceId"))
-                                    connected = connected - event.optString("deviceId")
+                                    connectedDevices = connectedDevices - event.optString("deviceId")
                                 }
                             }
                         }
@@ -581,7 +603,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                         }
                         "reconnecting" -> status = "Reconnexion Bluetooth automatique en cours…"
                         "disconnected" -> {
-                            connected = connected - event.optString("deviceId")
+                            connectedDevices = connectedDevices - event.optString("deviceId")
                             status = "Appareil déconnecté."
                         }
                         "error" -> status = event.optString("message", "Erreur Bluetooth.")
@@ -610,6 +632,67 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         Text("Appareils Bluetooth", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
         Text("La connexion est gérée par Android et le service Bluetooth natif de NAXA.", color = Color(0xFF65776F), fontSize = 13.sp)
         Spacer(Modifier.height(18.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Consentement : ${selectedFamily}", fontWeight = FontWeight.SemiBold, color = NaxaInk)
+                Text(
+                    if (selectedFamily in consentFamilies) "Consentement actif pour cette famille de mesures."
+                    else "Le consentement explicite est obligatoire avant toute recherche ou connexion Bluetooth.",
+                    color = Color(0xFF65776F), fontSize = 12.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                if (selectedFamily !in consentFamilies) {
+                    Button(
+                        onClick = {
+                            consentBusy = true
+                            scope.launch {
+                                try {
+                                    trackingRepository.setFamilyConsent(ownerUserId, selectedFamily, true)
+                                    consentFamilies = consentFamilies + selectedFamily
+                                    status = "Consentement enregistré. Vous pouvez rechercher les appareils."
+                                } catch (error: Exception) {
+                                    status = error.message ?: "Le consentement n’a pas pu être enregistré."
+                                } finally { consentBusy = false }
+                            }
+                        },
+                        enabled = consentLoaded && !consentBusy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (consentBusy) "Enregistrement…" else "Donner mon consentement") }
+                } else {
+                    TextButton(
+                        onClick = {
+                            consentBusy = true
+                            scope.launch {
+                                try {
+                                    trackingRepository.setFamilyConsent(ownerUserId, selectedFamily, false)
+                                    connectedDevices.filterValues { key ->
+                                        when (key) {
+                                            "tensiometre", "thermometre", "oxymetre", "capteur_cardiaque_bluetooth" -> "constantes"
+                                            "glucometre", "balance", "balance_impedance" -> "metabolisme"
+                                            else -> "activite"
+                                        } == selectedFamily
+                                    }.keys.forEach { NaxaBleForegroundService.requestDisconnect(context, it) }
+                                    connectedDevices = connectedDevices.filterValues { key ->
+                                        when (key) {
+                                            "tensiometre", "thermometre", "oxymetre", "capteur_cardiaque_bluetooth" -> "constantes"
+                                            "glucometre", "balance", "balance_impedance" -> "metabolisme"
+                                            else -> "activite"
+                                        } != selectedFamily
+                                    }
+                                    consentFamilies = consentFamilies - selectedFamily
+                                    status = "Consentement retiré. Les connexions de cette famille sont arrêtées."
+                                } catch (error: Exception) {
+                                    status = error.message ?: "Le retrait du consentement n’a pas abouti."
+                                } finally { consentBusy = false }
+                            }
+                        },
+                        enabled = !consentBusy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Retirer mon consentement") }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
         Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.padding(16.dp)) {
                 Text("Famille de mesures", fontWeight = FontWeight.SemiBold, color = NaxaInk)
@@ -642,7 +725,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             NaxaBleForegroundService.requestScan(context, ownerUserId)
                         } else permissionLauncher.launch(missing.toTypedArray())
                     },
-                    enabled = !scanning,
+                    enabled = !scanning && consentLoaded && selectedFamily in consentFamilies,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(if (scanning) "Recherche en cours…" else "Rechercher les appareils") }
                 Spacer(Modifier.height(10.dp))
@@ -670,8 +753,8 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                 NaxaBleForegroundService.requestConnect(context, device.id, selectedDeviceKey, ownerUserId)
                                 status = "Demande de connexion envoyée à Android…"
                             },
-                            enabled = device.id !in connected
-                        ) { Text(if (device.id in connected) "Connecté" else "Associer") }
+                            enabled = device.id !in connectedDevices
+                        ) { Text(if (device.id in connectedDevices) "Connecté" else "Associer") }
                     }
                 }
             }
