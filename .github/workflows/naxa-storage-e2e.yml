@@ -1,6 +1,12 @@
 name: NAXA Replay Storage E2E
 
 on:
+  # Also run once when this workflow's own configuration changes on main.
+  # Normal application pushes remain unaffected; workflow_dispatch stays available.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/naxa-storage-e2e.yml"
   workflow_dispatch:
     inputs:
       require_role_matrix:
