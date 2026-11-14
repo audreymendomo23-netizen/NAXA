@@ -113,8 +113,7 @@ jobs:
             set -eu
             test -n "$SUPABASE_URL"
             test -n "$SUPABASE_ANON_KEY"
-            cd android
-            gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest
+            cd android && gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest
 
       - name: Publish emulator instrumentation reports
         if: always()
