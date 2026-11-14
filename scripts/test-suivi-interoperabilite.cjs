@@ -133,6 +133,7 @@ assert.match(nativeBleService, /AES\/GCM\/NoPadding/, "la file native BLE doit r
 assert.match(nativeBleService, /AndroidKeyStore/, "la clé de file BLE doit rester protégée par Android Keystore");
 assert.match(nativeBleService, /putString\(SESSIONS_KEY, encryptQueue\(array\.toString\(\)\)\)/, "les métadonnées des sessions BLE doivent être chiffrées au repos");
 assert.match(nativeBleService, /decryptQueue\(prefs\.getString\(SESSIONS_KEY, null\)\)/, "les sessions BLE doivent être déchiffrées via la clé Android Keystore");
+assert.equal((nativeBleService.match(/fun acknowledgeEvents\(/g) || []).length, 1, "le service BLE ne doit déclarer qu'une seule méthode d'acquittement");
 assert.match(nativeBleService, /QUEUE_CAPACITY = 300/, "la file BLE native doit rester bornée à 300 événements");
 assert.match(nativeBleService, /if \(queue\.length\(\) >= QUEUE_CAPACITY\)/, "une file pleine doit refuser le nouvel événement au lieu d'éjecter un ancien");
 assert.match(nativeBleService, /OVERFLOW_KEY = "queue_overflow"/, "le signal de débordement doit être conservé hors de la file des mesures");
