@@ -1,3 +1,43 @@
+## Corrections des blocages CI / sécurité — 14/11/2026 10:xx (Africa/Douala)
+
+**État global : PARTIEL.** Les corrections ciblées sont enregistrées sur les branches principales GitHub/GitLab et les tests Replay correspondants passent. Les nouveaux runs Android/Qualité sont encore en cours au dernier contrôle ; Storage E2E et HIBP restent bloqués par des prérequis de secrets/plan, pas par un défaut SQL observé.
+
+### Sécurité RPC authentifiées
+
+- Migration Replay + GitHub : `20261114094919_security_invoker_guarded_authenticated_wrappers.sql`.
+- Quatre wrappers publics passés en `SECURITY INVOKER` : `assurance_configurer_convention`, `naxa_select_active_role(text,uuid)`, `can_access_pharmacy`, `stats_pilotage_scope`. Les gardes métier restent dans leurs callees contrôlées ; `private.stats_pilotage_scope` conserve son contrôle `auth.uid()` et son périmètre métier, avec EXECUTE limité à `authenticated`.
+- Test de non-régression : `supabase/tests/20261114095000_security_invoker_wrappers.sql` **PASS**.
+- Tests de rôles après changement : 287 **9/9**, 295 **11/11**, 296 **6/6**, 297 **8/8**, 298 **7/7**, 299 **4/4** — **45 assertions PASS**.
+- Advisor Replay : fonctions `SECURITY DEFINER` exécutables par `authenticated` descendues de **229 à 225** ; **0** pour `anon`, **0 ERROR** vue. Les 225 restant sont conservées tant que chaque RPC possède son contrôle direct ou délégué ; pas de révocation massive.
+- HIBP : organisation Supabase NAXA vérifiée en plan `Free` / `tier_free`. La protection des mots de passe compromis via HaveIBeenPwned est réservée à Pro ou supérieur. Elle ne peut pas être activée sur ce plan ; aucun changement facturable n’a été lancé.
+
+### Android — correction cause racine du pipeline GitLab
+
+- Pipeline GitLab initial `3068011398`, SHA `60c661d2` : **FAIL** avant compilation. La commande de licence contenait deux antislashs (`\\n`) et envoyait les caractères littéraux plutôt qu’un saut de ligne ; `sdkmanager` n’enregistrait donc pas les licences. Gradle réclamait aussi `build-tools;34.0.0`, absent de la liste téléchargée.
+- `.gitlab-ci.yml` GitLab `main` corrigé : séquence `printf 'y\\n'` réelle, `--sdk_root` explicite, vérification du fichier `licenses/android-sdk-license`, ajout de `build-tools;34.0.0` en plus des versions 35 et 36.
+- Workflow GitHub `.github/workflows/android-native-build.yml` corrigé de façon cohérente : vérification du fichier licence et installation du Build Tools 34. Le changement a aussi lancé le workflow Android GitHub.
+- Nouveau GitLab pipeline `3068018070`, SHA `1b3ec14a481f129cc517ed167d246e9ba9a5a676` : **running** au dernier contrôle, aucune preuve de succès finale encore.
+- GitHub commit courant après correction du workflow : `c19fe9ba9f6bdeda7a9f70edc73fc881b653ab01`. Runs démarrés : Android natif `43582831485`, Quality `43582831514`, Secret Scan `43582831521`. Secret Scan **success** ; Android et Quality encore en cours au dernier contrôle.
+- Quality sur le commit précédent `38cfbcae16fc679cf42050bdd389413de9a0d463` : **success**. Le nouveau commit `c19fe9b` doit encore terminer ses propres tests et builds.
+
+### Storage E2E
+
+- Le workflow `NAXA Replay Storage E2E` est déclenchable via changement de son propre fichier sur `main` ou via `workflow_dispatch`; les pushes applicatifs ordinaires ne déclenchent pas ce job.
+- Run `43582501626` sur SHA `38cfbca` : **FAIL au préflight uniquement**. Les trois secrets GitHub Actions Replay sont absents : `NAXA_STORAGE_E2E_URL`, `NAXA_STORAGE_E2E_ANON_KEY`, `NAXA_STORAGE_E2E_ADMIN_KEY`. L’étape d’exécution binaire a été **skipped** ; aucun compte ou objet temporaire n’a été créé.
+- Pour exécuter le vrai test, créer ces trois variables dans GitHub → Settings → Secrets and variables → Actions. URL attendue : projet Replay `https://pwfftcsjyeibxxqhwysw.supabase.co`; clés à récupérer dans les paramètres/API de Replay. Ne jamais les mettre dans le dépôt ni les partager dans la conversation. Le test de matrice Auth Promoteur/Admin reste optionnel.
+
+### Pré-requis externes toujours ouverts
+
+- **HIBP** : nécessite Supabase Pro ou supérieur. Le projet est Free ; pas de montée de plan sans autorisation explicite.
+- **Storage E2E** : nécessite l’ajout des 3 secrets masqués Replay dans GitHub Actions.
+- **Notifications FCM réelles** : les tables/outbox/contrats SQL sont installés, mais aucun terminal n’a été enrôlé et aucun push réel n’est prouvé.
+- **E2E appareils** : caméra/gallery/PDF/OCR, GPS/Bluetooth, SMS/FCM et livraison de bout en bout nécessitent des téléphones et comptes de recette réels.
+- **CI Android** : attendre les runs GitLab `3068018070` et GitHub `43582831485` ; pas de statut vert global tant qu’ils ne concluent pas success.
+
+**Périmètre :** GitHub/GitLab `main` et Supabase Replay uniquement. Aucune migration Production, aucun déploiement Vercel, aucun déploiement Play Store, aucune dépense/upgrade.
+
+---
+
 ## Clôture du dernier ERROR Supabase — vues Assurance INVOKER — 14/11/2026
 
 - Migration Replay ajoutée sur `main` : `20261114075435_marketplace_assurance_conventions_invoker_min_columns`.
