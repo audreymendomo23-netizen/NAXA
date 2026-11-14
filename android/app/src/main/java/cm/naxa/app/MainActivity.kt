@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
         val repository = AuthRepository(tokenStore)
         val clientHistory = ClientHistoryRepository(tokenStore)
         val adminDashboard = AdminDashboardRepository(tokenStore)
+        val courierRepository = CourierRepository(tokenStore)
         val notifications = NativeNotificationsRepository(tokenStore)
         val catalogue = CatalogueRepository()
         val pharmacies = PharmacyRepository(this)
@@ -58,7 +59,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NaxaTheme {
                 NaxaRoot(
-                    repository, clientHistory, adminDashboard, notifications, catalogue,
+                    repository, clientHistory, adminDashboard, courierRepository, notifications, catalogue,
                     pharmacies, ageGate, fcmRegistration,
                     openPath = pendingOpenPath,
                     onOpenPathHandled = { pendingOpenPath = null },
@@ -92,6 +93,7 @@ private fun NaxaRoot(
     repository: AuthRepository,
     clientHistory: ClientHistoryRepository,
     adminDashboard: AdminDashboardRepository,
+    courierRepository: CourierRepository,
     notificationsRepository: NativeNotificationsRepository,
     catalogue: CatalogueRepository,
     pharmacies: PharmacyRepository,
@@ -222,6 +224,23 @@ private fun NaxaRoot(
                 NativeAdminDashboardScreen(
                     repository = adminDashboard,
                     deepLinkNotice = deepLinkNotice,
+                    onOpenNotifications = { showingNotifications = true },
+                    onLogout = {
+                        loading = true
+                        scope.launch {
+                            try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            NaxaBleForegroundService.stopForLogout(appContext)
+                            repository.signOut()
+                            profile = null
+                            guestMode = false
+                            error = null
+                            loading = false
+                        }
+                    }
+                )
+            currentProfile != null && NaxaNativeRole.supportsCourierWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
+                NativeCourierWorkspaceScreen(
+                    repository = courierRepository,
                     onOpenNotifications = { showingNotifications = true },
                     onLogout = {
                         loading = true
