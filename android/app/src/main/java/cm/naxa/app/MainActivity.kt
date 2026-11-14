@@ -117,6 +117,21 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
+            profile != null && !NaxaNativeRole.supportsClientWorkspace(profile.role) ->
+                UnsupportedNativeRoleScreen(
+                    role = profile.role,
+                    onLogout = {
+                        loading = true
+                        scope.launch {
+                            try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            repository.signOut()
+                            profile = null
+                            guestMode = false
+                            error = null
+                            loading = false
+                        }
+                    }
+                )
             else -> NativeHome(
                 profile = profile,
                 clientHistory = clientHistory,
@@ -622,6 +637,24 @@ private fun FeatureCard(title: String, description: String) {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = NaxaInk)
             Spacer(Modifier.height(5.dp))
             Text(description, color = Color(0xFF65776F), fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun UnsupportedNativeRoleScreen(role: String, onLogout: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Espace professionnel NAXA", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
+        Spacer(Modifier.height(12.dp))
+        Text("Votre compte est authentifié avec le rôle « $role », mais cet espace professionnel n’est pas encore disponible dans cette version Android.", color = Color(0xFF50645B))
+        Spacer(Modifier.height(10.dp))
+        Text("Par sécurité, aucun écran Client ni aucune donnée d’un autre espace ne sont affichés. Vos autorisations restent contrôlées par le serveur NAXA.", color = Color(0xFF65776F), fontSize = 13.sp)
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onLogout, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Text("Se déconnecter")
         }
     }
 }
