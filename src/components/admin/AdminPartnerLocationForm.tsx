@@ -18,7 +18,7 @@ export function AdminPartnerLocationForm({partnerId,latitude,longitude}:{partner
   const [lng,setLng]=useState(longitude);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
-  async function useGps(){
+  async function captureGpsPosition(){
     setBusy(true);setNotice("");
     try{
       const gps=await obtenirPositionGPS();
@@ -37,7 +37,7 @@ export function AdminPartnerLocationForm({partnerId,latitude,longitude}:{partner
     </div>
     {notice&&<p role="status" className="text-xs text-slate-600">{notice}</p>}
     <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={()=>void useGps()} disabled={busy} className="min-h-10 rounded-lg border border-blue-300 px-3 text-sm font-bold text-blue-900 disabled:opacity-50">{busy?"Localisation…":"Prendre la position de cet appareil"}</button>
+      <button type="button" onClick={()=>void captureGpsPosition()} disabled={busy} className="min-h-10 rounded-lg border border-blue-300 px-3 text-sm font-bold text-blue-900 disabled:opacity-50">{busy?"Localisation…":"Prendre la position de cet appareil"}</button>
       <button className="min-h-10 rounded-lg bg-blue-800 px-4 text-sm font-bold text-white">Enregistrer la position Admin</button>
     </div>
     <p className="text-xs leading-5 text-slate-500">Utilisez le GPS sur place ou saisissez les coordonnées exactes du partenaire. Les coordonnées servent au calcul de proximité ; le client ne voit pas le point GPS brut.</p>
