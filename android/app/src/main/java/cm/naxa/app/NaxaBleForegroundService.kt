@@ -51,6 +51,8 @@ class NaxaBleForegroundService : Service() {
         private const val NOTIFICATION_ID = 8421
         private const val PREFS = "naxa_ble_background"
         private const val QUEUE_KEY = "pending_events"
+        private const val OVERFLOW_KEY = "queue_overflow"
+        private const val QUEUE_CAPACITY = 300
         private const val SESSIONS_KEY = "active_sessions"
         private val SERVICE_PAIRS = listOf(
             "180D" to "2A37", "1810" to "2A35", "1809" to "2A1C",
@@ -73,38 +75,93 @@ class NaxaBleForegroundService : Service() {
             "bracelet_activite" to setOf("180D", "1814", "1816", "1826")
         )
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        fun enqueueEvent(context: android.content.Context, event: JSONObject) {
+        fun enqueueEvent(context: android.content.Context, event: JSONObject): Boolean {
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             val scheduleMeasurementSync = event.optString("type") == "measurement"
+            var stored = true
             synchronized(NaxaBleForegroundService::class.java) {
                 val queue = decryptQueue(prefs.getString(QUEUE_KEY, null))
-                event.put("eventId", UUID.randomUUID().toString())
-                queue.put(event)
-                val hasOverflowMarker = queue.optJSONObject(0)?.optString("type") == "queueOverflow"
-                val normalCapacity = 300
-                val bounded = if (queue.length() > normalCapacity) {
-                    val droppedNow = if (hasOverflowMarker) queue.length() - 300 else queue.length() - 299
-                    val previousDropped = if (hasOverflowMarker) queue.optJSONObject(0)?.optInt("droppedCount", 0) ?: 0 else 0
-                    JSONArray().put(JSONObject()
+                if (queue.length() >= QUEUE_CAPACITY) {
+                    // Keep every already accepted event. Overflow metadata is stored separately so
+                    // even a queue containing 300 measurements never has to evict an older measurement.
+                    val legacyMarkerIndex = (0 until queue.length()).firstOrNull { index ->
+                        queue.optJSONObject(index)?.optString("type") == "queueOverflow"
+                    }
+                    val previous = if (legacyMarkerIndex != null) {
+                        queue.optJSONObject(legacyMarkerIndex)
+                    } else {
+                        decryptQueue(prefs.getString(OVERFLOW_KEY, null)).optJSONObject(0)
+                    }
+                    val previousMeasurementCount = when {
+                        previous == null -> 0
+                        previous.has("droppedMeasurementCount") -> previous.optInt("droppedMeasurementCount", -1)
+                        else -> -1 // Older overflow markers did not retain the event-type breakdown.
+                    }
+                    val marker = JSONObject()
                         .put("type", "queueOverflow")
                         .put("eventId", UUID.randomUUID().toString())
-                        .put("droppedCount", previousDropped + droppedNow)).also { retained ->
-                        val firstRetained = maxOf(if (hasOverflowMarker) 2 else 1, queue.length() - 299)
-                        for (index in firstRetained until queue.length()) retained.put(queue.getJSONObject(index))
+                        .put("droppedCount", (previous?.optInt("droppedCount", 0) ?: 0) + 1)
+                        .put("droppedMeasurementCount", if (previousMeasurementCount < 0) -1 else
+                            previousMeasurementCount + if (scheduleMeasurementSync) 1 else 0)
+                    if (legacyMarkerIndex != null) {
+                        queue.put(legacyMarkerIndex, marker)
+                        check(prefs.edit().putString(QUEUE_KEY, encryptQueue(queue.toString())).commit()) {
+                            "Écriture durable du signal de débordement Bluetooth impossible."
+                        }
+                    } else {
+                        val markerQueue = JSONArray().put(marker)
+                        check(prefs.edit().putString(OVERFLOW_KEY, encryptQueue(markerQueue.toString())).commit()) {
+                            "Écriture durable du signal de débordement Bluetooth impossible."
+                        }
                     }
-                } else queue
-                // Commit the encrypted event before a durable WorkManager request can run.
-                val editor = prefs.edit().putString(QUEUE_KEY, encryptQueue(bounded.toString()))
-                val saved = if (scheduleMeasurementSync) editor.commit() else {
-                    editor.apply()
-                    true
+                    stored = false
+                } else {
+                    event.put("eventId", UUID.randomUUID().toString())
+                    queue.put(event)
+                    // Commit measurements before scheduling durable WorkManager work.
+                    val editor = prefs.edit().putString(QUEUE_KEY, encryptQueue(queue.toString()))
+                    val saved = if (scheduleMeasurementSync) editor.commit() else {
+                        editor.apply()
+                        true
+                    }
+                    check(saved) { "Écriture durable de la file Bluetooth impossible." }
                 }
-                check(saved) { "Écriture durable de la file Bluetooth impossible." }
             }
+            // Even a rejected newest measurement should wake the worker to drain older saved data.
             if (scheduleMeasurementSync) NaxaBleMeasurementSyncWorker.enqueue(context)
+            return stored
         }
+
         fun pendingEvents(context: android.content.Context): String =
-            try { decryptQueue(context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, null)).toString() } catch (_: Exception) { "[]" }
+            synchronized(NaxaBleForegroundService::class.java) {
+                val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                val events = decryptQueue(prefs.getString(QUEUE_KEY, null))
+                val hasLegacyMarker = (0 until events.length()).any { index ->
+                    events.optJSONObject(index)?.optString("type") == "queueOverflow"
+                }
+                val overflow = decryptQueue(prefs.getString(OVERFLOW_KEY, null)).optJSONObject(0)
+                if (!hasLegacyMarker && overflow != null) events.put(overflow)
+                events.toString()
+            }
+
+        fun acknowledgeEvents(context: android.content.Context, ids: Set<String>) {
+            if (ids.isEmpty()) return
+            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            synchronized(NaxaBleForegroundService::class.java) {
+                val old = decryptQueue(prefs.getString(QUEUE_KEY, null))
+                val next = JSONArray()
+                for (index in 0 until old.length()) {
+                    val item = old.optJSONObject(index) ?: continue
+                    if (!ids.contains(item.optString("eventId"))) next.put(item)
+                }
+                val overflow = decryptQueue(prefs.getString(OVERFLOW_KEY, null)).optJSONObject(0)
+                val editor = prefs.edit().putString(QUEUE_KEY, encryptQueue(next.toString()))
+                if (overflow != null && ids.contains(overflow.optString("eventId"))) {
+                    editor.remove(OVERFLOW_KEY)
+                }
+                editor.apply()
+            }
+        }
 
         fun savedSessionOwners(context: android.content.Context): Set<String> {
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
@@ -579,11 +636,32 @@ class NaxaBleForegroundService : Service() {
     private fun saveMeasurement(session: DeviceSession, characteristic: BluetoothGattCharacteristic, bytes: ByteArray) {
         if (bytes.isEmpty()) return
         val payload = bytes.joinToString("") { "%02x".format(it) }
-        enqueueEvent(this, JSONObject().put("type", "measurement")
+        val stored = enqueueEvent(this, JSONObject().put("type", "measurement")
             .put("deviceId", session.device.address).put("deviceKey", session.key)
             .put("deviceName", safeName(session.device)).put("ownerUserId", session.ownerId).put("serviceUuid", characteristic.service.uuid.toString())
             .put("characteristicUuid", characteristic.uuid.toString()).put("payloadHex", payload)
             .put("background", true))
+        if (!stored) pauseAfterQueueOverflow()
+    }
+
+    @Suppress("MissingPermission")
+    private fun pauseAfterQueueOverflow() {
+        stopDeviceScan()
+        val active = sessions.values.toList()
+        sessions.clear()
+        active.forEach { session ->
+            session.retryTask?.let(handler::removeCallbacks)
+            session.retryTask = null
+            try {
+                session.gatt?.disconnect()
+                session.gatt?.close()
+            } catch (_: SecurityException) {
+                // Keep the durable queue and saved-session state cleared even if Android revokes permission.
+            }
+        }
+        saveSessions()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     @Suppress("MissingPermission")
