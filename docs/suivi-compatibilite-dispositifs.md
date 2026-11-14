@@ -77,7 +77,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - Le Worker revalide la session NAXA et le consentement côté serveur. Les événements appartenant à un autre compte restent dans la file et ne sont jamais réattribués. Si aucun utilisateur n'est connecté, la file reste en attente et sera reprogrammée lors de la prochaine ouverture du suivi.
 - La file est propre à l’utilisateur authentifié. Les mesures dont le consentement familial n’est plus actif sont supprimées avant toute reprise.
 - Une mesure n’est retirée de la file qu’après confirmation de l’insertion serveur ou vérification du doublon complet. Les actions qui exigent le serveur restent indisponibles hors connexion.
-- Le Worker est déclenché à l'arrivée des événements; aucun intervalle périodique de synchronisation n'est utilisé. Un test instrumenté est ajouté sur émulateur Android API 35 : vérification de la file AES-GCM/Android Keystore, saturation 300/301, absence d'éviction, ACK/libération/reprise et programmation WorkManager avec contrainte réseau. Le job GitHub Actions `43551588777` est encore en cours au 14 novembre 2026. Cela ne remplace pas les essais sur téléphone physique et capteur BLE réel.
+- Le Worker est déclenché à l'arrivée des événements; aucun intervalle périodique de synchronisation n'est utilisé. Le test instrumenté Android API 35 est **PASS 2/2** : stockage AES-GCM/Android Keystore, saturation 300/301 et 302, aucun événement accepté évincé, ACK/libération/reprise, et programmation WorkManager avec contrainte réseau `CONNECTED`. Rapport XML archivé dans `naxa-android-emulator-instrumentation-reports` du run `43551588777`. Cela ne remplace pas les essais sur téléphone physique et capteur BLE réel.
 
 ## Rappels et sécurité
 
