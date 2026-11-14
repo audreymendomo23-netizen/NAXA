@@ -69,6 +69,7 @@ assert.match(nativeBleService, /fun stopForLogout\(context: android\.content\.Co
 assert.match(nativeBleService, /fun savedSessionOwners\(context: android\.content\.Context\)/, "les propriétaires des sessions BLE doivent pouvoir être vérifiés");
 assert.equal((nativeMainActivity.match(/NaxaBleForegroundService\.stopForLogout\(appContext\)/g) || []).length, 3, "les trois parcours de déconnexion doivent arrêter les sessions BLE");
 assert.match(nativeBleService, /resumeSavedSessionsAfterAuth\(\)/, "un redémarrage du service doit revalider le compte avant reconnexion");
+assert.match(nativeBleService, /if \(profile == null\) \{\s*stopForLogout\(this@NaxaBleForegroundService\)/, "une session serveur invalide doit purger les liaisons BLE persistées");
 assert.match(nativeBleService, /private fun hasBleRuntimePermission\(\): Boolean/, "le service doit contrôler l'autorisation Bluetooth avant le foreground");
 assert.match(nativeBleService, /if \(!hasBleRuntimePermission\(\)\) return START_NOT_STICKY/, "le service ne doit pas redémarrer sans permission Bluetooth");
 
