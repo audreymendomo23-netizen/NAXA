@@ -643,7 +643,7 @@ order by p.role;
 **État : CAUSE IMMÉDIATE PROUVÉE ; incohérence des indicateurs de privilèges identifiée ; correction et recette de réactivation non encore exécutées.**
 
 
-## 10. Reprise du blocage de création du Promoteur E2E (14/11/2026)
+## 26. Reprise du blocage de création du Promoteur E2E (14/11/2026)
 
 **Décision utilisateur :** poursuivre la préparation d'une identité Promoteur fictive sur Replay uniquement. L'Admin technique existant doit être conservé ; Production reste exclue.
 
