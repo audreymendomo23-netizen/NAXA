@@ -60,6 +60,18 @@ function chooseUnlinkedHybridPharmacy(pharmacies, architectures, links, promoter
   return candidate.id;
 }
 
+function buildPromoteurProfilePatch(pharmacyId) {
+  return {
+    role: "promoteur",
+    actif: true,
+    pharmacie_id: pharmacyId,
+    fonction_interne: "promoteur",
+    niveau_interne: 1,
+    niveau_hierarchique: 1,
+    architecture_code: "HYBRIDE",
+  };
+}
+
 function buildProfileMetadata() {
   return {
     username: USERNAME,
@@ -148,9 +160,8 @@ async function provision(env = process.env) {
   if (!["client", "promoteur"].includes(profiles[0].role)) throw new Error("Le profil Auth existe avec un rôle incompatible ; aucune conversion.");
 
   // Conversion de fixture uniquement : identité marquée E2E et URL épinglée Replay.
-  await api("/rest/v1/profiles?id=eq." + encodeURIComponent(user.id), "PATCH", {
-    role: "promoteur", actif: true, pharmacie_id: pharmacyIds[0],
-  }, "return=representation");
+  await api("/rest/v1/profiles?id=eq." + encodeURIComponent(user.id), "PATCH",
+    buildPromoteurProfilePatch(pharmacyIds[0]), "return=representation");
 
   const today = new Date().toISOString().slice(0, 10);
   const expiry = new Date(Date.now() + TERM_DAYS * 86400000).toISOString().slice(0, 10);
@@ -223,4 +234,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assertReplayUrl, chooseHybridPharmacies, chooseUnlinkedHybridPharmacy, buildProfileMetadata, generateEphemeralPassword };
+module.exports = { assertReplayUrl, chooseHybridPharmacies, chooseUnlinkedHybridPharmacy, buildPromoteurProfilePatch, buildProfileMetadata, generateEphemeralPassword };
