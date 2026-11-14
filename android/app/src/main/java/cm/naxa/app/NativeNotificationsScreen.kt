@@ -42,6 +42,7 @@ private val NotificationBackground = Color(0xFFF3F7F4)
 @Composable
 internal fun NativeNotificationsScreen(
     repository: NativeNotificationsRepository,
+    currentUserId: String,
     onBack: () -> Unit
 ) {
     var items by remember { mutableStateOf<List<NaxaNotificationItem>>(emptyList()) }
@@ -195,7 +196,7 @@ internal fun NativeNotificationsScreen(
                             color = NotificationInk.copy(alpha = 0.55f),
                             fontSize = 10.sp
                         )
-                        if (item.readAt == null) {
+                        if (item.readAt == null && item.userId == currentUserId) {
                             OutlinedButton(
                                 onClick = {
                                     scope.launch {
@@ -217,6 +218,12 @@ internal fun NativeNotificationsScreen(
                             ) {
                                 Text("Marquer comme lue")
                             }
+                        } else if (item.readAt == null) {
+                            Text(
+                                "Notification du périmètre professionnel : traitement réservé à l’espace associé.",
+                                color = NotificationInk.copy(alpha = 0.58f),
+                                fontSize = 11.sp
+                            )
                         }
                     }
                 }
