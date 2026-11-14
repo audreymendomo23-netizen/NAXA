@@ -26,6 +26,18 @@ const weight = decodeBle("181D", "2A9D", [0, 70, 0]);
 assert.equal(weight[0].measurement_type, "poids");
 assert.equal(weight[0].value_numeric, 70);
 
+const spotOximetry = decodeBle("1822", "2A5E", [0, 98, 0, 70, 0]);
+assert.deepEqual(spotOximetry.map(value => value.measurement_type), ["saturation_oxygene", "frequence_cardiaque"]);
+assert.deepEqual(spotOximetry.map(value => value.value_numeric), [98, 70]);
+
+const continuousOximetry = decodeBle("1822", "2A5F", [
+  0x1f, 98, 0, 70, 0, 99, 0, 72, 0, 96, 0, 68, 0,
+  0, 0, 0, 0, 0, 0, 0
+]);
+assert.deepEqual(continuousOximetry.map(value => value.measurement_type), ["saturation_oxygene", "frequence_cardiaque"]);
+assert.deepEqual(continuousOximetry.map(value => value.value_numeric), [98, 70]);
+
+
 const bodyComposition = decodeBle("181B", "2A9C", [0, 0, 250, 0]);
 assert.equal(bodyComposition[0].measurement_type, "masse_grasse");
 assert.equal(bodyComposition[0].value_numeric, 25);
