@@ -56,7 +56,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - L'écran Compose « Suivi connecté » déclenche le scan natif (12 secondes), affiche les appareils découverts et transmet la sélection au service GATT. Les permissions `BLUETOOTH_SCAN`/`BLUETOOTH_CONNECT` sont demandées au runtime sur Android 12+; localisation fine est demandée sur les versions antérieures.
 - Le scan et l'association sont conditionnés au consentement explicite de la famille de mesures, lu et enregistré via `suivi_set_family_consent`. Les événements BLE sont filtrés par propriétaire de compte et les profils GATT par catégorie d'appareil.
 - Le décodeur Kotlin natif traite les profils cardiaque, tension, température, oxymétrie, glycémie, poids et composition corporelle. L'enregistrement de l'appareil utilise `platform_device_id`; les mesures sont insérées dans `suivi_measurements` avec `sync_origin=android_native` et `device_event_id` stable.
-- L'événement n'est acquitté qu'après insertion confirmée ou vérification serveur d'un doublon complet. Une panne réseau conserve l'événement chiffré; le retry se fait tant que l'écran Compose est ouvert et reprend à la prochaine ouverture de cet écran.
+- L'événement n'est acquitté qu'après insertion confirmée ou vérification serveur d'un doublon complet. Les mesures sont commit avant la programmation d'un `OneTimeWorkRequest` WorkManager soumis à la contrainte réseau et au backoff exponentiel. La synchronisation continue écran fermé et après arrêt du processus; les jobs WorkManager persistés reprennent dès que le réseau est disponible.
 - Les trames mal formées et les profils non pris en charge sont signalés puis acquittés afin de ne pas bloquer les autres événements. Les champs vitesse/cadence non autorisés par le schéma ne sont pas persistés.
 - Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native chiffrée avec AES-GCM et une clé Android Keystore (maximum 300 événements en attente).
 - Les métadonnées des sessions persistées (adresse, identifiant logique du dispositif, propriétaire) sont également chiffrées avec AES-GCM et Android Keystore; les anciennes sessions JSON en clair restent lisibles une fois pour permettre leur migration au prochain enregistrement.
@@ -64,7 +64,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - Toute déconnexion purge les sessions Bluetooth persistées avant la révocation locale du compte; les trois parcours de déconnexion Android appliquent cette règle.
 - Après redémarrage Android ou reprise du service après arrêt du processus, les sessions ne sont restaurées qu'après revalidation serveur du compte et correspondance exacte de son identifiant propriétaire.
 - La reprise au démarrage vérifie aussi l'autorisation Bluetooth Android; en cas d'absence de permission ou d'indisponibilité réseau, aucune liaison n'est relancée sans validation ultérieure.
-- La PWA navigateur reprend ses événements via le parcours Web Bluetooth et IndexedDB. L'écran Compose Android utilise son propre lecteur natif, son décodeur Kotlin et le dépôt Supabase; aucun pont WebView n'est supposé.
+- La PWA navigateur reprend ses événements via le parcours Web Bluetooth et IndexedDB. L'écran Compose Android ne consomme plus les mesures : le service BLE écrit les événements dans la file chiffrée et un Worker dédié les décode et les persiste via le dépôt Supabase; aucun pont WebView n'est supposé.
 - Android affiche une notification persistante pendant le maintien des connexions. Le retrait d’un appareil arrête sa session de fond.
 - Si la file native atteint sa capacité, les événements les plus anciens écartés sont comptabilisés dans un événement `queueOverflow` visible dans l’interface; cette alerte impose de vérifier l’historique et la synchronisation.
 - La continuité Bluetooth en arrière-plan n’est pas disponible dans une PWA de navigateur; elle dépend du cycle de vie du navigateur et de ses autorisations.
@@ -73,9 +73,11 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 - Les mesures Bluetooth reçues mais non envoyées sont conservées dans une file IndexedDB locale, limitée à 500 événements par navigateur.
 - PWA : la reprise se déclenche au retour du réseau et lorsque l’espace redevient visible; les envois sont regroupés par lots.
-- APK : les événements reçus restent dans la file locale native chiffrée; la synchronisation est relancée lorsque l'écran Compose est actif et à sa prochaine ouverture. Le vidage périodique hors écran n'est pas encore implémenté.
+- APK : le service commit les événements de mesure dans la file AES-GCM puis programme un `OneTimeWorkRequest` réseau. WorkManager reprend automatiquement à la reconnexion réseau, même si l'écran Compose est fermé ou si le processus a été arrêté; les échecs serveur sont réessayés avec backoff exponentiel.
+- Le Worker revalide la session NAXA et le consentement côté serveur. Les événements appartenant à un autre compte restent dans la file et ne sont jamais réattribués. Si aucun utilisateur n'est connecté, la file reste en attente et sera reprogrammée lors de la prochaine ouverture du suivi.
 - La file est propre à l’utilisateur authentifié. Les mesures dont le consentement familial n’est plus actif sont supprimées avant toute reprise.
-- Une mesure n’est retirée de la file qu’après confirmation de l’insertion serveur. Les actions qui exigent le serveur restent indisponibles hors connexion.
+- Une mesure n’est retirée de la file qu’après confirmation de l’insertion serveur ou vérification du doublon complet. Les actions qui exigent le serveur restent indisponibles hors connexion.
+- Le Worker est déclenché à l'arrivée des événements; aucun intervalle périodique de synchronisation n'est utilisé. La validation runtime WorkManager (Android/connexion réseau/redémarrage) reste à exécuter.
 
 ## Rappels et sécurité
 
