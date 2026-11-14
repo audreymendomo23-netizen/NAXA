@@ -7,6 +7,7 @@ const NO_STORE_HEADERS = {
 };
 
 const PHARMACY_ROLE_CODES = new Set([
+  "promoteur",
   "pharmacie",
   "caisse",
   "responsable",
@@ -23,11 +24,9 @@ export const revalidate = 0;
 /**
  * Native/API session bootstrap.
  *
- * Uses the same active-business-role resolver as the PWA, called without a
- * profile argument so it resolves the authenticated caller. It never reads
- * naxa_profile_active_roles directly or uses service-role credentials.
- * Production does not yet expose a self-scoped active-partner resolver, so
- * partner memberships are kept out of the Client workspace until resolvable.
+ * Uses the canonical active-business-role resolver plus self-scoped reads for
+ * medical-centre staff and partner membership. No direct read of protected
+ * active-role tables and no service-role bypass are used.
  */
 export async function GET(request: Request) {
   const auth = await authenticateSupabaseBearer(request);
@@ -74,34 +73,73 @@ export async function GET(request: Request) {
     typeof resolvedRole === "string" && resolvedRole.trim()
       ? resolvedRole.trim()
       : "active_role_unresolved";
+  let activeWorkspace = "unresolved";
   let activePharmacyId: string | null = null;
   let activePartnerId: string | null = null;
   let activePartnerType: string | null = null;
+  let activeCenterId: string | null = null;
 
-  if (profile.role === "client") {
-    // This is a self-read RLS policy. Membership does not itself prove that
-    // a partner role is currently selected.
-    const { data: memberships, error: membershipError } = await auth.supabase
-      .from("partner_members")
-      .select("partner_id")
-      .eq("user_id", auth.user.id);
+  if (profile.role === "admin" && activeRole === "admin") {
+    activeWorkspace = "admin";
+  } else if (profile.role === "client") {
+    // exam_staff_assignments has an explicit self-read policy. Query only the
+    // caller's own active assignments; the table is separate from pharmacy
+    // staff assignments and its role keys must remain scoped to this domain.
+    const [{ data: examAssignments, error: examError }, { data: memberships, error: membershipError }] =
+      await Promise.all([
+        auth.supabase
+          .from("exam_staff_assignments")
+          .select("id,center_id,role_key,active_role")
+          .eq("user_id", auth.user.id)
+          .eq("is_active", true)
+          .is("revoked_at", null),
+        auth.supabase
+          .from("partner_members")
+          .select("partner_id")
+          .eq("user_id", auth.user.id),
+      ]);
 
-    if (membershipError) {
+    if (examError || membershipError) {
       return NextResponse.json(
         { ok: false, code: "PROFILE_CONTEXT_UNAVAILABLE" },
         { status: 503, headers: NO_STORE_HEADERS }
       );
     }
 
-    if (memberships && memberships.length > 0 && activeRole === "client") {
-      // Without the production active-partner resolver, selecting between
-      // Client and a partner workspace cannot be proved. Fail closed.
+    const activeExamAssignments = (examAssignments ?? []).filter(
+      (assignment) => assignment.active_role === true
+    );
+
+    if (activeExamAssignments.length > 1) {
+      // More than one active centre role conflicts with NAXA's single active
+      // workspace rule. Do not pick the first database row arbitrarily.
+      activeRole = "exam_scope_ambiguous";
+    } else if (activeExamAssignments.length === 1) {
+      if (activeRole !== "client" && activeRole !== "active_role_unresolved") {
+        activeRole = "active_role_conflict";
+      } else {
+        const assignment = activeExamAssignments[0];
+        activeRole = assignment.role_key;
+        activeCenterId = assignment.center_id;
+        activeWorkspace = "medical_exams";
+      }
+    } else if (memberships && memberships.length > 0 && activeRole === "client") {
+      // Membership alone does not prove an active Partner role. Production
+      // currently lacks the partner-scope resolver, so do not route as Client.
       activeRole = "partner_context_unresolved";
     }
   }
 
+  if (activeWorkspace === "unresolved") {
+    if (activeRole === "client" && profile.role === "client") {
+      activeWorkspace = "client";
+    } else if (PHARMACY_ROLE_CODES.has(activeRole)) {
+      activeWorkspace = "pharmacy";
+    }
+  }
+
   if (
-    PHARMACY_ROLE_CODES.has(activeRole) &&
+    activeWorkspace === "pharmacy" &&
     typeof profile.pharmacie_id === "string"
   ) {
     activePharmacyId = profile.pharmacie_id;
@@ -115,9 +153,11 @@ export async function GET(request: Request) {
       profile: {
         role: profile.role,
         activeRole,
+        activeWorkspace,
         activePharmacyId,
         activePartnerId,
         activePartnerType,
+        activeCenterId,
         active: true,
         ageVerified: profile.age_verified === true,
       },
