@@ -84,6 +84,10 @@ const bootReceiver = fs.readFileSync("android/app/src/main/java/cm/naxa/app/Naxa
 const nativeSuiviRepository = fs.readFileSync("android/app/src/main/java/cm/naxa/app/SuiviBluetoothRepository.kt", "utf8");
 const nativeGattDecoder = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaGattMeasurementDecoder.kt", "utf8");
 const nativeGattUnitTests = fs.readFileSync("android/app/src/test/java/cm/naxa/app/NaxaGattMeasurementDecoderTest.kt", "utf8");
+const nativeSyncWorker = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBleMeasurementSyncWorker.kt", "utf8");
+const nativeFamilyMapping = fs.readFileSync("android/app/src/main/java/cm/naxa/app/SuiviMeasurementFamilies.kt", "utf8");
+const nativeFamilyUnitTests = fs.readFileSync("android/app/src/test/java/cm/naxa/app/SuiviMeasurementFamiliesTest.kt", "utf8");
+const nativeAndroidBuild = fs.readFileSync("android/app/build.gradle.kts", "utf8");
 
 
 
@@ -170,10 +174,24 @@ assert.match(nativeGattDecoder, /"1822" && characteristic in setOf\("2A5E", "2A5
 assert.match(nativeGattDecoder, /"1808" && characteristic == "2A18"/, "le décodeur natif doit couvrir la glycémie standard");
 assert.match(nativeGattDecoder, /"181D" && characteristic == "2A9D"/, "le décodeur natif doit couvrir la balance standard");
 assert.match(nativeGattDecoder, /"181B" && characteristic == "2A9C"/, "le décodeur natif doit couvrir la composition corporelle standard");
-assert.match(nativeMainActivity, /NaxaGattMeasurementDecoder\.decode\(/, "Compose doit décoder les trames reçues par le service BLE");
-assert.match(nativeMainActivity, /ensureNativeDevice\(/, "l’appareil physique doit être enregistré dans le catalogue Supabase");
-assert.match(nativeMainActivity, /persistNativeMeasurements[\s\S]*?acknowledgeEvents/, "l’ACK mesure doit suivre l’écriture Supabase");
-assert.match(nativeMainActivity, /Mesure conservée dans la file Bluetooth chiffrée/, "une erreur réseau doit conserver la mesure sans ACK");
+assert.match(nativeSyncWorker, /NaxaGattMeasurementDecoder\.decode\(/, "le Worker Android doit décoder les trames BLE hors écran");
+assert.match(nativeSyncWorker, /ensureNativeDevice\(/, "le Worker doit enregistrer l’appareil dans le catalogue Supabase");
+assert.match(nativeSyncWorker, /persistNativeMeasurements[\s\S]*?acknowledgeEvents/, "l’ACK mesure doit suivre la persistance serveur");
+assert.match(nativeSyncWorker, /eventOwner != ownerId/, "le Worker ne doit jamais réattribuer une mesure à un autre compte");
+assert.match(nativeSyncWorker, /loadGrantedFamilies\(ownerId\)/, "le Worker doit relire les consentements côté serveur avant synchronisation");
+assert.match(nativeSyncWorker, /setRequiredNetworkType\(NetworkType\.CONNECTED\)/, "le Worker doit attendre une connectivité réseau");
+assert.match(nativeSyncWorker, /setBackoffCriteria\(BackoffPolicy\.EXPONENTIAL/, "le Worker doit réessayer avec backoff exponentiel");
+assert.match(nativeSyncWorker, /ExistingWorkPolicy\.APPEND_OR_REPLACE/, "les nouveaux événements doivent rejoindre le travail en cours sans annuler la chaîne");
+assert.match(nativeBleService, /scheduleMeasurementSync.*?editor\.commit\(\)/, "la trame mesure doit être commitée durablement avant de programmer le Worker");
+assert.match(nativeBleService, /NaxaBleMeasurementSyncWorker\.enqueue\(context\)/, "le service BLE doit programmer le Worker après chaque mesure");
+assert.match(nativeMainActivity, /NaxaBleMeasurementSyncWorker\.enqueue\(context\)/, "l’ouverture du suivi doit relancer les mesures restées en attente");
+assert.doesNotMatch(nativeMainActivity, /NaxaGattMeasurementDecoder\.decode\(/, "l’écran ne doit plus être le consommateur/synchroniseur des mesures");
+assert.doesNotMatch(nativeMainActivity, /persistNativeMeasurements\(/, "la persistance ne doit pas dépendre du cycle de vie Compose");
+assert.match(nativeAndroidBuild, /androidx\.work:work-runtime-ktx:2\.10\.0/, "WorkManager doit être une dépendance explicite Android");
+assert.match(nativeFamilyMapping, /fun device\(deviceKey: String\)/, "le mapping consentement appareil doit être partagé");
+assert.match(nativeFamilyMapping, /fun measurement\(type: String\)/, "le mapping consentement mesure doit être partagé");
+assert.match(nativeFamilyUnitTests, /mapsDeviceCategoriesToTheirConsentFamily/);
+assert.match(nativeFamilyUnitTests, /mapsPersistableMeasurementsToTheirConsentFamily/);
 assert.match(nativeSuiviRepository, /"sync_origin", "android_native"/, "les mesures Android doivent être tracées comme android_native");
 assert.match(nativeSuiviRepository, /"device_event_id", eventKeys\[index\]/, "chaque mesure doit avoir une clé d’événement stable");
 assert.match(nativeSuiviRepository, /existing\.containsAll\(eventKeys\)/, "un conflit 409 ne doit être accepté qu’après vérification de tous les doublons");
