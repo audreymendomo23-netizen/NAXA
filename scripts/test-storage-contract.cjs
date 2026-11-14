@@ -57,7 +57,14 @@ test("le harnais binaire est limité au Replay, envoie des octets et nettoie les
   assert.match(binaryE2E, /Buffer\.from/);
   assert.match(binaryE2E, /download\(bucket, path, token\)/);
   assert.match(binaryE2E, /createTemporaryUser/);
-  assert.match(binaryE2E, /deleteUser\(id\)/);
+  assert.match(binaryE2E, /await logoutTemporaryUser\(user\.accessToken\)/);
+  assert.match(binaryE2E, /await deleteUser\(user\.id\)/);
+  assert.match(binaryE2E, /\/auth\/v1\/logout\?scope=local/);
+  assert.ok(
+    binaryE2E.indexOf("await logoutTemporaryUser(user.accessToken)") <
+      binaryE2E.indexOf("await deleteUser(user.id)"),
+    "la session temporaire doit être révoquée avant la suppression du compte"
+  );
   assert.match(binaryE2E, /removeWithAdmin/);
   assert.match(binaryE2E, /NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX/);
 });
