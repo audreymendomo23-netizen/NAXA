@@ -488,34 +488,12 @@ private fun NativeHome(
 
 private data class NativeBleDevice(val id: String, val name: String, val rssi: Int)
 
-private fun nativeDeviceConsentFamily(deviceKey: String): String? = when (deviceKey) {
-    "tensiometre", "thermometre", "oxymetre", "capteur_cardiaque_bluetooth" -> "constantes"
-    "glucometre", "balance", "balance_impedance" -> "metabolisme"
-    "podometre", "montre_connectee", "bracelet_activite" -> "activite"
-    else -> null
-}
-
-private fun nativeMeasurementConsentFamily(type: String): String? = when (type) {
-    "tension_systolique", "tension_diastolique", "frequence_cardiaque", "temperature",
-    "saturation_oxygene", "frequence_respiratoire", "debit_expiratoire", "ecg_note",
-    "capacite_vitale" -> "constantes"
-    "glycemie", "poids", "taille", "imc", "cholesterol_total", "masse_grasse",
-    "masse_musculaire", "masse_osseuse", "cetonemie", "acide_urique", "cholesterol_hdl",
-    "cholesterol_ldl" -> "metabolisme"
-    "pas_jour", "activite_minutes", "hydratation_ml" -> "activite"
-    "sommeil_heures" -> "sommeil"
-    "douleur_score", "humeur_score", "cycle_jour", "symptome_note" -> "bien_etre"
-    "medicament_pris" -> "traitements"
-    else -> null
-}
-
 @Composable
 private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) {
     val context = LocalContext.current
     var selectedDeviceKey by remember { mutableStateOf("capteur_cardiaque_bluetooth") }
     var devices by remember { mutableStateOf<List<NativeBleDevice>>(emptyList()) }
     var connectedDevices by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var nativeDeviceIds by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var consentFamilies by remember { mutableStateOf<Set<String>>(emptySet()) }
     var consentLoaded by remember { mutableStateOf(false) }
     var consentBusy by remember { mutableStateOf(false) }
@@ -524,7 +502,6 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
     var status by remember { mutableStateOf("Vérification du consentement de suivi…") }
     var scanning by remember { mutableStateOf(false) }
     var pendingMeasurements by remember { mutableIntStateOf(0) }
-    val seenMeasurementEvents = remember { mutableSetOf<String>() }
     var showDeviceTypes by remember { mutableStateOf(false) }
     val deviceTypes = listOf(
         "capteur_cardiaque_bluetooth" to "Fréquence cardiaque",
@@ -545,6 +522,8 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         else -> "constantes"
     }
     LaunchedEffect(ownerUserId) {
+        // Flush durable BLE events left by a previous screen/process lifetime.
+        NaxaBleMeasurementSyncWorker.enqueue(context)
         try {
             consentFamilies = trackingRepository.loadGrantedFamilies(ownerUserId)
             consentLoaded = true
@@ -574,6 +553,10 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         while (true) {
             try {
                 val events = JSONArray(NaxaBleForegroundService.pendingEvents(context))
+                pendingMeasurements = (0 until events.length()).count { index ->
+                    val pending = events.optJSONObject(index)
+                    pending?.optString("type") == "measurement" && pending.optString("ownerUserId") == ownerUserId
+                }
                 for (index in 0 until events.length()) {
                     val event = events.optJSONObject(index) ?: continue
                     val eventId = event.optString("eventId")
@@ -613,7 +596,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             if (eventOwner == ownerUserId) {
                                 val address = event.optString("deviceId")
                                 val deviceKey = event.optString("deviceKey")
-                                if (event.optInt("profileCount") > 0 && nativeDeviceConsentFamily(deviceKey) in consentFamilies) {
+                                if (event.optInt("profileCount") > 0 && SuiviMeasurementFamilies.device(deviceKey) in consentFamilies) {
                                     val deviceName = devices.firstOrNull { it.id == address }?.name ?: "Appareil Bluetooth"
                                     val deviceRowId = trackingRepository.ensureNativeDevice(
                                         ownerUserId, deviceKey, deviceName, address, "Bluetooth SIG", deviceKey
@@ -632,56 +615,8 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             }
                         }
                         "measurement" -> {
-                            if (eventOwner != ownerUserId) continue
-                            if (eventId.isBlank()) {
-                                status = "Événement BLE sans identifiant : conservé pour diagnostic."
-                                continue
-                            }
-                            if (seenMeasurementEvents.add(eventId)) pendingMeasurements += 1
-                            try {
-                                val address = event.optString("deviceId")
-                                val deviceKey = event.optString("deviceKey")
-                                val deviceFamily = nativeDeviceConsentFamily(deviceKey)
-                                if (deviceFamily == null || deviceFamily !in consentFamilies) {
-                                    status = "Mesure ignorée : le consentement de la famille de cet appareil n’est plus actif."
-                                } else {
-                                    val deviceName = event.optString("deviceName", "Appareil Bluetooth")
-                                    val serviceUuid = event.optString("serviceUuid")
-                                    val characteristicUuid = event.optString("characteristicUuid")
-                                    val deviceRowId = nativeDeviceIds[address] ?: trackingRepository.ensureNativeDevice(
-                                        ownerUserId, deviceKey, deviceName, address, serviceUuid, characteristicUuid
-                                    ).also { nativeDeviceIds = nativeDeviceIds + (address to it) }
-                                    val decoded = NaxaGattMeasurementDecoder.decode(
-                                        serviceUuid, characteristicUuid, event.optString("payloadHex"), address
-                                    )
-                                    val consented = decoded.filter { measurement ->
-                                        nativeMeasurementConsentFamily(measurement.measurementType) in consentFamilies
-                                    }
-                                    if (consented.isNotEmpty()) {
-                                        trackingRepository.persistNativeMeasurements(
-                                            ownerUserId, deviceRowId, eventId, deviceName, consented
-                                        )
-                                        status = "Mesure décodée et enregistrée dans l’historique NAXA."
-                                    } else {
-                                        status = if (decoded.isEmpty()) {
-                                            "Profil reçu : aucune valeur de ce profil n’est historisable dans le catalogue actuel."
-                                        } else {
-                                            "Mesure ignorée : le consentement de sa famille n’est pas actif."
-                                        }
-                                    }
-                                }
-                                NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
-                                pendingMeasurements = (pendingMeasurements - 1).coerceAtLeast(0)
-                            } catch (error: UnsupportedOperationException) {
-                                status = error.message ?: "Profil Bluetooth non pris en charge."
-                                NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
-                                pendingMeasurements = (pendingMeasurements - 1).coerceAtLeast(0)
-                            } catch (error: IllegalArgumentException) {
-                                status = error.message ?: "Trame Bluetooth invalide; événement écarté."
-                                NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
-                                pendingMeasurements = (pendingMeasurements - 1).coerceAtLeast(0)
-                            } catch (error: Exception) {
-                                status = "Mesure conservée dans la file Bluetooth chiffrée; synchronisation en attente."
+                            if (eventOwner == ownerUserId) {
+                                status = "Mesure reçue. La synchronisation réseau continue indépendamment de cet écran."
                             }
                         }
                         "reconnecting" -> status = "Reconnexion Bluetooth automatique en cours…"
