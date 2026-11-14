@@ -10,6 +10,9 @@ const sqlTest = fs.readFileSync("supabase/tests/148_suivi_21_dispositifs_interop
 const measurementMigration = fs.readFileSync("supabase/migration_150_suivi_mesures_multidispositifs.sql", "utf8");
 const measurementTest = fs.readFileSync("supabase/tests/150_suivi_mesures_multidispositifs.sql", "utf8");
 const deviceSchemaMigration = fs.readFileSync("supabase/migrations/20261111000000_suivi_user_devices_catalog.sql", "utf8");
+const nativeBleService = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBleForegroundService.kt", "utf8");
+const androidManifest = fs.readFileSync("android/app/src/main/AndroidManifest.xml", "utf8");
+
 
 const catalogKeys = [...component.matchAll(/\{ key:"([^"]+)", name:/g)].map(match => match[1]);
 assert.equal(catalogKeys.length, 21, "le catalogue UI doit présenter exactement 21 dispositifs");
@@ -44,6 +47,16 @@ for (const key of [
 assert.match(component, /createWorker\("fra\+eng"\)/, "OCR local français/anglais requis");
 assert.match(component, /BarcodeDetector/, "détection de codes-barres/QR requise");
 assert.match(component, /acceptAllDevices: true/, "détection Bluetooth multi-appareils requise");
+assert.ok(!component.includes("},12000);"), "un événement BLE natif ne doit jamais être acquitté par délai fixe");
+assert.match(component, /detail\.acknowledge\?\.\(\)/, "l'acquittement BLE doit être explicite après traitement");
+assert.match(component, /await sb\.from\("suivi_measurements"\)\.insert\(rows\)[\s\S]*?detail\.acknowledge\?\.\(\)/, "une mesure BLE ne doit être acquittée qu'après insertion serveur");
+assert.match(component, /await enqueueSuiviMeasurements\(rows\)[\s\S]*?detail\.acknowledge\?\.\(\)/, "une mesure BLE hors ligne ne doit être acquittée qu'après stockage durable");
+assert.match(nativeBleService, /AES\/GCM\/NoPadding/, "la file native BLE doit rester chiffrée AES-GCM");
+assert.match(nativeBleService, /AndroidKeyStore/, "la clé de file BLE doit rester protégée par Android Keystore");
+assert.match(nativeBleService, /queue\.length\(\) - 300/, "la file BLE native doit rester bornée");
+assert.match(nativeBleService, /FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE/, "la connexion BLE Android doit utiliser le type connectedDevice");
+assert.match(androidManifest, /android:foregroundServiceType="connectedDevice"/, "le manifeste doit déclarer le service BLE connecté");
+
 assert.match(component, /\["body_composition","body_composition_measurement"\]/, "profil Bluetooth de balance impédancemètre manquant");
 const bleProtocol = fs.readFileSync("src/lib/suivi/ble-protocols.js", "utf8");
 assert.match(bleProtocol, /"body_composition"/, "service GATT Body Composition absent des services autorisés");
