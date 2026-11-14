@@ -107,6 +107,7 @@ private fun NaxaRoot(
     var showingNotifications by remember { mutableStateOf(false) }
     var selectedClientTab by remember { mutableIntStateOf(0) }
     var searchPrefill by remember { mutableStateOf<String?>(null) }
+    var deepLinkNavigationId by remember { mutableIntStateOf(0) }
     var deepLinkNotice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
@@ -156,6 +157,7 @@ private fun NaxaRoot(
                     showingNotifications = false
                     selectedClientTab = destination.index
                     searchPrefill = destination.query
+                    deepLinkNavigationId += 1
                     deepLinkNotice = null
                 } else {
                     deepLinkNotice = "Cette destination n’appartient pas à votre espace actif."
@@ -249,6 +251,7 @@ private fun NaxaRoot(
                 fcmRegistration = fcmRegistration,
                 initialTab = selectedClientTab,
                 initialQuery = searchPrefill,
+                navigationRequestId = deepLinkNavigationId,
                 deepLinkNotice = deepLinkNotice,
                 onOpenNotifications = {
                     if (profile != null) showingNotifications = true
@@ -352,6 +355,7 @@ private fun NativeHome(
     fcmRegistration: FcmRegistrationRepository,
     initialTab: Int,
     initialQuery: String?,
+    navigationRequestId: Int,
     deepLinkNotice: String?,
     onOpenNotifications: () -> Unit,
     isGuest: Boolean,
@@ -360,9 +364,9 @@ private fun NativeHome(
 ) {
     var selected by remember { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
     var cataloguePrefill by remember { mutableStateOf(initialQuery.orEmpty()) }
-    LaunchedEffect(initialTab) { selected = initialTab.coerceIn(0, 4) }
-    LaunchedEffect(initialQuery) {
-        if (!initialQuery.isNullOrBlank()) cataloguePrefill = initialQuery
+    LaunchedEffect(navigationRequestId) {
+        selected = initialTab.coerceIn(0, 4)
+        cataloguePrefill = initialQuery.orEmpty()
     }
     val labels = listOf("Accueil", "Rechercher", "Scanner", "Achats", "Profil")
     val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.Default.CameraAlt, Icons.Default.ShoppingBag, Icons.Default.Person)
