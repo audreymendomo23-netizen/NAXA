@@ -81,6 +81,7 @@ const nativeBleService = fs.readFileSync("android/app/src/main/java/cm/naxa/app/
 const androidManifest = fs.readFileSync("android/app/src/main/AndroidManifest.xml", "utf8");
 const nativeMainActivity = fs.readFileSync("android/app/src/main/java/cm/naxa/app/MainActivity.kt", "utf8");
 const bootReceiver = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBootReceiver.kt", "utf8");
+const nativeSuiviRepository = fs.readFileSync("android/app/src/main/java/cm/naxa/app/SuiviBluetoothRepository.kt", "utf8");
 
 
 
@@ -151,6 +152,13 @@ assert.match(nativeMainActivity, /RequestMultiplePermissions\(\)/, "les permissi
 assert.match(nativeMainActivity, /NaxaBleForegroundService\.requestScan\(context, ownerUserId\)/, "l’écran Compose doit déclencher le scan par le service BLE natif");
 assert.match(nativeMainActivity, /NaxaBleForegroundService\.requestConnect\(context, device\.id, selectedDeviceKey, ownerUserId\)/, "l’écran Compose doit associer l’appareil via le service BLE natif");
 assert.match(nativeMainActivity, /eventOwner != ownerUserId/, "l’écran Compose doit isoler les événements Bluetooth par compte");
+assert.match(nativeMainActivity, /loadGrantedFamilies\(ownerUserId\)/, "le suivi Compose doit charger les consentements du compte avant le scan");
+assert.match(nativeMainActivity, /selectedFamily in consentFamilies/, "le scan Bluetooth doit être bloqué sans consentement actif");
+assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily, true\)/, "le consentement doit être explicite et enregistré côté serveur");
+assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily, false\)/, "le retrait du consentement doit être disponible dans le parcours natif");
+assert.match(nativeSuiviRepository, /rest\/v1\/rpc\/suivi_set_family_consent/, "le dépôt Android doit utiliser la RPC de consentement contrôlée côté serveur");
+assert.match(nativeBleService, /DEVICE_SERVICE_FILTERS/, "les profils GATT doivent être filtrés selon la catégorie choisie");
+assert.match(nativeBleService, /if \(serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F"\) continue/, "un appareil ne doit pas être accepté sur un profil GATT sans rapport avec sa catégorie");
 assert.match(nativeBleService, /fun requestScan\(context: android\.content\.Context, ownerId: String\)/, "le service doit exposer une commande de scan au code Compose");
 assert.match(nativeBleService, /fun requestConnect\(context: android\.content\.Context, address: String, deviceKey: String, ownerId: String\)/, "le service doit exposer une commande de connexion au code Compose");
 assert.match(nativeBleService, /\.put\("ownerUserId", session\.ownerId\)/, "les événements GATT doivent porter le compte propriétaire");
