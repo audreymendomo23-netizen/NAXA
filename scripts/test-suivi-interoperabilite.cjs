@@ -64,6 +64,7 @@ assert.match(androidManifest, /android:foregroundServiceType="connectedDevice"/,
 assert.match(androidManifest, /\.NaxaBootReceiver/, "le manifeste doit déclarer le récepteur de redémarrage BLE");
 assert.match(bootReceiver, /AuthRepository\(SecureTokenStore\(context\)\)\.restoreSession\(\)/, "la reprise au redémarrage doit revalider le compte côté serveur");
 assert.match(bootReceiver, /owners\.contains\(profile\.userId\)/, "la reprise BLE doit être isolée au compte propriétaire");
+assert.match(bootReceiver, /checkSelfPermission\(bluetoothPermission\) != PackageManager\.PERMISSION_GRANTED/, "la reprise au démarrage doit respecter l'autorisation Bluetooth Android");
 assert.match(nativeBleService, /fun stopForLogout\(context: android\.content\.Context\)/, "une déconnexion doit pouvoir purger les sessions BLE persistées");
 assert.match(nativeBleService, /fun savedSessionOwners\(context: android\.content\.Context\)/, "les propriétaires des sessions BLE doivent pouvoir être vérifiés");
 assert.equal((nativeMainActivity.match(/NaxaBleForegroundService\.stopForLogout\(appContext\)/g) || []).length, 3, "les trois parcours de déconnexion doivent arrêter les sessions BLE");
