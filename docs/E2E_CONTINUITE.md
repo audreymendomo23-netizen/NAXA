@@ -641,3 +641,25 @@ order by p.role;
 3. Ajouter une assertion de cohérence sur les rattachements/privilèges suspendus : soit les lignes sont révoquées à la suspension et reprovisionnées après réactivation, soit leur statut doit être distingué de l'autorisation effective. Ne pas corriger Production avant d'avoir validé le contrat métier et les tests de régression.
 
 **État : CAUSE IMMÉDIATE PROUVÉE ; incohérence des indicateurs de privilèges identifiée ; correction et recette de réactivation non encore exécutées.**
+
+
+## 10. Reprise du blocage de création du Promoteur E2E (14/11/2026)
+
+**Décision utilisateur :** poursuivre la préparation d'une identité Promoteur fictive sur Replay uniquement. L'Admin technique existant doit être conservé ; Production reste exclue.
+
+**Contrôle live Replay, lecture seule :**
+- Projet `pwfftcsjyeibxxqhwysw` ; inventaire inchangé : 1 identité Auth et 1 profil.
+- `public.handle_new_user()` est bien dans sa version avec garde `naxa_signup_pending=true` : une identité provisoire peut être créée sans déclencher l'erreur « Nom d'utilisateur invalide » et sans profil prématuré.
+- La définition live correspond au comportement des migrations 085/088 et au parcours OTP du dépôt. L'ancien diagnostic qui attribuait encore le blocage actuel au trigger est donc dépassé pour les créations marquées pending.
+
+**Contradiction applicative identifiée :**
+- `src/app/api/auth/signup-otp/route.ts` crée/reprend une identité provisoire avec `naxa_signup_pending=true`.
+- `src/app/api/auth/complete-signup/route.ts` ne finalise que des profils `client` ; en l'absence de profil, il insère explicitement `role='client'` et refuse un rôle existant différent.
+- Le parcours public `/creation-compte` est donc un parcours Client, pas un parcours de création de Promoteur/Partenaire.
+- Le bootstrap Admin existant ne convient pas : il ne fait qu'attribuer le rôle Admin à une identité préexistante et confirmée.
+
+**Cause immédiate actuelle :** il manque un parcours contrôlé de finalisation d'identité et d'affectation initiale pour un compte Promoteur de recette. Le correctif du trigger est déjà présent ; le prochain changement ne doit ni contourner Auth, ni modifier le trigger pour cette erreur historique.
+
+**Sécurité / actions :** aucune identité Auth, profil, affectation ou donnée métier n'a été créée/modifiée pendant cette passe ; aucune écriture SQL, migration, déploiement ou action Production. L'Admin technique est intact.
+
+**Point exact de reprise :** concevoir puis implémenter sur `main` un flux serveur restreint au projet Replay et aux comptes explicitement marqués recette, qui finalise une identité Auth confirmée en profil Promoteur selon le vrai contrat NAXA (validation d'âge/consentement, unicité username/téléphone, rôle autorisé, audit et garde environnement). Ajouter tests automatisés sur la finalisation, les refus de rôle arbitraire, les comptes non confirmés et l'interdiction Production. Ensuite seulement créer le Promoteur fictif et ses établissements/équipes via les parcours métier.
