@@ -82,6 +82,8 @@ const androidManifest = fs.readFileSync("android/app/src/main/AndroidManifest.xm
 const nativeMainActivity = fs.readFileSync("android/app/src/main/java/cm/naxa/app/MainActivity.kt", "utf8");
 const bootReceiver = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBootReceiver.kt", "utf8");
 const nativeSuiviRepository = fs.readFileSync("android/app/src/main/java/cm/naxa/app/SuiviBluetoothRepository.kt", "utf8");
+const nativeGattDecoder = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaGattMeasurementDecoder.kt", "utf8");
+const nativeGattUnitTests = fs.readFileSync("android/app/src/test/java/cm/naxa/app/NaxaGattMeasurementDecoderTest.kt", "utf8");
 
 
 
@@ -159,6 +161,28 @@ assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily,
 assert.match(nativeSuiviRepository, /rest\/v1\/rpc\/suivi_set_family_consent/, "le dépôt Android doit utiliser la RPC de consentement contrôlée côté serveur");
 assert.match(nativeSuiviRepository, /Authorization", "Bearer \$token"/, "les appels de consentement natifs doivent utiliser la session Supabase du compte");
 assert.match(nativeMainActivity, /enabled = device\.id !in connectedDevices && consentLoaded && selectedFamily in consentFamilies/, "l’association d’un appareil doit aussi être bloquée sans consentement actif");
+
+assert.match(nativeGattDecoder, /fun decode\(serviceUuid: String, characteristicUuid: String, payloadHex: String, deviceId: String\)/, "le parcours Compose doit disposer d’un décodeur GATT Kotlin natif");
+assert.match(nativeGattDecoder, /"180D" && characteristic == "2A37"/, "le décodeur natif doit couvrir la fréquence cardiaque standard");
+assert.match(nativeGattDecoder, /"1810" && characteristic == "2A35"/, "le décodeur natif doit couvrir la tension artérielle standard");
+assert.match(nativeGattDecoder, /"1809" && characteristic == "2A1C"/, "le décodeur natif doit couvrir la température standard");
+assert.match(nativeGattDecoder, /"1822" && characteristic in setOf\("2A5E", "2A5F"\)/, "le décodeur natif doit couvrir les deux profils oxymètre");
+assert.match(nativeGattDecoder, /"1808" && characteristic == "2A18"/, "le décodeur natif doit couvrir la glycémie standard");
+assert.match(nativeGattDecoder, /"181D" && characteristic == "2A9D"/, "le décodeur natif doit couvrir la balance standard");
+assert.match(nativeGattDecoder, /"181B" && characteristic == "2A9C"/, "le décodeur natif doit couvrir la composition corporelle standard");
+assert.match(nativeMainActivity, /NaxaGattMeasurementDecoder\.decode\(/, "Compose doit décoder les trames reçues par le service BLE");
+assert.match(nativeMainActivity, /ensureNativeDevice\(/, "l’appareil physique doit être enregistré dans le catalogue Supabase");
+assert.match(nativeMainActivity, /persistNativeMeasurements[\s\S]*?acknowledgeEvents/, "l’ACK mesure doit suivre l’écriture Supabase");
+assert.match(nativeMainActivity, /Mesure conservée dans la file Bluetooth chiffrée/, "une erreur réseau doit conserver la mesure sans ACK");
+assert.match(nativeSuiviRepository, /"sync_origin", "android_native"/, "les mesures Android doivent être tracées comme android_native");
+assert.match(nativeSuiviRepository, /"device_event_id", eventKeys\[index\]/, "chaque mesure doit avoir une clé d’événement stable");
+assert.match(nativeSuiviRepository, /existing\.containsAll\(eventKeys\)/, "un conflit 409 ne doit être accepté qu’après vérification de tous les doublons");
+assert.match(nativeGattUnitTests, /decodesHeartRateFromStandardGatt/);
+assert.match(nativeGattUnitTests, /decodesBloodPressureIntoPersistableSystolicAndDiastolicValues/);
+assert.match(nativeGattUnitTests, /decodesTemperatureAndOximetry/);
+assert.match(nativeGattUnitTests, /decodesWeightAndBodyComposition/);
+assert.match(nativeGattUnitTests, /rejectsMalformedAndUnknownFrames/);
+
 assert.match(nativeBleService, /DEVICE_SERVICE_FILTERS/, "les profils GATT doivent être filtrés selon la catégorie choisie");
 assert.match(nativeBleService, /if \(serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F"\) continue/, "un appareil ne doit pas être accepté sur un profil GATT sans rapport avec sa catégorie");
 assert.match(nativeBleService, /fun requestScan\(context: android\.content\.Context, ownerId: String\)/, "le service doit exposer une commande de scan au code Compose");
