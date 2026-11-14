@@ -498,8 +498,8 @@ class NaxaBleForegroundService : Service() {
                 if (serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F") continue
                 val characteristic = gatt.getService(uuid(serviceId))?.getCharacteristic(uuid(characteristicId)) ?: continue
                 val properties = characteristic.properties
-                if (serviceId in allowedServices && properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or
-                        BluetoothGattCharacteristic.PROPERTY_INDICATE or BluetoothGattCharacteristic.PROPERTY_READ) != 0) count++
+                if (serviceId in allowedServices && (properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or
+                        BluetoothGattCharacteristic.PROPERTY_INDICATE or BluetoothGattCharacteristic.PROPERTY_READ)) != 0) count++
                 if (properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
                     if (gatt.setCharacteristicNotification(characteristic, true)) {
                         val descriptor = characteristic.getDescriptor(CCCD)
