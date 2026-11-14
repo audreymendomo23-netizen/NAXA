@@ -54,7 +54,7 @@ Ces profils standards ne certifient pas les 21 catégories commerciales. Les app
 ## 5. Risques et travaux non clos
 
 1. **Raccordement APK ↔ service BLE ↔ suivi utilisateur :** bloquant.
-2. **Découverte BLE native :** le service inspecté ne démontre pas de parcours de scan et de sélection utilisable depuis l'APK.
+2. **Découverte BLE native :** le service expose maintenant `ACTION_SCAN`, contrôle `BLUETOOTH_SCAN`/localisation, publie les appareils détectés et arrête le scan après 12 secondes. Il manque encore l'écran Compose qui déclenche ce scan, affiche les appareils et appelle `ACTION_CONNECT`; le parcours reste donc inaccessible depuis l'APK.
 3. **Persistance des sessions :** les événements et les métadonnées de session (adresse, clé logique, propriétaire) sont désormais chiffrés avec AES-GCM et Android Keystore. Le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; vérifier ce chemin sur appareil et confirmer la migration.
 4. **Permissions Android :** vérifier séparément SCAN et CONNECT, les versions Android, le refus, la révocation et les restrictions de démarrage en arrière-plan.
 5. **File bornée :** le marqueur de débordement signale une perte, mais ne restaure pas les événements supprimés; vérifier également la persistance atomique et les scénarios de crash.
