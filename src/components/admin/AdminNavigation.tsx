@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const groups = [
+type AdminNavItem = { href: string; label: string; note: string };
+type AdminNavGroup = { id: string; label: string; items: AdminNavItem[] };
+
+const groups: AdminNavGroup[] = [
   {
     id: "accueil",
     label: "Accueil & supervision",
@@ -65,9 +68,9 @@ const groups = [
       { href: "/admin/profil", label: "Profil", note: "Données du compte" },
     ],
   },
-] as const;
+];
 
-const allSections = groups.flatMap((group) => group.items);
+const allSections: AdminNavItem[] = groups.flatMap((group) => group.items);
 
 function resolveActiveHref(pathname: string): string | undefined {
   // La fiche pharmacie est ouverte depuis le registre Promoteurs, mais sa route
