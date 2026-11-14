@@ -182,7 +182,7 @@ assert.match(nativeSyncWorker, /loadGrantedFamilies\(ownerId\)/, "le Worker doit
 assert.match(nativeSyncWorker, /setRequiredNetworkType\(NetworkType\.CONNECTED\)/, "le Worker doit attendre une connectivité réseau");
 assert.match(nativeSyncWorker, /setBackoffCriteria\(BackoffPolicy\.EXPONENTIAL/, "le Worker doit réessayer avec backoff exponentiel");
 assert.match(nativeSyncWorker, /ExistingWorkPolicy\.APPEND_OR_REPLACE/, "les nouveaux événements doivent rejoindre le travail en cours sans annuler la chaîne");
-assert.match(nativeBleService, /scheduleMeasurementSync.*?editor\.commit\(\)/, "la trame mesure doit être commitée durablement avant de programmer le Worker");
+assert.match(nativeBleService, /scheduleMeasurementSync[\\s\\S]*?editor\.commit\(\)/, "la trame mesure doit être commitée durablement avant de programmer le Worker");
 assert.match(nativeBleService, /NaxaBleMeasurementSyncWorker\.enqueue\(context\)/, "le service BLE doit programmer le Worker après chaque mesure");
 assert.match(nativeMainActivity, /NaxaBleMeasurementSyncWorker\.enqueue\(context\)/, "l’ouverture du suivi doit relancer les mesures restées en attente");
 assert.doesNotMatch(nativeMainActivity, /NaxaGattMeasurementDecoder\.decode\(/, "l’écran ne doit plus être le consommateur/synchroniseur des mesures");
