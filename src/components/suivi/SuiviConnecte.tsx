@@ -281,6 +281,11 @@ export function SuiviConnecte() {
       const detail=(raw as CustomEvent).detail??{};
       const deviceId=String(detail.deviceId??"");
       const deviceKey=String(detail.deviceKey??nativeDeviceRows.current.get(deviceId)?.deviceKey??"");
+      if(detail.type==="queueOverflow"){
+        const dropped=Math.max(0,Number(detail.droppedCount)||0);
+        setNotice("Attention : la file Bluetooth a atteint sa capacité. "+dropped+" événement(s) ancien(s) ont été écartés; reconnectez le réseau et vérifiez l’historique des mesures.");
+        detail.acknowledge?.();return;
+      }
       if(detail.type==="notificationPermissionGranted"){
         setPushEnabled(true);setNotice("Notifications locales Android activées pour les rappels H-5.");detail.acknowledge?.();return;
       }
