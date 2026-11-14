@@ -45,6 +45,8 @@ private val AdminBackground = Color(0xFFF3F7F4)
 @Composable
 internal fun NativeAdminDashboardScreen(
     repository: AdminDashboardRepository,
+    deepLinkNotice: String?,
+    onOpenNotifications: () -> Unit,
     onLogout: () -> Unit
 ) {
     var snapshot by remember { mutableStateOf<AdminDashboardSnapshot?>(null) }
@@ -122,11 +124,28 @@ internal fun NativeAdminDashboardScreen(
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = onOpenNotifications) {
+                    Text("Notifications")
+                }
                 OutlinedButton(
                     onClick = { scope.launch { refresh() } },
                     enabled = !loading
                 ) {
                     Text("Actualiser")
+                }
+            }
+
+            deepLinkNotice?.let { message ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF4D5)),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(
+                        message,
+                        modifier = Modifier.padding(14.dp),
+                        color = Color(0xFF694B00),
+                        fontSize = 13.sp
+                    )
                 }
             }
 
