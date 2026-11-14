@@ -2,7 +2,7 @@
 
 Date de travail : 14 novembre 2026
 Branche : `main`
-Statut : **ORANGE — architecture native non raccordée, tests et essais matériels non exécutés**
+Statut : **ORANGE — pipeline Compose → Supabase codé; validation automatisée, build APK et essais matériels non exécutés**
 
 ## 1. Périmètre contrôlé
 
@@ -18,11 +18,11 @@ Statut : **ORANGE — architecture native non raccordée, tests et essais matér
 
 Le parcours web de suivi utilise l'API Web Bluetooth dans les navigateurs compatibles et conserve un adaptateur facultatif `window.NaxaAndroid`. L'APK Android utilise Jetpack Compose et ne doit pas dépendre de l'API Web Bluetooth du navigateur.
 
-Une première intégration Compose est maintenant présente dans `MainActivity.kt` : entrée « Suivi connecté », écran natif de découverte, demande des permissions Android, association par le service BLE, lecture des événements natifs et filtrage par propriétaire de compte. Le dépôt natif charge et enregistre le consentement via la RPC `suivi_set_family_consent`; la recherche est bloquée sans consentement. Les profils GATT sont filtrés selon la catégorie choisie.
+Le parcours Compose utilise le service BLE Android natif et ne dépend pas d'un pont WebView. Il charge le consentement avant le scan, vérifie la famille de l'appareil et chaque type de mesure, puis enregistre le périphérique dans `suivi_user_devices` via son identifiant de plateforme. Le décodeur Kotlin `NaxaGattMeasurementDecoder.kt` traite les profils GATT standards pris en charge. Les valeurs autorisées sont écrites dans `suivi_measurements` avec `sync_origin=android_native`, `source=bluetooth` et une clé `device_event_id` dérivée de l'événement BLE.
 
-Le parcours Compose ne traite pas encore les événements `measurement` jusqu'à leur décodage et leur insertion dans `suivi_measurements`. Ces événements restent volontairement non acquittés dans la file native. La persistance des appareils dans `suivi_user_devices`, l'historique, le mode hors ligne et la synchronisation des mesures ne sont donc pas encore intégrés de bout en bout.
+L'ACK n'est émis qu'après insertion confirmée ou vérification serveur de toutes les clés lors d'un conflit 409. Une erreur réseau ou serveur conserve l'événement dans la file AES-GCM chiffrée; une reprise est tentée tant que l'écran Compose est actif, puis à la prochaine ouverture du suivi. Les profils non pris en charge et les trames invalides sont signalés puis acquittés pour éviter de bloquer les événements suivants.
 
-**Conséquence :** la découverte et la connexion Compose sont implémentées dans le code, mais le suivi clinique complet et la synchronisation des mesures dans l'historique restent bloquants. Le mode Web Bluetooth navigateur reste un parcours distinct.
+**Conséquence :** le pipeline natif est raccordé dans le code. Il n'est pas encore certifié par exécution : compilation APK, tests Node/JUnit et essais physiques restent obligatoires. Le parcours Web Bluetooth navigateur reste séparé.
 
 ## 3. Corrections déjà intégrées
 
@@ -33,7 +33,10 @@ Le parcours Compose ne traite pas encore les événements `measurement` jusqu'à
 - Revalidation serveur du compte et correspondance du propriétaire avant reprise d'une session.
 - Récepteur Android de redémarrage avec contrôle de session et permission Bluetooth.
 - Découverte GATT des caractéristiques Device Information (fabricant, modèle, firmware) et Battery Level.
-- Ajout de fixtures de décodage pour fréquence cardiaque, tension, température, oxymétrie, poids, composition corporelle, course, vélo d'intérieur et cadence cycliste.
+- Décodeur Kotlin natif ajouté pour fréquence cardiaque, tension systolique/diastolique, température, oxymétrie, glycémie, poids et composition corporelle; les profils d'activité sont validés mais leurs champs vitesse/cadence ne sont pas stockés tant que le schéma n'offre pas les types correspondants.
+- Enregistrement idempotent des appareils par `platform_device_id` et rafraîchissement des métadonnées de connexion.
+- Insertion des mesures avec `sync_origin=android_native`; ACK après persistance et vérification explicite des doublons HTTP 409.
+- File BLE native conservée en cas de panne réseau; tests JUnit de décodage créés et assertions structurelles complétées.
 
 ## 4. Protocoles réellement décodés
 
@@ -49,18 +52,18 @@ Le code comporte des décodeurs standards pour :
 - Fitness Machine Indoor Bike Data (1826/2AD2)
 - Cycling Speed and Cadence (1816/2A5B)
 
-Ces profils standards ne certifient pas les 21 catégories commerciales. Les appareils propriétaires, ECG, spiromètres, lecteurs lipidiques, thermomètres infrarouges et autres modèles non exposant ces profils exigent des adaptateurs spécifiques et des essais documentés.
+Le décodeur Kotlin de l'APK couvre actuellement fréquence cardiaque, tension (systolique/diastolique), température, oxymétrie, glycémie, poids et composition corporelle. Les profils course, vélo d'intérieur et cadence cycliste sont reconnus/validés, mais les champs vitesse et cadence ne sont pas enregistrés : le schéma actuel ne fournit pas de types persistables compatibles pour ces valeurs. La PWA conserve son décodeur JavaScript distinct. Ces profils standards ne certifient pas les 21 catégories commerciales. Les appareils propriétaires, ECG, spiromètres, lecteurs lipidiques, thermomètres infrarouges et autres modèles non exposant ces profils exigent des adaptateurs spécifiques et des essais documentés.
 
 ## 5. Risques et travaux non clos
 
-1. **Décodage et persistance des mesures Compose :** bloquant; les événements `measurement` sont laissés dans la file, sans insertion dans Supabase.
-2. **Découverte et association Compose :** écran natif ajouté; scan borné à 12 secondes, permissions Android, filtre GATT par catégorie et vérification du consentement. Compilation et essais d'exécution restent à prouver.
-3. **Persistance des sessions :** les événements et les métadonnées de session (adresse, clé logique, propriétaire) sont désormais chiffrés avec AES-GCM et Android Keystore. Le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; vérifier ce chemin sur appareil et confirmer la migration.
-4. **Permissions Android :** vérifier séparément SCAN et CONNECT, les versions Android, le refus, la révocation et les restrictions de démarrage en arrière-plan.
-5. **File bornée :** le marqueur de débordement signale une perte, mais ne restaure pas les événements supprimés; vérifier également la persistance atomique et les scénarios de crash.
-6. **Mesures :** ajouter des tests de limites, champs optionnels, valeurs SFLOAT spéciales, timestamps, unités et trames tronquées pour chaque décodeur.
-7. **Sécurité clinique :** la validation humaine, le consentement familial, l'appartenance du compte et l'absence de diagnostic automatique doivent être vérifiés de bout en bout.
-8. **Validation d'exécution :** compilation Gradle, tests Node, tests Android et essais sur appareils physiques non exécutés dans ce lot.
+1. **Exécution des tests :** tests JUnit ciblés ajoutés pour fréquence cardiaque, tension, température, oxymétrie, poids, composition corporelle et trames invalides; tests Node structurels élargis. Aucun des deux n'a encore été exécuté.
+2. **Compilation APK :** Gradle non exécuté; compatibilité des signatures Android Bluetooth et compilation Compose restent à confirmer.
+3. **Synchronisation hors écran :** la file chiffrée survit à la fermeture de l'écran et reprend à sa prochaine ouverture. Aucun Worker Android périodique ne vide encore la file lorsque le suivi n'est pas ouvert.
+4. **Profils d'activité :** vitesse/cadence reconnues mais non persistées car le contrat SQL ne possède pas de types compatibles. Ne pas les convertir en pas ou minutes.
+5. **Sessions chiffrées :** le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; confirmer la migration sur appareil.
+6. **Permissions Android :** tester SCAN et CONNECT, versions Android, refus, révocation et restrictions de démarrage en arrière-plan.
+7. **File bornée :** le marqueur de débordement signale une perte, mais ne restaure pas les événements supprimés; tester persistance atomique et scénarios de crash.
+8. **Validation clinique et matérielle :** consentement, isolation de comptes, absence de diagnostic automatique, essais sur modèles physiques et preuve d'APK restent à faire.
 
 ## 6. Décision d'architecture recommandée
 
