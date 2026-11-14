@@ -613,7 +613,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             if (eventOwner == ownerUserId) {
                                 val address = event.optString("deviceId")
                                 val deviceKey = event.optString("deviceKey")
-                                if (event.optInt("profileCount") > 0) {
+                                if (event.optInt("profileCount") > 0 && nativeDeviceConsentFamily(deviceKey) in consentFamilies) {
                                     val deviceName = devices.firstOrNull { it.id == address }?.name ?: "Appareil Bluetooth"
                                     val deviceRowId = trackingRepository.ensureNativeDevice(
                                         ownerUserId, deviceKey, deviceName, address, "Bluetooth SIG", deviceKey
@@ -621,7 +621,11 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                     nativeDeviceIds = nativeDeviceIds + (address to deviceRowId)
                                     status = "Appareil enregistré. Profils GATT détectés; synchronisation active."
                                 } else {
-                                    status = "Aucun profil GATT compatible avec cette famille. L’appareil va être déconnecté."
+                                    status = if (event.optInt("profileCount") > 0) {
+                                        "Consentement retiré : la liaison Bluetooth est arrêtée."
+                                    } else {
+                                        "Aucun profil GATT compatible avec cette famille. L’appareil va être déconnecté."
+                                    }
                                     NaxaBleForegroundService.requestDisconnect(context, address)
                                     connectedDevices = connectedDevices - address
                                 }
