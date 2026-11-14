@@ -55,6 +55,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 - Les appareils sélectionnés depuis l’APK sont confiés à un service Android de premier plan de type `connectedDevice`.
 - Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native chiffrée avec AES-GCM et une clé Android Keystore (maximum 300 événements en attente).
+- Les métadonnées des sessions persistées (adresse, identifiant logique du dispositif, propriétaire) sont également chiffrées avec AES-GCM et Android Keystore; les anciennes sessions JSON en clair restent lisibles une fois pour permettre leur migration au prochain enregistrement.
 - Chaque liaison est associée au compte qui l’a autorisée; une session appartenant à un autre compte est arrêtée plutôt que réattribuée.
 - Toute déconnexion purge les sessions Bluetooth persistées avant la révocation locale du compte; les trois parcours de déconnexion Android appliquent cette règle.
 - Après redémarrage Android ou reprise du service après arrêt du processus, les sessions ne sont restaurées qu'après revalidation serveur du compte et correspondance exacte de son identifiant propriétaire.
