@@ -51,6 +51,11 @@ begin
   ) values(v_livreur,v_pharmacy,'livreur','livreur','active','ordinaire',
     'Test Livreur dédié',v_now,null,v_livreur,v_now);
 
+  -- Le RPC public répond uniquement pour l'identité JWT appelante.
+  perform set_config('request.jwt.claim.sub',v_client::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_client::text,'role','authenticated')::text,true);
+
   select public.naxa_business_function(v_client) into v_selected;
   if v_selected<>'comptable' then raise exception 'Première affectation non sélectionnée automatiquement: %',v_selected; end if;
   insert into naxa_role_e2e_results values('premiere_affectation_auto_selectionnee',true,v_selected);
