@@ -36,15 +36,8 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Install dependencies (lockfile when available)
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund
-          else
-            npm install --no-audit --no-fund --no-progress
-          fi
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
       - name: Verify Replay-only credentials are configured
         shell: bash
         run: |
