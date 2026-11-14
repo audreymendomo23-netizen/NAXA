@@ -771,7 +771,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            "La détection et l’association Android sont raccordées. Le traitement et l’enregistrement des événements de mesure dans l’historique doivent encore être validés avant activation complète.",
+            "La découverte et la demande de connexion Android sont raccordées. L’enregistrement durable des appareils et le décodage/sauvegarde des mesures dans l’historique restent à intégrer avant activation complète.",
             color = Color(0xFF65776F), fontSize = 12.sp
         )
     }
