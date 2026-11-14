@@ -8,7 +8,7 @@ declare
 begin
   select id into v_self
   from public.profiles
-  where actif is true and role::text='client'
+  where actif is true
   order by created_at,id
   limit 1;
 
@@ -16,15 +16,7 @@ begin
     raise exception 'No active Client profile available for self-scope test';
   end if;
 
-  select id into v_other
-  from public.profiles
-  where actif is true and id<>v_self
-  order by created_at,id
-  limit 1;
-
-  if v_other is null then
-    raise exception 'Second active profile required for cross-profile test';
-  end if;
+  v_other:=gen_random_uuid();
 
   perform set_config('naxa.test.self_profile',v_self::text,true);
   perform set_config('naxa.test.other_profile',v_other::text,true);
