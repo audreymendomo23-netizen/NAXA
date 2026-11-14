@@ -1,3 +1,39 @@
+## Dernière clôture des CI et prérequis d'accès — 14/11/2026
+
+**État : PARTIEL, avec les blocages de code/CI corrigés.** Les parcours SQL ciblés et les trois voies CI ci-dessous sont verts. Les prérequis secrets, plan Supabase et vérification du schéma API restent ouverts ; pas de déclaration AU VERT globale.
+
+### Preuves CI finales
+
+- **Qualité web GitHub :** run `43582953350`, SHA `3479b906a24890e3614227c6e7705464d8cf8959` — **success**. Les deux jobs sont terminés : tests/TypeScript/lint/build Next.js et syntaxe/expression des workflows.
+- **Android natif GitHub :** run `43582831485`, SHA `c19fe9ba9f6bdeda7a9f70edc73fc881b653ab01` — **success, 3/3 jobs** : application Compose + tests/APK debug ; compagnon paiement standard/professional/admin + contrôles permissions/manifests ; intégration sur émulateur Android API 35.
+- **Android GitLab :** pipeline `3068018070`, SHA miroir `1b3ec14a481f129cc517ed167d246e9ba9a5a676` — **success** ; job `android_build_and_test` exécuté en 508,8 s. L’acceptation des licences SDK et l’installation de Build Tools 34/35/36 ont fonctionné, puis Gradle a terminé les compilations, tests unitaires et assemblages des variantes.
+- Aucun APK n’a été envoyé au Play Store ; les APK GitHub sont des artefacts debug internes.
+
+### Correctifs sécurité / SQL
+
+- Les 4 wrappers ciblés sont versionnés en `SECURITY INVOKER` : `assurance_configurer_convention`, `naxa_select_active_role(text,uuid)`, `can_access_pharmacy`, `stats_pilotage_scope`. Le test `20261114095000_security_invoker_wrappers.sql` passe.
+- Tests de rôles sur Replay après changement : 287 **9/9**, 295 **11/11**, 296 **6/6**, 297 **8/8**, 298 **7/7**, 299 **4/4** — **45 assertions PASS**.
+- Advisor sécurité Replay : **0 ERROR** vue `SECURITY DEFINER`, **0** fonction definer exécutable par `anon`, **225 WARN** fonctions definer exécutables par `authenticated`, **1 WARN** HIBP et **70 INFO** RLS sans policy. Les 225 RPC ont un `search_path` explicite ; l’analyse de signatures a trouvé des gardes directs ou délégués. Pas de révocation massive.
+- Sur les 70 tables RLS sans policy (64 `public`, 6 `private`), vérification ACL : zéro privilège direct `SELECT` ou écriture accordé à `anon` et `authenticated`.
+- Ni `anon` ni `authenticated` n’ont le droit `CREATE` dans `public` ou `extensions`.
+
+### Dernier point d'audit : exposition API du schéma `private`
+
+- Le rôle SQL `anon` et `authenticated` ont `USAGE` sur le schéma `private`. Inventaire Replay : 96 fonctions privées ; 45 exécutables par anon, 66 par authenticated, dont 54 `SECURITY DEFINER` exécutables par authenticated.
+- Cela **ne prouve pas** qu'elles sont joignables via PostgREST : Supabase expose uniquement les schémas inscrits dans « Exposed schemas ». La documentation officielle précise que le schéma `private` n'est pas accessible via l'API lorsqu'il n'est pas exposé. Voir [Using Custom Schemas](https://supabase.com/docs/guides/api/using-custom-schemas) et [Securing your API](https://supabase.com/docs/guides/api/securing-your-api).
+- Le connecteur utilisé ne permet pas de lire la configuration « Exposed schemas » du projet ; les paramètres PostgREST ne sont pas remontés par SQL. **Action de contrôle restante :** dans Supabase Replay → Settings → API → Exposed schemas, confirmer que `private` n'est pas présent. Ne pas révoquer l'USAGE/EXECUTE au hasard : les wrappers invoker et fonctions métier en dépendent.
+- Tant que cette vérification visuelle n'est pas attestée, l'audit du périmètre privé reste partiel.
+
+### Pré-requis externes non corrigeables par un commit
+
+- **Storage E2E :** run `43582501626` arrêté au préflight ; aucun compte/fichier de test créé. Secrets Actions manquants : `NAXA_STORAGE_E2E_URL`, `NAXA_STORAGE_E2E_ANON_KEY`, `NAXA_STORAGE_E2E_ADMIN_KEY`. Ajouter les clés **Replay seulement** dans GitHub → Settings → Secrets and variables → Actions ; ne jamais les déposer dans Git.
+- **Protection mots de passe compromis HIBP :** organisation Supabase confirmée `Free / tier_free`. Supabase réserve cette fonction au plan Pro ou supérieur. Elle reste bloquée jusqu'à une décision explicite d'upgrade et son activation dans Authentication → Password security.
+- **Push FCM / appareils réels :** structures SQL et contrats validés, mais pas de preuve de réception sur un terminal enrôlé. Recette téléphone nécessaire (push, caméra, galerie/PDF/OCR, GPS/Bluetooth, SMS et livraison jusqu'à clôture).
+
+**Périmètre exécuté :** GitHub/GitLab `main` et Supabase Replay. Aucune migration Production, aucun déploiement Vercel, aucun déploiement Play Store, aucune dépense/upgrade.
+
+---
+
 ## Corrections des blocages CI / sécurité — 14/11/2026
 
 **État global : PARTIEL.** Les corrections ciblées sont enregistrées sur les branches principales GitHub/GitLab et les tests Replay correspondants passent. Les nouveaux runs Android/Qualité sont encore en cours au dernier contrôle ; Storage E2E et HIBP restent bloqués par des prérequis de secrets/plan, pas par un défaut SQL observé.
