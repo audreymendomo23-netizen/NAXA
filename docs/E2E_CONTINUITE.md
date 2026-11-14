@@ -50,7 +50,6 @@ Les matrices Admin et Promoteur sont distinctes et ne sont pas couvertes par le 
 
 ## 3. Résultat de la recette Storage de base
 
-<badge> </badge>
 
 | Run | Événement / commit | Résultat | Motif |
 |---|---|---|---|
@@ -138,6 +137,7 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 | 14/11/2026 | `c026fb9d3737a66c8a67be150a36d994e1f5e47b` | Cause Auth « Nom d'utilisateur invalide » corrigée par le marqueur de signup provisoire. |
 | 14/11/2026 | `343363e6fc96d863597e6234647cee446cfd0ce4` | Premier diagnostic documenté ; cette révision remplace la version du document devenue dupliquée. |
 | 14/11/2026 | `7d9dadd970ef802e4327f0c49b83327696641cbe` | Révocation de la session avant suppression Auth ; run 5 SUCCESS : 11 PASS, 2 SKIP et nettoyage complet. |
+| 14/11/2026 | `3718b8bcf61710b0832524cf409b1b6123787e4f` | Consolidation du présent document ; correction de son ancienne duplication et mise à jour des preuves Storage. |
 
 ---
 
