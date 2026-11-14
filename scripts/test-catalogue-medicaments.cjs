@@ -97,29 +97,29 @@ test("sécurité : recherche courte refusée et appels externes limités dans le
   assert.match(route, /AbortSignal\.timeout\(4500\)/);
 });
 
-const photoResolver = fs.readFileSync(path.join(root, "src/lib/medicaments/photos-externes.ts"), "utf8");
 const photoRoute = fs.readFileSync(path.join(root, "src/app/api/medicaments/photo/route.ts"), "utf8");
 
-test("photos : recherche séparée de boîtes et de comprimés avec licence commerciale", () => {
-  assert.match(photoRoute, /rechercherPhotosMedicament/);
-  assert.match(photoRoute, /photos\.boite/);
-  assert.match(photoRoute, /photos\.comprime/);
-  assert.match(photoResolver, /kind: "boite" \| "comprime"/);
-  assert.match(photoResolver, /item\.coverage >= 0\.75/);
-  assert.match(photoResolver, /searchVariants/);
-  assert.match(photoResolver, /likelyCombinationMismatch/);
-  assert.match(photoResolver, /allowedCommercialLicense/);
-  assert.match(photoResolver, /sourceUrl: info\.descriptionurl/);
+test("photos : endpoint local strictement lié au catalogue et aux droits vérifiés", () => {
+  assert.match(photoRoute, /async function verifiedLocalPhoto/);
+  assert.match(photoRoute, /from\("produits"\)/);
+  assert.match(photoRoute, /from\("medicaments_referentiel_sources"\)/);
+  assert.match(photoRoute, /from\("medicaments_images"\)/);
+  assert.match(photoRoute, /eq\("statut", "image_stockee"\)/);
+  assert.match(photoRoute, /not\("licence", "is", null\)/);
+  assert.match(photoRoute, /not\("source_url", "is", null\)/);
+  assert.match(photoRoute, /exactIdentityMatch/);
+  assert.match(photoRoute, /unrequestedCombination/);
 });
 
-test("photos : aucune API RxImage arrêtée ni image non licenciée injectée automatiquement", () => {
-  assert.doesNotMatch(photoResolver, /rximage\.nlm\.nih\.gov/);
-  assert.match(photoResolver, /sources d\x27images libres par défaut/);
-  assert.match(recherche, /imageVariants\?\.comprime/);
-  assert.match(recherche, /imageVariants\?\.boite/);
-  assert.match(recherche, /Wikimedia Commons/);
+test("photos : aucune source photographique externe n'est appelée à la demande", () => {
+  assert.doesNotMatch(photoRoute, /\bfetch\s*\(/);
+  assert.doesNotMatch(photoRoute, /axios\.|got\(/);
+  assert.match(photoRoute, /photo_source_url/);
+  assert.match(photoRoute, /photo_licence/);
+  assert.match(photoRoute, /photo_verifiee_le/);
+  assert.match(recherche, /Catalogue local NAXA/);
+  assert.match(recherche, /PHOTO_MEDICAMENT_PAR_DEFAUT/);
 });
-
 
 test("provenance et notices de sécurité : champs contrôlés et visibles", () => {
   assert.match(route, /OPENFDA_API_KEY/);
@@ -154,10 +154,12 @@ test("BDPM : référentiel séparé, source publique, RLS et script d’import o
 });
 
 
-test("photos : une photo locale vérifiée ne masque pas les variantes externes complémentaires", () => {
-  assert.match(photoRoute, /const \[localPhoto, externalPhotos\] = await Promise\.all\(/);
-  assert.match(photoRoute, /comprime: localPhoto\?\.kind === "comprime" \? localPhoto : externalPhotos\.comprime/);
-  assert.match(photoRoute, /const sources = \[\.\.\.new Set\(/);
+test("photos : les deux emplacements ne reçoivent que des variantes locales vérifiées", () => {
+  assert.match(photoRoute, /const photos = \{/);
+  assert.match(photoRoute, /boite: localPhoto\?\.kind === "boite" \? localPhoto : null/);
+  assert.match(photoRoute, /comprime: localPhoto\?\.kind === "comprime" \? localPhoto : null/);
+  assert.match(photoRoute, /selected\?\.provider/);
+  assert.match(photoRoute, /aucune_source_gratuite_trouvee/);
 });
 
 test("photos : les photos locales exigent une correspondance, une licence et une source vérifiées", () => {
@@ -178,116 +180,47 @@ test("interface : source/licence visibles et image cassée remplacée sans garde
   assert.match(resultats, /imageLicense:null/);
 });
 
-test("photos : sources gratuites CIMA, Wikimedia et Open Products Facts sont intégrées avec garde-fous", () => {
-  assert.ok(photoResolver.includes("https://cima.aemps.es/cima/rest"));
-  assert.match(photoResolver, /allowedCimaImageRights/);
-  assert.match(photoResolver, /function cimaPhotoUpdateDate/);
-  assert.match(photoResolver, /photo\.fecha/);
-  assert.match(photoResolver, /for \(const entry of medicine\.fotos \?\? \[\]\)/);
-  assert.match(photoResolver, /safeCimaImageUrl\(entry\.url, registration, wantedType\)/);
-  assert.match(photoResolver, /parts\[4\] !== registration/);
-  assert.match(photoResolver, /detail\.nregistro === candidate\.nregistro/);
-  assert.match(photoResolver, /Données ouvertes AEMPS\/CIMA/);
-  assert.match(photoResolver, /derechos\\s\+reservados/);
-  assert.match(photoResolver, /for \(const record of matching\)/);
-  assert.match(photoResolver, /if \(!updatedAt\) return null/);
-  assert.match(recherche, /AEMPS \/ CIMA \(Espagne\)/);
-  assert.match(recherche, /non preuve d’AMM ou de présentation camerounaise/);
-  assert.match(photoResolver, /if \(!url \|\| !rights\) continue/);
-  assert.ok(!photoResolver.includes("CIMA_LICENSE ="));
-  assert.match(photoResolver, /materialas/);
-  assert.match(photoResolver, /formafarmac/);
-  assert.match(photoResolver, /cimaNameMatches/);
-  assert.match(photoResolver, /strictImageIdentityTokens/);
-  assert.match(photoResolver, /singleTokenIdentityMismatch/);
-  assert.match(photoResolver, /if \(wanted.length !== 1\) return true/);
-  assert.match(photoResolver, /if \(!url \|\| !rights\) continue/);
-  assert.match(photoResolver, /provider: "cima_aemps"/);
-  assert.ok(photoResolver.includes("https://world.openproductsfacts.org/api/v2/product/"));
-  assert.ok(photoResolver.includes("product?.code ?? json.code"));
-  assert.match(photoResolver, /CC BY-SA/);
-  assert.match(photoResolver, /provider: "open_products_facts"/);
-  assert.match(photoResolver, /revalidate: 604800/);
-  assert.match(photoResolver, /Deux variantes séquentielles/);
-  assert.match(photoResolver, /provider: "wikimedia_commons"/);
-  assert.match(photoRoute, /provider: "catalogue_local_verifie"/);
-  assert.ok(photoRoute.includes("selected?.provider"));
+test("photos : le résolveur de photos reste limité aux lignes locales validées", () => {
+  assert.match(photoRoute, /verifiedLocalPhoto/);
+  assert.match(photoRoute, /image_path/);
+  assert.match(photoRoute, /image_url/);
+  assert.match(photoRoute, /source_url/);
+  assert.match(photoRoute, /licence/);
+  assert.match(photoRoute, /statut/);
+  assert.doesNotMatch(photoRoute, /rechercherPhotosMedicament|allowedCommercialLicense|searchVariants/);
 });
-
 
 const cimaPhotoProjection = fs.readFileSync(path.join(root, "supabase/migration_310_cima_photo_public_projection.sql"), "utf8");
 
-test("CIMA pré-calculé : projection publique strictement filtrée et reliée au CIS exact", () => {
+test("CIMA pré-calculé : projection SQL filtrée et séparée du résolveur photo local", () => {
   assert.match(cimaPhotoProjection, /private\.medicaments_cima_bdpm_jobs/);
-  assert.doesNotMatch(cimaPhotoProjection, /private\.medicamentos_cima_bdpm_jobs/);
   assert.match(cimaPhotoProjection, /create or replace view public\.medicaments_cima_photos_public/);
   assert.match(cimaPhotoProjection, /security_barrier = true/);
   assert.match(cimaPhotoProjection, /j\.statut = 'correspondance_forte'/);
   assert.match(cimaPhotoProjection, /j\.dose_concordante is true/);
   assert.match(cimaPhotoProjection, /j\.score >= 0\.78/);
-  assert.match(cimaPhotoProjection, /forme_cima/);
-  assert.match(cimaPhotoProjection, /extensions\.unaccent/);
-  assert.match(cimaPhotoProjection, /perfusion/);
-  assert.match(cimaPhotoProjection, /suspension buvable/);
   assert.match(cimaPhotoProjection, /fotos/);
-  assert.match(cimaPhotoProjection, /fecha/);
-  assert.match(cimaPhotoProjection, /cima\[\.]aemps\[\.]es/);
+  assert.match(cimaPhotoProjection, /cima\[\.]aemps[\.]es/);
   assert.match(cimaPhotoProjection, /revoke all on public\.medicaments_cima_photos_public from public/);
   assert.match(cimaPhotoProjection, /grant select on public\.medicaments_cima_photos_public to anon, authenticated, service_role/);
   assert.doesNotMatch(cimaPhotoProjection, /select\s+j\.donnees_cima\s*,/i);
-  assert.match(route, /from\("medicaments_cima_photos_public"\)/);
-  assert.match(route, /\.in\("cis", cisList\)/);
-  assert.match(route, /function construirePhotoCima/);
-  assert.match(route, /photo mise à jour le/);
-  assert.match(recherche, /provider === "cima_aemps" \? "Forme pharmaceutique"/);
-
-  assert.match(route, /marque et présentation pouvant différer/);
-  assert.match(route, /matchExactNom/);
-  assert.match(route, /const exactBdpmMatch = bdpmProducts\.find/);
-  assert.match(route, /const match = exactBdpmMatch \?\? ingredientBdpmMatch/);
-  assert.match(route, /normaliserTerme\(match\.nom\) === normaliserTerme\(item\.name\)/);
-  assert.match(route, /parts\[4\] !== row\.nregistro/);
-  assert.match(route, /provider: "cima_aemps",\s+updatedAt\s*\n\s*};/);
+  assert.doesNotMatch(photoRoute, /medicaments_cima_photos_public/);
 });
 
-test("photos : le chargement client borne la concurrence et complète les variantes partielles", () => {
+test("photos : recherche client bornée et appels limités au catalogue local", () => {
   assert.ok(recherche.includes("Math.min(2, ciblesPhoto.length)"));
+  assert.ok(recherche.includes('fetch("/api/medicaments/photo?q="'));
   assert.ok(recherche.includes("!item.imageVariants?.boite || !item.imageVariants?.comprime"));
   assert.ok(recherche.includes("imageVariants.boite = imageVariants.boite ?? payload.photos?.boite ?? null"));
   assert.ok(recherche.includes("imageVariants.comprime = imageVariants.comprime ?? payload.photos?.comprime ?? null"));
-  assert.ok(recherche.includes("sourceDetails = [...(item.sourceDetails ?? []), ...photoSourceDetails]"));
-  assert.ok(recherche.includes("imageUrl: item.imageUrl ?? primary.url"));
+  assert.ok(recherche.includes('const providerLabel = (_provider: MedicamentPhotoItem["provider"]) => "Catalogue local NAXA";'));
   assert.ok(!recherche.includes("Promise.all(ciblesPhoto.map"));
-  assert.ok(recherche.includes("AEMPS / CIMA"));
-  assert.ok(recherche.includes("Open Products Facts"));
-  assert.ok(recherche.includes("Wikimedia Commons"));
-  assert.ok(recherche.includes("Recherche directe par EAN/GTIN"));
-  assert.ok(recherche.includes("const photos = {"));
-  assert.ok(recherche.includes("barcodePayload.photos?.boite ??"));
-  assert.ok(recherche.includes("barcodePayload.photos?.comprime ??"));
-  assert.ok(recherche.includes('photo.provider === "catalogue_local_verifie"'));
-  assert.ok(recherche.includes("imageVariants: photos"));
-  assert.ok(recherche.includes("imageVariants: photos"));
-  assert.ok(resultats.includes("const photos = {"));
-  assert.ok(resultats.includes("barcodePayload.photos?.boite ??"));
-  assert.ok(resultats.includes("barcodePayload.photos?.comprime ??"));
-  assert.ok(resultats.includes('barcodePayload.photo?.kind === "comprime"'));
-  assert.ok(resultats.includes('barcodePayload.photo?.kind === "boite"'));
-  assert.ok(resultats.includes('barcodePayload.photo?.kind === "comprime"'));
+  assert.ok(resultats.includes("Math.min(2, ciblesPhoto.length)"));
   assert.ok(resultats.includes("photoPayload.photos?.comprime"));
-  assert.ok(resultats.includes("Forme pharmaceutique"));
-  assert.ok(route.includes("id,nom,dci,code_barre,forme"));
+  assert.ok(resultats.includes("imageVariants.comprime.url"));
   assert.ok(route.includes("barcode: localProduct?.code_barre"));
   assert.ok(route.includes("barcodeLookup: true"));
-  assert.ok(recherche.includes("item.barcode"));
-  assert.ok(resultats.includes("item.barcode"));
-  assert.ok(photoResolver.includes("Un code-barres est un identifiant"));
-  assert.ok(resultats.includes("Math.min(2, ciblesPhoto.length)"));
-  assert.ok(resultats.includes("imageVariants.comprime.url"));
-  assert.ok(resultats.includes("AEMPS / CIMA"));
-  assert.ok(photoRoute.includes("aucune_source_gratuite_trouvee"));
 });
-
 
 const cimaPhotoInvokerMigration = fs.readFileSync(path.join(root, "supabase/migration_311_cima_photo_invoker_projection.sql"), "utf8");
 

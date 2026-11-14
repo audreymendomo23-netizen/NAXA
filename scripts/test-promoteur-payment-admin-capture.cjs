@@ -142,7 +142,7 @@ test("migration SQL réserve l'accès aux RPC et aux tables Admin", () => {
 });
 
 
-test("compagnon Android : la variante standard ne déclare aucune permission de lecture SMS", () => {
+test("compagnon Android : Standard sans lecture SMS, Professionnel et Admin avec capture explicite", () => {
   assert.doesNotMatch(androidManifest, /RECEIVE_SMS|READ_SMS/);
   assert.doesNotMatch(androidManifest, /SmsReceiver/);
   assert.match(androidManifest, /android\.intent\.action\.SEND/);
@@ -151,7 +151,8 @@ test("compagnon Android : la variante standard ne déclare aucune permission de 
   assert.match(androidShareActivity, /EXTRA_TEXT/);
   assert.match(androidAdminManifest, /android\.permission\.RECEIVE_SMS/);
   assert.match(androidProfessionalManifest, /NotificationListenerService/);
-  assert.doesNotMatch(androidProfessionalManifest, /RECEIVE_SMS|READ_SMS/);
+  assert.match(androidProfessionalManifest, /android\.permission\.RECEIVE_SMS/);
+  assert.doesNotMatch(androidProfessionalManifest, /READ_SMS/);
   assert.match(androidAdminManifest, /NotificationListenerService/);
   assert.match(androidAdminManifest, /android\.permission\.RECEIVE_SMS/);
   assert.match(androidReceiver, /Telephony\.Sms\.Intents\.getMessagesFromIntent/);

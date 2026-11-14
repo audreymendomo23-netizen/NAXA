@@ -6,7 +6,7 @@ const root = path.resolve(__dirname, "..");
 const ussd = fs.readFileSync(path.join(root, "src/lib/merchant-payment.ts"), "utf8");
 const api = fs.readFileSync(path.join(root, "src/app/api/pay/[id]/route.ts"), "utf8");
 const client = fs.readFileSync(path.join(root, "src/components/DeliveryPaymentSelector.tsx"), "utf8");
-const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261113171600_merchant_payment_destinations.sql"), "utf8");
+const migration = fs.readFileSync(path.join(root, "supabase/migrations/20261113163408_merchant_payment_destinations.sql"), "utf8");
 
 assert.match(ussd, /!Number\.isSafeInteger\(amount\)\s*\|\|\s*amount <= 0/);
 assert.match(ussd, /!\/\^\\d\{6\}\$\/\.test\(merchantCode\)/);

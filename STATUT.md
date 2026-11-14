@@ -1,3 +1,19 @@
+## Checkpoint réconciliation Supabase / CI — 14/11/2026
+
+**État : EN COURS — PAS ENCORE VERT.** Les deux correctifs SQL déjà appliqués à Naxa sont maintenant versionnés dans `supabase/migrations`. Les trois assertions Node en défaut sur le run précédent ont été réalignées avec le code et les règles Android actuels. Le nouveau run GitHub Actions doit encore fournir la preuve finale ; aucun PASS CI n'est présumé.
+
+- Parent Git conservé : `ea2d3b787b24708a17bc4f26ebde6c777fcc653e` (commit GrillaD ajouté pendant la préparation).
+- Migrations : `20261114003452_naxa_delivery_null_safe_payment_guards_20261114.sql` et `20261114003821_naxa_security_public_projection_readonly_acl_20261114.sql`.
+- Contrat Android : Standard Client/Promoteur sans lecture SMS ; Professionnel Pharmacie/Partenaire et Admin avec capture après consentement et autorisation Android.
+- Quatre réservations historiques avec `paiement_mode IS NULL` restent à traiter opérationnellement ; les garde-fous bloquent leur dispatch.
+- Tarification : 1 500 à 3 500 FCFA côté Client ; commission NAXA fixe à 500 FCFA.
+- E2E terrain, restauration de sauvegarde et audit général des ACL restent ouverts.
+- Aucun déploiement Vercel.
+
+Rapport : [Audit de réconciliation Supabase Replay / Naxa](docs/audits/AUDIT_RECONCILIATION_SUPABASE_REPLAY_NAXA_20261114.md).
+
+---
+
 ## Synchronisation GitHub — intégration des branches parallèles — 13/11/2026
 
 **État Git : INTÉGRÉ.** La branche active et source de vérité reste `main`. HEAD de `main` vérifié juste avant cette mise à jour documentaire : `722ecf3a642000085334fb92e78b38ab56245458` ([commit](https://github.com/audreymendomo23-netizen/NAXA/commit/722ecf3a642000085334fb92e78b38ab56245458)).
