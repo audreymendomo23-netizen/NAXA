@@ -84,11 +84,21 @@ class ParityWebActivity : ComponentActivity() {
             setTextColor(android.graphics.Color.rgb(8, 122, 85))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
+        val nativeTools = Button(this).apply {
+            text = "Bluetooth"
+            contentDescription = "Ouvrir les fonctions Android natives"
+            setOnClickListener {
+                startActivity(Intent(this@ParityWebActivity, MainActivity::class.java))
+            }
+        }
         val reload = Button(this).apply {
             text = "Actualiser"
             setOnClickListener { webView.reload() }
         }
         toolbar.addView(brand, LinearLayout.LayoutParams(0, dp(48), 1f))
+        toolbar.addView(nativeTools, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, dp(44)
+        ))
         toolbar.addView(reload, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT, dp(44)
         ))
