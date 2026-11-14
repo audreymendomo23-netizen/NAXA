@@ -105,13 +105,7 @@ export async function GET(request: Request) {
       activePartnerId = partner.id;
       activePartnerType = partner.partner_type;
 
-      if (
-        !activeRole &&
-        profile.role === "client" &&
-        membership?.member_role === "owner"
-      ) {
-        activeRole = "promoteur";
-      } else if (!profile.fonction_interne && profile.role === "client") {
+      if (!profile.fonction_interne && profile.role === "client") {
         // A partner member without a resolvable selected role must not fall
         // through into the Client workspace.
         activeRole = membership?.member_role === "owner"
