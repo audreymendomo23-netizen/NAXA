@@ -1,7 +1,7 @@
 # Cahier des charges — GrillaD
 
 > Document de référence fonctionnelle de l'application GrillaD.
-> Version 1.1 · 14 novembre 2026 · Application n° 10 de la Famille NAXA.
+> Version 1.2 · 14 novembre 2026 · Application n° 10 de la Famille NAXA.
 > Statut : périmètre grillades et architecture opérationnelle à deux niveaux confirmés ; paramètres secondaires signalés comme ouverts.
 
 ## 0. Lecture du document
@@ -56,28 +56,56 @@ Aucune autre famille de produits ne doit être ajoutée au catalogue métier de 
 
 Les rôles sont des permissions métier, pas des comptes partagés. Chaque collaborateur utilise son propre accès. Un même utilisateur peut recevoir plusieurs fonctions, mais les droits effectifs doivent être calculés explicitement et journalisés. [V]
 
-### 2.2.1 Architecture opérationnelle à deux niveaux [V]
+### 2.2.1 Architecture opérationnelle configurable : trois modes [V]
 
-GrillaD doit obligatoirement prendre en charge une organisation hiérarchique à deux niveaux :
+GrillaD repose sur un même socle organisationnel, capable de fonctionner dans trois configurations. Il ne s'agit pas de trois applications ni de trois modèles de données séparés : le mode dépend du nombre de lieux et des personnes affectées.
 
-1. **Niveau Manager** : un manager supervise un ou plusieurs points vendeurs, pilote les équipes affectées, consulte les opérations et les indicateurs consolidés en temps réel, contrôle les prises et fins de service et confirme les clôtures de présence.
-2. **Niveau Point vendeur / Employé** : chaque point vendeur dispose d'un ou plusieurs employés opérationnels qui prennent leur service depuis l'application, déclarent leur présence avec géolocalisation, exécutent les opérations autorisées et transmettent en continu les données de ventes, caisse, stock, production et dépenses.
+**Mode 1 — Manager autonome, sans vendeur**
 
-Le manager doit pouvoir superviser plusieurs points vendeurs simultanément, comparer leur activité et ouvrir le détail d'un point sans mélanger ses données avec celles des autres. Un point vendeur est rattaché à une organisation et à un manager responsable ; les remplacements et délégations doivent être explicitement affectés et historisés.
+- Un Manager exploite lui-même son activité sur un lieu physique précis.
+- Il réalise directement les opérations métier : prise de service, approvisionnement, préparation/cuisson, ventes, encaissements, dépenses, stock et clôture.
+- Aucun compte vendeur supplémentaire n'est obligatoire.
+- Il conserve une vue complète de son lieu et peut ultérieurement ajouter un ou plusieurs vendeurs sans migrer ses données ni recréer son organisation.
+- Sa prise et sa fin de service suivent les mêmes règles d'horodatage et de géolocalisation que celles des employés, avec un statut adapté à son rôle.
 
-Le manager ne doit pas avoir à appeler l'employé pour connaître son état de service : le statut, les heures déclarées, la dernière position partagée et l'état de synchronisation sont consultables dans son tableau de bord, sous réserve des autorisations de localisation accordées.
+**Mode 2 — Un Manager et un vendeur**
 
-### 2.3 Point de vente et mobilité
+- Un Manager pilote son activité sur un lieu physique précis et affecte un vendeur à ce lieu.
+- Le Manager peut participer lui-même aux opérations tout en supervisant le vendeur.
+- Le vendeur utilise son propre compte, prend et termine son service, partage sa position et exécute uniquement les opérations autorisées.
+- Le Manager suit en direct les ventes, recettes, stocks, préparations, dépenses, caisse et présence du vendeur.
+- Le lieu, le vendeur, la session et chaque opération sont liés explicitement.
 
-### 2.2 Point de vente et mobilité
+**Mode 3 — Un Manager et plusieurs vendeurs sur plusieurs lieux**
 
-GrillaD doit pouvoir représenter un ou plusieurs points d'activité rattachés à une même organisation. Les stocks, caisses, équipes, prix et rapports sont isolés par point, avec une consolidation réservée aux personnes autorisées.
+- Un Manager supervise plusieurs vendeurs affectés à plusieurs lieux physiques distincts.
+- Chaque vendeur est rattaché à un lieu précis pour chaque affectation/session ; plusieurs vendeurs peuvent être affectés au même lieu si le Manager l'autorise.
+- Le Manager dispose d'une vue consolidée de son réseau et peut ouvrir le détail de chaque lieu sans mélanger stocks, caisses, ventes, dépenses, équipes ou résultats.
+- Les indicateurs sont consultables par lieu, vendeur, session, période et en consolidation sur le périmètre autorisé.
+- Les changements de lieu, remplacements et délégations sont autorisés, datés et historisés ; aucune affectation ne modifie rétroactivement les opérations passées.
 
-- Le modèle doit pouvoir couvrir un emplacement fixe, un emplacement temporaire ou une activité itinérante.
-- Une soirée est une session d'exploitation datée, rattachée à un point d'activité.
-- Les transferts de stock entre points sont des mouvements explicites, jamais une simple modification de quantité.
+**Règles communes aux trois modes**
 
-[O] Le mode d'exploitation principal (emplacement fixe, itinérance ou les deux) reste à confirmer. Le modèle de données doit rester compatible avec les trois sans imposer un parcours non validé.
+- Chaque activité opérationnelle se déroule dans un **lieu physique précis**, créé et enregistré dans GrillaD avant son exploitation. Un lieu possède un identifiant stable, un nom, une adresse ou description localisable, des coordonnées GPS et, lorsque pertinent, un périmètre de présence configurable.
+- Une simple position GPS ponctuelle ne crée pas automatiquement un lieu. La création, modification ou désactivation d'un lieu est réservée au Manager ou à un rôle autorisé et laisse une trace d'audit.
+- Les lieux peuvent être permanents ou temporaires, mais doivent toujours être identifiables et géolocalisables. Une activité dite itinérante doit être organisée autour de lieux/étapes déclarés et autorisés ; elle ne doit pas devenir un point de vente géographique indéterminé.
+- Le Manager est le responsable opérationnel de son organisation et peut être opérateur lui-même. Le vendeur est un compte individuel affecté à un lieu ; il ne devient pas propriétaire de l'organisation par son affectation.
+- Le passage du mode 1 au mode 2 ou 3, et inversement, se fait par ajout/retrait d'affectations et de lieux, sans duplication de données ni perte d'historique.
+- Les stocks, caisses, sessions, ventes, dépenses, équipes et rapports sont isolés par lieu. Les transferts inter-lieux sont des mouvements explicites, jamais une modification directe de quantité.
+- Les droits d'accès sont limités aux lieux affectés. Le Manager voit les lieux de son périmètre ; un vendeur ne voit que les informations nécessaires à son affectation.
+- Le Manager peut consulter l'état de présence, l'heure de service, la dernière position autorisée et l'état de synchronisation de chaque vendeur, sans surveillance géographique hors service.
+
+### 2.2.2 Lieux physiques, affectations et mobilité [V]
+
+Chaque lieu d'exploitation comporte au minimum :
+- identifiant unique et organisation propriétaire ;
+- nom du lieu, adresse ou description précise et coordonnées GPS ;
+- type (permanent ou temporaire) et statut actif/inactif ;
+- Manager responsable et historique des responsables/délégations ;
+- vendeurs affectés, périodes de validité et statut des affectations ;
+- paramètres opérationnels autorisés : périmètre GPS, horaires indicatifs, caisse, stock et session.
+
+Une affectation vendeur-lieu doit comporter un début, une fin éventuelle, l'auteur de l'affectation et son statut. Une session de soirée référence obligatoirement un lieu existant et les personnes effectivement affectées. Les changements d'affectation ne déplacent jamais automatiquement le stock, la caisse ou les écritures : un transfert ou une clôture distincte est nécessaire.
 
 ## 3. Socle Famille NAXA applicable
 
@@ -305,7 +333,7 @@ Chaque employé doit pouvoir déclarer depuis son compte personnel qu'il est arr
 - Enregistrer les coordonnées, précision, source, horodatages, consentement/permission et état de validation ; protéger les données en transit et au repos.
 - Les positions GPS sont un indice de présence au lieu, pas une preuve absolue d'identité ou d'activité. Les contrôles anti-usurpation éventuels ne doivent pas être présentés comme infaillibles.
 
-### G14. Pilotage temps réel multi-points par le manager [V]
+### G14. Pilotage temps réel par le Manager, du lieu unique au réseau [V]
 
 Le manager dispose d'un tableau de bord de supervision présentant tous les points vendeurs qui lui sont affectés :
 
@@ -462,6 +490,15 @@ La navigation doit rester courte, adaptée au téléphone et utilisable d'une se
 
 GrillaD ne peut être déclaré prêt que si les preuves suivantes existent :
 
+- [ ] Le mode 1 fonctionne avec un Manager opérateur et un lieu physique précis, sans compte vendeur obligatoire.
+- [ ] Le mode 2 fonctionne avec un Manager et un vendeur affecté au même lieu précis.
+- [ ] Le mode 3 fonctionne avec un Manager et plusieurs vendeurs répartis sur plusieurs lieux physiques enregistrés.
+- [ ] Le passage d'un mode à un autre conserve les identifiants, écritures et historiques.
+- [ ] Chaque session, vente, caisse, stock et dépense est rattaché à un lieu identifié.
+- [ ] Un vendeur ne peut pas choisir librement un lieu non affecté ni consulter les données d'un autre lieu.
+- [ ] Le Manager voit séparément chaque lieu et les données consolidées de son seul périmètre.
+- [ ] Les affectations, changements de lieu, remplacements et délégations sont historisés.
+- [ ] Un lieu possède une adresse/description précise et des coordonnées GPS ; les positions anciennes sont signalées.
 - [ ] Le catalogue rejette toute famille autre que les cinq familles autorisées.
 - [ ] Un achat commandé mais non reçu n'augmente pas le stock.
 - [ ] Une réception augmente le stock une seule fois.
@@ -511,4 +548,4 @@ Ces éléments ne bloquent pas la conception initiale, mais doivent être confir
 
 ## 13. Statut
 
-Le périmètre strict des cinq familles de grillades est [V]. L'architecture opérationnelle à deux niveaux (Manager / points vendeurs et employés), la prise de fonction, la fin de service géolocalisées et la supervision multi-points sont [V]. La structure fonctionnelle décrite dans les sections 4 à 10 et les modules G13/G14 constitue la base de spécification à auditer et valider au fil de la construction. Les points listés en section 11 restent [O] et ne doivent pas être présentés comme des décisions déjà prises.
+Le périmètre strict des cinq familles de grillades est [V]. Les trois modes opérationnels (Manager autonome sur un lieu, Manager avec un vendeur sur un lieu, Manager avec plusieurs vendeurs sur plusieurs lieux précis), le modèle d'affectation géolocalisée des lieux, la prise et fin de service et la supervision consolidée sont [V]. La structure fonctionnelle décrite dans les sections 4 à 10 et les modules G13/G14 constitue la base de spécification à auditer et valider au fil de la construction. Les points listés en section 11 restent [O] et ne doivent pas être présentés comme des décisions déjà prises.
