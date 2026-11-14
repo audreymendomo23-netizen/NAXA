@@ -54,7 +54,7 @@ begin
 
   -- Test-only cost record; never committed.
   insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
-  values(v_pharmacy,v_product,v_price,'FCFA')
+  values(v_pharmacy,v_product,v_price,'XAF')
   on conflict(pharmacie_id,produit_id) do update set cout_unitaire=excluded.cout_unitaire;
 
   insert into auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
