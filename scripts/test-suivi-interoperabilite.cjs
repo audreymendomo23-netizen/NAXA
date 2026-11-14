@@ -187,7 +187,7 @@ assert.match(nativeBleService, /NaxaBleMeasurementSyncWorker\.enqueue\(context\)
 assert.match(nativeMainActivity, /NaxaBleMeasurementSyncWorker\.enqueue\(context\)/, "l’ouverture du suivi doit relancer les mesures restées en attente");
 assert.doesNotMatch(nativeMainActivity, /NaxaGattMeasurementDecoder\.decode\(/, "l’écran ne doit plus être le consommateur/synchroniseur des mesures");
 assert.doesNotMatch(nativeMainActivity, /persistNativeMeasurements\(/, "la persistance ne doit pas dépendre du cycle de vie Compose");
-assert.match(nativeAndroidBuild, /androidx\.work:work-runtime-ktx:2\.10\.0/, "WorkManager doit être une dépendance explicite Android");
+assert.match(nativeAndroidBuild, /androidx\.work:work-runtime-ktx:2\.12\.0/, "WorkManager doit être une dépendance explicite Android");
 assert.match(nativeFamilyMapping, /fun device\(deviceKey: String\)/, "le mapping consentement appareil doit être partagé");
 assert.match(nativeFamilyMapping, /fun measurement\(type: String\)/, "le mapping consentement mesure doit être partagé");
 assert.match(nativeFamilyUnitTests, /mapsDeviceCategoriesToTheirConsentFamily/);
