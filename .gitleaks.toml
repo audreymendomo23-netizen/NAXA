@@ -10,5 +10,7 @@ description = "Public Firebase Android client API key in the checked-in Google S
 condition = "AND"
 targetRules = ["gcp-api-key", "generic-api-key"]
 regexTarget = "line"
-paths = ['''^android/app/google-services\.json$''']
+paths = ['''(^|/)android/app/google-services\.json
+regexes = ['''"current_key"\s*:\s*"AIza[0-9A-Za-z_-]{35}"''']
+'']
 regexes = ['''"current_key"\s*:\s*"AIza[0-9A-Za-z_-]{35}"''']
