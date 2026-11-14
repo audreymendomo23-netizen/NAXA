@@ -46,8 +46,9 @@ jobs:
             echo "sdkmanager introuvable dans $SDK_ROOT/cmdline-tools" >&2
             exit 1
           fi
-          printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          test -s "$SDK_ROOT/licenses/android-sdk-license"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0" "platform-tools"
 
       - name: Set up Gradle 8.9 (AGP 8.7.3)
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
