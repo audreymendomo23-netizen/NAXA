@@ -60,6 +60,18 @@ class NaxaBleForegroundService : Service() {
             "180A" to "2A29", "180A" to "2A24", "180A" to "2A26",
             "180F" to "2A19"
         )
+        private val DEVICE_SERVICE_FILTERS = mapOf(
+            "tensiometre" to setOf("1810"),
+            "thermometre" to setOf("1809"),
+            "oxymetre" to setOf("1822"),
+            "glucometre" to setOf("1808"),
+            "balance" to setOf("181D"),
+            "capteur_cardiaque_bluetooth" to setOf("180D"),
+            "podometre" to setOf("1814", "1816"),
+            "balance_impedance" to setOf("181B"),
+            "montre_connectee" to setOf("180D", "1810", "1809", "1822", "1808", "181D", "181B", "1814", "1826", "1816"),
+            "bracelet_activite" to setOf("180D", "1814", "1816", "1826")
+        )
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         fun enqueueEvent(context: android.content.Context, event: JSONObject) {
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
@@ -481,10 +493,12 @@ class NaxaBleForegroundService : Service() {
                 return
             }
             var count = 0
+            val allowedServices = DEVICE_SERVICE_FILTERS[session.key].orEmpty()
             for ((serviceId, characteristicId) in SERVICE_PAIRS) {
+                if (serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F") continue
                 val characteristic = gatt.getService(uuid(serviceId))?.getCharacteristic(uuid(characteristicId)) ?: continue
                 val properties = characteristic.properties
-                if (properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or
+                if (serviceId in allowedServices && properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or
                         BluetoothGattCharacteristic.PROPERTY_INDICATE or BluetoothGattCharacteristic.PROPERTY_READ) != 0) count++
                 if (properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
                     if (gatt.setCharacteristicNotification(characteristic, true)) {
