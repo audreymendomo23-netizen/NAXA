@@ -99,6 +99,7 @@ private fun NaxaRoot(
     onOpenPathHandled: () -> Unit,
     onExit: () -> Unit
 ) {
+    val appContext = LocalContext.current
     var profile by remember { mutableStateOf<NaxaProfile?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -218,6 +219,7 @@ private fun NaxaRoot(
                         loading = true
                         scope.launch {
                             try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            NaxaBleForegroundService.stopForLogout(appContext)
                             repository.signOut()
                             profile = null
                             guestMode = false
@@ -235,6 +237,7 @@ private fun NaxaRoot(
                         loading = true
                         scope.launch {
                             try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            NaxaBleForegroundService.stopForLogout(appContext)
                             repository.signOut()
                             profile = null
                             guestMode = false
@@ -263,7 +266,8 @@ private fun NaxaRoot(
                     loading = true
                     scope.launch {
                         try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
-                        repository.signOut()
+                        NaxaBleForegroundService.stopForLogout(appContext)
+                            repository.signOut()
                         profile = null
                         guestMode = false
                         error = null
