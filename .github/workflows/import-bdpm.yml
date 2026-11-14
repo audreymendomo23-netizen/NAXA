@@ -29,15 +29,8 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Installer les dépendances (lockfile si disponible)
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund
-          else
-            npm install --no-audit --no-fund --no-progress
-          fi
+      - name: Installer les dépendances verrouillées
+        run: npm ci --no-audit --no-fund
 
       - name: Vérifier la configuration sans afficher les secrets
         env:
