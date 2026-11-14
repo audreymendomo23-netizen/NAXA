@@ -1,32 +1,25 @@
--- Regression test for explicit telemetry RPC EXECUTE grants.
+-- Regression test: legacy telemetry RPCs are server-only.
+-- The current application uses private helpers; client roles must not execute these RPCs.
 BEGIN;
-
 DO $naxa_log_recherche_acl_test$
 DECLARE
-  v_anon boolean;
-  v_authenticated boolean;
-  v_service boolean;
-  v_authenticator boolean;
-  v_definer boolean;
+  v_log_recherche regprocedure := 'public.log_recherche(text[])'::regprocedure;
+  v_log_evenement regprocedure := 'public.log_evenement(text,uuid,uuid,text,integer,double precision,double precision)'::regprocedure;
 BEGIN
-  v_anon:=has_function_privilege('anon','public.log_recherche(text[])','EXECUTE');
-  v_authenticated:=has_function_privilege('authenticated','public.log_recherche(text[])','EXECUTE');
-  v_service:=has_function_privilege('service_role','public.log_recherche(text[])','EXECUTE');
-  v_authenticator:=has_function_privilege('authenticator','public.log_recherche(text[])','EXECUTE');
-  SELECT prosecdef INTO v_definer
-  FROM pg_proc WHERE oid='public.log_recherche(text[])'::regprocedure;
-
-  IF v_anon IS NOT TRUE OR v_authenticated IS NOT TRUE OR v_service IS NOT TRUE THEN
-    RAISE EXCEPTION 'Intended telemetry role lost EXECUTE: anon %, authenticated %, service_role %',
-      v_anon,v_authenticated,v_service;
+  IF has_function_privilege('anon',v_log_recherche,'EXECUTE')
+     OR has_function_privilege('authenticated',v_log_recherche,'EXECUTE')
+     OR has_function_privilege('authenticator',v_log_recherche,'EXECUTE') THEN
+    RAISE EXCEPTION 'log_recherche reste exécutable par un rôle client';
   END IF;
-  IF v_authenticator IS NOT FALSE THEN
-    RAISE EXCEPTION 'authenticator still has direct EXECUTE via PUBLIC';
+  IF has_function_privilege('anon',v_log_evenement,'EXECUTE')
+     OR has_function_privilege('authenticated',v_log_evenement,'EXECUTE')
+     OR has_function_privilege('authenticator',v_log_evenement,'EXECUTE') THEN
+    RAISE EXCEPTION 'log_evenement reste exécutable par un rôle client';
   END IF;
-  IF v_definer IS NOT TRUE THEN
-    RAISE EXCEPTION 'log_recherche no longer SECURITY DEFINER';
+  IF NOT has_function_privilege('service_role',v_log_recherche,'EXECUTE')
+     OR NOT has_function_privilege('service_role',v_log_evenement,'EXECUTE') THEN
+    RAISE EXCEPTION 'service_role a perdu les droits d''exécution requis';
   END IF;
 END;
 $naxa_log_recherche_acl_test$;
-
 ROLLBACK;
