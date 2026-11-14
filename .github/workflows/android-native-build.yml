@@ -4,13 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "android/app/**"
-      - "android/payment-companion/**"
+      - "android/**"
       - ".github/workflows/android-native-build.yml"
   pull_request:
     paths:
-      - "android/app/**"
-      - "android/payment-companion/**"
+      - "android/**"
       - ".github/workflows/android-native-build.yml"
   workflow_dispatch:
 
