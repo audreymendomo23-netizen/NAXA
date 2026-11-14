@@ -2,7 +2,7 @@
 
 Date de travail : 14 novembre 2026
 Branche : `main`
-Statut : **ORANGE — pipeline Compose → Supabase codé; validation automatisée, build APK et essais matériels non exécutés**
+Statut : **ORANGE — build APK et tests unitaires Android PASS; qualité Node en cours; essais WorkManager hors écran et Bluetooth physique non exécutés**
 
 ## 1. Périmètre contrôlé
 
@@ -22,7 +22,7 @@ Le parcours Compose utilise le service BLE Android natif et ne dépend pas d'un 
 
 L'ACK n'est émis qu'après insertion confirmée ou vérification serveur de toutes les clés lors d'un conflit 409. Les mesures sont commitées dans la file AES-GCM avant la programmation d'un `OneTimeWorkRequest` WorkManager soumis à la contrainte réseau. Le Worker revalide la session et le consentement, isole les événements par propriétaire, puis persiste et acquitte; en cas d'échec réseau/serveur, WorkManager réessaie avec backoff exponentiel sans retirer la mesure de la file. La synchronisation ne dépend donc plus de la présence de l'écran Compose. Les profils non pris en charge et les trames invalides sont acquittés après classification pour éviter de bloquer les événements suivants.
 
-**Conséquence :** le pipeline natif est raccordé dans le code. Il n'est pas encore certifié par exécution : compilation APK, tests Node/JUnit et essais physiques restent obligatoires. Le parcours Web Bluetooth navigateur reste séparé.
+**Conséquence :** le pipeline natif est raccordé et le build Android principal a compilé, exécuté les tests unitaires et assemblé l'APK de debug avec succès sur le commit `808c65013b067ca64b6140aa49c3e72baf08ee6d`. L'artefact interne `naxa-main-app-debug-internal` a été publié par Actions. Le contrôle qualité Node/TypeScript/lint du HEAD suivant reste en cours; les essais BLE/WorkManager sur téléphone restent nécessaires. Le parcours Web Bluetooth navigateur reste séparé.
 
 ## 3. Corrections déjà intégrées
 
@@ -38,7 +38,8 @@ L'ACK n'est émis qu'après insertion confirmée ou vérification serveur de tou
 - Insertion des mesures avec `sync_origin=android_native`; ACK après persistance et vérification explicite des doublons HTTP 409.
 - File BLE native conservée en cas de panne réseau; WorkManager réveille le synchroniseur sur connectivité et reprend les demandes persistées après fermeture de l'écran/processus.
 - Le consommateur mesure a été déplacé de Compose vers un Worker unique; l'écran ne fait que suivre la file. Un verrou de synchronisation évite le traitement concurrent par plusieurs Workers.
-- Tests JUnit du décodeur et des familles de consentement ajoutés; assertions structurelles couvrent le Worker, le réseau requis, le backoff, l'isolation du compte et l'ACK après persistance.
+- Tests JUnit du décodeur et des familles de consentement exécutés avec succès dans `:app:testDebugUnitTest`; assertions structurelles versionnées couvrent le Worker, le réseau requis, le backoff, l'isolation du compte et l'ACK après persistance.
+- Conflit Kotlin `NaxaBootReceiver` corrigé : la déclaration en double présente à la fin de `NaxaReminderReceiver.kt` a été supprimée; le récepteur de démarrage reste déclaré dans son fichier dédié.
 
 ## 4. Protocoles réellement décodés
 
@@ -58,9 +59,9 @@ Le décodeur Kotlin de l'APK couvre actuellement fréquence cardiaque, tension (
 
 ## 5. Risques et travaux non clos
 
-1. **Exécution des tests :** tests JUnit ciblés ajoutés pour fréquence cardiaque, tension, température, oxymétrie, poids, composition corporelle et trames invalides; tests Node structurels élargis. Aucun des deux n'a encore été exécuté.
-2. **Compilation APK :** Gradle non exécuté; compatibilité des signatures Android Bluetooth et compilation Compose restent à confirmer.
-3. **Validation WorkManager :** le `OneTimeWorkRequest` réseau est ajouté et la programmation est déclenchée après écriture durable de chaque mesure. Les tests structurels sont codés; l'exécution Gradle/JUnit, la reprise après fermeture forcée, la reconnexion réseau réelle et le redémarrage de l'appareil restent à prouver. Aucun job périodique n'est utilisé : le déclenchement est événementiel.
+1. **Exécution des tests Android : PASS.** `:app:testDebugUnitTest` s'est terminé avec succès sur le build du SHA `808c65013b067ca64b6140aa49c3e72baf08ee6d`; les tests du décodeur et des familles de consentement sont inclus. Les assertions Node structurelles sont ajoutées mais le workflow qualité global est encore en cours.
+2. **Build APK : PASS.** `:app:assembleDebug` et l'étape d'upload de `naxa-main-app-debug-internal` ont réussi dans le run Android `43548801852`. L'artefact est un APK debug interne, pas une version de production ni une certification d'installation terrain.
+3. **Validation WorkManager : PARTIELLE.** Le `OneTimeWorkRequest` réseau est compilé dans le build et son déclenchement suit l'écriture durable des mesures. La reprise réelle après fermeture forcée, reconnexion réseau, changement de compte et redémarrage Android reste à vérifier sur téléphone. Aucun job périodique n'est utilisé : le déclenchement est événementiel.
 4. **Profils d'activité :** vitesse/cadence reconnues mais non persistées car le contrat SQL ne possède pas de types compatibles. Ne pas les convertir en pas ou minutes.
 5. **Sessions chiffrées :** le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; confirmer la migration sur appareil.
 6. **Permissions Android :** tester SCAN et CONNECT, versions Android, refus, révocation et restrictions de démarrage en arrière-plan.
