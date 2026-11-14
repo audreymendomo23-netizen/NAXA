@@ -118,9 +118,9 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
-            currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.role) ->
+            currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.effectiveRole) ->
                 UnsupportedNativeRoleScreen(
-                    role = currentProfile.role,
+                    role = currentProfile.effectiveRole,
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -265,7 +265,7 @@ private fun NativeHome(
                 Column(Modifier.padding(18.dp)) {
                     Text(if (isGuest) "Accès public" else "Compte connecté", color = NaxaGreen, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
-                    Text(if (isGuest) "Catalogue et informations publiques" else profile?.role ?: "Compte NAXA",
+                    Text(if (isGuest) "Catalogue et informations publiques" else profile?.effectiveRole ?: "Compte NAXA",
                         fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     if (profile != null) {
                         Text("Vérification de majorité confirmée", color = Color(0xFF65776F))
