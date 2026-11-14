@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     await Promise.all([
       auth.supabase
         .from("profiles")
-        .select("role,actif")
+        .select("role,actif,age_verified")
         .eq("id", auth.user.id)
         .maybeSingle(),
       // Match the PWA requireAdminActive guard; no arbitrary profile ID.
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!profile || profile.role !== "admin" || profile.actif !== true || activeRole !== "admin") {
+  if (!profile || profile.role !== "admin" || profile.actif !== true || profile.age_verified !== true || activeRole !== "admin") {
     return NextResponse.json(
       { ok: false, code: "ADMIN_REQUIRED" },
       { status: 403, headers: NO_STORE_HEADERS }
