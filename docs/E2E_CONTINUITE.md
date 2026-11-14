@@ -663,3 +663,53 @@ order by p.role;
 **Sécurité / actions :** aucune identité Auth, profil, affectation ou donnée métier n'a été créée/modifiée pendant cette passe ; aucune écriture SQL, migration, déploiement ou action Production. L'Admin technique est intact.
 
 **Point exact de reprise :** concevoir puis implémenter sur `main` un flux serveur restreint au projet Replay et aux comptes explicitement marqués recette, qui finalise une identité Auth confirmée en profil Promoteur selon le vrai contrat NAXA (validation d'âge/consentement, unicité username/téléphone, rôle autorisé, audit et garde environnement). Ajouter tests automatisés sur la finalisation, les refus de rôle arbitraire, les comptes non confirmés et l'interdiction Production. Ensuite seulement créer le Promoteur fictif et ses établissements/équipes via les parcours métier.
+
+
+## 27. Regroupement de la navigation Admin en six rubriques (14/11/2026)
+
+**Demande utilisateur :** réduire le nombre d'entrées visibles dans la barre latérale Admin en regroupant les pages, après un audit exhaustif des routes afin de ne rien oublier.
+
+**Périmètre réel vérifié sur `main` avant implémentation :**
+- Arborescence `src/app/admin/**/page.tsx` : 26 pages au total.
+- 24 pages à route fixe et 2 pages dynamiques :
+  - `/admin/pharmacies/[id]`
+  - `/admin/promoteurs/partenaires/[id]`
+- Les 24 routes fixes sont représentées une fois chacune dans le menu.
+- Les deux fiches dynamiques sont accessibles depuis le registre Promoteurs ; elles ne deviennent pas des entrées permanentes supplémentaires.
+- Aucune page fixe orpheline ni destination de menu sans page correspondante dans l'inventaire contrôlé.
+
+**Architecture implémentée :**
+1. Accueil & supervision — 4 pages.
+2. Réseau & professionnels — 5 pages.
+3. Pilotage & finances — 6 pages.
+4. Marketplace & opérations — 5 pages.
+5. Catalogue — 2 pages.
+6. Compte & configuration — 2 pages.
+
+Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune route supprimée**.
+
+**Corrections et comportement :**
+- `src/components/admin/AdminNavigation.tsx` : configuration hiérarchique unique ; résolution de la route active calculée une fois ; règle de correspondance la plus précise conservée pour les routes imbriquées.
+- La route racine `/admin` n'est active que pour le tableau de bord et ne capture plus les autres routes Admin.
+- La fiche dynamique `/admin/pharmacies/[id]`, qui n'est pas sous `/admin/promoteurs`, est explicitement rattachée à l'entrée « Dossiers Promoteurs ». La fiche `/admin/promoteurs/partenaires/[id]` reste rattachée à cette même entrée par le préfixe de route.
+- Le groupe correspondant à la page active s'ouvre automatiquement. L'Admin peut ouvrir un autre groupe ou tout replier ; un clic sur un lien rétablit le suivi automatique de la route.
+- Les commandes de groupe utilisent des boutons natifs `type="button"`, `aria-expanded` et `aria-controls`. Les pages restent des liens de navigation standards ; aucun faux rôle ARIA `menu` n'est ajouté.
+- `src/app/admin/admin-bento.css` : sidebar accordéon sur desktop et six groupes compacts sur mobile ; suppression de l'ancienne barre fixe horizontale de 24 liens et de la réserve inférieure associée. Le contenu mobile n'est donc plus masqué par cette barre.
+
+**Commits sur `main` :**
+- `4df4d05091f50340463b467a15a1886ad8094fcb` — regroupement du composant de navigation.
+- `317a564302a179bc8e600dd3a7085a555384163f` — adaptation CSS desktop/mobile.
+
+**Preuves statiques après implémentation :**
+- Comparaison du composant avec l'arborescence : 6 groupes, 24 liens, 24 routes fixes, 0 route fixe manquante, 0 lien orphelin, 0 doublon.
+- Cas vérifiés par simulation de la règle de résolution : `/admin`, `/admin/alertes`, `/admin/pilotage/reglements`, `/admin/pilotage/reglements/configuration`, `/admin/prestations/demandes`, `/admin/prestations/conventions`, `/admin/pharmacies/{id}` et `/admin/promoteurs/partenaires/{id}`.
+- Contrôle CSS : absence de l'ancienne barre mobile fixe et de son padding inférieur réservé ; disposition mobile en deux colonnes pour les rubriques, avec expansion pleine largeur du groupe ouvert.
+- Le workflow `NAXA quality` est configuré pour exécuter tests, TypeScript, lint et build Next.js sur chaque push `main`. Le premier run déclenché par ces commits est en cours au moment de cette mise à jour ; le résultat final du commit de documentation doit encore être contrôlé.
+- Aucun test navigateur authentifié ni contrôle réel au clavier/tactile n'a encore été exécuté.
+
+**Sécurité / périmètre exclu :**
+- Aucune route, page métier, API, action serveur, RPC, policy RLS, rôle, permission, table ou donnée métier modifiée.
+- `src/app/admin/layout.tsx` et la garde `requireAdminActive` laissés intacts.
+- Aucun paramètre Supabase/Vercel touché. Aucun déploiement Preview ou Production lancé ; le garde-fou Vercel n'a pas été modifié.
+
+**État : IMPLÉMENTATION COMMITÉE SUR MAIN ; inventaire et couverture statique des routes conformes. Validation qualité distante en attente, contrôle navigateur et validation responsive réelle encore requis. Ne pas déclarer la navigation entièrement verte avant le succès du workflow et un parcours Admin authentifié desktop/mobile.**
