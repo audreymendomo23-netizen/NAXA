@@ -1,5 +1,51 @@
 const fs = require("node:fs");
 const assert = require("node:assert/strict");
+const { decodeStandardGattMeasurement } = require("../src/lib/suivi/ble-protocols");
+const bleFrame = (...bytes) => new DataView(Uint8Array.from(bytes).buffer);
+const decodeBle = (service, characteristic, bytes, deviceId) =>
+  decodeStandardGattMeasurement(service, characteristic, bleFrame(...bytes), deviceId);
+
+
+
+const hr = decodeBle("180D", "2A37", [0, 72]);
+assert.equal(hr[0].measurement_type, "frequence_cardiaque");
+assert.equal(hr[0].value_numeric, 72);
+assert.equal(hr[0].unit, "bpm");
+
+const bp = decodeBle("1810", "2A35", [0, 120, 0, 80, 0, 93, 0]);
+assert.deepEqual(bp.map(value => value.value_numeric), [120, 80, 93]);
+assert.deepEqual(bp.map(value => value.measurement_type), [
+  "tension_systolique", "tension_diastolique", "tension_arterielle_moyenne"
+]);
+
+const temperature = decodeBle("1809", "2A1C", [0, 0x6d, 0x01, 0x00, 0xff]);
+assert.equal(temperature[0].measurement_type, "temperature");
+assert.equal(temperature[0].value_numeric, 36.5);
+
+const weight = decodeBle("181D", "2A9D", [0, 70, 0]);
+assert.equal(weight[0].measurement_type, "poids");
+assert.equal(weight[0].value_numeric, 70);
+
+const bodyComposition = decodeBle("181B", "2A9C", [0, 0, 250, 0]);
+assert.equal(bodyComposition[0].measurement_type, "masse_grasse");
+assert.equal(bodyComposition[0].value_numeric, 25);
+
+const running = decodeBle("1814", "2A53", [0, 0, 2, 90]);
+assert.equal(running.find(value => value.measurement_type === "vitesse_course").value_numeric, 2);
+assert.equal(running.find(value => value.measurement_type === "cadence_course").value_numeric, 90);
+
+const bike = decodeBle("1826", "2AD2", [4, 0, 196, 9, 104, 1]);
+assert.equal(bike.find(value => value.measurement_type === "vitesse_cyclisme").value_numeric, 25);
+assert.equal(bike.find(value => value.measurement_type === "cadence_course").value_numeric, 180);
+
+decodeBle("1816", "2A5B", [2, 10, 0, 0, 4], "fixture-bike");
+const cycling = decodeBle("1816", "2A5B", [2, 11, 0, 0, 8], "fixture-bike");
+assert.equal(cycling[0].measurement_type, "cadence_course");
+assert.equal(cycling[0].value_numeric, 60);
+
+assert.throws(() => decodeBle("180D", "2A37", [0]), /payload too short/);
+assert.throws(() => decodeBle("180D", "2A37", [0, 0]), /supported range/);
+assert.throws(() => decodeBle("FFFF", "FFFF", [0]), /No verified decoder/);
 
 const component = fs.readFileSync("src/components/suivi/SuiviConnecte.tsx", "utf8");
 const deviceIllustrations = fs.readFileSync("src/components/suivi/DeviceIllustration.tsx", "utf8");
