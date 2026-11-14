@@ -199,7 +199,7 @@ test("CIMA pré-calculé : projection SQL filtrée et séparée du résolveur ph
   assert.match(cimaPhotoProjection, /j\.dose_concordante is true/);
   assert.match(cimaPhotoProjection, /j\.score >= 0\.78/);
   assert.match(cimaPhotoProjection, /fotos/);
-  assert.match(cimaPhotoProjection, /cima\[\.]aemps[\.]es/);
+  assert.match(cimaPhotoProjection, /cima\[\.\]aemps\[\.\]es/);
   assert.match(cimaPhotoProjection, /revoke all on public\.medicaments_cima_photos_public from public/);
   assert.match(cimaPhotoProjection, /grant select on public\.medicaments_cima_photos_public to anon, authenticated, service_role/);
   assert.doesNotMatch(cimaPhotoProjection, /select\s+j\.donnees_cima\s*,/i);
