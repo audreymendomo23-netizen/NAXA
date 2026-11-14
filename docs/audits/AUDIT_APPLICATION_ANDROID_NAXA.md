@@ -1,230 +1,312 @@
-# Audit global de l’application Android NAXA
+# Audit source-code Android NAXA — nouvelle inspection
 
-Date : 14 novembre 2026 (Africa/Douala)  
+Date : 14 novembre 2026  
 Branche : `main`  
-Commit audité : `f8ad7a5c4eeef2dd41590cbe9f184bb63c0f2167`  
-Périmètre : application Android principale, compagnon Android de vérification des paiements, CI, configuration, notifications, BLE et distribution.
+HEAD inspecté : `ac52c71bd07cfd993f3175024b8ab7848fa0d4d4`  
+Périmètre : application native principale, compagnon de paiement, configuration Gradle, workflows et tests sources.
 
-## 1. Décision
+## 1. Méthode et décision
 
-**STATUT GLOBAL : ROUGE — application Android non complète et non prête pour une diffusion publique.**
+Cet audit est fondé sur l'inspection directe du code source présent sur `main`. Les anciens rapports, les fichiers README et les conclusions écrites antérieures n'ont pas servi de preuves pour décider du statut.
 
-Ce statut ne signifie pas que tout le code Android échoue. Le socle natif, plusieurs fonctions Client, le tableau de bord Admin limité, les tests unitaires et une partie des tests BLE sont bien présents. En revanche :
+**DÉCISION : ROUGE — le code Android ne constitue pas encore une application NAXA complète et exploitable sur l'ensemble des rôles.**
 
-- la majorité des espaces et parcours NAXA ne sont pas portés dans l’application native ;
-- l’APK Debug publié par la CI ne reçoit pas les deux paramètres Supabase obligatoires et ne peut donc pas authentifier un utilisateur ;
-- aucun build Release signé ni processus de publication de l’APK sur le site NAXA n’est démontré ;
-- le push FCM en conditions réelles et l’homologation BLE sur téléphones/capteurs restent non prouvés.
+Le dépôt contient une vraie application native Kotlin/Jetpack Compose, des appels API réels, des fonctions Client partielles, un tableau de bord Admin restreint, un service BLE natif et un compagnon Android de paiement. Mais plusieurs parcours métier sont absents, un défaut de configuration empêche l'authentification dans le binaire produit par le workflow actuel, et des défauts de gestion de file et de capture affaiblissent les fonctions de fond.
 
-Le statut BLE reste **ORANGE pour essais matériels**. Les validations de code/CI documentées restent valides pour leur périmètre limité.
+Aucun changement de code applicatif, de secret, de base Supabase ou de production n'a été effectué pendant cette inspection.
 
-## 2. Référence et preuves contrôlées
+## 2. Défauts bloquants — application principale
 
-| Élément | Preuve observée | Conclusion |
+### P0 — Configuration Supabase absente du build CI
+
+Fichiers concernés :
+- `android/app/build.gradle.kts`
+- `.github/workflows/android-native-build.yml`
+- `android/app/src/main/java/cm/naxa/app/AuthRepository.kt`
+
+Constat dans le code :
+- Gradle lit `SUPABASE_URL` et `SUPABASE_ANON_KEY` depuis les propriétés Gradle ou les variables d'environnement.
+- Les deux valeurs ont une valeur de repli vide.
+- Le workflow Android lance `:app:testDebugUnitTest :app:assembleDebug`, sans transmettre ces deux paramètres par `env`, `-P` ou une étape de configuration.
+- `AuthRepository.signIn()` appelle `requireConfigured()`, qui refuse de démarrer l'authentification si l'une des valeurs est vide.
+- `restoreSession()` retourne directement `null` lorsque ces paramètres sont vides.
+- Les dépôts Client, notifications et suivi Bluetooth utilisent eux aussi ces paramètres pour accéder à Supabase.
+
+Conséquence : sur le runner du workflow tel qu'il est écrit, l'APK Debug peut être compilé, mais il ne dispose pas de la configuration nécessaire pour connecter un compte. Un build réussi ne prouve donc pas que le binaire fonctionne.
+
+Correction exigée :
+1. Injecter les deux valeurs depuis les variables/secrets GitHub prévus.
+2. Faire échouer le build avant Gradle si une valeur manque.
+3. Ajouter un test de configuration compilée puis un vrai test d'authentification sur l'APK qui sera distribué.
+
+### P0 — Les rôles professionnels sont refusés par le routage natif
+
+Fichiers concernés :
+- `android/app/src/main/java/cm/naxa/app/NativeRoleRouting.kt`
+- `android/app/src/main/java/cm/naxa/app/AuthRepository.kt`
+- `android/app/src/main/java/cm/naxa/app/MainActivity.kt`
+
+Constat dans le code :
+- `supportsClientWorkspace()` n'accepte que le couple `client / client`.
+- `supportsAdminWorkspace()` n'accepte que le couple `admin / admin`.
+- Les rôles Promoteur, Pharmacie, Partenaire, Caisse, Responsable, Comptable, Pharmacien, Gestionnaire de stock et Livreur sont routés vers `UnsupportedNativeRoleScreen`.
+- Cet écran indique explicitement que l'espace professionnel n'est pas disponible.
+
+Le comportement fail-closed évite de montrer les données Client à un professionnel, ce qui est correct du point de vue du cloisonnement. Mais il signifie également que ces professionnels ne peuvent pas utiliser leurs postes NAXA dans l'application native.
+
+**Conséquence :** l'application Android ne couvre pas les rôles de l'écosystème NAXA.
+
+### P0 — Les parcours métier Client ne sont pas complets
+
+Fichier concerné : `android/app/src/main/java/cm/naxa/app/MainActivity.kt`
+
+La navigation construite dans `NativeHome()` comporte cinq destinations : Accueil, Rechercher, Scanner, Achats et Profil.
+
+Les écrans qui y sont réellement raccordés sont :
+- catalogue de médicaments ;
+- recherche de pharmacies proches ;
+- scanner local ;
+- historique des réservations/achats ;
+- paramètres de notifications.
+
+En revanche, le parcours natif ne propose pas les fonctions qui permettraient d'achever une opération Client :
+- panier opérationnel ;
+- création et validation d'une commande ou réservation depuis le catalogue ;
+- processus de paiement intégré au parcours de commande ;
+- suivi de livraison jusqu'à la remise ;
+- gestion des favoris.
+
+L'onglet Achats affiche un historique ; il ne crée pas une commande. La carte « Dispositifs médicaux » de l'accueil est une carte de présentation, pas un parcours de catalogue transactionnel.
+
+**Conséquence :** le Client peut consulter certaines données, mais ne peut pas effectuer dans cette application native le cycle complet d'achat NAXA.
+
+## 3. Poste Admin natif
+
+Fichiers concernés :
+- `android/app/src/main/java/cm/naxa/app/NativeAdminDashboardScreen.kt`
+- `android/app/src/main/java/cm/naxa/app/AdminDashboardRepository.kt`
+
+Le poste Admin natif charge un tableau d'indicateurs et un journal d'activité via l'API authentifiée. Les actions visibles sont essentiellement actualiser, ouvrir les notifications et quitter le poste.
+
+Le dépôt Admin expose un chargement de données ; l'écran inspecté ne contient pas les formulaires et actions permettant de gérer les opérations Admin 360 : comptes, pharmacies, validations, suspensions, paiements, paramètres, contrôle métier et sécurité.
+
+**Statut : ORANGE pour le tableau de bord de consultation ; ROUGE pour un poste Admin complet.**
+
+## 4. Notifications Firebase — code présent, enrôlement incomplet
+
+Fichiers concernés :
+- `android/app/src/main/java/cm/naxa/app/NaxaFirebaseMessagingService.kt`
+- `android/app/src/main/java/cm/naxa/app/FcmRegistrationRepository.kt`
+- `android/app/src/main/java/cm/naxa/app/MainActivity.kt`
+- `android/app/src/main/java/cm/naxa/app/NativeAdminDashboardScreen.kt`
+
+La réception FCM et l'enregistrement d'un jeton sont codés. Le fichier `google-services.json` est présent et le plugin Google Services est appliqué ; l'absence de valeurs Firebase dans les propriétés Gradle ne suffit donc pas à conclure que Firebase n'est pas configuré : le plugin peut générer la configuration native à partir de ce fichier.
+
+Défaut de parcours trouvé :
+- `onNewToken()` tente l'enregistrement dès qu'un jeton change.
+- Si aucun compte n'est connecté à ce moment-là, l'enregistrement échoue et l'exception est ignorée.
+- Le code ne réessaie pas systématiquement au moment de la connexion.
+- Le bouton explicite d'inscription FCM est dans `NativeNotificationSettings()`, raccordé au Profil de l'espace Client.
+- Le poste Admin natif ne contient pas ce contrôle d'activation/enrôlement.
+- Les rôles professionnels sont actuellement exclus du routage natif.
+
+Conséquence : l'inscription FCM après connexion n'est pas garantie ; en particulier, aucun parcours explicite n'enrôle le téléphone Admin depuis son poste natif.
+
+Correction exigée : déclencher et vérifier l'enregistrement FCM après chaque session authentifiée, quel que soit le rôle autorisé, puis rendre l'état d'enrôlement et les erreurs visibles. Tester un vrai push sur appareil.
+
+## 5. Défauts du moteur Bluetooth en arrière-plan
+
+Fichiers concernés :
+- `android/app/src/main/java/cm/naxa/app/NaxaBleForegroundService.kt`
+- `android/app/src/main/java/cm/naxa/app/NaxaBleMeasurementSyncWorker.kt`
+- `android/app/src/main/java/cm/naxa/app/MainActivity.kt`
+- `android/app/src/main/java/cm/naxa/app/SuiviBluetoothRepository.kt`
+
+### P1 — La file n'est pas isolée par compte
+
+Constat :
+- La file chiffrée `QUEUE_KEY` est commune à l'application.
+- `stopForLogout()` vide les sessions BLE, mais ne purge ni ne partitionne la file des événements.
+- Le Worker ignore les événements dont `ownerUserId` ne correspond pas au compte actuellement connecté ; il ne les acquitte pas.
+- L'écran de suivi ignore également les événements d'un autre propriétaire.
+- La capacité de 300 événements est évaluée sur la file globale.
+
+Scénario reproductible à partir du code :
+1. Le compte A accumule des mesures hors ligne.
+2. Le compte A se déconnecte ; ses événements restent dans la file.
+3. Le compte B se connecte.
+4. Le Worker ignore les événements de A sans les acquitter.
+5. Ces événements occupent toujours la capacité commune de B et peuvent finir par bloquer ses propres connexions.
+
+La séparation par propriétaire évite la réattribution des mesures, mais le stockage commun ne gère pas le changement de compte.
+
+Correction exigée : partitionner la file par utilisateur ou mettre en place une stratégie explicite et sûre de conservation/vidage des files à la déconnexion, sans réattribuer une mesure à un autre compte.
+
+### P1 — Le Worker peut terminer avec succès sans vider la file
+
+Dans `NaxaBleMeasurementSyncWorker.drainPendingMeasurements()`, si `AuthRepository.restoreSession()` renvoie `null`, la fonction retourne normalement. Le Worker retourne donc `Result.success()` alors que les mesures restent dans la file.
+
+Le code relance le Worker lorsque l'écran Suivi connecté est ouvert et lorsqu'un nouvel événement de mesure arrive. Il ne garantit pas un nouvel essai au moment où une session est restaurée après cette terminaison.
+
+Correction exigée : conserver un état de reprise explicite et reprogrammer la file après authentification/retour réseau, sans marquer une synchronisation non effectuée comme terminée.
+
+### P1 — Les événements d'état dépendent de l'écran Compose
+
+Le service BLE écrit dans la même file :
+- mesures ;
+- appareils détectés ;
+- états de connexion/déconnexion ;
+- état de scan ;
+- informations d'appareil ;
+- reconnexions et erreurs.
+
+Le Worker de fond ne consomme que les événements de type `measurement`. Les autres événements sont acquittés par la boucle de lecture dans `NativeSuiviBluetoothScreen`.
+
+Lorsque l'écran est fermé, le service BLE peut continuer à émettre des événements d'état, mais le consommateur Compose n'est plus actif. Ces événements restent dans la file et peuvent contribuer à sa saturation, même lorsque les mesures sont synchronisées par WorkManager.
+
+Correction exigée : séparer les événements d'interface éphémères des mesures durables ou ajouter un consommateur de fond qui nettoie les événements non-mesure sans supprimer les mesures en attente.
+
+### Points positifs établis directement dans le code
+
+- Service BLE natif Android distinct de l'écran Compose.
+- File chiffrée AES-GCM avec clé Android Keystore.
+- Capacité bornée à 300 événements, sans éviction des événements précédemment acceptés lorsque la file est pleine.
+- Worker unique sous contrainte réseau avec backoff exponentiel.
+- Révalidation de session et de propriétaire avant synchronisation.
+- Contrôle du consentement de famille avant enregistrement.
+- Clé d'événement stable pour prévenir les doublons.
+- ACK de mesure après persistance confirmée ou vérification des clés après conflit 409.
+- Décodage de plusieurs profils GATT SIG standards.
+
+Ces éléments ne démontrent pas la compatibilité radio de tous les appareils ni une homologation terrain.
+
+## 6. Compagnon Android de paiement
+
+Fichiers concernés :
+- `android/payment-companion/app/src/main/java/cm/naxa/paymentcompanion/MainActivity.kt`
+- `NaxaApi.kt`
+- `SmsReceiver.kt`
+- `NaxaNotificationListenerService.kt`
+- `SmsCaptureGate.kt`
+- `NotificationCaptureGate.kt`
+- `SmsPaymentParser.kt`
+- manifestes `main`, `professional` et `admin`
+
+### Points correctement cloisonnés dans le code
+
+- La variante Standard n'intègre ni `RECEIVE_SMS`, ni `SmsReceiver`, ni le lecteur de notifications.
+- La collecte SMS exige le rôle autorisé, le consentement local explicite et la permission Android.
+- Le lecteur de notifications exige un consentement et n'accepte que les profils Pharmacie, Partenaire et Admin.
+- Les notifications sont filtrées localement par une liste de packages d'applications de paiement.
+- Les SMS sont filtrés par expéditeur exact `OrangeMoney` ou `MobileMoney`.
+- Client et Promoteur ne passent pas les gardes de capture automatique.
+- Le formulaire Client utilise le montant attendu de la commande et la date locale de Douala comme valeurs de départ ; les valeurs reconnues du SMS remplacent les valeurs générées et les champs restent modifiables.
+- Le partage volontaire et la revue manuelle sont présents.
+
+### P1 — Aucun stockage durable des captures lorsque l'envoi échoue
+
+Dans `SmsReceiver`, après réception, le SMS est envoyé par une tâche sur un exécuteur. Si l'envoi échoue, le code enregistre seulement un dernier statut et un message d'erreur dans le coffre ; le SMS lui-même n'est pas placé dans une file durable de reprise.
+
+Dans `NaxaNotificationListenerService`, l'échec d'envoi met à jour un statut d'erreur, sans file durable ni reprise WorkManager.
+
+Conséquence : une perte réseau ou une indisponibilité API au moment de la capture peut faire perdre l'événement automatique. Le rapprochement devra alors dépendre d'un partage manuel ou d'une autre preuve.
+
+Correction exigée : persister localement les événements de manière sécurisée, avec identifiant idempotent, réessai réseau et suppression seulement après accusé serveur.
+
+### P1 — Appel réseau dans le cycle de vie d'un BroadcastReceiver
+
+`SmsReceiver` utilise `goAsync()`, puis appelle le réseau via `HttpClient`. Le client HTTP prévoit 8 secondes de connexion et 12 secondes de lecture, sans compter un éventuel renouvellement de session Supabase. Ce chemin peut dépasser la fenêtre de traitement d'un BroadcastReceiver Android.
+
+C'est un risque de fiabilité identifié dans le code, pas la preuve d'un arrêt observé sur un téléphone. Le traitement devrait être transféré à une tâche durable compatible avec les limites Android.
+
+### P1 — Consentement SMS Admin non synchronisé comme celui des profils professionnels
+
+`NaxaApi.setSmsConsent()` accepte uniquement les rôles Pharmacie et Partenaire. Dans `applySmsConsentChoice()`, l'appel distant est exécuté uniquement pour la variante professionnelle. La variante Admin conserve donc son consentement SMS dans le stockage local ; ce parcours ne démontre pas l'enregistrement distant ni le retrait distant du consentement Admin.
+
+Correction exigée : définir et tester un contrat serveur explicite pour l'accord et le retrait du consentement de capture Admin.
+
+### P2 — Statut Admin peut annoncer une capture active sans enrôlement complet des deux canaux
+
+L'enrôlement Admin essaie de créer les appareils Orange Money et MTN MoMo dans un même bloc. Si le premier appel échoue, le second n'est pas tenté. Le code conserve `admin_sms_enrollment_ready`, mais `refreshCaptureStatus()` annonce la capture active sur la seule base du consentement local et de la permission Android, sans vérifier que les deux appareils/canaux ont été enrôlés.
+
+Correction exigée : contrôler séparément l'état de chaque canal et afficher une disponibilité réelle par opérateur.
+
+## 7. Signature et production APK
+
+Fichiers concernés :
+- `android/app/build.gradle.kts`
+- `.github/workflows/android-native-build.yml`
+- `android/payment-companion/app/build.gradle`
+- `.github/workflows/android-native-build.yml`
+
+Dans le code Gradle de l'application principale :
+- `versionCode = 1`, `versionName = "0.1.0"` ;
+- aucune configuration `signingConfigs` explicite ;
+- aucun `buildTypes.release` configuré.
+
+Dans le workflow :
+- application principale : `:app:testDebugUnitTest :app:assembleDebug` ;
+- compagnon : assemblage et tests des variantes `standardDebug`, `professionalDebug`, `adminDebug` ;
+- aucun `assembleRelease` ;
+- aucune signature Release ;
+- aucune vérification de certificat ;
+- aucune publication d'un APK Release stable vers le site NAXA.
+
+Le code inspecté produit donc des APK Debug de test, pas les APK Release signés destinés à être installés par les utilisateurs.
+
+**Statut : ROUGE — chaîne de livraison Release absente du code contrôlé.**
+
+Correction exigée : configurer une signature de production persistante stockée dans les secrets CI, compiler les variantes Release, vérifier package/version/certificat, calculer SHA-256 et intégrer le téléchargement versionné au site officiel NAXA.
+
+## 8. Tests présents dans le dépôt — couverture réelle du code
+
+Les tests sources couvrent notamment :
+- décodage de certains profils GATT ;
+- politique de capacité de file et intégration Android Keystore/WorkManager ;
+- mapping des familles de consentement ;
+- routage fermé des rôles ;
+- parsing du SMS Orange/MTN ;
+- gardes de capture SMS et notifications ;
+- parsing de l'historique Client.
+
+Les tests inspectés ne couvrent pas :
+- authentification réelle et renouvellement de session ;
+- comportement d'un APK construit avec configuration CI ;
+- parcours complet Client de panier à livraison ;
+- espaces métiers professionnels ;
+- opérations Admin 360 ;
+- réception FCM réelle ;
+- file de capture SMS/notifications hors ligne et reprise ;
+- changement de compte avec événements BLE en attente ;
+- long fonctionnement BLE écran fermé avec déconnexions répétées ;
+- interopérabilité de chaque modèle de capteur.
+
+Je n'ai pas exécuté Gradle dans cette session : aucun checkout local du dépôt, Gradle ou Android SDK n'est disponible dans l'environnement d'exécution. Les tests listés ci-dessus sont donc une revue des fichiers de test, pas un nouveau résultat d'exécution. Je ne transforme pas cette inspection en faux PASS.
+
+## 9. Plan de correction ordonné
+
+| Priorité | Correction | Test qui doit fermer le point |
 |---|---|---|
-| HEAD | `f8ad7a5c4eeef2dd41590cbe9f184bb63c0f2167` sur `main` | Référence de cet audit |
-| Qualité applicative | GitHub Actions run `43552484951`, commit `f8ad7a5...`, conclusion `success` | PASS sur le workflow qualité du dépôt |
-| Build Android | Run `43551588777`, commit `ebff7856...`, conclusion `success` | PASS compilation/tests Debug |
-| Continuité du code Android | Comparaison `ebff7856...` → `f8ad7a5...` : deux commits ultérieurs, changements limités à deux documents et au script de test d’interopérabilité ; aucun fichier Android modifié | Le résultat de build Android porte sur le code Android toujours présent au HEAD audité |
-| Instrumentation Android | Job API 35 du run `43551588777` : `connectedDebugAndroidTest`, 2 tests, 0 échec, 0 erreur, 0 ignoré | PASS pour file chiffrée et WorkManager uniquement |
-| Artefact principal | `naxa-main-app-debug-internal`, produit par le run `43551588777`, conservation 7 jours | APK Debug interne, pas un package Release |
-| Compagnon paiement | Même run : builds/tests des variantes `standardDebug`, `professionalDebug`, `adminDebug`, contrôle des composants et permissions des manifestes | PASS pour compilation Debug et contrôle statique des variantes |
-| Releases GitHub | Aucune release retournée par l’API du dépôt au moment de l’audit | Aucune preuve de livraison publique via Releases |
-| APK suivi dans Git | Aucun fichier `.apk` dans l’arbre Git audité | Aucun binaire durable suivi dans le dépôt |
-
-Liens de référence :
-- Workflow Android : https://github.com/audreymendomo23-netizen/NAXA/blob/main/.github/workflows/android-native-build.yml
-- Configuration Gradle : https://github.com/audreymendomo23-netizen/NAXA/blob/main/android/app/build.gradle.kts
-- README Android : https://github.com/audreymendomo23-netizen/NAXA/blob/main/android/README.md
-- Routage des rôles : https://github.com/audreymendomo23-netizen/NAXA/blob/main/android/app/src/main/java/cm/naxa/app/NativeRoleRouting.kt
-- Accueil et navigation : https://github.com/audreymendomo23-netizen/NAXA/blob/main/android/app/src/main/java/cm/naxa/app/MainActivity.kt
-- Audit Bluetooth détaillé : https://github.com/audreymendomo23-netizen/NAXA/blob/main/docs/audits/AUDIT_BLUETOOTH_NAXA.md
-- Contrat de compatibilité des dispositifs : https://github.com/audreymendomo23-netizen/NAXA/blob/main/docs/suivi-compatibilite-dispositifs.md
-
-## 3. Audit fonctionnel — application principale
-
-### 3.1 Fonctions constatées dans le code
-
-Sont effectivement présentes dans le périmètre inspecté :
-
-- déclaration locale de majorité avant l’accès visiteur ;
-- authentification Supabase, vérification serveur de la session et contrôle serveur `ageVerified` ;
-- stockage des jetons avec AES-GCM et Android Keystore ;
-- recherche du catalogue de médicaments, sans inventer les prix ni les stocks ;
-- recherche de pharmacies proches avec permission de localisation ;
-- scanner natif image/PDF avec OCR local ;
-- consultation d’un historique Client ;
-- écran de notifications, inscription/désinscription FCM côté application ;
-- écran natif de suivi Bluetooth et service BLE de fond.
-
-### 3.2 Parcours Client incomplets
-
-La navigation native actuelle expose les onglets `Accueil`, `Rechercher`, `Scanner`, `Achats`, `Profil`. Elle ne reprend pas la navigation Client validée avec un onglet Favoris. Le volet `Achats` connecté affiche l’historique ; il ne constitue pas un parcours complet de panier, de commande, de paiement ou de livraison.
-
-La carte « Dispositifs médicaux » visible sur l’accueil est un composant de présentation et non un catalogue opérationnel accessible depuis cette carte.
-
-Le README Android confirme explicitement que le panier, les commandes, la livraison, les fonctions ERP, le mode offline métier et la synchronisation complète restent à implémenter et tester.
-
-**Conclusion :** le parcours Client natif est une première tranche fonctionnelle, pas une version Android équivalente à l’application NAXA complète.
-
-### 3.3 Rôles professionnels et Admin
-
-Le routage natif est volontairement fermé :
-
-- `supportsClientWorkspace` n’accepte que `client/client` ;
-- `supportsAdminWorkspace` n’accepte que `admin/admin` ;
-- les autres rôles passent par `UnsupportedNativeRoleScreen`, qui indique que leur espace professionnel n’est pas disponible.
-
-Les tests `NaxaNativeRoleTest` valident ce refus de basculer à tort vers l’espace Client. C’est une bonne protection de cloisonnement, mais cela confirme également que Promoteur, Pharmacie, Partenaire, Responsable, Comptable, Pharmacien, Gestionnaire de stock, Livreur et les autres rôles ne disposent pas encore de leurs espaces natifs.
-
-Le poste Admin est limité à un écran de tableau de bord : indicateurs réseau, actualisation des stocks, alertes et dernières actions. Le code inspecté ne fournit pas les fonctions opérationnelles de l’Admin 360 (gestion, validations, administration des comptes, opérations, sécurité et autres actions métier).
-
-**Conclusion :** le routage est sécurisé en mode fail-closed, mais la couverture fonctionnelle professionnelle et Admin est insuffisante.
-
-## 4. Défaut bloquant de configuration de l’APK CI
-
-### Constat
-
-Dans `android/app/build.gradle.kts`, les paramètres suivants sont lus depuis les propriétés Gradle ou les variables d’environnement, avec une valeur vide par défaut :
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-
-Le workflow `.github/workflows/android-native-build.yml` lance `gradle :app:testDebugUnitTest :app:assembleDebug` sans injecter ces deux paramètres : aucune section `env:`, aucun argument `-P` et aucune étape de configuration ne les transmet.
-
-Dans `AuthRepository.signIn()`, `requireConfigured()` est appelée avant la requête d’authentification et lève l’erreur « Configuration Android manquante : SUPABASE_URL et SUPABASE_ANON_KEY. » lorsque ces valeurs sont vides. Le retour de session ne restaure pas non plus une session quand elles sont absentes.
-
-### Cause racine
-
-Le pipeline vérifie la compilation Kotlin/Gradle et la création du binaire, mais ne vérifie pas que l’APK embarque les paramètres d’exécution nécessaires à l’authentification. Le build peut être PASS alors que l’application livrée ne peut pas connecter un compte.
-
-### Correction exigée
-
-1. Injecter explicitement `SUPABASE_URL` et `SUPABASE_ANON_KEY` depuis les variables/secrets GitHub prévus, sans les écrire en dur dans le dépôt.
-2. Ajouter un contrôle préalable qui fait échouer le job si l’une des deux valeurs est absente.
-3. Ajouter un contrôle de configuration sur les valeurs compilées et un test de démarrage/connexion sur l’APK construit.
-4. Recompiler et tester l’artefact après correction ; ne pas réutiliser l’APK Debug existant comme preuve de livraison.
-
-**Sévérité : BLOQUANT.** L’artefact Debug produit par le workflow actuel n’est pas une preuve d’APK authentifiable.
-
-## 5. Signature, version et distribution
-
-Le fichier Gradle de l’application principale indique :
-
-- `applicationId = cm.naxa.app` ;
-- `minSdk = 26`, `targetSdk = 35` ;
-- `versionCode = 1`, `versionName = 0.1.0`.
-
-Aucune configuration explicite `signingConfigs` ou `buildTypes.release` n’est présente dans le fichier audité. Le workflow Android ne lance que `assembleDebug` et publie un artefact temporaire de Debug. Il ne lance pas `assembleRelease`, ne signe pas une release et ne vérifie pas la signature d’un binaire final.
-
-Aucune release GitHub ni page/fichier de téléchargement Android/APK n’a été trouvée dans l’arbre du dépôt audité. Cela ne prouve pas l’absence de tout hébergement externe, mais aucune preuve de distribution depuis le site NAXA n’est fournie par ce dépôt.
-
-### Correction exigée
-
-- créer une signature Release stable, stockée exclusivement dans les secrets sécurisés de CI ;
-- séparer clairement Debug et Release ;
-- produire un APK Release signé, vérifier son certificat, son identifiant de package et son numéro de version ;
-- générer une empreinte SHA-256 et conserver un artefact de livraison versionné ;
-- ajouter au site officiel NAXA le téléchargement de l’APK signé, les notes de version, la taille, l’empreinte, la version minimale Android et une procédure de mise à jour ;
-- tester installation propre et mise à jour sur une version antérieure, sans réinitialiser les données utilisateur.
-
-La diffusion demandée reste le téléchargement direct depuis le site NAXA ; aucune publication sur un store n’est requise par cet audit.
-
-## 6. Notifications FCM
-
-### Éléments présents
-
-- `google-services.json` correspond au package Android `cm.naxa.app` ;
-- `NaxaFirebaseMessagingService` reçoit les messages, crée une notification locale et traite un lien interne ;
-- `FcmRegistrationRepository` enregistre et retire le jeton avec le Bearer de la session ;
-- l’API `/api/notifications/fcm/register` authentifie le Bearer et rattache le jeton au compte ;
-- le serveur `src/lib/firebase/fcm.ts` envoie par FCM HTTP v1 au moyen de `FIREBASE_SERVICE_ACCOUNT_JSON` ;
-- le dispatcher push prévoit le canal FCM et un repli Web Push.
-
-### Preuves manquantes
-
-Le dépôt montre le code, mais cet audit ne démontre ni la présence valide du compte de service dans l’environnement de production, ni un envoi/réception FCM de bout en bout sur un téléphone Android réel, ni le comportement après révocation de permission, rotation du jeton et réinstallation.
-
-**Statut : ORANGE — intégration codée, livraison réelle non homologuée.**
-
-### Test exigé
-
-Sur un téléphone physique, enregistrer un compte, activer la permission, vérifier le jeton serveur, envoyer un push depuis le dispatcher, confirmer la réception, l’ouverture du bon écran, la gestion d’un jeton renouvelé et la suppression à la déconnexion. Enregistrer les résultats et les horodatages. Ne jamais inclure de données médicales dans le contenu visible sur écran verrouillé.
-
-## 7. Bluetooth et dispositifs médicaux
-
-L’audit dédié `AUDIT_BLUETOOTH_NAXA.md` confirme les tests de décodeur, file AES-GCM/Android Keystore, capacité de 300 événements, refus de saturation sans éviction des événements déjà acceptés et programmation WorkManager sous contrainte réseau. L’instrumentation API 35 a passé 2 tests.
-
-Il ne s’agit pas d’une homologation radio : aucun téléphone ni capteur BLE physique n’était connecté à l’environnement de validation. Le scan, la connexion, les notifications GATT, la perte/reprise radio, le redémarrage, les permissions et les restrictions OEM restent à tester sur matériel réel.
-
-Les décodeurs Android couvrent plusieurs profils GATT SIG standards. La présence de 21 catégories dans le catalogue ne certifie pas 21 catégories ni tous les modèles commerciaux. Les appareils propriétaires ou dépourvus de profils pris en charge nécessitent un adaptateur et une recette propres à chaque modèle.
-
-**Statut : ORANGE pour la validation matérielle et la compatibilité modèle par modèle.**
-
-## 8. Compagnon Android de vérification des paiements
-
-Le dépôt distingue trois variantes :
-
-- Standard : Client et Promoteur, sans `RECEIVE_SMS` ni lecteur de notifications ;
-- Professionnelle : Pharmacie et Partenaire, capture SMS/notifications après consentements et autorisations distincts ;
-- Admin : capture SMS/notifications après consentements et autorisations distincts.
-
-Le workflow construit les trois variantes Debug et contrôle statiquement la présence des composants de capture uniquement dans Professionnelle et Admin. Cela respecte le principe d’interdiction de lecture automatique sur les appareils Client et Promoteur payeur.
-
-Le README du compagnon avertit toutefois que `RECEIVE_SMS` est une permission Android restreinte : le simple téléchargement et l’installation manuelle depuis un site ne garantissent pas l’autorisation de l’installateur. Les parcours d’installation, d’allowlist, de refus et de secours par partage manuel doivent être testés sur les modèles de téléphones ciblés.
-
-Aucun package Release signé n’est produit par le workflow actuel pour ces trois variantes.
-
-**Statut : VERT pour la matrice déclarative des permissions et les builds Debug contrôlés ; ORANGE pour l’installation réelle et les permissions restreintes ; ROUGE pour la livraison Release signée.**
-
-## 9. Sécurité — constats favorables limités
-
-- Le routage des rôles refuse l’accès à un espace non pris en charge, au lieu d’exposer un écran Client par défaut.
-- Les jetons de session sont chiffrés avec Android Keystore.
-- Le manifeste principal désactive la sauvegarde Android et le trafic HTTP en clair.
-- Les permissions Bluetooth et notifications sont déclarées ; les contrôles runtime sont présents dans le code inspecté.
-- Le compagnon sépare les permissions de capture selon la variante.
-
-Ces contrôles statiques ne remplacent pas les tests de sécurité sur appareil, le test des révocations, le contrôle des journaux et la recette des permissions OEM.
-
-## 10. Plan de correction priorisé
-
-| Priorité | Action | Preuve de clôture attendue |
-|---|---|---|
-| P0 | Corriger l’injection Supabase dans la CI Android | Job échouant en configuration absente, APK de test avec configuration validée, connexion réelle réussie |
-| P0 | Définir et livrer les espaces natifs par rôle | Parcours authentifiés Client, Promoteur, Pharmacie, Partenaire, Admin, Responsable, Comptable, Pharmacien, Stock et Livreur, avec tests d’isolation |
-| P0 | Achever les parcours métier Client | Favoris, panier, commandes/réservations, paiement selon les règles NAXA, achats et suivi livraison réellement opérationnels |
-| P1 | Définir la couverture fonctionnelle réelle du poste Admin natif | Opérations Admin requises et tests de permission, pas seulement des indicateurs |
-| P1 | Créer la chaîne Release signée | Build Release, certificat stable, contrôle de signature, version et SHA-256 |
-| P1 | Distribuer depuis le site NAXA | Installation propre et mise à jour prouvées depuis le site officiel |
-| P1 | Homologuer FCM | Push réel reçu sur appareil, deep link et renouvellement de jeton testés |
-| P1 | Homologuer BLE | Scénarios physiques documentés et modèle par modèle |
-| P1 | Homologuer le compagnon paiements | Permissions restreintes, allowlist, refus et secours manuel testés sur téléphones cibles |
-| P2 | Étendre la matrice Android | Tests au minimum sur versions Android supportées et constructeurs cibles |
-
-## 11. Critères obligatoires pour déclarer l’application AU VERT
-
-L’application Android complète ne sera AU VERT qu’après :
-
-1. résolution du défaut de configuration Supabase CI et preuve de connexion de l’APK effectivement construit ;
-2. livraison des fonctions et espaces natifs requis par les règles métier NAXA, sans contourner les contrôles de rôle ;
-3. tests fonctionnels de bout en bout sur les principaux parcours Client et professionnels ;
-4. APK Release signé avec une clé de production stable ;
-5. installation et mise à jour confirmées depuis le site officiel NAXA ;
-6. notification FCM réelle validée sur téléphone ;
-7. essais BLE physiques sur chaque modèle annoncé compatible ;
-8. compagnon de paiement installé et permissions de capture éprouvées dans les limites de chaque profil ;
-9. documentation et rapports de test attachés au commit audité.
-
-## 12. Actions effectuées pendant cet audit
-
-- Inspection du code Android principal, du routage des rôles, des écrans Client/Admin, des dépôts d’authentification et FCM, des manifestes, de Gradle, des workflows et des documents de compatibilité.
-- Vérification des runs GitHub Actions et des artefacts disponibles.
-- Comparaison des commits entre le build Android réussi et le HEAD courant.
-- **Aucune modification du code applicatif.**
-- **Aucune migration ou modification Supabase.**
-- **Aucun changement de variable/secrets.**
-- **Aucun déploiement Vercel.**
-- Aucun APK Debug existant promu ou présenté comme une release.
-
-**Décision finale : application Android NAXA non complète. Le socle natif et ses tests sont encourageants, mais la couverture fonctionnelle, la configuration de l’APK CI, la signature Release, la distribution site et les homologations terrain restent à fermer avant livraison.**
+| P0 | Injecter les variables Supabase dans le build Android | Build avec contrôle de présence, démarrage et authentification d'un compte réel sur l'APK construit |
+| P0 | Implémenter les postes Promoteur, Pharmacie, Partenaire, Responsable, Comptable, Pharmacien, Stock et Livreur | Parcours métier par rôle et tests négatifs de cloisonnement |
+| P0 | Compléter le parcours Client natif | Favoris, panier, réservation/commande, paiement, achats et suivi livraison de bout en bout |
+| P1 | Compléter les opérations Admin natives | Actions Admin 360 autorisées et tests de permission |
+| P1 | Corriger la file BLE multi-compte | Mesures hors ligne du compte A, déconnexion, connexion compte B, aucune fuite ni saturation croisée |
+| P1 | Découpler les événements d'interface de la file de mesures | BLE actif écran fermé, reconnexions et états répétés sans accumulation de la file durable |
+| P1 | Corriger la reprise Worker lorsque la session est absente | Perte/retour de session et reprise automatique après authentification |
+| P1 | Rendre l'enrôlement FCM systématique par rôle | Connexion Client et Admin, jeton enregistré, push réel reçu, jeton renouvelé et désinscription |
+| P1 | Ajouter une file durable au compagnon | Capture SMS/notification hors ligne, reprise, ACK idempotent |
+| P1 | Synchroniser le consentement SMS Admin | Accord/retrait local et serveur cohérents, refus de capture après retrait |
+| P1 | Créer la chaîne Release signée | APK Release signé vérifié, mise à jour d'une version précédente sans perte de données |
+| P1 | Publier les APK Release depuis le site NAXA | Installation propre et mise à jour depuis le site officiel |
+| P1 | Homologuer BLE et le compagnon sur appareils réels | Rapport par téléphone, version Android, opérateur et modèle de capteur |
+
+## 10. Verdict final
+
+**L'application Android NAXA n'est pas complète.**
+
+Le code prouve l'existence d'un socle natif réel, de fonctions Client de consultation, d'un tableau de bord Admin limité, d'un compagnon de paiement spécialisé et d'un moteur BLE avancé. Il ne prouve pas une couverture de l'écosystème NAXA ; plusieurs postes sont explicitement bloqués par le routage et le cycle d'achat Client n'est pas présent.
+
+Les défauts P0 sont la configuration Supabase absente du workflow et l'absence des postes professionnels/parcours métier nécessaires. Les défauts P1 touchent la reprise et l'isolation des événements BLE, l'enrôlement FCM Admin, la durabilité des captures de paiement et la chaîne de production APK signée.
+
+**Statut global : ROUGE. Aucun APK Debug existant ne doit être traité comme une version Android de production prête à diffuser.**
