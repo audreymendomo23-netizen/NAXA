@@ -10,7 +10,18 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-data class NaxaProfile(val userId: String, val role: String, val ageVerified: Boolean)
+data class NaxaProfile(
+    val userId: String,
+    val role: String,
+    val ageVerified: Boolean,
+    val activeRole: String = role,
+    val activePharmacyId: String? = null,
+    val activePartnerId: String? = null,
+    val activePartnerType: String? = null
+) {
+    val effectiveRole: String
+        get() = activeRole.ifBlank { role }
+}
 data class AuthResult(val profile: NaxaProfile, val accessToken: String, val refreshToken: String)
 
 private class NaxaHttpException(
@@ -131,10 +142,15 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
                 "La vérification de majorité de ce compte doit être terminée avant l'accès."
             )
         }
+        val baseRole = profile.optString("role", "Compte NAXA")
         return NaxaProfile(
             userId = userId,
-            role = profile.optString("role", "Compte NAXA"),
-            ageVerified = true
+            role = baseRole,
+            ageVerified = true,
+            activeRole = profile.optString("activeRole").takeIf { it.isNotBlank() } ?: baseRole,
+            activePharmacyId = profile.optString("activePharmacyId").takeIf { it.isNotBlank() },
+            activePartnerId = profile.optString("activePartnerId").takeIf { it.isNotBlank() },
+            activePartnerType = profile.optString("activePartnerType").takeIf { it.isNotBlank() }
         )
     }
 
