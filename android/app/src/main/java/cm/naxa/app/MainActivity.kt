@@ -598,7 +598,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                 val deviceKey = event.optString("deviceKey")
                                 if (event.optInt("profileCount") > 0 && SuiviMeasurementFamilies.device(deviceKey) in consentFamilies) {
                                     val deviceName = devices.firstOrNull { it.id == address }?.name ?: "Appareil Bluetooth"
-                                    val deviceRowId = trackingRepository.ensureNativeDevice(
+                                    trackingRepository.ensureNativeDevice(
                                         ownerUserId, deviceKey, deviceName, address, "Bluetooth SIG", deviceKey
                                     )
                                     status = "Appareil enregistré. Profils GATT détectés; synchronisation active."
