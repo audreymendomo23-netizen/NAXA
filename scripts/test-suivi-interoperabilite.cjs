@@ -93,6 +93,8 @@ const nativeSyncWorker = fs.readFileSync("android/app/src/main/java/cm/naxa/app/
 const nativeFamilyMapping = fs.readFileSync("android/app/src/main/java/cm/naxa/app/SuiviMeasurementFamilies.kt", "utf8");
 const nativeFamilyUnitTests = fs.readFileSync("android/app/src/test/java/cm/naxa/app/SuiviMeasurementFamiliesTest.kt", "utf8");
 const nativeAndroidBuild = fs.readFileSync("android/app/build.gradle.kts", "utf8");
+const nativeBleInstrumentationTests = fs.readFileSync("android/app/src/androidTest/java/cm/naxa/app/NaxaBleRuntimeInstrumentationTest.kt", "utf8");
+const nativeAndroidWorkflow = fs.readFileSync(".github/workflows/android-native-build.yml", "utf8");
 
 
 
@@ -159,6 +161,14 @@ assert.match(cyclingMigration, /'vitesse_cyclisme'/, "le type vitesse cycliste d
 assert.match(cyclingMigration, /'vitesse_course','vitesse_cyclisme','cadence_course','longueur_foulee'/);
 assert.match(cyclingMigration, /vitesse_cyclisme','cadence_course','longueur_foulee'\) then 'activite'/);
 assert.match(cyclingSqlTest, /naxa_20261114031521_suivi_android_bluetooth_activity_metrics_pass/);
+assert.match(nativeAndroidBuild, /testInstrumentationRunner = "androidx\.test\.runner\.AndroidJUnitRunner"/);
+assert.match(nativeAndroidBuild, /androidTestImplementation\("androidx\.test:runner:1\.7\.0"\)/);
+assert.match(nativeAndroidBuild, /androidTestImplementation\("androidx\.test\.ext:junit:1\.3\.0"\)/);
+assert.match(nativeBleInstrumentationTests, /androidKeystoreQueueRefusesOverflowWithoutEvictingAndResumesAfterAck/);
+assert.match(nativeBleInstrumentationTests, /measurementSyncIsPersistedWithNetworkConstraint/);
+assert.match(nativeBleInstrumentationTests, /NaxaBleForegroundService\.enqueueEvent/);
+assert.match(nativeAndroidWorkflow, /android-emulator-runner@v2\.38\.0/);
+assert.match(nativeAndroidWorkflow, /:app:connectedDebugAndroidTest/);
 assert.match(nativeBleService, /QUEUE_CAPACITY = NaxaBleQueuePolicy\.CAPACITY/, "la capacité native doit être centralisée à 300 événements");
 assert.match(nativeBleService, /if \(NaxaBleQueuePolicy\.isAtCapacity\(queue\.length\(\)\)\)/, "une file pleine doit refuser le nouvel événement au lieu d'éjecter un ancien");
 assert.match(nativeBleService, /OVERFLOW_KEY = "queue_overflow"/, "le signal de débordement doit être conservé hors de la file des mesures");
