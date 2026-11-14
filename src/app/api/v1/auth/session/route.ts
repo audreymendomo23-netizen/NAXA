@@ -58,10 +58,11 @@ export async function GET(request: Request) {
     );
   }
 
-  let activeRole =
-    typeof profile.fonction_interne === "string" && profile.fonction_interne.trim()
-      ? profile.fonction_interne.trim()
-      : profile.role;
+  const internalRole =
+    typeof profile.fonction_interne === "string" ? profile.fonction_interne.trim() : "";
+  let activeRole = profile.role === "admin"
+    ? "admin"
+    : internalRole || profile.role;
   let activePharmacyId: string | null = null;
   let activePartnerId: string | null = null;
   let activePartnerType: string | null = null;
