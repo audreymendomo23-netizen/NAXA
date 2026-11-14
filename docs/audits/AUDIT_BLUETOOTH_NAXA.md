@@ -16,13 +16,13 @@ Statut : **ORANGE — architecture native non raccordée, tests et essais matér
 
 ## 2. Constat architectural bloquant
 
-Le parcours web de suivi utilise l'API Web Bluetooth et attend un objet JavaScript `window.NaxaAndroid` pour déléguer certaines opérations au natif.
+Le parcours web de suivi utilise l'API Web Bluetooth dans les navigateurs compatibles et conserve un adaptateur facultatif `window.NaxaAndroid`. L'APK Android utilise Jetpack Compose et ne doit pas dépendre de l'API Web Bluetooth du navigateur.
 
-L'APK Android actuellement livré utilise une interface Jetpack Compose dans `MainActivity.kt`. Cette activité ne crée pas de WebView et n'expose aucune interface JavaScript (`addJavascriptInterface`). Les seuls appels de `MainActivity` au service BLE sont les trois appels `stopForLogout`; elle ne déclenche ni `ACTION_CONNECT`, ni découverte BLE, ni lecture de la file d'événements.
+Une première intégration Compose est maintenant présente dans `MainActivity.kt` : entrée « Suivi connecté », écran natif de découverte, demande des permissions Android, association par le service BLE, lecture des événements natifs et filtrage par propriétaire de compte. Le dépôt natif charge et enregistre le consentement via la RPC `suivi_set_family_consent`; la recherche est bloquée sans consentement. Les profils GATT sont filtrés selon la catégorie choisie.
 
-Le service Android possède bien des actions de connexion/déconnexion et une file d'événements, mais aucun raccordement complet entre le parcours de suivi web et l'APK Compose n'est démontré par le code inspecté.
+Le parcours Compose ne traite pas encore les événements `measurement` jusqu'à leur décodage et leur insertion dans `suivi_measurements`. Ces événements restent volontairement non acquittés dans la file native. La persistance des appareils dans `suivi_user_devices`, l'historique, le mode hors ligne et la synchronisation des mesures ne sont donc pas encore intégrés de bout en bout.
 
-**Conséquence :** la collecte Web Bluetooth en premier plan dans un navigateur compatible et la collecte BLE Android en arrière-plan ne constituent pas encore un parcours intégré et prouvé dans l'APK NAXA. Ne pas annoncer la continuité BLE native en arrière-plan comme disponible tant que ce raccordement n'est pas implémenté et testé.
+**Conséquence :** la découverte et la connexion Compose sont implémentées dans le code, mais le suivi clinique complet et la synchronisation des mesures dans l'historique restent bloquants. Le mode Web Bluetooth navigateur reste un parcours distinct.
 
 ## 3. Corrections déjà intégrées
 
@@ -53,8 +53,8 @@ Ces profils standards ne certifient pas les 21 catégories commerciales. Les app
 
 ## 5. Risques et travaux non clos
 
-1. **Raccordement APK ↔ service BLE ↔ suivi utilisateur :** bloquant.
-2. **Découverte BLE native :** le service expose maintenant `ACTION_SCAN`, contrôle `BLUETOOTH_SCAN`/localisation, publie les appareils détectés et arrête le scan après 12 secondes. Il manque encore l'écran Compose qui déclenche ce scan, affiche les appareils et appelle `ACTION_CONNECT`; le parcours reste donc inaccessible depuis l'APK.
+1. **Décodage et persistance des mesures Compose :** bloquant; les événements `measurement` sont laissés dans la file, sans insertion dans Supabase.
+2. **Découverte et association Compose :** écran natif ajouté; scan borné à 12 secondes, permissions Android, filtre GATT par catégorie et vérification du consentement. Compilation et essais d'exécution restent à prouver.
 3. **Persistance des sessions :** les événements et les métadonnées de session (adresse, clé logique, propriétaire) sont désormais chiffrés avec AES-GCM et Android Keystore. Le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; vérifier ce chemin sur appareil et confirmer la migration.
 4. **Permissions Android :** vérifier séparément SCAN et CONNECT, les versions Android, le refus, la révocation et les restrictions de démarrage en arrière-plan.
 5. **File bornée :** le marqueur de débordement signale une perte, mais ne restaure pas les événements supprimés; vérifier également la persistance atomique et les scénarios de crash.
