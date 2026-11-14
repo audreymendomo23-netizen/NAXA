@@ -64,6 +64,7 @@ class NaxaNativeDeepLinksTest {
             "/%2e%2e/admin",
             "/client/../admin",
             "/admin\\\\settings",
+            "/admin%5csettings",
             "javascript:alert(1)"
         )
         rejected.forEach { value ->
