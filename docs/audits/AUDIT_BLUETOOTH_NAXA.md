@@ -55,7 +55,7 @@ Ces profils standards ne certifient pas les 21 catégories commerciales. Les app
 
 1. **Raccordement APK ↔ service BLE ↔ suivi utilisateur :** bloquant.
 2. **Découverte BLE native :** le service inspecté ne démontre pas de parcours de scan et de sélection utilisable depuis l'APK.
-3. **Persistance des sessions :** les événements de file sont chiffrés, mais les métadonnées de session (adresse, clé logique, propriétaire) sont enregistrées dans les préférences ordinaires; examiner leur minimisation et leur protection avant pilote.
+3. **Persistance des sessions :** les événements et les métadonnées de session (adresse, clé logique, propriétaire) sont désormais chiffrés avec AES-GCM et Android Keystore. Le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; vérifier ce chemin sur appareil et confirmer la migration.
 4. **Permissions Android :** vérifier séparément SCAN et CONNECT, les versions Android, le refus, la révocation et les restrictions de démarrage en arrière-plan.
 5. **File bornée :** le marqueur de débordement signale une perte, mais ne restaure pas les événements supprimés; vérifier également la persistance atomique et les scénarios de crash.
 6. **Mesures :** ajouter des tests de limites, champs optionnels, valeurs SFLOAT spéciales, timestamps, unités et trames tronquées pour chaque décodeur.
