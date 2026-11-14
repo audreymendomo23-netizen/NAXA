@@ -54,6 +54,8 @@ assert.match(component, /await enqueueSuiviMeasurements\(rows\)[\s\S]*?detail\.a
 assert.match(nativeBleService, /AES\/GCM\/NoPadding/, "la file native BLE doit rester chiffrée AES-GCM");
 assert.match(nativeBleService, /AndroidKeyStore/, "la clé de file BLE doit rester protégée par Android Keystore");
 assert.match(nativeBleService, /queue\.length\(\) - 300/, "la file BLE native doit rester bornée");
+assert.match(nativeBleService, /"queueOverflow"/, "un dépassement de file BLE doit produire un événement explicite");
+assert.match(component, /detail\.type==="queueOverflow"/, "l'utilisateur doit être averti en cas de perte liée au débordement BLE");
 assert.match(nativeBleService, /FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE/, "la connexion BLE Android doit utiliser le type connectedDevice");
 assert.match(androidManifest, /android:foregroundServiceType="connectedDevice"/, "le manifeste doit déclarer le service BLE connecté");
 
