@@ -12,6 +12,9 @@ const measurementTest = fs.readFileSync("supabase/tests/150_suivi_mesures_multid
 const deviceSchemaMigration = fs.readFileSync("supabase/migrations/20261111000000_suivi_user_devices_catalog.sql", "utf8");
 const nativeBleService = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBleForegroundService.kt", "utf8");
 const androidManifest = fs.readFileSync("android/app/src/main/AndroidManifest.xml", "utf8");
+const nativeMainActivity = fs.readFileSync("android/app/src/main/java/cm/naxa/app/MainActivity.kt", "utf8");
+const bootReceiver = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBootReceiver.kt", "utf8");
+
 
 
 const catalogKeys = [...component.matchAll(/\{ key:"([^"]+)", name:/g)].map(match => match[1]);
@@ -58,6 +61,14 @@ assert.match(nativeBleService, /"queueOverflow"/, "un dépassement de file BLE d
 assert.match(component, /detail\.type==="queueOverflow"/, "l'utilisateur doit être averti en cas de perte liée au débordement BLE");
 assert.match(nativeBleService, /FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE/, "la connexion BLE Android doit utiliser le type connectedDevice");
 assert.match(androidManifest, /android:foregroundServiceType="connectedDevice"/, "le manifeste doit déclarer le service BLE connecté");
+assert.match(androidManifest, /\.NaxaBootReceiver/, "le manifeste doit déclarer le récepteur de redémarrage BLE");
+assert.match(bootReceiver, /AuthRepository\(SecureTokenStore\(context\)\)\.restoreSession\(\)/, "la reprise au redémarrage doit revalider le compte côté serveur");
+assert.match(bootReceiver, /owners\.contains\(profile\.userId\)/, "la reprise BLE doit être isolée au compte propriétaire");
+assert.match(nativeBleService, /fun stopForLogout\(context: android\.content\.Context\)/, "une déconnexion doit pouvoir purger les sessions BLE persistées");
+assert.match(nativeBleService, /fun savedSessionOwners\(context: android\.content\.Context\)/, "les propriétaires des sessions BLE doivent pouvoir être vérifiés");
+assert.equal((nativeMainActivity.match(/NaxaBleForegroundService\.stopForLogout\(appContext\)/g) || []).length, 3, "les trois parcours de déconnexion doivent arrêter les sessions BLE");
+assert.match(nativeBleService, /resumeSavedSessionsAfterAuth\(\)/, "un redémarrage du service doit revalider le compte avant reconnexion");
+
 
 assert.match(component, /\["body_composition","body_composition_measurement"\]/, "profil Bluetooth de balance impédancemètre manquant");
 const bleProtocol = fs.readFileSync("src/lib/suivi/ble-protocols.js", "utf8");
