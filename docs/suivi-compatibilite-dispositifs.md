@@ -53,7 +53,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 ## Connexion Bluetooth native Android
 
-- Les appareils sélectionnés depuis l’APK sont confiés à un service Android de premier plan de type `connectedDevice`.
+- Le service Android de premier plan de type `connectedDevice` expose une action de découverte BLE bornée à 12 secondes et une action de connexion GATT. L'écran Compose qui doit déclencher la découverte, présenter les appareils et appeler la connexion reste à intégrer; le parcours n'est pas encore accessible depuis l'APK.
 - Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native chiffrée avec AES-GCM et une clé Android Keystore (maximum 300 événements en attente).
 - Les métadonnées des sessions persistées (adresse, identifiant logique du dispositif, propriétaire) sont également chiffrées avec AES-GCM et Android Keystore; les anciennes sessions JSON en clair restent lisibles une fois pour permettre leur migration au prochain enregistrement.
 - Chaque liaison est associée au compte qui l’a autorisée; une session appartenant à un autre compte est arrêtée plutôt que réattribuée.
