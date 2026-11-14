@@ -526,3 +526,38 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 - Les 392 tests du build restent à 392 PASS / 0 FAIL (preuve des événements de build consultés).
 
 **Conclusion :** publication Production terminée et état Vercel vert. Cela confirme la disponibilité du déploiement et l'association des alias, mais ne remplace pas un parcours manuel authentifié dans l'interface Admin. Le contrôle navigateur Admin reste à effectuer.
+
+
+## 23. Inventaire des comptes NAXA Production et autorisation de réutilisation (14/11/2026)
+
+**Précision utilisateur :** l'utilisateur confirme que les profils visibles dans NAXA Production sont tous des comptes de test et autorise leur réutilisation pour la recette. Il ne peut pas transmettre de capture d'écran actuellement.
+
+**Contrôle SQL en lecture seule — Production `eouwtuusnsuxaejsxknf` :**
+```sql
+select p.role,
+       count(*)::int as profiles_count,
+       count(u.id)::int as linked_auth_count,
+       count(*) filter (where u.id is null)::int as profiles_without_auth
+from public.profiles p
+left join auth.users u on u.id = p.id
+group by p.role
+order by p.role;
+```
+
+**Résultat agrégé vérifié :**
+- `client` : 8 profils, 8 identités Auth liées, 0 profil sans Auth.
+- `admin` : 1 profil, 1 identité Auth liée, 0 profil sans Auth.
+- `promoteur` : 1 profil, 1 identité Auth liée, 0 profil sans Auth.
+- **Total : 10 profils, 10 identités Auth liées, 0 profil orphelin.**
+- Aucun e-mail, mot de passe, jeton ou secret n'a été affiché.
+
+**Décision / périmètre :**
+- Réutilisation des comptes de test Production autorisée par l'utilisateur.
+- Cette autorisation ne vaut pas autorisation de modifier les profils, rôles, affectations, données métier, mots de passe ou sessions ; aucune écriture n'a été effectuée.
+- Aucun compte Auth n'a été créé, supprimé ou modifié. Aucun déploiement Vercel ni changement de configuration.
+- Replay reste isolé : son inventaire précédent reste 1 Auth / 1 profil. Les identités d'un projet ne sont pas automatiquement disponibles dans l'autre.
+
+**Limite / prochaine étape :**
+- L'inventaire confirme les rôles et l'existence d'une identité Auth liée à chaque profil, mais ne vérifie pas les mots de passe ni la possibilité de connexion.
+- Étape suivante : examiner les champs non secrets des 10 profils et leurs relations métier (notamment Promoteur/pharmacies) pour établir une matrice de réutilisation ; ensuite tester les connexions uniquement par un mécanisme sécurisé, sans afficher ni demander les mots de passe dans la conversation.
+- **État : INVENTAIRE PRODUCTION CONFIRMÉ ; réutilisation autorisée mais tests de connexion et matrice E2E non encore exécutés.**
