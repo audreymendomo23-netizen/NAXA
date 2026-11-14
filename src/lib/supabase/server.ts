@@ -3,33 +3,37 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
-export function supabaseServer(response?: NextResponse){
-  // Next 15 retains synchronous cookie access as a temporary migration bridge.
-  // The server client is still synchronous across existing call sites; migrate those
-  // call sites to an async factory before moving to a Next release that removes this bridge.
-  const store = cookies() as unknown as {
-    getAll: () => Array<{ name: string; value: string }>;
-    set: (name: string, value: string, options?: CookieOptions) => void;
-  };
+export function supabaseServer(response?: NextResponse) {
+  // Next.js 15+ exposes cookies() asynchronously. Keep this factory synchronous
+  // for existing callers, but make the Supabase SSR cookie adapter async so it
+  // always reads and writes the resolved request cookie store.
+  const cookieStore = cookies();
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies:{
-        getAll:()=>store.getAll(),
-        setAll:(list: { name: string; value: string; options: CookieOptions }[])=>{
-          try{
-            list.forEach(({name,value,options})=>{
-              if(response) response.cookies.set(name,value,options);
-              else store.set(name,value,options);
+      cookies: {
+        getAll: async () => (await cookieStore).getAll(),
+        setAll: async (
+          list: { name: string; value: string; options: CookieOptions }[],
+        ) => {
+          try {
+            const store = await cookieStore;
+            list.forEach(({ name, value, options }) => {
+              if (response) response.cookies.set(name, value, options);
+              else store.set(name, value, options);
             });
-          }catch{}
-        }
-      }
-    }
-  )
+          } catch {
+            // Server Components cannot mutate response cookies while rendering.
+          }
+        },
+      },
+    },
+  );
 }
-export function supabaseAdmin(){
+
+export function supabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // Preview/Development must use a secret created in their own Replay project.
   // The legacy Production service-role key is a fallback only inside a
@@ -64,17 +68,19 @@ export function supabaseAdmin(){
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       ...(globalOptions ? { global: globalOptions } : {}),
     }
-  )
+  );
 }
-export function supabasePublic(revalidateSecondes=600){
+
+export function supabasePublic(revalidateSecondes = 600) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      auth:{persistSession:false},
-      global:{
-        fetch:(url,init)=>fetch(url,{...init,next:{revalidate:revalidateSecondes}})
-      }
-    }
-  )
+      auth: { persistSession: false },
+      global: {
+        fetch: (url, init) =>
+          fetch(url, { ...init, next: { revalidate: revalidateSecondes } }),
+      },
+    },
+  );
 }
