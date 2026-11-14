@@ -98,8 +98,8 @@
   .admin-bento-brand-mark { width: 36px; height: 36px; flex-basis: 36px; border-radius: 12px; font-size: 21px; }
   .admin-bento-brand-copy strong { font-size: 18px; }
   .admin-bento-nav-caption, .admin-bento-sidebar-footer { display: none; }
-  .admin-bento-nav { position: fixed; inset: auto 0 0; z-index: 60; display: flex; gap: 6px; overflow-x: auto; padding: 8px 9px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid color-mix(in srgb, var(--sur-vert) 18%, transparent); background: var(--entete); scrollbar-width: thin; }
-  .admin-bento-nav-link { display: flex; flex: 0 0 auto; min-height: 44px; align-items: center; gap: 7px; padding: 8px 12px; border-color: color-mix(in srgb, var(--sur-vert) 22%, transparent); border-radius: 999px; }
+  .admin-bento-nav { position: fixed; inset: auto 0 0; z-index: 60; display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; padding: 8px 9px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid color-mix(in srgb, var(--sur-vert) 18%, transparent); background: var(--entete); scrollbar-width: thin; }
+  .admin-bento-nav-link { display: flex; flex: 0 0 auto; min-height: 44px; align-items: center; gap: 7px; padding: 8px 12px; border-color: color-mix(in srgb, var(--sur-vert) 22%, transparent); border-radius: 999px; }\n  .admin-bento-nav-link { scroll-snap-align: start; }
   .admin-bento-nav-index, .admin-bento-nav-copy small, .admin-bento-nav-arrow { display: none; }
   .admin-bento-nav-copy strong { white-space: nowrap; font-size: 11px; }
   .admin-bento-workspace { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
