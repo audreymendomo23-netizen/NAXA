@@ -1,3 +1,44 @@
+## Reprise — postes professionnels autonomes et notifications Livraison — 14/11/2026
+
+**État de la recette E2E globale : PARTIELLE.** Les tests SQL ciblés ci-dessous sont verts sur Supabase Replay. Cette passe ne certifie ni le go-live ni les parcours sur appareils réels.
+
+### Corrections appliquées
+
+- **Sélection du poste Caisse :** correction de `naxa_select_active_role`. Un profil Client/Admin peut désormais sélectionner Caisse uniquement s'il détient une affectation Caisse active, non expirée, dans une pharmacie active et correspondant au périmètre demandé. Les anciens profils dont le rôle de base est `caisse` conservent leur compatibilité. Migration Replay : `20261114073016_naxa_select_active_role_caisse_assignment`. Source : `supabase/migrations/20261114073016_naxa_select_active_role_caisse_assignment.sql`.
+- **Test 295 :** le contexte JWT est initialisé avant l'appel aux helpers qui vérifient le profil actif. Le correctif évite un faux échec du test et n'assouplit pas les règles métier.
+- **Notifications téléphone :** migrations Replay appliquées pour les jetons FCM, l'outbox push, les alertes de disponibilité et les notifications à l'équipe pharmacie :
+  - `20261114072729_naxa_fcm_android_tokens`
+  - `20261114072731_naxa_notification_phone_push`
+  - `20261114072733_client_product_availability_alerts`
+  - `20261114072748_naxa_delivery_team_phone_notifications`
+- **Cron push :** aucun job externe n'a été programmé. Sur Replay, `pg_net` était désactivé et le secret Vault attendu était absent ; aucun envoi réel périodique n'est revendiqué.
+
+### Preuves Replay
+
+- Postes autonomes : test 287 **9/9** ; 295 **11/11** ; 296 **6/6** ; 297 **8/8** ; 298 **7/7** ; 299 **4/4**. Total : **45 assertions PASS**. Les tests vérifient notamment l'isolation multi-pharmacies, la révocation, la séparation du compte Livreur et l'absence de privilèges Livreur implicites.
+- Notifications : contrat FCM **PASS** ; test outbox/alertes disponibilité **exécuté sans exception** ; test notifications équipe Livraison **exécuté sans exception**.
+- Paiement Livraison : SMS payeur optionnel, instantané d'intention, confirmation double SMS, lecture Caisse, notifications Client/équipe et gardes de valeurs nulles : **6 tests SQL exécutés sans exception**.
+- Ces contrôles sont transactionnels ou structurels selon le fichier ; ils ne remplacent pas la recette avec plusieurs vrais comptes connectés, des notifications FCM distribuées, ni des téléphones Android.
+
+### État Git et CI
+
+- `main` : commit correctif applicatif `043e08ecd0989d947e0efb69cb4003fb40498749` avant cette mise à jour documentaire.
+- Test 295 corrigé : commit `2d496bccba87bf1c4dacd479b97a2cd4cc00f9e7`.
+- Migration Caisse versionnée : commit `043e08ecd0989d947e0efb69cb4003fb40498749`.
+- Run GitHub Actions `43571445832` sur ce commit : validation syntaxe/workflows **PASS** ; job Tests/TypeScript/lint encore en cours au dernier contrôle. Ne pas reprendre les 392/392 du run précédent comme preuve sur ce nouveau commit tant que ce run n'est pas terminé.
+
+### Réserves non clôturées
+
+- Supabase Security Advisors Replay après les migrations : 2 vues `SECURITY DEFINER` classées ERROR ; 3 fonctions `SECURITY DEFINER` accessibles à `anon` ; 233 accessibles à `authenticated` ; protection des mots de passe compromis désactivée. Les droits ne sont pas révoqués en masse : chaque RPC doit être vérifiée selon son contrat d'accès.
+- E2E Auth multi-comptes, Storage avec isolation réelle, parcours navigateur, scanner/caméra/PDF/OCR, GPS/Bluetooth/push/SMS sur appareils Android, et livraison réelle jusqu'à la clôture restent à exécuter.
+- Tests SQL non exécutés : le dépôt contient 328 fichiers dans `supabase/tests`; la présente passe ne les certifie pas tous.
+- La file push et les déclencheurs sont installés, mais l'envoi mobile réel n'est pas démontré. Aucun téléphone n'a été enrôlé dans cette passe.
+- Les 70 alertes INFO RLS sans policy recensées par Advisor doivent être analysées par exposition et privilèges ; leur seule présence n'établit pas une fuite.
+
+**Périmètre :** Supabase Replay et branche `main` uniquement. Aucune écriture ou migration Supabase Production, aucun déploiement Vercel, aucun envoi Play Store.
+
+---
+
 ## Clôture — réconciliation Supabase Replay / Naxa — 14/11/2026
 
 **État : VERT — périmètre ciblé de réconciliation.** Les garde-fous Livraison/paiement, les ACL ciblées, les index et la structure des tables de ce périmètre sont présents et vérifiés sur NAXA. Les écarts métier volontaires avec Replay sont conservés. La CI du code est entièrement passée.
