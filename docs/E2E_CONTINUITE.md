@@ -722,3 +722,24 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Correction : types communs explicites `AdminNavItem` / `AdminNavGroup`, tableau `groups: AdminNavGroup[]` et type explicite du tableau aplati `AdminNavItem[]`.
 - Commit de correction : `c57f40435945536c4ef82a2de466187d48b6d221`.
 - Le contrôle qualité complet doit être jugé sur le commit final après correction et après la présente mise à jour documentaire. Déploiement conditionné à un succès complet de ce contrôle.
+
+
+**Clôture qualité et publication Production — navigation Admin (14/11/2026) :**
+- Contrôle GitHub Actions final : run `43616386314`, commit testé `8ed4d811f34518583185fdfe015f0e4a981c633d`, conclusion **success**.
+- Job « Tests, TypeScript et lint » : success ; les 392 tests unitaires, TypeScript, ESLint et le build Next.js sont passés.
+- Job « GitHub Actions syntax and expression checks » : success ; `actionlint` a validé les workflows.
+- Le premier run antérieur `43615999167` avait échoué uniquement sur l'inférence TypeScript de `groups.flatMap` ; la correction explicite `AdminNavItem` / `AdminNavGroup` a ensuite été validée par le run final.
+
+**Déploiement Production :**
+- Projet Vercel : `naxa` / `prj_WtDcnR5OvRWKCt2xXgBPvpzzRYVH`, équipe `team_BMPHZQHTElVZL77cwpFxk59X`.
+- Garde-fou Vercel conservé : seul le SHA `8ed4d811f34518583185fdfe015f0e4a981c633d` pouvait franchir `commandForIgnoringBuildStep`; tout autre commit `main` est ignoré.
+- Déploiement : `dpl_GZT4aUPVzLkWfM3W6KXmP4iJ4k28`, commit exact `8ed4d811f34518583185fdfe015f0e4a981c633d`, cible Production.
+- Résultat Vercel : **READY**, événement de build `Deployment completed`, `aliasError=null`.
+- Alias confirmés : `nnaxa.vercel.app`, `naxa-opal.vercel.app`, `naxa-naxa3.vercel.app`, `naxa-git-main-naxa3.vercel.app`.
+- Logs runtime Production filtrés sur ce déploiement, fenêtre des 30 dernières minutes, niveaux `error/fatal` : aucun résultat.
+- Avertissements non bloquants observés : peer dependencies ESLint 10 vs plugins ESLint 9, configuration npm `cache-dir`, scripts d'installation npm non autorisés par `allowScripts`, et avertissement de dépréciation du support React 18 dans Next.js 16.4.6. Ils n'ont pas empêché le build READY et restent à traiter séparément.
+- Aucun changement Supabase, migration, rôle, droit, API, RPC ou RLS. Aucun déploiement Preview.
+
+**Réserve fonctionnelle :** le contrôle confirme le build, le déploiement, les alias et l'absence d'erreurs runtime dans la fenêtre observée. Un parcours visuel avec session Admin authentifiée sur desktop et mobile n'a pas été exécuté dans cette passe ; l'expérience réelle d'ouverture/repli des six rubriques reste à valider manuellement.
+
+**État final : QUALITÉ AUTOMATISÉE PASS — PRODUCTION READY — 24/24 ROUTES FIXES PRÉSERVÉES.**
