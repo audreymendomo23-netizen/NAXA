@@ -1,0 +1,126 @@
+{
+  "source_archive": "Projet.zip",
+  "document_count": 24,
+  "files": [
+    {
+      "path": "01-cahiers-des-charges/01-kiosko.md",
+      "bytes": 109632,
+      "sha256": "2d3de3483f30ec85734382c5d476f411f1d7b4d6062bf9b60f6ac16d5bfb6524"
+    },
+    {
+      "path": "01-cahiers-des-charges/02-bootik.md",
+      "bytes": 37552,
+      "sha256": "7f1f4d816a27ce38a9e8472476bfb0a8f7f97b807a19cc38d0d1d6f7f326a7f5"
+    },
+    {
+      "path": "01-cahiers-des-charges/03-zipple.md",
+      "bytes": 32746,
+      "sha256": "f3ca10eeb275caf4eeebc187ebd6c2f777e65409c3cd1a28063a317fe4ed4db0"
+    },
+    {
+      "path": "01-cahiers-des-charges/04-naxa-services.md",
+      "bytes": 32120,
+      "sha256": "1246175278aa71dd152ebae937c10758e8b0bba73b79200255346373327654b2"
+    },
+    {
+      "path": "01-cahiers-des-charges/05-cotiz.md",
+      "bytes": 33801,
+      "sha256": "b727a6329ded0f1422f3213efece65f14d4e3d1a786fc33642790a4912daa2fd"
+    },
+    {
+      "path": "01-cahiers-des-charges/06-loyable.md",
+      "bytes": 31861,
+      "sha256": "7372cfd4cf8ea896f549966559005b0b61c9eee9111f7221ecc58d0b8066762e"
+    },
+    {
+      "path": "01-cahiers-des-charges/07-naxa-hotel.md",
+      "bytes": 47584,
+      "sha256": "a60d85687ac1f99e832a1449a0c413fd16fc68bbe2f6ca133dae7de1237f9b78"
+    },
+    {
+      "path": "02-prompts/00-socle-commun.md",
+      "bytes": 68623,
+      "sha256": "274bb636bd0cf8d4cbec5ef7ca5bb6911b748ea6378e63e8578fa498e63e6018"
+    },
+    {
+      "path": "02-prompts/01-kiosko.md",
+      "bytes": 68562,
+      "sha256": "45b6847599a8353cfd53031c698270b9e82d9336fb54129626e36b5536e6661b"
+    },
+    {
+      "path": "02-prompts/02-bootik.md",
+      "bytes": 57664,
+      "sha256": "e76b08a13d47e87780b754c95bcf9e7a32a9dfd1cfe93e32fc447096eb98568f"
+    },
+    {
+      "path": "02-prompts/03-zipple.md",
+      "bytes": 36749,
+      "sha256": "755cd7e518c70e510cf85fa1a50231b11fbe3e2fe2045895f120ec8d28034fe2"
+    },
+    {
+      "path": "02-prompts/04-naxa-services.md",
+      "bytes": 32114,
+      "sha256": "0fd2b1a70a05e3d1cc90c7ecd9fa6169473bb23c612ddff5691aa15088b94d35"
+    },
+    {
+      "path": "02-prompts/05-cotiz.md",
+      "bytes": 33520,
+      "sha256": "b6785f20ae5869515953b3a373c9403d01a79942a1369d1ca4659f5f3b0e1988"
+    },
+    {
+      "path": "02-prompts/06-loyable.md",
+      "bytes": 27697,
+      "sha256": "35cd5199adb17967771029c3824a2edfc9e469eb7afd188acdc5ce010cd5d900"
+    },
+    {
+      "path": "02-prompts/07-naxa-hotel.md",
+      "bytes": 53181,
+      "sha256": "b37f48cde3e0f0c556289a7013bc7974ad4a721d93e5c89484a1577ade178a8f"
+    },
+    {
+      "path": "02-prompts/08-refonte-du-design.md",
+      "bytes": 56421,
+      "sha256": "fbff3efeb2b280d6af765479c7e8bb08cf2f68e4d86312b5888f17fda61aab03"
+    },
+    {
+      "path": "02-prompts/09-cameras.md",
+      "bytes": 64876,
+      "sha256": "3b94bee0b01d213096923e6499f468a1c44e7e7a903ef4b1fbdc750fbae3945e"
+    },
+    {
+      "path": "02-prompts/10-nouveautes.md",
+      "bytes": 74782,
+      "sha256": "eb07be2c508a562c3b269a1aac64e4484b8098056e942385dbc1763501391de0"
+    },
+    {
+      "path": "02-prompts/11-integration-des-options.md",
+      "bytes": 49065,
+      "sha256": "9796c507b0e0e49b8f1ea1898f1193b705a74a807292db11f515b0be4dc173ff"
+    },
+    {
+      "path": "03-continuite-et-kit/continuite-projet-au-10-novembre-2026.md",
+      "bytes": 3126,
+      "sha256": "8819f445fb37dd422058f8f8db452a5c741436875efa6d9a1a894978b66428d1"
+    },
+    {
+      "path": "03-continuite-et-kit/lisez-moi-kit-de-construction.md",
+      "bytes": 1470,
+      "sha256": "5a72a2b09cec330e4b05a9681c1f4cb1c4b766c662edfe5370f4d4d127a5f698"
+    },
+    {
+      "path": "03-continuite-et-kit/passation-kit-de-construction.md",
+      "bytes": 4858,
+      "sha256": "9c93a6b42db339c3f09920986159f25a114a366b37561d92b9d027751c9e051f"
+    },
+    {
+      "path": "03-continuite-et-kit/resultat-des-tests.md",
+      "bytes": 178,
+      "sha256": "94c67c8b4896da33a7580765e8bb26cd4861e36a59be894374b290682036135d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3126,
+      "sha256": "40ed69cfa9a0fd4b8af9e46ec8e6be58b1e976b70f1cb974c63469d4ac424025"
+    }
+  ]
+}
