@@ -1,6 +1,8 @@
 package cm.naxa.app
 
-import android.net.Uri
+import java.net.URI
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 internal sealed interface NaxaNativeDeepLink {
     data object Notifications : NaxaNativeDeepLink
@@ -26,11 +28,11 @@ internal object NaxaNativeDeepLinks {
         }
 
         val uri = try {
-            Uri.parse(rawPath)
+            URI(rawPath)
         } catch (_: Exception) {
             return NaxaNativeDeepLink.Unsupported("Lien NAXA invalide.")
         }
-        if (uri.scheme != null || uri.authority != null) {
+        if (uri.scheme != null || uri.rawAuthority != null) {
             return NaxaNativeDeepLink.Unsupported("Les liens externes ne sont pas ouverts dans l’espace natif.")
         }
 
@@ -69,7 +71,7 @@ internal object NaxaNativeDeepLinks {
                 return NaxaNativeDeepLink.Unsupported("Cette destination appartient à l’espace Client.")
             }
             val query = if (clientTab == 1) {
-                uri.getQueryParameter("q")
+                uri.queryParameter("q")
                     ?.filterNot { it.isISOControl() }
                     ?.take(120)
                     ?.takeIf { it.isNotBlank() }
@@ -78,5 +80,21 @@ internal object NaxaNativeDeepLinks {
         }
 
         return NaxaNativeDeepLink.Unsupported("Cette destination n’est pas encore disponible dans l’application Android.")
+    }
+
+    private fun URI.queryParameter(name: String): String? {
+        val query = rawQuery ?: return null
+        for (part in query.split('&')) {
+            val pair = part.split('=', limit = 2)
+            val key = decodeQueryComponent(pair[0]) ?: continue
+            if (key == name) return decodeQueryComponent(pair.getOrElse(1) { "" })
+        }
+        return null
+    }
+
+    private fun decodeQueryComponent(value: String): String? = try {
+        URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+    } catch (_: IllegalArgumentException) {
+        null
     }
 }
