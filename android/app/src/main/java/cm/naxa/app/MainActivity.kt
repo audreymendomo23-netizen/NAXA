@@ -627,7 +627,15 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             scanning = false
                             status = event.optString("message", "Erreur Bluetooth.")
                         }
-                        "queueOverflow" -> status = "Attention : la file Bluetooth a débordé. Vérifiez l’historique des mesures."
+                        "queueOverflow" -> {
+                            val dropped = event.optInt("droppedCount", 1)
+                            val droppedMeasurements = event.optInt("droppedMeasurementCount", -1)
+                            status = if (droppedMeasurements >= 0) {
+                                "File Bluetooth saturée : $dropped événement(s) refusé(s), dont $droppedMeasurements mesure(s). Synchronisez puis reconnectez les appareils."
+                            } else {
+                                "Débordement Bluetooth historique : $dropped événement(s) non conservé(s), détail des mesures inconnu. Synchronisez puis reconnectez les appareils."
+                            }
+                        }
                     }
                     if (eventId.isNotBlank() && eventType != "measurement") {
                         NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
