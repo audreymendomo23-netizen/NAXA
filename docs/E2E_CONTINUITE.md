@@ -375,3 +375,19 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 
 **État :** correctif commité sur `main` et Production déployée `READY`. Le défaut d'implémentation des cookies est corrigé ; le succès de connexion réelle par mot de passe et Google reste à confirmer par un essai utilisateur contrôlé.
 
+
+
+## 18. Nouvelle relance du job Storage Replay — en attente (14/11/2026)
+
+**Demande utilisateur :** relancer le run Storage Replay précédent après le point de blocage Auth Admin.
+
+**Action effectuée :**
+- Relance des seuls jobs échoués du run GitHub Actions `43600197045` via la fonction GitHub Actions de rerun failed jobs.
+- GitHub a confirmé l'acceptation de la relance (`success=true`).
+- Contrôle immédiat des jobs : job `132477787960`, « Upload/download réel, isolation RLS et nettoyage Replay », état **queued**.
+- Projet ciblé par le workflow : Replay uniquement. Aucun changement de code, secret, compte Auth, profil ou donnée métier effectué par cette relance.
+- Production et Vercel non touchés.
+
+**État : EN ATTENTE —** le job est en file d'attente. Aucun résultat PASS/FAIL de cette nouvelle tentative n'est encore disponible.
+
+**Point de reprise :** recontrôler le job `132477787960` et ses logs après exécution ; vérifier séparément le résultat Storage, l'authentification Admin et le nettoyage. Ne pas conclure au succès sur la seule acceptation de la relance.
