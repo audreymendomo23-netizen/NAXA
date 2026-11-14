@@ -106,11 +106,12 @@ export async function GET(request: Request) {
       activePartnerType = partner.partner_type;
 
       if (!profile.fonction_interne && profile.role === "client") {
-        // A partner member without a resolvable selected role must not fall
-        // through into the Client workspace.
-        activeRole = membership?.member_role === "owner"
-          ? "promoteur"
-          : "partner_role_unresolved";
+        // Only a Parapharmacy owner is the Promoteur role in this partner
+        // model. Other partner types must not be silently mapped to it.
+        activeRole =
+          partner.partner_type === "parapharmacie" && membership?.member_role === "owner"
+            ? "promoteur"
+            : "partner_role_unresolved";
       }
     } else if (profile.role === "client") {
       // Membership exists but no active partner is readable (for example,
