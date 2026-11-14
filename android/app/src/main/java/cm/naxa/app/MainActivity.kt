@@ -606,7 +606,10 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             connectedDevices = connectedDevices - event.optString("deviceId")
                             status = "Appareil déconnecté."
                         }
-                        "error" -> status = event.optString("message", "Erreur Bluetooth.")
+                        "error" -> {
+                            scanning = false
+                            status = event.optString("message", "Erreur Bluetooth.")
+                        }
                         "queueOverflow" -> status = "Attention : la file Bluetooth a débordé. Vérifiez l’historique des mesures."
                     }
                     if (eventId.isNotBlank() && event.optString("type") != "measurement") {
@@ -753,7 +756,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                 NaxaBleForegroundService.requestConnect(context, device.id, selectedDeviceKey, ownerUserId)
                                 status = "Demande de connexion envoyée à Android…"
                             },
-                            enabled = device.id !in connectedDevices
+                            enabled = device.id !in connectedDevices && consentLoaded && selectedFamily in consentFamilies
                         ) { Text(if (device.id in connectedDevices) "Connecté" else "Associer") }
                     }
                 }
