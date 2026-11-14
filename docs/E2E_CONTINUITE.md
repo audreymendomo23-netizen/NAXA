@@ -595,3 +595,49 @@ order by p.role;
 - Replay reste le seul environnement autorisé pour les scénarios E2E avec mutations de données.
 
 **État : INVENTAIRE MÉTIER EFFECTUÉ ; réutilisation partielle possible pour contrôles de connexion non destructifs seulement. Le Promoteur et les données de pharmacie associées sont bloqués par incohérence d'état ; les rôles professionnels manquants doivent être créés/préparés sur Replay, pas en Production.**
+
+
+## 25. Cause racine de la désactivation Promoteur — échéance et synchronisation automatique (14/11/2026)
+
+**Décision utilisateur sur le périmètre E2E :** l'utilisateur confirme que les quatre pharmacies actuellement présentes dans le projet Supabase Production sont toutes des données de test et demande qu'elles soient utilisées pour la recette E2E. La pharmacie liée au Promoteur peut donc être incluse dans l'investigation malgré son indicateur historique `est_demo=false`. Cette passe de diagnostic est restée strictement en lecture seule.
+
+**État agrégé constaté en Production :**
+- 4 pharmacies au total ; 3 marquées démo, 1 non-démo selon la colonne historique ; 0 pharmacie active ; 1 visible dans la recherche.
+- 1 profil Promoteur, inactif ; 1 lien Promoteur/pharmacie toujours actif.
+- 103 lignes de privilèges Promoteur encore `active=true` : 93 portée `PHARMACIE`, 10 portée `RESEAU`.
+- La pharmacie liée est inactive ; son architecture active correspond bien à celle de la convention (`ORPHELIN`). Ce point n'explique donc pas à lui seul l'invalidité commerciale observée.
+
+**Chronologie reconstruite depuis `pharmacie_donnees_historique` (UTC) :**
+1. 22/10/2026 12:14:13 — création du profil Promoteur.
+2. 22/10/2026 12:14:14 — création de la pharmacie avec `actif=false`.
+3. 22/10/2026 12:14:15 — conversion du profil de `client` vers `promoteur`, avec `actif=false`.
+4. 22/10/2026 12:14:16 — création du lien Promoteur/pharmacie inactif ; convention et abonnement créés avec échéance au 05/11/2026.
+5. 22/10/2026 12:15:28 — activation du profil, de la pharmacie et du lien ; le déclencheur de provisionnement a ensuite créé les privilèges d'architecture.
+6. 31/10/2026 06:00 — contrôle planifié observé, abonnement toujours `actif`, échéance inchangée.
+7. 14/11/2026 01:15:00 — le job cron 36 exécute avec succès `public.synchroniser_validite_pharmacies()` ; l'abonnement passe de `actif` à `impaye`, la convention de `active` à `expiree`, puis la pharmacie et le profil Promoteur passent de `actif=true` à `actif=false`. Les événements de désactivation ont `acteur_id` absent, cohérent avec une exécution système.
+
+**Cause immédiate confirmée :**
+- Abonnement Promoteur : `echeance=2026-11-05`, `statut=impaye`, `bloque_le=2026-11-14 01:15:00 UTC`.
+- Convention : `date_expiration=2026-11-05`, `statut=expiree`.
+- Aucun enregistrement dans `abonnement_promoteur_paiements` et aucun règlement dans `abonnement_promoteur_reglements` pour cet abonnement ; donc aucun règlement confirmé ni règlement en attente recevable ne protégeait l'échéance.
+- Le job cron 36 est actif avec le calendrier `15 * * * *` et la commande `select public.synchroniser_validite_pharmacies();`. Son exécution du 14/11 à 01:15 UTC est enregistrée `succeeded`.
+- La fonction synchronise l'impayé, l'expiration de convention et la désactivation de pharmacie/profil. Elle ne désactive ni `promoteur_pharmacies` ni `naxa_profile_privileges`.
+
+**Pourquoi le tableau montrait encore 103 privilèges et un lien actifs :**
+- Le traitement d'échéance ne révoque pas les lignes de rattachement ni les privilèges persistés ; leurs indicateurs restent donc actifs.
+- Le contrôle central `private.naxa_promoteur_valide` retourne actuellement `false`. Ses critères incluent le profil actif, la convention active/non échue, l'abonnement actif/non échu, le lien actif et la pharmacie active avec architecture concordante.
+- Le moteur `private.naxa_has_privilege` refuse les privilèges Promoteur si ce contrôle commercial échoue ; `private.naxa_can` passe également par ce moteur. Les 103 lignes sont donc des droits persistés non révoqués, mais elles ne constituent pas une preuve d'accès effectif tant que la validité commerciale échoue.
+- La policy SELECT de `naxa_profile_privileges` autorise la lecture par soi-même, Admin ou gestionnaire autorisé ; cela ne contourne pas les contrôles d'autorisation métier.
+
+**Conclusion / qualification :**
+- **Cause racine de la désactivation : échéance du 05/11/2026 dépassée sans règlement recevable ; synchronisation automatique du 14/11/2026 à 01:15 UTC.**
+- **Anomalie secondaire de cohérence d'état :** le job suspend le profil et la pharmacie mais conserve le lien Promoteur/pharmacie et les 103 privilèges avec `active=true`. Le moteur central bloque actuellement leur usage effectif ; le statut persisté reste toutefois trompeur pour l'inventaire et les écrans d'administration.
+- Le code d'architecture `ORPHELIN` est présent et concordant entre la convention et l'architecture active de la pharmacie ; il n'est pas la cause immédiate de la désactivation observée.
+- Aucun profil, abonnement, convention, pharmacie, lien, privilège, session ou compte Auth n'a été modifié pendant cette investigation. Aucun paiement fictif n'a été créé. Aucun déploiement.
+
+**Point de reprise E2E :**
+1. Reproduire en environnement Replay le cycle échéance dépassée → job de validité → suspension, et vérifier le comportement des privilèges persistés.
+2. Tester le parcours de règlement confirmé puis la réactivation Admin avec la RPC prévue ; vérifier explicitement si la pharmacie et le Promoteur doivent être réactivés séparément ou par une opération atomique contrôlée.
+3. Ajouter une assertion de cohérence sur les rattachements/privilèges suspendus : soit les lignes sont révoquées à la suspension et reprovisionnées après réactivation, soit leur statut doit être distingué de l'autorisation effective. Ne pas corriger Production avant d'avoir validé le contrat métier et les tests de régression.
+
+**État : CAUSE IMMÉDIATE PROUVÉE ; incohérence des indicateurs de privilèges identifiée ; correction et recette de réactivation non encore exécutées.**
