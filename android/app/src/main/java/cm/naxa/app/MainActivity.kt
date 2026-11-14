@@ -507,7 +507,6 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         "glucometre" to "Glucomètre",
         "balance" to "Balance connectée",
         "balance_impedance" to "Balance impédancemètre",
-        "ecg" to "ECG",
         "montre_connectee" to "Montre connectée",
         "bracelet_activite" to "Bracelet d’activité",
         "podometre" to "Podomètre"
@@ -568,7 +567,11 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                         "profiles" -> {
                             if (event.optString("ownerUserId") == ownerUserId) {
                                 status = if (event.optInt("profileCount") > 0) "Profils Bluetooth détectés. La liaison est active."
-                                    else "Aucun profil de mesure standard reconnu pour cet appareil."
+                                    else "Aucun profil GATT compatible avec cette famille. L’appareil va être déconnecté."
+                                if (event.optInt("profileCount") <= 0) {
+                                    NaxaBleForegroundService.requestDisconnect(context, event.optString("deviceId"))
+                                    connected = connected - event.optString("deviceId")
+                                }
                             }
                         }
                         "measurement" -> {
