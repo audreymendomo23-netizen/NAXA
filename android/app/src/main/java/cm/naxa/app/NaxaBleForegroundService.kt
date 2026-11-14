@@ -29,6 +29,10 @@ import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class NaxaBleForegroundService : Service() {
     companion object {
@@ -77,6 +81,24 @@ class NaxaBleForegroundService : Service() {
         }
         fun pendingEvents(context: android.content.Context): String =
             try { decryptQueue(context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, null)).toString() } catch (_: Exception) { "[]" }
+
+        fun savedSessionOwners(context: android.content.Context): Set<String> {
+            val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                .getString(SESSIONS_KEY, "[]")
+            val sessions = try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+            return (0 until sessions.length()).mapNotNull { index ->
+                sessions.optJSONObject(index)?.optString("owner")?.takeIf { it.isNotBlank() }
+            }.toSet()
+        }
+
+        fun stopForLogout(context: android.content.Context) {
+            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            synchronized(NaxaBleForegroundService::class.java) {
+                prefs.edit().putString(SESSIONS_KEY, "[]").commit()
+            }
+            context.stopService(Intent(context, NaxaBleForegroundService::class.java))
+        }
+
         private const val KEY_ALIAS = "naxa_ble_measurement_queue_v1"
 
         private fun queueKey(): java.security.Key {
@@ -166,16 +188,46 @@ class NaxaBleForegroundService : Service() {
                 if (address.isNotBlank() && key.isNotBlank() && owner.isNotBlank()) connect(address, key, owner)
             }
             else -> {
-                val saved = getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(SESSIONS_KEY, "[]")
-                val sessionsJson = try { JSONArray(saved) } catch (_: Exception) { JSONArray() }
-                if (sessionsJson.length() > 0) ensureForeground()
-                for (index in 0 until sessionsJson.length()) {
-                    val item = sessionsJson.optJSONObject(index) ?: continue
-                    connect(item.optString("address"), item.optString("key"), item.optString("owner"))
+                val sessionsJson = savedSessions()
+                if (sessionsJson.length() > 0) {
+                    ensureForeground()
+                    resumeSavedSessionsAfterAuth()
                 }
             }
         }
         return START_STICKY
+    }
+
+    private fun savedSessions(): JSONArray {
+        val raw = getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(SESSIONS_KEY, "[]")
+        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+    }
+
+    private fun resumeSavedSessionsAfterAuth() {
+        val saved = savedSessions()
+        if (saved.length() == 0) return
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val profile = AuthRepository(SecureTokenStore(this@NaxaBleForegroundService)).restoreSession()
+                if (profile == null) return@launch
+                val owners = savedSessionOwners(this@NaxaBleForegroundService)
+                if (!owners.contains(profile.userId)) {
+                    stopForLogout(this@NaxaBleForegroundService)
+                    return@launch
+                }
+                handler.post {
+                    val latest = savedSessions()
+                    for (index in 0 until latest.length()) {
+                        val item = latest.optJSONObject(index) ?: continue
+                        if (item.optString("owner") == profile.userId) {
+                            connect(item.optString("address"), item.optString("key"), item.optString("owner"))
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Une panne réseau ne détruit pas les sessions persistées; aucune reconnexion n'est faite sans validation.
+            }
+        }
     }
 
     private fun ensureForeground() {
