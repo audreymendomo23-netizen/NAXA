@@ -13,12 +13,33 @@ class NaxaNativeRoleTest {
     @Test
     fun professionalAndAdminRolesFailClosed() {
         listOf(
-            "admin", "promoteur", "pharmacie", "responsable", "comptable",
+            "admin", "promoteur", "pharmacie", "caisse", "responsable", "comptable",
             "pharmacien", "gestionnaire_stock", "livreur", "partenaire",
             "centre_examens", "soins_domicile"
         ).forEach { role ->
             assertFalse("Role $role must not enter Client workspace", NaxaNativeRole.supportsClientWorkspace(role))
         }
+    }
+
+    @Test
+    fun activeRoleOverridesBaseRoleForWorkspaceRouting() {
+        val profile = NaxaProfile(
+            userId = "profile-id",
+            role = "client",
+            ageVerified = true,
+            activeRole = "admin"
+        )
+        assertFalse(NaxaNativeRole.supportsClientWorkspace(profile.effectiveRole))
+    }
+
+    @Test
+    fun missingActiveRoleFallsBackToBaseRole() {
+        val profile = NaxaProfile(
+            userId = "profile-id",
+            role = "client",
+            ageVerified = true
+        )
+        assertTrue(NaxaNativeRole.supportsClientWorkspace(profile.effectiveRole))
     }
 
     @Test
