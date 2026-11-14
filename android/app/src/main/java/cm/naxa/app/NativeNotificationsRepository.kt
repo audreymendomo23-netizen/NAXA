@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 
 data class NaxaNotificationItem(
     val id: String,
+    val userId: String?,
     val type: String,
     val title: String,
     val body: String,
@@ -39,7 +40,7 @@ class NativeNotificationsRepository(private val tokenStore: SecureTokenStore) {
             .addPathSegments("rest/v1/notifications")
             .addQueryParameter(
                 "select",
-                "id,type,titre,corps,fil_id,pharmacie_id,reservation_id,related_entity_id,lu_le,created_at"
+                "id,user_id,type,titre,corps,fil_id,pharmacie_id,reservation_id,related_entity_id,lu_le,created_at"
             )
             .addQueryParameter("order", "created_at.desc")
             .addQueryParameter("limit", "50")
@@ -72,6 +73,7 @@ class NativeNotificationsRepository(private val tokenStore: SecureTokenStore) {
                     add(
                         NaxaNotificationItem(
                             id = id,
+                            userId = row.nullableString("user_id"),
                             type = row.optString("type", "notification"),
                             title = row.optString("titre", "Notification NAXA"),
                             body = row.optString("corps"),
