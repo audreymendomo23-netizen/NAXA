@@ -62,7 +62,7 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - Toute déconnexion purge les sessions Bluetooth persistées avant la révocation locale du compte; les trois parcours de déconnexion Android appliquent cette règle.
 - Après redémarrage Android ou reprise du service après arrêt du processus, les sessions ne sont restaurées qu'après revalidation serveur du compte et correspondance exacte de son identifiant propriétaire.
 - La reprise au démarrage vérifie aussi l'autorisation Bluetooth Android; en cas d'absence de permission ou d'indisponibilité réseau, aucune liaison n'est relancée sans validation ultérieure.
-- L’interface reprend les événements persistés à son retour et les transmet au même parcours de consentement et d’enregistrement que les mesures reçues pendant que l’application est ouverte.
+- La PWA navigateur reprend les événements persistés à son retour et les transmet au parcours web de consentement et d’enregistrement. L’écran Compose Android utilise son propre lecteur d’événements natifs; son décodage et sa persistance des mesures restent à intégrer.
 - Android affiche une notification persistante pendant le maintien des connexions. Le retrait d’un appareil arrête sa session de fond.
 - Si la file native atteint sa capacité, les événements les plus anciens écartés sont comptabilisés dans un événement `queueOverflow` visible dans l’interface; cette alerte impose de vérifier l’historique et la synchronisation.
 - La continuité Bluetooth en arrière-plan n’est pas disponible dans une PWA de navigateur; elle dépend du cycle de vie du navigateur et de ses autorisations.
