@@ -1,7 +1,7 @@
 # Dossier de prompts — GrillaD
 
 > Prompts de construction de l'application GrillaD, alignés sur le socle de la Famille NAXA.
-> Version 1.0 · 14 novembre 2026.
+> Version 1.1 · 14 novembre 2026.
 > Cahier de référence : `../01-cahiers-des-charges/08-grillad.md` (adapter le chemin relatif selon l'emplacement du dépôt).
 
 ## Mode d'emploi
@@ -15,6 +15,25 @@
 
 ---
 
+## Décision d'architecture obligatoire — trois modes et lieux physiques précis [V]
+
+Tous les prompts GD-0 à GD-11 doivent respecter cette décision. GrillaD est une seule application et un seul modèle métier, avec trois configurations :
+1. **Mode 1 — Manager autonome :** un Manager exploite seul son activité sur un lieu physique précis. Aucun compte vendeur n'est obligatoire ; le Manager réalise lui-même les opérations et sa présence/service est traçable.
+2. **Mode 2 — Manager + un vendeur :** un Manager supervise un vendeur affecté à un lieu physique précis. Le Manager peut également participer aux opérations.
+3. **Mode 3 — Manager + plusieurs vendeurs :** un Manager supervise plusieurs vendeurs affectés à plusieurs lieux physiques précis. Il dispose d'une vue par lieu et d'une vue consolidée sur son périmètre.
+
+Règles communes impératives :
+- Chaque lieu doit être créé et enregistré avant exploitation : identifiant stable, nom, adresse/description précise, coordonnées GPS, statut, Manager responsable et paramètres de présence éventuels.
+- Chaque session, prise/fin de service, vente, caisse, stock, dépense et rapport est rattaché au lieu concerné.
+- Chaque vendeur possède un compte individuel et une affectation explicite, datée et révocable à un ou plusieurs lieux ; l'accès effectif est limité au lieu et à la période autorisés.
+- Le Manager peut être opérateur lui-même dans les trois modes. Le vendeur n'est pas propriétaire de l'organisation.
+- Le passage entre les trois modes se fait par ajout/retrait d'affectations et de lieux, sans duplication, perte d'historique ni migration destructive.
+- Les stocks, caisses, sessions et écritures restent isolés par lieu. Tout transfert inter-lieux est une opération explicite, contrôlée et auditée.
+- Une activité temporaire ou itinérante doit toujours être matérialisée par un lieu/une étape déclaré(e), précis(e) et géolocalisable ; aucun point de vente indéterminé.
+- Le Manager voit les indicateurs séparément et consolidés, uniquement pour son périmètre. Chaque donnée affiche sa fraîcheur et son état de synchronisation.
+- La géolocalisation est demandée explicitement et limitée au service ; aucune collecte hors service. Une position ponctuelle ne crée jamais automatiquement un lieu.
+- Les propositions d'architecture doivent être confrontées au cahier des charges version 1.2. Ne pas réintroduire un mode unique à deux niveaux qui omettrait le mode Manager autonome.
+
 ## PROMPT GD-0 — Audit du dépôt, du socle et cadrage technique
 
 **RÔLE :** Tu es architecte logiciel senior Android, Kotlin, Supabase/PostgreSQL, sécurité et applications hors connexion. Explique brièvement les décisions, puis fournis des preuves vérifiables.
@@ -26,11 +45,12 @@
 **À FAIRE :**
 1. Lire le cahier des charges GrillaD et le socle commun.
 2. Identifier la structure réelle du dépôt, les conventions, les modules Android/Web, les versions et les outils de test.
-3. Examiner les entités communes existantes : comptes, organisations, points, rôles, appareils, abonnements, notifications, audit et synchronisation.
-4. Comparer les modules métiers existants de Bootik et Zipple ; réutiliser seulement ce qui est réellement compatible.
-5. Identifier les risques de couplage, doublons, accès inter-applications et dette technique.
-6. Proposer l'architecture GrillaD, les packages, les écrans, les services, les tables manquantes et l'ordre des prompts.
-7. Marquer chaque constat : preuve, fichier/chemin, état, risque. Ne jamais déclarer qu'un composant existe sans l'avoir lu.
+3. Examiner les entités communes existantes : comptes, organisations, lieux/points physiques géolocalisés, affectations datées, rôles, appareils, abonnements, notifications, audit et synchronisation.
+4. Vérifier comment le socle permet les trois modes : Manager autonome sans vendeur, Manager + un vendeur sur un lieu, Manager + plusieurs vendeurs sur plusieurs lieux précis. Identifier les écarts sans supposer que les entités existent.
+5. Comparer les modules métiers existants de Bootik et Zipple ; réutiliser seulement ce qui est réellement compatible.
+6. Identifier les risques de couplage, doublons, accès inter-applications et dette technique.
+7. Proposer l'architecture GrillaD, les packages, les écrans, les services, les tables manquantes et l'ordre des prompts.
+8. Marquer chaque constat : preuve, fichier/chemin, état, risque. Ne jamais déclarer qu'un composant existe sans l'avoir lu.
 
 **CONTRÔLES :** Aucun code métier ni migration créée à cette étape. Aucun appel réseau non nécessaire, aucune CI, aucun déploiement.
 
@@ -42,31 +62,33 @@
 
 **À FAIRE :**
 1. Réutiliser les tables communes lorsqu'elles couvrent déjà le besoin.
-2. Modéliser uniquement les entités métier manquantes : catalogue limité aux cinq familles, fournisseurs, achats, réceptions, stocks, lots, sessions, préparations, cuissons, rendements, commandes, ventes, paiements, caisses, dépenses, pertes et inventaires.
-3. Définir les unités, conversions et règles de précision sans choisir arbitrairement les unités commerciales encore ouvertes.
-4. Garantir l'isolation par organisation et point d'activité.
-5. Définir clés, contraintes, index, horodatages, idempotence, audit et suppression logique.
-6. Utiliser des types monétaires exacts (BIGINT ou NUMERIC) et jamais FLOAT/REAL.
-7. Préparer des migrations additives ordonnées et des scripts de tests SQL ; ne rien appliquer à Supabase.
-8. Fournir un dictionnaire de données et un schéma de relations.
+2. Modéliser uniquement les entités métier manquantes : lieux physiques géolocalisés, affectations Manager/vendeurs datées, catalogue limité aux cinq familles, fournisseurs, achats, réceptions, stocks, lots, sessions, préparations, cuissons, rendements, commandes, ventes, paiements, caisses, dépenses, pertes et inventaires.
+3. Garantir les trois modes opérationnels sans duplication : Manager autonome sur un lieu ; Manager + un vendeur sur un lieu ; Manager + plusieurs vendeurs sur plusieurs lieux précis.
+4. Définir les unités, conversions et règles de précision sans choisir arbitrairement les unités commerciales encore ouvertes.
+5. Garantir l'isolation par organisation et lieu physique précis. Chaque session et écriture opérationnelle référence le lieu concerné.
+6. Définir clés, contraintes, index, horodatages, idempotence, audit et suppression logique.
+7. Utiliser des types monétaires exacts (BIGINT ou NUMERIC) et jamais FLOAT/REAL.
+8. Préparer des migrations additives ordonnées et des scripts de tests SQL ; ne rien appliquer à Supabase.
+9. Fournir un dictionnaire de données et un schéma de relations.
 
-**TESTS :** Familles hors périmètre rejetées ; références invalides bloquées ; unicité des opérations ; contraintes de quantités ; séparation entre commandes, ventes, paiements et mouvements de stock.
+**TESTS :** Familles hors périmètre rejetées ; références invalides bloquées ; unicité des opérations ; contraintes de quantités ; séparation commandes/ventes/paiements/stock ; chaque session et écriture exige un lieu valide ; affectations datées ; passage entre les trois modes sans perte d'historique ; transferts inter-lieux explicites.
 
 ## PROMPT GD-2 — Sécurité, rôles et RLS
 
 **MISSION :** Implémenter les autorisations métier et prouver l'isolation.
 
 **À FAIRE :**
-1. Définir les permissions du propriétaire, responsable, gestionnaire de stock, braiseur, vendeur, caissier et comptable.
-2. Autoriser plusieurs fonctions à un même collaborateur sans comptes partagés.
-3. Vérifier les plafonds et validations pour remises, achats, dépenses, inventaires et clôtures.
-4. Appliquer RLS à toutes les tables exposées et vérifier les RPC.
-5. Restreindre les fonctions SECURITY DEFINER, fixer search_path et limiter EXECUTE.
-6. Journaliser les actions sensibles avec auteur, contexte, avant/après et motif.
-7. Tester l'accès entre organisations, points, rôles et sessions.
-8. Vérifier qu'aucune clé service_role n'est intégrée à Android ou Web.
+1. Définir les permissions du Manager (y compris opérateur autonome), vendeur, responsable éventuel, gestionnaire de stock, braiseur, caissier et comptable.
+2. Garantir que le Manager n'a pas besoin d'un compte vendeur distinct pour le mode autonome ; lorsqu'il supervise des vendeurs, leurs comptes restent individuels et leurs affectations limitées aux lieux autorisés.
+3. Autoriser plusieurs fonctions à un même collaborateur sans comptes partagés.
+4. Vérifier les plafonds et validations pour remises, achats, dépenses, inventaires et clôtures.
+5. Appliquer RLS à toutes les tables exposées et vérifier les RPC.
+6. Restreindre les fonctions SECURITY DEFINER, fixer search_path et limiter EXECUTE.
+7. Journaliser les actions sensibles avec auteur, contexte, avant/après et motif.
+8. Tester l'accès entre organisations, points, rôles et sessions.
+9. Vérifier qu'aucune clé service_role n'est intégrée à Android ou Web.
 
-**CONTRÔLES :** Tests positifs et négatifs SQL pour chaque rôle. Une interface masquée ne remplace jamais un contrôle serveur. Migrations non appliquées.
+**CONTRÔLES :** Tests positifs et négatifs SQL pour chaque rôle et chaque lieu : Manager autonome, Manager avec un vendeur, Manager multi-lieux, vendeur affecté et vendeur non affecté. Vérifier qu'un Manager ne lit jamais une organisation étrangère et qu'un vendeur ne lit jamais un lieu non affecté. Une interface masquée ne remplace jamais un contrôle serveur. Migrations non appliquées.
 
 ## PROMPT GD-3 — Socle Android, navigation et design GrillaD
 
@@ -149,14 +171,16 @@
 **MISSION :** Relier les utilisateurs, rôles, opérations et sessions d'exploitation.
 
 **À FAIRE :**
-1. Affecter chaque membre à un point et à une session.
-2. Appliquer les permissions réelles côté serveur.
-3. Tracer ventes, préparations, achats, pertes, dépenses et mouvements par auteur.
-4. Mettre en place la clôture guidée : commandes ouvertes, pertes, invendus, stock restant, caisse et rapprochements.
-5. Empêcher la clôture si les contrôles obligatoires échouent ; permettre une dérogation uniquement aux personnes autorisées, avec motif.
-6. Préserver l'historique d'une session clôturée.
+1. Affecter chaque membre à un lieu physique précis et à une session ; gérer dates de début/fin, révocation, remplacement et historique.
+2. Permettre au Manager de prendre son propre service dans le mode autonome, et de superviser les prises/fins de service des vendeurs dans les modes 2 et 3.
+3. Exiger une prise et une fin de service horodatées et géolocalisées, avec confirmation Manager distincte, précision GPS, fraîcheur et état de synchronisation ; aucune localisation hors service.
+4. Appliquer les permissions réelles côté serveur.
+5. Tracer ventes, préparations, achats, pertes, dépenses et mouvements par auteur.
+6. Mettre en place la clôture guidée : commandes ouvertes, pertes, invendus, stock restant, caisse et rapprochements.
+7. Empêcher la clôture si les contrôles obligatoires échouent ; permettre une dérogation uniquement aux personnes autorisées, avec motif.
+8. Préserver l'historique d'une session clôturée.
 
-**TESTS :** Vendeur sans droit de clôture refusé ; responsable autorisé ; session clôturée non modifiable directement ; piste d'audit complète.
+**TESTS :** Mode 1 sans compte vendeur ; mode 2 avec vendeur unique ; mode 3 avec vendeurs répartis sur plusieurs lieux ; affectation et révocation ; présence GPS et confirmation ; vendeur non affecté refusé ; vendeur d'un lieu A incapable de consulter le lieu B ; Manager voit détails et consolidation ; clôture et piste d'audit complètes.
 
 ## PROMPT GD-9 — Rapports, marge et assistant
 
@@ -166,7 +190,7 @@
 1. Calculer ventes, quantités, achats, coûts consommés, rendements, pertes, dépenses, encaissements, marge et résultat.
 2. Distinguer résultats provisoires et clôturés.
 3. Conserver les règles de valorisation et les prix historiques.
-4. Filtrer par soirée, période, famille, produit, point et collaborateur.
+4. Filtrer par soirée, période, famille, produit, lieu physique et collaborateur ; fournir une vue séparée par lieu et une consolidation sur le seul périmètre du Manager.
 5. Exports autorisés PDF/CSV/XLSX.
 6. Suggestions IA : prévision de quantités, risque de rupture, anomalie, synthèse.
 7. Afficher données et hypothèses ; aucune action automatique sur paiement, stock, remise ou clôture.
@@ -178,13 +202,14 @@
 **MISSION :** Garantir la continuité d'activité sans réseau.
 
 **À FAIRE :**
-1. Persister localement commandes, ventes, paiements déclarés, mouvements de stock, achats, production et caisse selon les règles de sécurité.
+1. Persister localement le contexte de lieu et d'affectation ainsi que commandes, ventes, paiements déclarés, mouvements de stock, achats, production et caisse selon les règles de sécurité.
 2. Générer un identifiant stable par opération.
 3. Synchroniser par lots, avec reprise, dédoublonnage et journal d'erreurs.
 4. Résoudre les conflits sans écraser les écritures financières ou de stock.
 5. Gérer plusieurs appareils sur un même point ; verrouillage et réservation serveur au retour réseau.
 6. Montrer l'état de synchronisation et les opérations en attente.
-7. Ne jamais afficher comme confirmé un paiement dont la vérification est en attente.
+7. Synchroniser les prises/fins de service et positions avec leurs horodatages, précisions et indicateurs de retard ; ne jamais transformer une position ancienne en position actuelle.
+8. Ne jamais afficher comme confirmé un paiement dont la vérification est en attente.
 
 **TESTS :** Mode avion pendant une soirée ; fermeture forcée ; reprise ; synchronisation répétée ; deux appareils concurrents ; aucune perte ni duplication.
 
@@ -195,13 +220,15 @@
 **À FAIRE :**
 1. Exécuter les tests unitaires, intégration, SQL/RLS et parcours Android disponibles localement.
 2. Tester les cinq familles et rejeter explicitement tout produit hors périmètre.
-3. Tester un cycle complet : achat → réception → préparation → cuisson → vente → encaissement → pertes/invendus → clôture → rapport.
-4. Tester les rôles, l'isolation multi-points, multi-organisations et les sessions.
-5. Auditer les secrets, permissions, journaux, stockage local et synchronisation.
-6. Contrôler l'accessibilité, la performance et les traductions.
-7. Produire un rapport avec preuve par test, résultat, commit et limites.
-8. Établir les points ouverts restants et les critères de publication.
-9. Ne pas publier l'APK, ne pas déployer, ne pas appliquer de migration Production sans accord distinct.
+3. Tester les trois modes : Manager seul sur un lieu ; Manager avec un vendeur sur un lieu ; Manager avec plusieurs vendeurs sur plusieurs lieux précis.
+4. Tester l'affectation, la géolocalisation de présence, la confirmation Manager, les vues par lieu et consolidées, les transferts inter-lieux et les restrictions d'accès.
+5. Tester un cycle complet : achat → réception → préparation → cuisson → vente → encaissement → pertes/invendus → clôture → rapport.
+6. Tester les rôles, l'isolation multi-points, multi-organisations et les sessions.
+7. Auditer les secrets, permissions, journaux, stockage local et synchronisation.
+8. Contrôler l'accessibilité, la performance et les traductions.
+9. Produire un rapport avec preuve par test, résultat, commit et limites.
+10. Établir les points ouverts restants et les critères de publication.
+11. Ne pas publier l'APK, ne pas déployer, ne pas appliquer de migration Production sans accord distinct.
 
 **CRITÈRE VERT :** Aucun défaut bloquant de sécurité, de stock, de vente, de paiement, de caisse ou de synchronisation ; tests exigés réussis avec preuves ; aucun point ouvert critique dissimulé.
 
