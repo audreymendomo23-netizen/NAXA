@@ -202,8 +202,8 @@ assert.match(nativeGattUnitTests, /decodesTemperatureAndOximetry/);
 assert.match(nativeGattUnitTests, /decodesWeightAndBodyComposition/);
 assert.match(nativeGattUnitTests, /rejectsMalformedAndUnknownFrames/);
 
-assert.match(bootReceiver, /class NaxaBootReceiver : BroadcastReceiver\\(\\)/, "le récepteur de démarrage doit être déclaré une seule fois dans son fichier dédié");
-assert.match(nativeReminderReceiver, /class NaxaReminderReceiver : AndroidBroadcastReceiver\\(\\)/, "le récepteur de rappels doit garder son propre type");
+assert.match(bootReceiver, /class NaxaBootReceiver : BroadcastReceiver\(\)/, "le récepteur de démarrage doit être déclaré une seule fois dans son fichier dédié");
+assert.match(nativeReminderReceiver, /class NaxaReminderReceiver : AndroidBroadcastReceiver\(\)/, "le récepteur de rappels doit garder son propre type");
 assert.doesNotMatch(nativeReminderReceiver, /class NaxaBootReceiver/, "aucune seconde déclaration de NaxaBootReceiver ne doit bloquer la compilation Kotlin");
 assert.match(nativeBleService, /DEVICE_SERVICE_FILTERS/, "les profils GATT doivent être filtrés selon la catégorie choisie");
 assert.match(nativeBleService, /if \(serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F"\) continue/, "un appareil ne doit pas être accepté sur un profil GATT sans rapport avec sa catégorie");
