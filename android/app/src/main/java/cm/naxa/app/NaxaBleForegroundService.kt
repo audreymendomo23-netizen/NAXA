@@ -75,27 +75,29 @@ class NaxaBleForegroundService : Service() {
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         fun enqueueEvent(context: android.content.Context, event: JSONObject) {
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            val scheduleMeasurementSync = event.optString("type") == "measurement"
             synchronized(NaxaBleForegroundService::class.java) {
                 val queue = decryptQueue(prefs.getString(QUEUE_KEY, null))
                 event.put("eventId", UUID.randomUUID().toString())
                 queue.put(event)
                 val hasOverflowMarker = queue.optJSONObject(0)?.optString("type") == "queueOverflow"
                 val normalCapacity = 300
-                if (queue.length() > normalCapacity) {
+                val bounded = if (queue.length() > normalCapacity) {
                     val droppedNow = if (hasOverflowMarker) queue.length() - 300 else queue.length() - 299
                     val previousDropped = if (hasOverflowMarker) queue.optJSONObject(0)?.optInt("droppedCount", 0) ?: 0 else 0
-                    val bounded = JSONArray()
-                    bounded.put(JSONObject()
+                    JSONArray().put(JSONObject()
                         .put("type", "queueOverflow")
                         .put("eventId", UUID.randomUUID().toString())
-                        .put("droppedCount", previousDropped + droppedNow))
-                    val firstRetained = maxOf(if (hasOverflowMarker) 2 else 1, queue.length() - 299)
-                    for (index in firstRetained until queue.length()) bounded.put(queue.getJSONObject(index))
-                    prefs.edit().putString(QUEUE_KEY, encryptQueue(bounded.toString())).apply()
-                } else {
-                    prefs.edit().putString(QUEUE_KEY, encryptQueue(queue.toString())).apply()
-                }
+                        .put("droppedCount", previousDropped + droppedNow)).also { retained ->
+                        val firstRetained = maxOf(if (hasOverflowMarker) 2 else 1, queue.length() - 299)
+                        for (index in firstRetained until queue.length()) retained.put(queue.getJSONObject(index))
+                    }
+                } else queue
+                // Commit the encrypted event before a durable WorkManager request can run.
+                val saved = prefs.edit().putString(QUEUE_KEY, encryptQueue(bounded.toString())).commit()
+                check(saved) { "Écriture durable de la file Bluetooth impossible." }
             }
+            if (scheduleMeasurementSync) NaxaBleMeasurementSyncWorker.enqueue(context)
         }
         fun pendingEvents(context: android.content.Context): String =
             try { decryptQueue(context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(QUEUE_KEY, null)).toString() } catch (_: Exception) { "[]" }
