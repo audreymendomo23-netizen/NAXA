@@ -168,7 +168,8 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
                     "AUTH_REQUIRED", "AUTH_INVALID", "invalid_grant" -> "Identifiants invalides ou session expirée."
                     "PROFILE_INACTIVE" -> "Compte inactif ou suspendu."
                     "AGE_VERIFICATION_REQUIRED" -> "La vérification de majorité de ce compte doit être terminée."
-                    "PROFILE_LOOKUP_UNAVAILABLE", "AUTH_UNAVAILABLE" -> "Service temporairement indisponible. Réessayez."
+                    "PROFILE_LOOKUP_UNAVAILABLE", "PROFILE_CONTEXT_UNAVAILABLE", "AUTH_UNAVAILABLE" ->
+                        "Contexte de compte indisponible. Réessayez dans quelques instants."
                     else -> payload.optString("msg")
                         .ifBlank { payload.optString("message") }
                         .ifBlank { "Connexion impossible (HTTP ${response.code})." }
