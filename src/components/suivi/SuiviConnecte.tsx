@@ -251,22 +251,23 @@ export function SuiviConnecte() {
             const eventId=String(detail?.eventId??"");
             if(!eventId||seen.has(eventId))continue;
             seen.add(eventId);
+            detail.acknowledge=()=>{
+              try{native.acknowledgeBleEvents?.(JSON.stringify([eventId]));seen.delete(eventId);}catch{/* L'événement reste dans la file native. */}
+            };
+            detail.retry=()=>{seen.delete(eventId);};
             window.dispatchEvent(new CustomEvent("naxa-android-ble",{detail}));
-            window.setTimeout(()=>{
-              try{native.acknowledgeBleEvents?.(JSON.stringify([eventId]));}catch{/* L'événement restera disponible au prochain démarrage. */}
-              seen.delete(eventId);
-            },12000);
           }
         }
       }catch{/* La file native reste intacte en cas de lecture invalide. */}
       finally{reading=false;}
     };
-    poll();
+    const initialPoll=window.setTimeout(poll,0);
     const timer=window.setInterval(poll,1800);
     window.addEventListener("focus",poll);
     document.addEventListener("visibilitychange",poll);
     return()=>{
       active=false;
+      window.clearTimeout(initialPoll);
       window.clearInterval(timer);
       window.removeEventListener("focus",poll);
       document.removeEventListener("visibilitychange",poll);
@@ -279,20 +280,20 @@ export function SuiviConnecte() {
       const deviceId=String(detail.deviceId??"");
       const deviceKey=String(detail.deviceKey??nativeDeviceRows.current.get(deviceId)?.deviceKey??"");
       if(detail.type==="notificationPermissionGranted"){
-        setPushEnabled(true);setNotice("Notifications locales Android activées pour les rappels H-5.");return;
+        setPushEnabled(true);setNotice("Notifications locales Android activées pour les rappels H-5.");detail.acknowledge?.();return;
       }
-      if(detail.type==="scanning"){setNotice(String(detail.message??"Recherche Bluetooth…"));return;}
-      if(detail.type==="cancelled"){setBusy(false);setNotice("Connexion Bluetooth annulée.");return;}
-      if(detail.type==="error"){setBusy(false);setNotice(String(detail.message??"Erreur Bluetooth."));return;}
-      if(detail.type==="connecting"){setNotice("Connexion à "+String(detail.deviceName??"l'appareil")+"…");return;}
+      if(detail.type==="scanning"){setNotice(String(detail.message??"Recherche Bluetooth…"));detail.acknowledge?.();return;}
+      if(detail.type==="cancelled"){setBusy(false);setNotice("Connexion Bluetooth annulée.");detail.acknowledge?.();return;}
+      if(detail.type==="error"){setBusy(false);setNotice(String(detail.message??"Erreur Bluetooth."));detail.acknowledge?.();return;}
+      if(detail.type==="connecting"){setNotice("Connexion à "+String(detail.deviceName??"l'appareil")+"…");detail.acknowledge?.();return;}
       if(detail.type==="reconnecting"){
         const row=deviceId?nativeDeviceRows.current.get(deviceId):undefined;
         if(row)void sb.from("suivi_user_devices").update({connection_state:"reconnecting",last_error:null,updated_at:new Date().toISOString()}).eq("id",row.id);
-        setBusy(false);setNotice(String(detail.message??"Reconnexion Bluetooth…"));return;
+        setBusy(false);setNotice(String(detail.message??"Reconnexion Bluetooth…"));detail.acknowledge?.();return;
       }
       if(detail.type==="profiles"){
         setBusy(false);
-        if(Number(detail.profileCount)>0){setNotice("Profils de mesure Bluetooth standard détectés.");return;}
+        if(Number(detail.profileCount)>0){setNotice("Profils de mesure Bluetooth standard détectés.");detail.acknowledge?.();return;}
         void(async()=>{
           let row=deviceId?nativeDeviceRows.current.get(deviceId):undefined;
           if(!row&&deviceId){
@@ -308,12 +309,13 @@ export function SuiviConnecte() {
           }
           if(deviceId)(window as any).NaxaAndroid?.disconnect(deviceId);
           setNotice("Appareil appairé, mais aucun profil Bluetooth standard décodable n'a été trouvé. Utilisez la saisie manuelle ou le scan.");
-        })();
+          detail.acknowledge?.();
+        })().catch(()=>{detail.retry?.();});
         return;
       }
       if(detail.type==="connected"&&deviceId&&deviceKey){
         const item=deviceCatalog.find(entry=>entry.key===deviceKey);
-        if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setBusy(false);setNotice("Consentement requis pour cette famille de mesures.");return;}
+        if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);setBusy(false);setNotice("Consentement requis pour cette famille de mesures.");detail.acknowledge?.();return;}
         const task=(async()=>{
           const {data:authData}=await sb.auth.getUser();
           if(!authData.user)throw new Error("Session expirée.");
@@ -335,7 +337,7 @@ export function SuiviConnecte() {
           return saved.data.id as string;
         })();
         nativeDevicePromises.current.set(deviceId,task);
-        void task.then(()=>setBusy(false)).catch(error=>{setBusy(false);setNotice(error instanceof Error?error.message:"Connexion Android impossible.");});
+        void task.then(()=>{setBusy(false);detail.acknowledge?.();}).catch(error=>{setBusy(false);setNotice(error instanceof Error?error.message:"Connexion Android impossible.");detail.retry?.();});
         return;
       }
       if(detail.type==="deviceInfo"&&deviceId){
@@ -345,10 +347,10 @@ export function SuiviConnecte() {
             const pending=nativeDevicePromises.current.get(deviceId);
             if(pending){await pending;row=nativeDeviceRows.current.get(deviceId);}
           }
-          if(!row)return;
+          if(!row){detail.retry?.();return;}
           const key=String(detail.metadataKey??"");
           const value=String(detail.metadataValue??"").trim();
-          if(!value)return;
+          if(!value){detail.acknowledge?.();return;}
           const current=devices.find(device=>device.id===row!.id);
           const metadata:Record<string,unknown>={...(current?.metadata??{})};
           const patch:Record<string,unknown>={updated_at:new Date().toISOString()};
@@ -357,14 +359,14 @@ export function SuiviConnecte() {
           else if(key==="firmware"){metadata.firmware=value;patch.firmware_version=value;}
           else if(key==="battery_level"){
             const level=Number(value);
-            if(!Number.isFinite(level)||level<0||level>100)return;
+            if(!Number.isFinite(level)||level<0||level>100){detail.acknowledge?.();return;}
             metadata.battery_level=level;
-          }else return;
+          }else {detail.acknowledge?.();return;}
           patch.metadata=metadata;
           const {error}=await sb.from("suivi_user_devices").update(patch).eq("id",row!.id);
-          if(error)setNotice("Les métadonnées de l'appareil n'ont pas pu être actualisées.");
-          else await load();
-        })().catch(()=>setNotice("Lecture des informations techniques de l'appareil impossible."));
+          if(error){setNotice("Les métadonnées de l'appareil n'ont pas pu être actualisées.");detail.retry?.();}
+          else {await load();detail.acknowledge?.();}
+        })().catch(()=>{setNotice("Lecture des informations techniques de l'appareil impossible.");detail.retry?.();});
       }
       if(detail.type==="measurement"&&deviceId){
         void (async()=>{
@@ -384,7 +386,7 @@ export function SuiviConnecte() {
             const family=types.find(type=>type.key===measurement.measurement_type)?.family;
             return !!family&&!!consents[family];
           });
-          if(!allowed.length)return;
+          if(!allowed.length){detail.acknowledge?.();return;}
           const {data:authData}=await sb.auth.getUser();
           if(!authData.user)throw new Error("Session expirée.");
           if(String(detail.ownerUserId??"")!==authData.user.id)throw new Error("Mesure Bluetooth écartée : compte propriétaire différent.");
@@ -400,6 +402,7 @@ export function SuiviConnecte() {
           if(error){
             await enqueueSuiviMeasurements(rows);
             setNotice("Mesure conservée sur cet appareil. Elle sera synchronisée automatiquement au retour du réseau.");
+            detail.acknowledge?.();
             return;
           }
           for(const measurement of allowed){
@@ -410,13 +413,15 @@ export function SuiviConnecte() {
           if(measurementRefreshTimer.current)window.clearTimeout(measurementRefreshTimer.current);
           measurementRefreshTimer.current=window.setTimeout(()=>void load(),500);
           setNotice("Nouvelle mesure reçue depuis "+row.name+".");
-        })().catch(error=>setNotice(error instanceof Error?error.message:"Lecture Bluetooth ignorée."));
+          detail.acknowledge?.();
+        })().catch(error=>{setNotice(error instanceof Error?error.message:"Lecture Bluetooth ignorée.");detail.retry?.();});
       }
       if(detail.type==="disconnected"&&deviceId){
         const row=nativeDeviceRows.current.get(deviceId);
         if(row)void sb.from("suivi_user_devices").update({connection_state:"disconnected",last_error:"Connexion Bluetooth interrompue",updated_at:new Date().toISOString()}).eq("id",row.id);
-        setBusy(false);setNotice("Appareil Android déconnecté. NAXA a tenté les reconnexions automatiques autorisées.");
+        setBusy(false);setNotice("Appareil Android déconnecté. NAXA a tenté les reconnexions automatiques autorisées.");detail.acknowledge?.();
       }
+      if(detail.type!=="measurement"&&detail.type!=="connected"&&detail.type!=="profiles"&&detail.type!=="deviceInfo")detail.acknowledge?.();
     };
     window.addEventListener("naxa-android-ble",onNativeBle);
     return()=>window.removeEventListener("naxa-android-ble",onNativeBle);
