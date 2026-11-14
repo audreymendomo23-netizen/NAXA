@@ -470,3 +470,26 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 **Sécurité / actions :** requête strictement agrégée et en lecture seule ; aucun compte, profil, rôle, secret ou paramètre n'a été modifié. Production et Vercel non touchés.
 
 **État :** inventaire Replay confirmé ; localisation de l'adresse signalée « déjà existante » non déterminée. Étape suivante : vérifier l'URL Supabase configurée dans l'interface utilisée et identifier le projet Auth correspondant, sans révéler de clés ni toucher aux comptes existants.
+
+
+## 21. Publication Production des interfaces Admin — build en cours (14/11/2026)
+
+**Autorisation utilisateur :** « Déploi » — publication Production des corrections de navigation Admin précédemment auditées.
+
+**Commit ciblé et garde-fou :**
+- Dépôt / branche : `audreymendomo23-netizen/NAXA` / `main`.
+- SHA exact publié : `4d86a1e94f9cff938ca6877325042cc9703d41c5`.
+- Projet Vercel : `naxa` (`prj_WtDcnR5OvRWKCt2xXgBPvpzzRYVH`), équipe `team_BMPHZQHTElVZL77cwpFxk59X`.
+- La commande « Ignoring Build Step » a été mise à jour pour laisser passer uniquement ce SHA (exit 1) et ignorer les autres commits (exit 0). Le journal du build confirme l'exécution de cette commande pour le SHA ciblé.
+
+**Déploiement déclenché :**
+- ID : `dpl_3RorCudtNALUXSS4yPTAaMWcQXqb`.
+- URL de déploiement : `https://naxa-r9jb6qrk8-naxa3.vercel.app`.
+- Cible : Production ; commit GitHub `4d86a1e...` confirmé dans les métadonnées Vercel.
+- Les tests automatisés dans les journaux du build affichent **392 PASS, 0 FAIL**.
+- Au dernier contrôle, l'état Vercel est encore **BUILDING** ; la fin de compilation et l'affectation finale des domaines Production ne sont donc pas encore prouvées.
+- Des avertissements npm de configuration/peer dependencies sont présents ; aucun échec de test n'est signalé dans les événements consultés.
+
+**État : PUBLICATION EN COURS — ne pas déclarer READY avant confirmation Vercel.** Les 24 destinations Admin restent validées statiquement ; la vérification navigateur avec une session Admin n'a pas été exécutée.
+
+**Point de reprise :** contrôler `dpl_3RorCudtNALUXSS4yPTAaMWcQXqb` jusqu'à son état terminal ; si READY, vérifier les alias Production et les erreurs runtime, puis compléter cette section. Si ERROR, lire les événements de build et corriger la cause sur `main` avant toute nouvelle publication.
