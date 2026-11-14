@@ -320,7 +320,8 @@ class NaxaBleForegroundService : Service() {
             handler.postDelayed(timeout, 12000L)
         } catch (_: SecurityException) {
             enqueueEvent(this, JSONObject().put("type", "error")
-                .put("message", "Permission Bluetooth refusée pendant la recherche."))
+                .put("message", "Permission Bluetooth refusée pendant la recherche.")
+                .put("ownerUserId", ownerId))
             stopDeviceScan()
             if (sessions.isEmpty()) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -441,7 +442,7 @@ class NaxaBleForegroundService : Service() {
         session.gatt?.close()
         session.gatt = null
         enqueueEvent(this, JSONObject().put("type", "connecting").put("deviceId", address)
-            .put("deviceKey", key).put("deviceName", safeName(device)))
+            .put("deviceKey", key).put("deviceName", safeName(device)).put("ownerUserId", ownerId))
         try {
             session.gatt = device.connectGatt(this, false, callback(session), BluetoothDevice.TRANSPORT_LE)
         } catch (_: SecurityException) {
@@ -475,7 +476,8 @@ class NaxaBleForegroundService : Service() {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "error")
-                    .put("deviceId", session.device.address).put("message", "Lecture des profils Bluetooth impossible."))
+                    .put("deviceId", session.device.address).put("message", "Lecture des profils Bluetooth impossible.")
+                    .put("ownerUserId", session.ownerId))
                 return
             }
             var count = 0
@@ -545,8 +547,8 @@ class NaxaBleForegroundService : Service() {
         if (status == BluetoothGatt.GATT_SUCCESS) {
             when (characteristic.uuid.toString().substring(4, 8).uppercase()) {
                 "2A29" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "manufacturer").put("metadataValue", String(bytes, Charsets.UTF_8).trim()).put("ownerUserId", session.ownerId))
-                "2A24" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "model").put("metadataValue", String(bytes, Charsets.UTF_8).trim()))
-                "2A26" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "firmware").put("metadataValue", String(bytes, Charsets.UTF_8).trim()))
+                "2A24" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "model").put("metadataValue", String(bytes, Charsets.UTF_8).trim()).put("ownerUserId", session.ownerId))
+                "2A26" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "firmware").put("metadataValue", String(bytes, Charsets.UTF_8).trim()).put("ownerUserId", session.ownerId))
                 "2A19" -> if (bytes.isNotEmpty()) enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "battery_level").put("metadataValue", (bytes[0].toInt() and 0xff).toString()).put("ownerUserId", session.ownerId))
                 else -> saveMeasurement(session, characteristic, bytes)
             }
