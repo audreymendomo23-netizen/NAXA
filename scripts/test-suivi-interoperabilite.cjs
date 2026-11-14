@@ -159,8 +159,8 @@ assert.match(cyclingMigration, /'vitesse_cyclisme'/, "le type vitesse cycliste d
 assert.match(cyclingMigration, /'vitesse_course','vitesse_cyclisme','cadence_course','longueur_foulee'/);
 assert.match(cyclingMigration, /vitesse_cyclisme','cadence_course','longueur_foulee'\) then 'activite'/);
 assert.match(cyclingSqlTest, /naxa_20261114050000_suivi_android_bluetooth_activity_metrics_pass/);
-assert.match(nativeBleService, /QUEUE_CAPACITY = 300/, "la file BLE native doit rester bornée à 300 événements");
-assert.match(nativeBleService, /if \(queue\.length\(\) >= QUEUE_CAPACITY\)/, "une file pleine doit refuser le nouvel événement au lieu d'éjecter un ancien");
+assert.match(nativeBleService, /QUEUE_CAPACITY = NaxaBleQueuePolicy\.CAPACITY/, "la capacité native doit être centralisée à 300 événements");
+assert.match(nativeBleService, /if \(NaxaBleQueuePolicy\.isAtCapacity\(queue\.length\(\)\)\)/, "une file pleine doit refuser le nouvel événement au lieu d'éjecter un ancien");
 assert.match(nativeBleService, /OVERFLOW_KEY = "queue_overflow"/, "le signal de débordement doit être conservé hors de la file des mesures");
 assert.match(nativeBleService, /droppedMeasurementCount/, "le débordement doit comptabiliser séparément les mesures refusées");
 assert.match(nativeBleService, /if \(!stored\) pauseAfterQueueOverflow\(\)/, "la collecte BLE doit être suspendue après le refus d'une mesure");

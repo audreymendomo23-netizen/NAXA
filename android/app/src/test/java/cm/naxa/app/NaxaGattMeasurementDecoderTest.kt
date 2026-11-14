@@ -59,9 +59,9 @@ class NaxaGattMeasurementDecoderTest {
     @Test
     fun decodesCyclingCrankCadenceFromConsecutiveEvents() {
         val deviceId = "bike-cadence-junit"
-        val first = NaxaGattMeasurementDecoder.decode("1816", "2A5B", "020A00000400", deviceId)
+        val first = NaxaGattMeasurementDecoder.decode("1816", "2A5B", "020A000004", deviceId)
         assertEquals(0, first.size)
-        val second = NaxaGattMeasurementDecoder.decode("1816", "2A5B", "020B00000800", deviceId)
+        val second = NaxaGattMeasurementDecoder.decode("1816", "2A5B", "020B000008", deviceId)
         assertEquals("cadence_course", second.single().measurementType)
         assertEquals(60.0, second.single().value, 0.0)
         assertEquals("tr/min", second.single().unit)
