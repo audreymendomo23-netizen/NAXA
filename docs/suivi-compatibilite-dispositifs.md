@@ -53,7 +53,9 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 ## Connexion Bluetooth native Android
 
-- Le service Android de premier plan de type `connectedDevice` expose une action de découverte BLE bornée à 12 secondes et une action de connexion GATT. L'écran Compose qui doit déclencher la découverte, présenter les appareils et appeler la connexion reste à intégrer; le parcours n'est pas encore accessible depuis l'APK.
+- L'écran Compose « Suivi connecté » déclenche le scan natif (12 secondes), affiche les appareils découverts et transmet la sélection au service GATT. Les permissions `BLUETOOTH_SCAN`/`BLUETOOTH_CONNECT` sont demandées au runtime sur Android 12+; localisation fine est demandée sur les versions antérieures.
+- Le scan et l'association sont conditionnés au consentement explicite de la famille de mesures, lu et enregistré via `suivi_set_family_consent`. Les événements BLE sont filtrés par propriétaire de compte et les profils GATT par catégorie d'appareil.
+- Limite actuelle : les événements de mesure natifs restent dans la file chiffrée; leur décodage et leur insertion dans `suivi_measurements`, ainsi que l'enregistrement de l'appareil dans `suivi_user_devices`, doivent encore être raccordés dans le parcours Compose.
 - Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native chiffrée avec AES-GCM et une clé Android Keystore (maximum 300 événements en attente).
 - Les métadonnées des sessions persistées (adresse, identifiant logique du dispositif, propriétaire) sont également chiffrées avec AES-GCM et Android Keystore; les anciennes sessions JSON en clair restent lisibles une fois pour permettre leur migration au prochain enregistrement.
 - Chaque liaison est associée au compte qui l’a autorisée; une session appartenant à un autre compte est arrêtée plutôt que réattribuée.
