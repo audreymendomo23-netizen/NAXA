@@ -210,7 +210,8 @@ class NaxaBleForegroundService : Service() {
             ACTION_SCAN -> {
                 if (!hasBleScanPermission()) {
                     enqueueEvent(this, JSONObject().put("type", "error")
-                        .put("message", "Autorisation de recherche Bluetooth requise."))
+                        .put("message", "Autorisation de recherche Bluetooth requise.")
+                        .put("ownerUserId", intent.getStringExtra(EXTRA_OWNER).orEmpty()))
                     if (sessions.isEmpty()) stopSelf()
                     return START_NOT_STICKY
                 }
@@ -226,7 +227,8 @@ class NaxaBleForegroundService : Service() {
             ACTION_CONNECT -> {
                 if (!hasBleRuntimePermission()) {
                     enqueueEvent(this, JSONObject().put("type", "error")
-                        .put("message", "Autorisation Bluetooth requise pour démarrer la liaison."))
+                        .put("message", "Autorisation Bluetooth requise pour démarrer la liaison.")
+                        .put("ownerUserId", intent.getStringExtra(EXTRA_OWNER).orEmpty()))
                     stopSelf()
                     return START_NOT_STICKY
                 }
@@ -263,7 +265,8 @@ class NaxaBleForegroundService : Service() {
         val scanner = adapter?.bluetoothLeScanner
         if (scanner == null || adapter?.isEnabled != true) {
             enqueueEvent(this, JSONObject().put("type", "error")
-                .put("message", "Bluetooth est désactivé ou le scanner est indisponible."))
+                .put("message", "Bluetooth est désactivé ou le scanner est indisponible.")
+                .put("ownerUserId", ownerId))
             if (sessions.isEmpty()) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -289,7 +292,8 @@ class NaxaBleForegroundService : Service() {
 
             override fun onScanFailed(errorCode: Int) {
                 enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "error")
-                    .put("message", "La recherche Bluetooth a échoué (code $errorCode)."))
+                    .put("message", "La recherche Bluetooth a échoué (code $errorCode).")
+                    .put("ownerUserId", ownerId))
                 stopDeviceScan()
                 if (sessions.isEmpty()) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
@@ -305,7 +309,8 @@ class NaxaBleForegroundService : Service() {
             val timeout = Runnable {
                 stopDeviceScan()
                 enqueueEvent(this, JSONObject().put("type", "scanFinished")
-                    .put("deviceCount", discoveredAddresses.size))
+                    .put("deviceCount", discoveredAddresses.size)
+                    .put("ownerUserId", ownerId))
                 if (sessions.isEmpty()) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -418,13 +423,15 @@ class NaxaBleForegroundService : Service() {
             else android.Manifest.permission.ACCESS_FINE_LOCATION
         if (checkSelfPermission(required) != PackageManager.PERMISSION_GRANTED) {
             enqueueEvent(this, JSONObject().put("type", "error").put("deviceId", address)
-                .put("message", "Autorisation Bluetooth requise pour la liaison en arrière-plan."))
+                .put("message", "Autorisation Bluetooth requise pour la liaison en arrière-plan.")
+                .put("ownerUserId", ownerId))
             return
         }
         val device = try { adapter?.getRemoteDevice(address) } catch (_: Exception) { null }
         if (device == null || adapter?.isEnabled != true) {
             enqueueEvent(this, JSONObject().put("type", "error").put("deviceId", address)
-                .put("message", "Appareil Bluetooth indisponible. Activez Bluetooth puis reconnectez-le."))
+                .put("message", "Appareil Bluetooth indisponible. Activez Bluetooth puis reconnectez-le.")
+                .put("ownerUserId", ownerId))
             return
         }
         val session = current ?: DeviceSession(device, key, ownerId).also { sessions[address] = it }
@@ -439,7 +446,8 @@ class NaxaBleForegroundService : Service() {
             session.gatt = device.connectGatt(this, false, callback(session), BluetoothDevice.TRANSPORT_LE)
         } catch (_: SecurityException) {
             enqueueEvent(this, JSONObject().put("type", "error").put("deviceId", address)
-                .put("message", "Autorisation Bluetooth refusée."))
+                .put("message", "Autorisation Bluetooth refusée.")
+                .put("ownerUserId", ownerId))
         }
     }
 
@@ -536,10 +544,10 @@ class NaxaBleForegroundService : Service() {
     private fun handleRead(session: DeviceSession, gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, bytes: ByteArray, status: Int) {
         if (status == BluetoothGatt.GATT_SUCCESS) {
             when (characteristic.uuid.toString().substring(4, 8).uppercase()) {
-                "2A29" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "manufacturer").put("metadataValue", String(bytes, Charsets.UTF_8).trim()))
+                "2A29" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "manufacturer").put("metadataValue", String(bytes, Charsets.UTF_8).trim()).put("ownerUserId", session.ownerId))
                 "2A24" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "model").put("metadataValue", String(bytes, Charsets.UTF_8).trim()))
                 "2A26" -> enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "firmware").put("metadataValue", String(bytes, Charsets.UTF_8).trim()))
-                "2A19" -> if (bytes.isNotEmpty()) enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "battery_level").put("metadataValue", (bytes[0].toInt() and 0xff).toString()))
+                "2A19" -> if (bytes.isNotEmpty()) enqueueEvent(this, JSONObject().put("type", "deviceInfo").put("deviceId", session.device.address).put("metadataKey", "battery_level").put("metadataValue", (bytes[0].toInt() and 0xff).toString()).put("ownerUserId", session.ownerId))
                 else -> saveMeasurement(session, characteristic, bytes)
             }
         }
@@ -580,7 +588,7 @@ class NaxaBleForegroundService : Service() {
         session.retryTask?.let(handler::removeCallbacks)
         session.gatt?.disconnect()
         session.gatt?.close()
-        enqueueEvent(this, JSONObject().put("type", "disconnected").put("deviceId", address))
+        enqueueEvent(this, JSONObject().put("type", "disconnected").put("deviceId", address).put("deviceKey", session.key).put("ownerUserId", session.ownerId))
         saveSessions()
         if (sessions.isEmpty()) stopForeground(STOP_FOREGROUND_REMOVE)
     }
