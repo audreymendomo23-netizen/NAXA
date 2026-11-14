@@ -140,6 +140,11 @@ assert.match(nativeBleService, /fun savedSessionOwners\(context: android\.conten
 assert.equal((nativeMainActivity.match(/NaxaBleForegroundService\.stopForLogout\(appContext\)/g) || []).length, 3, "les trois parcours de déconnexion doivent arrêter les sessions BLE");
 assert.match(nativeBleService, /resumeSavedSessionsAfterAuth\(\)/, "un redémarrage du service doit revalider le compte avant reconnexion");
 assert.match(nativeBleService, /if \(profile == null\) \{\s*stopForLogout\(this@NaxaBleForegroundService\)/, "une session serveur invalide doit purger les liaisons BLE persistées");
+assert.match(nativeBleService, /const val ACTION_SCAN = "cm\\.naxa\\.app\\.BLE_SCAN"/, "le service Android doit exposer une action de découverte BLE");
+assert.match(nativeBleService, /private fun hasBleScanPermission\\(\\): Boolean/, "la recherche BLE doit vérifier BLUETOOTH_SCAN ou la permission de localisation requise");
+assert.match(nativeBleService, /scanner\\.startScan\\(null, ScanSettings\\.Builder\\(\\)/, "la découverte BLE native doit lancer un scan GATT");
+assert.match(nativeBleService, /"deviceFound"/, "les appareils découverts doivent être publiés dans la file d événements");
+assert.match(nativeBleService, /handler\\.postDelayed\\(timeout, 12000L\\)/, "la découverte BLE doit être bornée dans le temps");
 assert.match(nativeBleService, /private fun hasBleRuntimePermission\(\): Boolean/, "le service doit contrôler l'autorisation Bluetooth avant le foreground");
 assert.match(nativeBleService, /if \(!hasBleRuntimePermission\(\)\) return START_NOT_STICKY/, "le service ne doit pas redémarrer sans permission Bluetooth");
 
