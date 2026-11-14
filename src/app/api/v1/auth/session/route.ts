@@ -6,16 +6,27 @@ const NO_STORE_HEADERS = {
   Pragma: "no-cache",
 };
 
+const PHARMACY_ROLE_CODES = new Set([
+  "pharmacie",
+  "caisse",
+  "responsable",
+  "comptable",
+  "pharmacien",
+  "gestionnaire_stock",
+  "magasinier",
+  "livreur",
+]);
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
  * Native/API session bootstrap.
  *
- * Reads only the caller's own profile and resolves the current workspace
- * through RLS-protected membership reads and self-scoped public RPCs.
- * It never reads naxa_profile_active_roles directly or uses service-role
- * credentials to bypass RLS.
+ * Reads only the caller's own profile and RLS-protected partner membership.
+ * The active-role table is intentionally not queried: authenticated users are
+ * denied direct access to it. Partner context remains fail-closed until the
+ * production API has a self-scoped resolver for the selected partner ID.
  */
 export async function GET(request: Request) {
   const auth = await authenticateSupabaseBearer(request);
@@ -29,7 +40,7 @@ export async function GET(request: Request) {
 
   const { data: profile, error: profileError } = await auth.supabase
     .from("profiles")
-    .select("id,role,actif,age_verified,fonction_interne")
+    .select("id,role,actif,age_verified,fonction_interne,pharmacie_id")
     .eq("id", auth.user.id)
     .maybeSingle();
 
@@ -47,76 +58,74 @@ export async function GET(request: Request) {
     );
   }
 
-  const { data: activePharmacyId, error: pharmacyContextError } =
-    await auth.supabase.rpc("naxa_active_role_pharmacy");
-
-  if (pharmacyContextError) {
-    return NextResponse.json(
-      { ok: false, code: "PROFILE_CONTEXT_UNAVAILABLE" },
-      { status: 503, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  // partner_members has a self-read RLS policy. The hidden active-role table
-  // is deliberately not queried from this endpoint.
-  const { data: memberships, error: membershipError } = await auth.supabase
-    .from("partner_members")
-    .select("partner_id,member_role")
-    .eq("user_id", auth.user.id);
-
-  if (membershipError) {
-    return NextResponse.json(
-      { ok: false, code: "PROFILE_CONTEXT_UNAVAILABLE" },
-      { status: 503, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  let activePartnerId: string | null = null;
-  let activePartnerType: string | null = null;
   let activeRole =
     typeof profile.fonction_interne === "string" && profile.fonction_interne.trim()
       ? profile.fonction_interne.trim()
       : profile.role;
+  let activePharmacyId: string | null = null;
+  let activePartnerId: string | null = null;
+  let activePartnerType: string | null = null;
 
-  if (memberships && memberships.length > 0) {
-    const partnerIds = [...new Set(memberships.map((membership) => membership.partner_id))];
-    const { data: partners, error: partnersError } = await auth.supabase
-      .from("partners")
-      .select("id,partner_type,status")
-      .in("id", partnerIds);
+  if (profile.role === "client") {
+    // partner_members exposes only the signed-in user's memberships.
+    const { data: memberships, error: membershipError } = await auth.supabase
+      .from("partner_members")
+      .select("partner_id,member_role")
+      .eq("user_id", auth.user.id);
 
-    if (partnersError) {
+    if (membershipError) {
       return NextResponse.json(
         { ok: false, code: "PROFILE_CONTEXT_UNAVAILABLE" },
         { status: 503, headers: NO_STORE_HEADERS }
       );
     }
 
-    const activePartners = (partners ?? []).filter((partner) => partner.status === "active");
+    if (memberships && memberships.length > 0) {
+      // profile.fonction_interne is populated for selected professional roles.
+      // When it is blank, the selected partner role cannot be distinguished
+      // from a user who merely owns/is a member of a partner account.
+      if (!profile.fonction_interne) {
+        activeRole = "partner_role_unresolved";
+      } else if (profile.pharmacie_id) {
+        // A partner selection preserves a pre-existing pharmacie_id. Without
+        // the protected active-role row, the two scopes cannot be separated.
+        activeRole = "partner_or_pharmacy_scope_ambiguous";
+      } else {
+        const partnerIds = [...new Set(memberships.map((membership) => membership.partner_id))];
+        const { data: partners, error: partnersError } = await auth.supabase
+          .from("partners")
+          .select("id,partner_type,status")
+          .in("id", partnerIds);
 
-    // More than one active partner is ambiguous because the production API
-    // does not yet expose the partner_id in naxa_profile_active_roles.
-    if (activePartners.length > 1) {
-      activeRole = "partner_scope_ambiguous";
-    } else if (activePartners.length === 1) {
-      const partner = activePartners[0];
-      const membership = memberships.find((item) => item.partner_id === partner.id);
+        if (partnersError) {
+          return NextResponse.json(
+            { ok: false, code: "PROFILE_CONTEXT_UNAVAILABLE" },
+            { status: 503, headers: NO_STORE_HEADERS }
+          );
+        }
 
-      activePartnerId = partner.id;
-      activePartnerType = partner.partner_type;
+        const activePartners = (partners ?? []).filter((partner) => partner.status === "active");
 
-      if (!profile.fonction_interne && profile.role === "client") {
-        // Only a Parapharmacy owner is the Promoteur role in this partner
-        // model. Other partner types must not be silently mapped to it.
-        activeRole =
-          partner.partner_type === "parapharmacie" && membership?.member_role === "owner"
-            ? "promoteur"
-            : "partner_role_unresolved";
+        if (activePartners.length === 1) {
+          activePartnerId = activePartners[0].id;
+          activePartnerType = activePartners[0].partner_type;
+        } else {
+          activeRole = activePartners.length > 1
+            ? "partner_scope_ambiguous"
+            : "partner_scope_unavailable";
+        }
       }
-    } else if (profile.role === "client") {
-      // Membership exists but no active partner is readable (for example,
-      // a suspended partner); fail closed rather than exposing Client pages.
-      activeRole = "partner_scope_unavailable";
+    }
+  }
+
+  // A pharmacy scope is taken only from the caller's own profile, and only
+  // when no partner membership makes that field ambiguous.
+  if (
+    profile.role !== "client" ||
+    activeRole === profile.fonction_interne
+  ) {
+    if (PHARMACY_ROLE_CODES.has(activeRole) && typeof profile.pharmacie_id === "string") {
+      activePharmacyId = profile.pharmacie_id;
     }
   }
 
@@ -128,7 +137,7 @@ export async function GET(request: Request) {
       profile: {
         role: profile.role,
         activeRole,
-        activePharmacyId: typeof activePharmacyId === "string" ? activePharmacyId : null,
+        activePharmacyId,
         activePartnerId,
         activePartnerType,
         active: true,
