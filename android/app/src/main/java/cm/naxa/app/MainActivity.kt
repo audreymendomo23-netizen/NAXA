@@ -120,7 +120,7 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
-            currentProfile != null && currentProfile.effectiveRole == "admin" ->
+            currentProfile != null && NaxaNativeRole.supportsAdminWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
                 NativeAdminDashboardScreen(
                     repository = adminDashboard,
                     onLogout = {
@@ -135,7 +135,7 @@ private fun NaxaRoot(
                         }
                     }
                 )
-            currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.effectiveRole) ->
+            currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
                 UnsupportedNativeRoleScreen(
                     role = currentProfile.effectiveRole,
                     onLogout = {
