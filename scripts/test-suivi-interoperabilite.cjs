@@ -157,6 +157,8 @@ assert.match(nativeMainActivity, /selectedFamily in consentFamilies/, "le scan B
 assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily, true\)/, "le consentement doit être explicite et enregistré côté serveur");
 assert.match(nativeMainActivity, /setFamilyConsent\(ownerUserId, selectedFamily, false\)/, "le retrait du consentement doit être disponible dans le parcours natif");
 assert.match(nativeSuiviRepository, /rest\/v1\/rpc\/suivi_set_family_consent/, "le dépôt Android doit utiliser la RPC de consentement contrôlée côté serveur");
+assert.match(nativeSuiviRepository, /Authorization", "Bearer \$token"/, "les appels de consentement natifs doivent utiliser la session Supabase du compte");
+assert.match(nativeMainActivity, /enabled = device\.id !in connectedDevices && consentLoaded && selectedFamily in consentFamilies/, "l’association d’un appareil doit aussi être bloquée sans consentement actif");
 assert.match(nativeBleService, /DEVICE_SERVICE_FILTERS/, "les profils GATT doivent être filtrés selon la catégorie choisie");
 assert.match(nativeBleService, /if \(serviceId !in allowedServices && serviceId != "180A" && serviceId != "180F"\) continue/, "un appareil ne doit pas être accepté sur un profil GATT sans rapport avec sa catégorie");
 assert.match(nativeBleService, /fun requestScan\(context: android\.content\.Context, ownerId: String\)/, "le service doit exposer une commande de scan au code Compose");
