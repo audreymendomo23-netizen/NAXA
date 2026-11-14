@@ -94,7 +94,11 @@ class NaxaBleForegroundService : Service() {
                     }
                 } else queue
                 // Commit the encrypted event before a durable WorkManager request can run.
-                val saved = prefs.edit().putString(QUEUE_KEY, encryptQueue(bounded.toString())).commit()
+                val editor = prefs.edit().putString(QUEUE_KEY, encryptQueue(bounded.toString()))
+                val saved = if (scheduleMeasurementSync) editor.commit() else {
+                    editor.apply()
+                    true
+                }
                 check(saved) { "Écriture durable de la file Bluetooth impossible." }
             }
             if (scheduleMeasurementSync) NaxaBleMeasurementSyncWorker.enqueue(context)
