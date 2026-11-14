@@ -54,7 +54,7 @@ begin
 
   -- Test-only cost record; never committed.
   insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
-  values(v_pharmacy,v_product,v_price,'XAF')
+  values(v_pharmacy,v_product,v_price,'FCFA')
   on conflict(pharmacie_id,produit_id) do update set cout_unitaire=excluded.cout_unitaire;
 
   insert into auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
@@ -64,6 +64,11 @@ begin
     '{"naxa_signup_pending":"true"}'::jsonb,now(),now());
   insert into public.profiles(id,role,username,pharmacie_id,actif,fonction_interne,niveau_interne)
   values(v_user,'caisse'::public.role_type,'f07qa'||replace(v_user::text,'-',''),v_pharmacy,true,'caisse',4);
+
+  -- Le stock de démonstration est ancien : créer un mouvement physique récent dans la transaction.
+  insert into public.stock_manager_movement_journal(
+    pharmacie_id,produit_id,source_table,event_type,quantite_avant,quantite_apres,acteur_id,occurred_at,event_source
+  ) values(v_pharmacy,v_product,'stocks','quantite',v_stock_before,v_stock_before,v_user,clock_timestamp(),'online_movement');
   insert into public.caisses(id,pharmacie_id,nom,actif)
   values(v_cashier,v_pharmacy,'F07 TEST — POSTE TEMPORAIRE',true);
   insert into public.appareils(id,pharmacie_id,utilisateur_id,nom,jeton_hash,cree_le,derniere_synchro,actif,installation_id)
@@ -197,6 +202,9 @@ begin
     '{"provider":"email","providers":["email"]}'::jsonb,'{"naxa_signup_pending":"true"}'::jsonb,now(),now());
   insert into public.profiles(id,role,username,pharmacie_id,actif,fonction_interne,niveau_interne)
   values(u,'caisse'::public.role_type,'f07clo'||replace(u::text,'-',''),p,true,'caisse',4);
+  insert into public.stock_manager_movement_journal(
+    pharmacie_id,produit_id,source_table,event_type,quantite_avant,quantite_apres,acteur_id,occurred_at,event_source
+  ) values(p,product,'stocks','quantite',before_qty,before_qty,u,clock_timestamp(),'online_movement');
   insert into public.caisses(id,pharmacie_id,nom,actif) values(register_id,p,'F07 CLOSE TEST',true);
   insert into public.appareils(id,pharmacie_id,utilisateur_id,nom,jeton_hash,cree_le,derniere_synchro,actif,installation_id)
   values(device_id,p,u,'F07 CLOSE TEST','f07-close-'||replace(device_id::text,'-',''),
