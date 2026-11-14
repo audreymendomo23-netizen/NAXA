@@ -221,7 +221,7 @@ private fun NaxaRoot(
                     onBack = { showingSuiviBluetooth = false }
                 )
             currentProfile != null && NaxaNativeRole.supportsAdminWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
-                NativeAdminDashboardScreen(
+                NativeAdminWorkspaceScreen(
                     repository = adminDashboard,
                     deepLinkNotice = deepLinkNotice,
                     onOpenNotifications = { showingNotifications = true },
