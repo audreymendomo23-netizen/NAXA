@@ -201,6 +201,7 @@ private fun NaxaRoot(
             currentProfile != null && showingNotifications ->
                 NativeNotificationsScreen(
                     repository = notificationsRepository,
+                    currentUserId = currentProfile.userId,
                     onBack = {
                         showingNotifications = false
                         deepLinkNotice = null
