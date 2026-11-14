@@ -1,17 +1,24 @@
-## Checkpoint réconciliation Supabase / CI — 14/11/2026
+## Clôture — réconciliation Supabase Replay / Naxa — 14/11/2026
 
-**État : EN COURS — PAS ENCORE VERT.** Les deux correctifs SQL déjà appliqués à Naxa sont maintenant versionnés dans `supabase/migrations`. Les trois assertions Node en défaut sur le run précédent ont été réalignées avec le code et les règles Android actuels. Le nouveau run GitHub Actions doit encore fournir la preuve finale ; aucun PASS CI n'est présumé.
+**État : VERT — périmètre ciblé de réconciliation.** Les garde-fous Livraison/paiement, les ACL ciblées, les index et la structure des tables de ce périmètre sont présents et vérifiés sur NAXA. Les écarts métier volontaires avec Replay sont conservés. La CI du code est entièrement passée.
 
-- Parent Git conservé : `ea2d3b787b24708a17bc4f26ebde6c777fcc653e` (commit GrillaD ajouté pendant la préparation).
-- Migrations : `20261114003452_naxa_delivery_null_safe_payment_guards_20261114.sql` et `20261114003821_naxa_security_public_projection_readonly_acl_20261114.sql`.
-- Contrat Android : Standard Client/Promoteur sans lecture SMS ; Professionnel Pharmacie/Partenaire et Admin avec capture après consentement et autorisation Android.
-- Quatre réservations historiques avec `paiement_mode IS NULL` restent à traiter opérationnellement ; les garde-fous bloquent leur dispatch.
-- Tarification : 1 500 à 3 500 FCFA côté Client ; commission NAXA fixe à 500 FCFA.
-- E2E terrain, restauration de sauvegarde et audit général des ACL restent ouverts.
-- Aucun déploiement Vercel.
+### Preuves de clôture
+
+- **Git / CI :** commit applicatif testé sur `main` : `09d194b56b3c93624cff6ee83e4d2a581457d0bb` ; run GitHub Actions `43538536989` : `success`.
+- **Tests :** `392/392` réussis, `0` échec, `0` ignoré.
+- **Qualité :** TypeScript réussi ; ESLint `0` erreur (`225` avertissements non bloquants).
+- **Build :** Next.js compilé ; `150/150` pages statiques générées ; Serwist a écrit `public/sw.js` avec `216` URL en précache (`6,44 Mo`).
+- **Supabase NAXA :** les deux migrations correctives sont enregistrées ; `18/18` index présents ; `reservations.preparation_statut` est `NOT NULL` et ne contient aucun NULL.
+- **Sécurité ciblée :** les `12/12` tables Livraison ont RLS activé sur les deux bases ; les fonctions métier relues gardent `SECURITY DEFINER` et `search_path = ''` ; le helper de dispatch est réservé à `service_role` ; les trois vues de projection sont en lecture seule pour les rôles API.
+- **Comparaison Replay/NAXA :** les 14 tables Livraison / Partenaire indépendant interrogées sont présentes des deux côtés. NAXA conserve sa borne tarifaire `1 500–3 500 FCFA`, distincte de la borne historique Replay `1 500–20 000 FCFA` (`NOT VALID` sur Replay).
+- **Données historiques :** les quatre réservations avec `paiement_mode IS NULL` sont terminales (`1 annulée`, `3 expirées`). Elles n'ont pas été réécrites ; elles ne représentent aucune commande active et les garde-fous empêchent leur progression.
+- **Déploiement :** aucun déploiement Vercel n'a été effectué.
+
+### Limite de portée
+
+Ce vert clôt **la réconciliation Supabase Replay / NAXA décrite dans le rapport lié ci-dessous**. Il ne certifie pas le go-live global : les E2E terrain, les paiements/SMS réels, la restauration de sauvegarde, l'audit global des ACL et la gouvernance du dépôt restent des chantiers distincts. Ils ne sont ni présentés comme réalisés ni ajoutés au périmètre de cette clôture.
 
 Rapport : [Audit de réconciliation Supabase Replay / Naxa](docs/audits/AUDIT_RECONCILIATION_SUPABASE_REPLAY_NAXA_20261114.md).
-
 ---
 
 ## Synchronisation GitHub — intégration des branches parallèles — 13/11/2026
