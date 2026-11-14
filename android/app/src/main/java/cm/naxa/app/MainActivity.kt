@@ -497,6 +497,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
     var status by remember { mutableStateOf("Choisissez une famille de mesures puis recherchez les appareils à proximité.") }
     var scanning by remember { mutableStateOf(false) }
     var pendingMeasurements by remember { mutableIntStateOf(0) }
+    val seenMeasurementEvents = remember { mutableSetOf<String>() }
     var showDeviceTypes by remember { mutableStateOf(false) }
     val deviceTypes = listOf(
         "capteur_cardiaque_bluetooth" to "Fréquence cardiaque",
@@ -532,7 +533,11 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                 for (index in 0 until events.length()) {
                     val event = events.optJSONObject(index) ?: continue
                     val eventId = event.optString("eventId")
-                    when (event.optString("type")) {
+                    val eventType = event.optString("type")
+                    val eventOwner = event.optString("ownerUserId")
+                    if (eventOwner.isNotBlank() && eventOwner != ownerUserId) continue
+                    if (eventOwner.isBlank() && eventType != "queueOverflow") continue
+                    when (eventType) {
                         "scanning" -> {
                             scanning = true
                             status = "Recherche Bluetooth en cours…"
@@ -566,7 +571,11 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                     else "Aucun profil de mesure standard reconnu pour cet appareil."
                             }
                         }
-                        "measurement" -> pendingMeasurements += 1
+                        "measurement" -> {
+                            if (eventId.isNotBlank() && seenMeasurementEvents.add(eventId)) {
+                                pendingMeasurements += 1
+                            }
+                        }
                         "reconnecting" -> status = "Reconnexion Bluetooth automatique en cours…"
                         "disconnected" -> {
                             connected = connected - event.optString("deviceId")
