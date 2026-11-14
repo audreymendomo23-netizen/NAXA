@@ -6,6 +6,7 @@ const {
   assertReplayUrl,
   chooseHybridPharmacies,
   chooseUnlinkedHybridPharmacy,
+  buildPromoteurProfilePatch,
   buildProfileMetadata,
   generateEphemeralPassword,
 } = require("./e2e/provision-replay-promoteur-safe-v2.cjs");
@@ -50,6 +51,18 @@ test("refuse les pharmacies sans architecture HYBRIDE ou non démo/actives", () 
   ];
   const architectures = pharmacies.map(p => ({ pharmacie_id:p.id, architecture_code:"ORPHELIN", active:true }));
   assert.throws(() => chooseUnlinkedHybridPharmacy(pharmacies,architectures,[],"same",[]), /troisième pharmacie démo HYBRIDE/);
+});
+
+test("finalise le Promoteur comme propriétaire racine de l'architecture HYBRIDE", () => {
+  assert.deepEqual(buildPromoteurProfilePatch("pharmacy-uuid"), {
+    role: "promoteur",
+    actif: true,
+    pharmacie_id: "pharmacy-uuid",
+    fonction_interne: "promoteur",
+    niveau_interne: 1,
+    niveau_hierarchique: 1,
+    architecture_code: "HYBRIDE",
+  });
 });
 
 test("les métadonnées du compte restent explicitement réservées à la recette", () => {
