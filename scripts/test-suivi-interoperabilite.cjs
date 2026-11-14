@@ -114,6 +114,8 @@ assert.match(component, /await sb\.from\("suivi_measurements"\)\.insert\(rows\)[
 assert.match(component, /await enqueueSuiviMeasurements\(rows\)[\s\S]*?detail\.acknowledge\?\.\(\)/, "une mesure BLE hors ligne ne doit être acquittée qu'après stockage durable");
 assert.match(nativeBleService, /AES\/GCM\/NoPadding/, "la file native BLE doit rester chiffrée AES-GCM");
 assert.match(nativeBleService, /AndroidKeyStore/, "la clé de file BLE doit rester protégée par Android Keystore");
+assert.match(nativeBleService, /putString\(SESSIONS_KEY, encryptQueue\(array\.toString\(\)\)\)/, "les métadonnées des sessions BLE doivent être chiffrées au repos");
+assert.match(nativeBleService, /decryptQueue\(prefs\.getString\(SESSIONS_KEY, null\)\)/, "les sessions BLE doivent être déchiffrées via la clé Android Keystore");
 assert.match(nativeBleService, /queue\.length\(\) - 300/, "la file BLE native doit rester bornée");
 assert.match(nativeBleService, /"queueOverflow"/, "un dépassement de file BLE doit produire un événement explicite");
 assert.match(component, /detail\.type==="queueOverflow"/, "l'utilisateur doit être averti en cas de perte liée au débordement BLE");
