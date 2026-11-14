@@ -45,6 +45,11 @@ begin
   ) values(v_client,v_a,'caisse','caisse','active','ordinaire','Test Caisse pharmacie A',v_now,null,v_client,v_now)
   returning id into v_assignment_a;
 
+  -- Le helper de pharmacie active exige le contexte JWT du profil testé.
+  perform set_config('request.jwt.claim.sub',v_client::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_client::text,'role','authenticated')::text,true);
+
   select public.naxa_business_function(v_client),public.naxa_active_role_pharmacy(v_client)
     into v_role,v_pharmacy;
   if v_role<>'caisse' or v_pharmacy is distinct from v_a then
