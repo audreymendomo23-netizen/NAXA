@@ -40,6 +40,34 @@ class NaxaGattMeasurementDecoderTest {
     }
 
     @Test
+    fun decodesRunningAndIndoorCyclingMetricsForPersistence() {
+        val running = NaxaGattMeasurementDecoder.decode("1814", "2A53", "0000025A", "runner-a")
+        assertEquals(listOf("vitesse_course", "cadence_course"), running.map { it.measurementType })
+        assertEquals(listOf(2.0, 90.0), running.map { it.value })
+        assertEquals(listOf("m/s", "pas/min"), running.map { it.unit })
+
+        val runningWithStride = NaxaGattMeasurementDecoder.decode("1814", "2A53", "0100025A6400", "runner-b")
+        assertEquals("longueur_foulee", runningWithStride.last().measurementType)
+        assertEquals(100.0, runningWithStride.last().value, 0.0)
+
+        val bike = NaxaGattMeasurementDecoder.decode("1826", "2AD2", "0400C4096801", "bike-a")
+        assertEquals(listOf("vitesse_cyclisme", "cadence_course"), bike.map { it.measurementType })
+        assertEquals(listOf(25.0, 180.0), bike.map { it.value })
+        assertEquals(listOf("km/h", "tr/min"), bike.map { it.unit })
+    }
+
+    @Test
+    fun decodesCyclingCrankCadenceFromConsecutiveEvents() {
+        val deviceId = "bike-cadence-junit"
+        val first = NaxaGattMeasurementDecoder.decode("1816", "2A5B", "020A00000400", deviceId)
+        assertEquals(0, first.size)
+        val second = NaxaGattMeasurementDecoder.decode("1816", "2A5B", "020B00000800", deviceId)
+        assertEquals("cadence_course", second.single().measurementType)
+        assertEquals(60.0, second.single().value, 0.0)
+        assertEquals("tr/min", second.single().unit)
+    }
+
+    @Test
     fun rejectsMalformedAndUnknownFrames() {
         assertThrows(IllegalArgumentException::class.java) {
             NaxaGattMeasurementDecoder.decode("180D", "2A37", "00", "device-g")

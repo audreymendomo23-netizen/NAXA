@@ -502,6 +502,8 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
     var status by remember { mutableStateOf("Vérification du consentement de suivi…") }
     var scanning by remember { mutableStateOf(false) }
     var pendingMeasurements by remember { mutableIntStateOf(0) }
+    var queueSaturated by remember { mutableStateOf(false) }
+    var lastOverflowEventId by remember { mutableStateOf<String?>(null) }
     var showDeviceTypes by remember { mutableStateOf(false) }
     val deviceTypes = listOf(
         "capteur_cardiaque_bluetooth" to "Fréquence cardiaque",
@@ -553,6 +555,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
         while (true) {
             try {
                 val events = JSONArray(NaxaBleForegroundService.pendingEvents(context))
+                queueSaturated = NaxaBleForegroundService.isQueueSaturated(context)
                 pendingMeasurements = (0 until events.length()).count { index ->
                     val pending = events.optJSONObject(index)
                     pending?.optString("type") == "measurement" && pending?.optString("ownerUserId") == ownerUserId
@@ -628,16 +631,20 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             status = event.optString("message", "Erreur Bluetooth.")
                         }
                         "queueOverflow" -> {
-                            val dropped = event.optInt("droppedCount", 1)
-                            val droppedMeasurements = event.optInt("droppedMeasurementCount", -1)
-                            status = if (droppedMeasurements >= 0) {
-                                "File Bluetooth saturée : $dropped événement(s) refusé(s), dont $droppedMeasurements mesure(s). Synchronisez puis reconnectez les appareils."
-                            } else {
-                                "Débordement Bluetooth historique : $dropped événement(s) non conservé(s), détail des mesures inconnu. Synchronisez puis reconnectez les appareils."
+                            if (eventId != lastOverflowEventId) {
+                                val dropped = event.optInt("droppedCount", 1)
+                                val droppedMeasurements = event.optInt("droppedMeasurementCount", -1)
+                                status = if (droppedMeasurements >= 0) {
+                                    "File Bluetooth saturée : $dropped événement(s) refusé(s), dont $droppedMeasurements mesure(s). Synchronisez puis reconnectez les appareils."
+                                } else {
+                                    "Débordement Bluetooth historique : $dropped événement(s) non conservé(s), détail des mesures inconnu. Synchronisez puis reconnectez les appareils."
+                                }
+                                lastOverflowEventId = eventId
                             }
                         }
                     }
-                    if (eventId.isNotBlank() && eventType != "measurement") {
+                    if (eventId.isNotBlank() && eventType != "measurement" &&
+                        (eventType != "queueOverflow" || !queueSaturated)) {
                         NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
                     }
                 }
@@ -755,7 +762,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                             NaxaBleForegroundService.requestScan(context, ownerUserId)
                         } else permissionLauncher.launch(missing.toTypedArray())
                     },
-                    enabled = !scanning && consentLoaded && selectedFamily in consentFamilies,
+                    enabled = !scanning && !queueSaturated && consentLoaded && selectedFamily in consentFamilies,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(if (scanning) "Recherche en cours…" else "Rechercher les appareils") }
                 Spacer(Modifier.height(10.dp))
@@ -783,11 +790,18 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                 NaxaBleForegroundService.requestConnect(context, device.id, selectedDeviceKey, ownerUserId)
                                 status = "Demande de connexion envoyée à Android…"
                             },
-                            enabled = device.id !in connectedDevices && consentLoaded && selectedFamily in consentFamilies
+                            enabled = device.id !in connectedDevices && !queueSaturated && consentLoaded && selectedFamily in consentFamilies
                         ) { Text(if (device.id in connectedDevices) "Connecté" else "Associer") }
                     }
                 }
             }
+        }
+        if (queueSaturated) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "File Bluetooth pleine (300 événements). La recherche et les nouvelles connexions restent bloquées jusqu’à ce qu’une place soit libérée par la synchronisation.",
+                color = Color(0xFF9A6B00), fontSize = 12.sp
+            )
         }
         if (pendingMeasurements > 0) {
             Spacer(Modifier.height(12.dp))

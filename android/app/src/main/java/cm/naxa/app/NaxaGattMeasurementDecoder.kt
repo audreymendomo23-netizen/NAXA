@@ -251,35 +251,58 @@ object NaxaGattMeasurementDecoder {
     private fun runningSpeedCadence(bytes: ByteArray): List<NativeGattMeasurement> {
         requireBytes(bytes, 4, "Vitesse/course")
         val flags = u8(bytes, 0)
+        val speed = u16(bytes, 1) / 256.0
+        val cadence = u8(bytes, 3)
         var offset = 4
-        if (flags and 1 != 0) { requireBytes(bytes, offset + 2, "Longueur de foulée"); offset += 2 }
-        if (flags and 2 != 0) { requireBytes(bytes, offset + 2, "Temps de course"); offset += 2 }
-        return emptyList()
+        val result = mutableListOf<NativeGattMeasurement>()
+        if (speed in 0.0..25.0) result += value("vitesse_course", speed, "m/s")
+        if (cadence <= 250) result += value("cadence_course", cadence.toDouble(), "pas/min")
+        if (flags and 1 != 0) {
+            requireBytes(bytes, offset + 2, "Longueur de foulée")
+            val strideLength = u16(bytes, offset)
+            if (strideLength in 1..300) result += value("longueur_foulee", strideLength.toDouble(), "cm")
+            offset += 2
+        }
+        if (flags and 2 != 0) {
+            requireBytes(bytes, offset + 4, "Distance totale de course")
+            offset += 4
+        }
+        return result
     }
 
     private fun indoorBike(bytes: ByteArray): List<NativeGattMeasurement> {
         requireBytes(bytes, 2, "Vélo d'intérieur")
         val flags = u16(bytes, 0)
         var offset = 2
-        if (flags and 1 == 0) { requireBytes(bytes, offset + 2, "Vitesse instantanée"); offset += 2 }
+        val result = mutableListOf<NativeGattMeasurement>()
+        if (flags and 1 == 0) {
+            requireBytes(bytes, offset + 2, "Vitesse instantanée")
+            val speedKmh = u16(bytes, offset) / 100.0
+            offset += 2
+            if (speedKmh in 0.0..100.0) result += value("vitesse_cyclisme", speedKmh, "km/h")
+        }
         if (flags and 2 != 0) { requireBytes(bytes, offset + 2, "Vitesse moyenne"); offset += 2 }
-        if (flags and 4 != 0) { requireBytes(bytes, offset + 2, "Cadence"); offset += 2 }
+        if (flags and 4 != 0) {
+            requireBytes(bytes, offset + 2, "Cadence")
+            val cadence = u16(bytes, offset) / 2.0
+            offset += 2
+            if (cadence in 0.0..250.0) result += value("cadence_course", cadence, "tr/min")
+        }
         if (flags and 8 != 0) { requireBytes(bytes, offset + 2, "Cadence moyenne"); offset += 2 }
         if (flags and 16 != 0) { requireBytes(bytes, offset + 3, "Distance"); offset += 3 }
         if (flags and 32 != 0) { requireBytes(bytes, offset + 2, "Résistance"); offset += 2 }
         if (flags and 64 != 0) { requireBytes(bytes, offset + 2, "Puissance"); offset += 2 }
         if (flags and 128 != 0) { requireBytes(bytes, offset + 2, "Puissance moyenne"); offset += 2 }
         if (flags and 256 != 0) { requireBytes(bytes, offset + 5, "Énergie"); offset += 5 }
-        var heartRate = emptyList<NativeGattMeasurement>()
         if (flags and 512 != 0) {
             requireBytes(bytes, offset + 1, "Fréquence cardiaque vélo")
             val bpm = u8(bytes, offset++)
-            if (bpm in 1..250) heartRate = value("frequence_cardiaque", bpm.toDouble(), "bpm")
+            if (bpm in 1..250) result += value("frequence_cardiaque", bpm.toDouble(), "bpm")
         }
         if (flags and 1024 != 0) { requireBytes(bytes, offset + 1, "Équivalent métabolique"); offset++ }
         if (flags and 2048 != 0) { requireBytes(bytes, offset + 2, "Temps écoulé"); offset += 2 }
         if (flags and 4096 != 0) { requireBytes(bytes, offset + 2, "Temps restant"); offset += 2 }
-        return heartRate
+        return result
     }
 
     private fun cyclingSpeedCadence(bytes: ByteArray, deviceId: String): List<NativeGattMeasurement> {

@@ -52,7 +52,7 @@ class NaxaBleForegroundService : Service() {
         private const val PREFS = "naxa_ble_background"
         private const val QUEUE_KEY = "pending_events"
         private const val OVERFLOW_KEY = "queue_overflow"
-        private const val QUEUE_CAPACITY = 300
+        private const val QUEUE_CAPACITY = NaxaBleQueuePolicy.CAPACITY
         private const val SESSIONS_KEY = "active_sessions"
         private val SERVICE_PAIRS = listOf(
             "180D" to "2A37", "1810" to "2A35", "1809" to "2A1C",
@@ -81,7 +81,7 @@ class NaxaBleForegroundService : Service() {
             var stored = true
             synchronized(NaxaBleForegroundService::class.java) {
                 val queue = decryptQueue(prefs.getString(QUEUE_KEY, null))
-                if (queue.length() >= QUEUE_CAPACITY) {
+                if (NaxaBleQueuePolicy.isAtCapacity(queue.length())) {
                     // Keep every already accepted event. Overflow metadata is stored separately so
                     // even a queue containing 300 measurements never has to evict an older measurement.
                     val legacyMarkerIndex = (0 until queue.length()).firstOrNull { index ->
@@ -92,17 +92,20 @@ class NaxaBleForegroundService : Service() {
                     } else {
                         decryptQueue(prefs.getString(OVERFLOW_KEY, null)).optJSONObject(0)
                     }
-                    val previousMeasurementCount = when {
-                        previous == null -> 0
-                        previous.has("droppedMeasurementCount") -> previous.optInt("droppedMeasurementCount", -1)
-                        else -> -1 // Older overflow markers did not retain the event-type breakdown.
+                    val previousCounts = previous?.let {
+                        NaxaBleQueuePolicy.OverflowCounts(
+                            droppedCount = it.optInt("droppedCount", 0),
+                            droppedMeasurementCount = if (it.has("droppedMeasurementCount")) {
+                                it.optInt("droppedMeasurementCount", -1).takeIf { count -> count >= 0 }
+                            } else null
+                        )
                     }
+                    val nextCounts = NaxaBleQueuePolicy.recordDrop(previousCounts, scheduleMeasurementSync)
                     val marker = JSONObject()
                         .put("type", "queueOverflow")
                         .put("eventId", UUID.randomUUID().toString())
-                        .put("droppedCount", (previous?.optInt("droppedCount", 0) ?: 0) + 1)
-                        .put("droppedMeasurementCount", if (previousMeasurementCount < 0) -1 else
-                            previousMeasurementCount + if (scheduleMeasurementSync) 1 else 0)
+                        .put("droppedCount", nextCounts.droppedCount)
+                        .put("droppedMeasurementCount", nextCounts.droppedMeasurementCount ?: -1)
                     if (legacyMarkerIndex != null) {
                         queue.put(legacyMarkerIndex, marker)
                         check(prefs.edit().putString(QUEUE_KEY, encryptQueue(queue.toString())).commit()) {
@@ -144,6 +147,12 @@ class NaxaBleForegroundService : Service() {
                 events.toString()
             }
 
+        fun isQueueSaturated(context: android.content.Context): Boolean =
+            synchronized(NaxaBleForegroundService::class.java) {
+                val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                NaxaBleQueuePolicy.isAtCapacity(decryptQueue(prefs.getString(QUEUE_KEY, null)).length())
+            }
+
         fun acknowledgeEvents(context: android.content.Context, ids: Set<String>) {
             if (ids.isEmpty()) return
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
@@ -155,8 +164,11 @@ class NaxaBleForegroundService : Service() {
                     if (!ids.contains(item.optString("eventId"))) next.put(item)
                 }
                 val overflow = decryptQueue(prefs.getString(OVERFLOW_KEY, null)).optJSONObject(0)
+                val keepOverflowUntilSpaceExists = overflow != null &&
+                    ids.contains(overflow.optString("eventId")) &&
+                    NaxaBleQueuePolicy.isAtCapacity(next.length())
                 val editor = prefs.edit().putString(QUEUE_KEY, encryptQueue(next.toString()))
-                if (overflow != null && ids.contains(overflow.optString("eventId"))) {
+                if (overflow != null && ids.contains(overflow.optString("eventId")) && !keepOverflowUntilSpaceExists) {
                     editor.remove(OVERFLOW_KEY)
                 }
                 editor.apply()
@@ -277,6 +289,10 @@ class NaxaBleForegroundService : Service() {
                     if (sessions.isEmpty()) stopSelf()
                     return START_NOT_STICKY
                 }
+                if (isQueueSaturated(this)) {
+                    pauseAfterQueueOverflow()
+                    return START_NOT_STICKY
+                }
                 ensureForeground()
                 startDeviceScan(intent.getStringExtra(EXTRA_OWNER).orEmpty())
             }
@@ -292,6 +308,10 @@ class NaxaBleForegroundService : Service() {
                         .put("message", "Autorisation Bluetooth requise pour démarrer la liaison.")
                         .put("ownerUserId", intent.getStringExtra(EXTRA_OWNER).orEmpty()))
                     stopSelf()
+                    return START_NOT_STICKY
+                }
+                if (isQueueSaturated(this)) {
+                    pauseAfterQueueOverflow()
                     return START_NOT_STICKY
                 }
                 ensureForeground()
@@ -476,6 +496,10 @@ class NaxaBleForegroundService : Service() {
 
     @Suppress("MissingPermission")
     private fun connect(address: String, key: String, ownerId: String) {
+        if (isQueueSaturated(this)) {
+            pauseAfterQueueOverflow()
+            return
+        }
         var current = sessions[address]
         if (current != null && current.ownerId != ownerId) {
             disconnectDevice(address)

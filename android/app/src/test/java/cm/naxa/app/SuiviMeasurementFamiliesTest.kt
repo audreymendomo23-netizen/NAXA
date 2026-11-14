@@ -21,6 +21,9 @@ class SuiviMeasurementFamiliesTest {
         assertEquals("sommeil", SuiviMeasurementFamilies.measurement("sommeil_heures"))
         assertEquals("bien_etre", SuiviMeasurementFamilies.measurement("humeur_score"))
         assertEquals("traitements", SuiviMeasurementFamilies.measurement("medicament_pris"))
-        assertNull(SuiviMeasurementFamilies.measurement("vitesse_cyclisme"))
+        assertEquals("activite", SuiviMeasurementFamilies.measurement("vitesse_course"))
+        assertEquals("activite", SuiviMeasurementFamilies.measurement("vitesse_cyclisme"))
+        assertEquals("activite", SuiviMeasurementFamilies.measurement("cadence_course"))
+        assertEquals("activite", SuiviMeasurementFamilies.measurement("longueur_foulee"))
     }
 }

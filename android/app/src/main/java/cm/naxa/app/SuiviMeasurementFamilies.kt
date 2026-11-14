@@ -16,7 +16,8 @@ object SuiviMeasurementFamilies {
         "glycemie", "poids", "taille", "imc", "cholesterol_total", "masse_grasse",
         "masse_musculaire", "masse_osseuse", "cetonemie", "acide_urique", "cholesterol_hdl",
         "cholesterol_ldl" -> "metabolisme"
-        "pas_jour", "activite_minutes", "hydratation_ml" -> "activite"
+        "pas_jour", "activite_minutes", "hydratation_ml", "vitesse_course",
+        "vitesse_cyclisme", "cadence_course", "longueur_foulee" -> "activite"
         "sommeil_heures" -> "sommeil"
         "douleur_score", "humeur_score", "cycle_jour", "symptome_note" -> "bien_etre"
         "medicament_pris" -> "traitements"
