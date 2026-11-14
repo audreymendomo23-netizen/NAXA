@@ -77,8 +77,8 @@ const sqlTest = fs.readFileSync("supabase/tests/148_suivi_21_dispositifs_interop
 const measurementMigration = fs.readFileSync("supabase/migration_150_suivi_mesures_multidispositifs.sql", "utf8");
 const measurementTest = fs.readFileSync("supabase/tests/150_suivi_mesures_multidispositifs.sql", "utf8");
 const deviceSchemaMigration = fs.readFileSync("supabase/migrations/20261111000000_suivi_user_devices_catalog.sql", "utf8");
-const cyclingMigration = fs.readFileSync("supabase/migrations/20261114050000_suivi_android_bluetooth_activity_metrics.sql", "utf8");
-const cyclingSqlTest = fs.readFileSync("supabase/tests/20261114050000_suivi_android_bluetooth_activity_metrics.sql", "utf8");
+const cyclingMigration = fs.readFileSync("supabase/migrations/20261114031521_suivi_android_bluetooth_activity_metrics.sql", "utf8");
+const cyclingSqlTest = fs.readFileSync("supabase/tests/20261114031521_suivi_android_bluetooth_activity_metrics.sql", "utf8");
 const nativeQueuePolicy = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBleQueuePolicy.kt", "utf8");
 const nativeQueuePolicyTests = fs.readFileSync("android/app/src/test/java/cm/naxa/app/NaxaBleQueuePolicyTest.kt", "utf8");
 const nativeBleService = fs.readFileSync("android/app/src/main/java/cm/naxa/app/NaxaBleForegroundService.kt", "utf8");
@@ -158,7 +158,7 @@ assert.match(nativeGattUnitTests, /decodesCyclingCrankCadenceFromConsecutiveEven
 assert.match(cyclingMigration, /'vitesse_cyclisme'/, "le type vitesse cycliste doit être autorisé dans les contraintes SQL");
 assert.match(cyclingMigration, /'vitesse_course','vitesse_cyclisme','cadence_course','longueur_foulee'/);
 assert.match(cyclingMigration, /vitesse_cyclisme','cadence_course','longueur_foulee'\) then 'activite'/);
-assert.match(cyclingSqlTest, /naxa_20261114050000_suivi_android_bluetooth_activity_metrics_pass/);
+assert.match(cyclingSqlTest, /naxa_20261114031521_suivi_android_bluetooth_activity_metrics_pass/);
 assert.match(nativeBleService, /QUEUE_CAPACITY = NaxaBleQueuePolicy\.CAPACITY/, "la capacité native doit être centralisée à 300 événements");
 assert.match(nativeBleService, /if \(NaxaBleQueuePolicy\.isAtCapacity\(queue\.length\(\)\)\)/, "une file pleine doit refuser le nouvel événement au lieu d'éjecter un ancien");
 assert.match(nativeBleService, /OVERFLOW_KEY = "queue_overflow"/, "le signal de débordement doit être conservé hors de la file des mesures");

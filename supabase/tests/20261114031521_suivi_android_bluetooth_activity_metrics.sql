@@ -36,4 +36,4 @@ begin
     raise exception 'Bluetooth activity metrics do not map to the activity consent family';
   end if;
 end $$;
-select 'naxa_20261114050000_suivi_android_bluetooth_activity_metrics_pass' as test, true as passed;
+select 'naxa_20261114031521_suivi_android_bluetooth_activity_metrics_pass' as test, true as passed;
