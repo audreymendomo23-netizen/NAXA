@@ -87,7 +87,7 @@ function objectPath(bucket, path, mode) {
   return "/storage/v1/object/" + (mode ? mode + "/" : "") + bucket + "/" + encodedPath(path);
 }
 
-async function createTemporaryUser() {
+async function createTemporaryUser(createdUsers) {
   const email = "naxa-storage-e2e-" + randomUUID() + "@example.invalid";
   const password = randomUUID() + "Aa!9";
   const response = await http("/auth/v1/admin/users", {
@@ -101,6 +101,8 @@ async function createTemporaryUser() {
     throw new Error("Création du compte temporaire refusée (HTTP " + response.status + ").");
   }
 
+  createdUsers.push(payload.id);
+
   const login = await http("/auth/v1/token?grant_type=password", {
     method: "POST",
     contentType: "application/json",
@@ -108,8 +110,7 @@ async function createTemporaryUser() {
   });
   const session = await json(login);
   if (!login.ok || !session.access_token || !session.user?.id) {
-    await deleteUser(payload.id).catch(() => undefined);
-    throw new Error("Connexion du compte temporaire impossible (HTTP " + login.status + ").");
+    throw new Error("Connexion du compte temporaire impossible (HTTP " + login.status + "). Le compte créé reste enregistré pour le nettoyage final.");
   }
   return { id: session.user.id, token: session.access_token };
 }
@@ -171,6 +172,11 @@ async function removeWithAdmin(bucket, path) {
   if (!response.ok) throw new Error("Nettoyage Storage impossible (HTTP " + response.status + ").");
 }
 
+function forgetCleanupObject(cleanupObjects, bucket, path) {
+  const index = cleanupObjects.findIndex(([itemBucket, itemPath]) => itemBucket === bucket && itemPath === path);
+  if (index >= 0) cleanupObjects.splice(index, 1);
+}
+
 function makePdf() {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -223,11 +229,10 @@ async function run() {
     process.stdout.write("PASS — " + name + "\n");
   }
 
+  let runError = null;
   try {
-    userA = await createTemporaryUser();
-    createdUsers.push(userA.id);
-    userB = await createTemporaryUser();
-    createdUsers.push(userB.id);
+    userA = await createTemporaryUser(createdUsers);
+    userB = await createTemporaryUser(createdUsers);
 
     const privatePath = userA.id + "/naxa-storage-e2e-" + suffix + ".pdf";
     cleanupObjects.push([BUCKET_CREDIT, privatePath]);
@@ -290,7 +295,7 @@ async function run() {
       const badPath = userA.id + "/naxa-storage-e2e-" + suffix + ".txt";
       const response = await upload(BUCKET_CREDIT, badPath, Buffer.from("not a document"), "text/plain", userA.token);
       if (response.ok) {
-        await removeWithAdmin(BUCKET_CREDIT, badPath);
+        cleanupObjects.push([BUCKET_CREDIT, badPath]);
         throw new Error("Le bucket privé a accepté un type MIME non autorisé.");
       }
     });
@@ -307,7 +312,7 @@ async function run() {
       for (const [bucket, path, bytes, mime] of cases) {
         const response = await upload(bucket, path, bytes, mime, userA.token);
         if (response.ok) {
-          await removeWithAdmin(bucket, path);
+          cleanupObjects.push([bucket, path]);
           throw new Error("Un compte client a pu déposer un fichier dans " + bucket + ".");
         }
       }
@@ -388,10 +393,9 @@ async function run() {
       });
 
       await check("Promoteur actif : refus d'écriture dans une autre pharmacie", async () => {
-        await expectDenied(
-          await upload(BUCKET_PHARMACY_PHOTOS, otherPath, PNG, "image/png", promoter.token),
-          "écriture Promoteur inter-pharmacies"
-        );
+        const response = await upload(BUCKET_PHARMACY_PHOTOS, otherPath, PNG, "image/png", promoter.token);
+        if (response.ok) cleanupObjects.push([BUCKET_PHARMACY_PHOTOS, otherPath]);
+        await expectDenied(response, "écriture Promoteur inter-pharmacies");
       });
     } else if (requireRoleMatrix) {
       throw new Error("Matrice de rôles obligatoire : renseignez les identifiants Admin, Promoteur et les deux UUID de pharmacie.");
@@ -401,14 +405,38 @@ async function run() {
 
     const deleted = await removeWithUser(BUCKET_CREDIT, privatePath, userA.token);
     if (!deleted.ok) throw new Error("Le propriétaire n'a pas pu supprimer son fichier de recette (HTTP " + deleted.status + ").");
+    forgetCleanupObject(cleanupObjects, BUCKET_CREDIT, privatePath);
     process.stdout.write("PASS — suppression du fichier privé par son propriétaire\n");
     passed.push("suppression du fichier privé par son propriétaire");
+  } catch (error) {
+    runError = error;
+    throw error;
   } finally {
+    const cleanupFailures = [];
     for (const [bucket, path] of cleanupObjects.reverse()) {
-      await removeWithAdmin(bucket, path).catch(() => undefined);
+      try {
+        await removeWithAdmin(bucket, path);
+        process.stdout.write("CLEANUP PASS — objet " + bucket + "\n");
+      } catch (error) {
+        const detail = "objet " + bucket + " : " + (error?.message || "erreur inconnue");
+        cleanupFailures.push(detail);
+        process.stderr.write("CLEANUP FAIL — " + detail + "\n");
+      }
     }
     for (const id of createdUsers.reverse()) {
-      await deleteUser(id).catch(() => undefined);
+      try {
+        await deleteUser(id);
+        process.stdout.write("CLEANUP PASS — compte temporaire supprimé\n");
+      } catch (error) {
+        const detail = "compte temporaire : " + (error?.message || "erreur inconnue");
+        cleanupFailures.push(detail);
+        process.stderr.write("CLEANUP FAIL — " + detail + "\n");
+      }
+    }
+    if (cleanupFailures.length) {
+      const message = "Nettoyage E2E incomplet : " + cleanupFailures.join(" ; ");
+      if (runError) process.stderr.write("CLEANUP ERROR — " + message + "\n");
+      else throw new Error(message);
     }
   }
 
