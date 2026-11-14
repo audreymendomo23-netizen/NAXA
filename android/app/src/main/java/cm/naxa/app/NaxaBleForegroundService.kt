@@ -225,7 +225,10 @@ class NaxaBleForegroundService : Service() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val profile = AuthRepository(SecureTokenStore(this@NaxaBleForegroundService)).restoreSession()
-                if (profile == null) return@launch
+                if (profile == null) {
+                    stopForLogout(this@NaxaBleForegroundService)
+                    return@launch
+                }
                 val owners = savedSessionOwners(this@NaxaBleForegroundService)
                 if (!owners.contains(profile.userId)) {
                     stopForLogout(this@NaxaBleForegroundService)
