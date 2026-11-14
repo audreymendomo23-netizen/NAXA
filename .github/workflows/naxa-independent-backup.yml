@@ -96,9 +96,9 @@ jobs:
           print(f"Supabase shared Session Pooler URI syntax validated for project {project_ref} on port 5432. Credentials were not printed.")
           PY
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3
         with:
           version: latest
 
@@ -148,7 +148,7 @@ jobs:
             "$PROJECT_REF" "$(date -u +%FT%TZ)" "$GITHUB_SHA" > backup/manifest.json
 
       - name: Store encrypted backup in GitHub Actions
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: naxa-db-backup-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -160,7 +160,7 @@ jobs:
 
       - name: Configure external S3-compatible backup destination
         if: ${{ env.NAXA_BACKUP_S3_BUCKET != '' }}
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-access-key-id: ${{ secrets.NAXA_BACKUP_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.NAXA_BACKUP_AWS_SECRET_ACCESS_KEY }}
