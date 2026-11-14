@@ -112,8 +112,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            set -euo pipefail
-            if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
+            set -eu
+            if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
               echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY are required for Android emulator integration tests." >&2
               exit 1
             fi
