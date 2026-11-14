@@ -46,12 +46,12 @@ begin
 
   if not exists(select 1 from pg_policies
     where schemaname='public' and tablename='assureurs'
-      and policyname='assureurs_marketplace_public_read' and roles @> array['anon']) then
+      and policyname='assureurs_marketplace_public_read' and 'anon'::name = any(roles)) then
     raise exception 'Policy publique assureurs active manquante';
   end if;
   if not exists(select 1 from pg_policies
     where schemaname='public' and tablename='assurance_conventions'
-      and policyname='assurance_conventions_marketplace_public_read' and roles @> array['anon']) then
+      and policyname='assurance_conventions_marketplace_public_read' and 'anon'::name = any(roles)) then
     raise exception 'Policy conventions Marketplace manquante';
   end if;
 end;
