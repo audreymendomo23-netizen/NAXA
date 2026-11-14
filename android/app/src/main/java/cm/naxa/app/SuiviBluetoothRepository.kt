@@ -36,7 +36,7 @@ class SuiviBluetoothRepository(private val tokenStore: SecureTokenStore) {
             buildSet {
                 for (index in 0 until rows.length()) {
                     val row = rows.optJSONObject(index) ?: continue
-                    if (row.optBoolean("granted")) row.optString("family_key").takeIf { it.isNotBlank() }?.let(::add)
+                    if (row.optBoolean("granted")) row.optString("family_key").takeIf { it.isNotBlank() }?.let { add(it) }
                 }
             }
         }
