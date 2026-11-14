@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -140,6 +143,17 @@ internal fun NativeAdminWorkspaceScreen(
                     Text("NAXA / ADMINISTRATION", color = Color(0xFF087A55), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Text(section.title, color = Color(0xFF17342B), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
                     Text(section.subtitle, color = Color(0xFF52675E), fontSize = 13.sp)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(onClick = onOpenNotifications, modifier = Modifier.weight(1f)) {
+                            Text("Notifications")
+                        }
+                        OutlinedButton(onClick = onLogout, modifier = Modifier.weight(1f)) {
+                            Text("Quitter")
+                        }
+                    }
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF4D5)),
                         shape = RoundedCornerShape(14.dp)
