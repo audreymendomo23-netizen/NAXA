@@ -1,6 +1,7 @@
 package cm.naxa.app
 
 import android.os.Bundle
+import android.content.Intent
 import android.os.Build
 import android.Manifest
 import android.content.pm.PackageManager
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
@@ -37,17 +39,37 @@ import java.text.NumberFormat
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+    private var pendingOpenPath by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingOpenPath = intent?.getStringExtra("openPath")
         val tokenStore = SecureTokenStore(this)
         val repository = AuthRepository(tokenStore)
         val clientHistory = ClientHistoryRepository(tokenStore)
         val adminDashboard = AdminDashboardRepository(tokenStore)
+        val notifications = NativeNotificationsRepository(tokenStore)
         val catalogue = CatalogueRepository()
         val pharmacies = PharmacyRepository(this)
         val ageGate = AgeGateStore(this)
         val fcmRegistration = FcmRegistrationRepository(this, tokenStore)
-        setContent { NaxaTheme { NaxaRoot(repository, clientHistory, adminDashboard, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
+        setContent {
+            NaxaTheme {
+                NaxaRoot(
+                    repository, clientHistory, adminDashboard, notifications, catalogue,
+                    pharmacies, ageGate, fcmRegistration,
+                    openPath = pendingOpenPath,
+                    onOpenPathHandled = { pendingOpenPath = null },
+                    onExit = { finish() }
+                )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingOpenPath = intent.getStringExtra("openPath")
     }
 }
 
@@ -68,10 +90,13 @@ private fun NaxaRoot(
     repository: AuthRepository,
     clientHistory: ClientHistoryRepository,
     adminDashboard: AdminDashboardRepository,
+    notificationsRepository: NativeNotificationsRepository,
     catalogue: CatalogueRepository,
     pharmacies: PharmacyRepository,
     ageGate: AgeGateStore,
     fcmRegistration: FcmRegistrationRepository,
+    openPath: String?,
+    onOpenPathHandled: () -> Unit,
     onExit: () -> Unit
 ) {
     var profile by remember { mutableStateOf<NaxaProfile?>(null) }
@@ -79,6 +104,10 @@ private fun NaxaRoot(
     var error by remember { mutableStateOf<String?>(null) }
     var adultDeclared by remember { mutableStateOf(ageGate.isAdultDeclared()) }
     var guestMode by remember { mutableStateOf(false) }
+    var showingNotifications by remember { mutableStateOf(false) }
+    var selectedClientTab by remember { mutableIntStateOf(0) }
+    var searchPrefill by remember { mutableStateOf<String?>(null) }
+    var deepLinkNotice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         try {
@@ -90,6 +119,55 @@ private fun NaxaRoot(
         }
     }
     val currentProfile = profile
+    LaunchedEffect(openPath, loading, currentProfile, guestMode, adultDeclared) {
+        val path = openPath ?: return@LaunchedEffect
+        if (!adultDeclared || loading) return@LaunchedEffect
+        if (currentProfile == null && !guestMode) return@LaunchedEffect
+
+        when (val destination = NaxaNativeDeepLinks.resolve(
+            path, currentProfile?.activeWorkspace ?: "guest"
+        )) {
+            NaxaNativeDeepLink.Notifications -> {
+                if (currentProfile != null) {
+                    showingNotifications = true
+                    deepLinkNotice = null
+                } else {
+                    deepLinkNotice = "Connectez-vous pour consulter vos notifications."
+                }
+            }
+            NaxaNativeDeepLink.AdminDashboard -> {
+                if (currentProfile != null &&
+                    NaxaNativeRole.supportsAdminWorkspace(
+                        currentProfile.effectiveRole, currentProfile.activeWorkspace
+                    )
+                ) {
+                    showingNotifications = false
+                    deepLinkNotice = null
+                } else {
+                    deepLinkNotice = "Le poste Admin n’est pas actif sur ce compte."
+                }
+            }
+            is NaxaNativeDeepLink.ClientTab -> {
+                if (currentProfile != null &&
+                    NaxaNativeRole.supportsClientWorkspace(
+                        currentProfile.effectiveRole, currentProfile.activeWorkspace
+                    )
+                ) {
+                    showingNotifications = false
+                    selectedClientTab = destination.index
+                    searchPrefill = destination.query
+                    deepLinkNotice = null
+                } else {
+                    deepLinkNotice = "Cette destination n’appartient pas à votre espace actif."
+                }
+            }
+            is NaxaNativeDeepLink.Unsupported -> {
+                showingNotifications = false
+                deepLinkNotice = destination.reason
+            }
+        }
+        onOpenPathHandled()
+    }
     Surface(Modifier.fillMaxSize(), color = NaxaBackground) {
         when {
             !adultDeclared -> AgeDeclarationScreen(
@@ -120,9 +198,19 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
+            currentProfile != null && showingNotifications ->
+                NativeNotificationsScreen(
+                    repository = notificationsRepository,
+                    onBack = {
+                        showingNotifications = false
+                        deepLinkNotice = null
+                    }
+                )
             currentProfile != null && NaxaNativeRole.supportsAdminWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
                 NativeAdminDashboardScreen(
                     repository = adminDashboard,
+                    deepLinkNotice = deepLinkNotice,
+                    onOpenNotifications = { showingNotifications = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -138,6 +226,8 @@ private fun NaxaRoot(
             currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
                 UnsupportedNativeRoleScreen(
                     role = currentProfile.effectiveRole,
+                    deepLinkNotice = deepLinkNotice,
+                    onOpenNotifications = { showingNotifications = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -156,6 +246,13 @@ private fun NaxaRoot(
                 catalogue = catalogue,
                 pharmacies = pharmacies,
                 fcmRegistration = fcmRegistration,
+                initialTab = selectedClientTab,
+                initialQuery = searchPrefill,
+                deepLinkNotice = deepLinkNotice,
+                onOpenNotifications = {
+                    if (profile != null) showingNotifications = true
+                    else deepLinkNotice = "Connectez-vous pour consulter vos notifications."
+                },
                 isGuest = profile == null,
                 onSignIn = { guestMode = false },
                 onLogout = {
@@ -252,12 +349,20 @@ private fun NativeHome(
     catalogue: CatalogueRepository,
     pharmacies: PharmacyRepository,
     fcmRegistration: FcmRegistrationRepository,
+    initialTab: Int,
+    initialQuery: String?,
+    deepLinkNotice: String?,
+    onOpenNotifications: () -> Unit,
     isGuest: Boolean,
     onSignIn: () -> Unit,
     onLogout: () -> Unit
 ) {
-    var selected by remember { mutableIntStateOf(0) }
-    var cataloguePrefill by remember { mutableStateOf("") }
+    var selected by remember { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
+    var cataloguePrefill by remember { mutableStateOf(initialQuery.orEmpty()) }
+    LaunchedEffect(initialTab) { selected = initialTab.coerceIn(0, 4) }
+    LaunchedEffect(initialQuery) {
+        if (!initialQuery.isNullOrBlank()) cataloguePrefill = initialQuery
+    }
     val labels = listOf("Accueil", "Rechercher", "Scanner", "Achats", "Profil")
     val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.Default.CameraAlt, Icons.Default.ShoppingBag, Icons.Default.Person)
     Scaffold(bottomBar = {
@@ -272,7 +377,20 @@ private fun NativeHome(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("NAXA", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = NaxaGreen)
                 Spacer(Modifier.weight(1f))
+                IconButton(onClick = onOpenNotifications) {
+                    Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                }
                 Text("FCFA", color = Color(0xFF66756E), fontSize = 12.sp)
+            }
+            deepLinkNotice?.let {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF4D5))) {
+                    Text(
+                        it,
+                        modifier = Modifier.padding(12.dp),
+                        color = Color(0xFF694B00),
+                        fontSize = 12.sp
+                    )
+                }
             }
             Spacer(Modifier.height(24.dp))
             Text("Bonjour 👋", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
@@ -660,7 +778,12 @@ private fun FeatureCard(title: String, description: String) {
 }
 
 @Composable
-private fun UnsupportedNativeRoleScreen(role: String, onLogout: () -> Unit) {
+private fun UnsupportedNativeRoleScreen(
+    role: String,
+    deepLinkNotice: String?,
+    onOpenNotifications: () -> Unit,
+    onLogout: () -> Unit
+) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.Center
@@ -668,9 +791,17 @@ private fun UnsupportedNativeRoleScreen(role: String, onLogout: () -> Unit) {
         Text("Espace professionnel NAXA", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
         Spacer(Modifier.height(12.dp))
         Text("Votre compte est authentifié avec le rôle « $role », mais cet espace professionnel n’est pas encore disponible dans cette version Android.", color = Color(0xFF50645B))
+        deepLinkNotice?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, color = Color(0xFF8A4B00), fontSize = 13.sp)
+        }
         Spacer(Modifier.height(10.dp))
         Text("Par sécurité, aucun écran Client ni aucune donnée d’un autre espace ne sont affichés. Vos autorisations restent contrôlées par le serveur NAXA.", color = Color(0xFF65776F), fontSize = 13.sp)
         Spacer(Modifier.height(24.dp))
+        OutlinedButton(onClick = onOpenNotifications, modifier = Modifier.fillMaxWidth()) {
+            Text("Ouvrir les notifications")
+        }
+        Spacer(Modifier.height(8.dp))
         Button(onClick = onLogout, modifier = Modifier.fillMaxWidth().height(50.dp)) {
             Text("Se déconnecter")
         }
