@@ -85,8 +85,10 @@ Le chantier ne pourra être déclaré vert qu'après :
 - parcours utilisateur complet dans l'APK installé;
 - scan, sélection, connexion, notifications GATT, déconnexion et reconnexion;
 - contrôle de consentement et isolation de comptes;
-- règle logicielle de saturation à 300 sans éviction des mesures déjà acceptées : PASS code/CI; scénario réel sur appareil (300 mesures hors ligne, refus de la 301e, vidage et reprise manuelle) à confirmer;
+- règle logicielle de saturation à 300 sans éviction des mesures déjà acceptées : PASS code/CI;
+- migration SQL versionnée appliquée et testée sur le projet Supabase Production (actuellement validée uniquement sur Replay);
 - tests de décodage automatisés exécutés;
+- scénario réel sur appareil : 300 mesures hors ligne, refus de la 301e, vidage/synchronisation, reprise WorkManager, redémarrage et reconnexion manuelle;
 - essais physiques documentés pour chaque modèle annoncé compatible;
 - preuve de build APK et rapport de test reproductible.
 
