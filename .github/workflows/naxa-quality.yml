@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: 22
       - name: Installer les dépendances
-        run: npm install --no-audit --no-fund --no-progress
+        run: npm ci --no-audit --no-fund
       - name: Qualité complète + build Next.js (Node 22)
         run: npm run quality && npm run build
 
