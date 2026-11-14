@@ -2,7 +2,7 @@
 
 Date de travail : 14 novembre 2026
 Branche : `main`
-Statut : **ORANGE — build APK et tests unitaires Android PASS; qualité Node en cours; essais WorkManager hors écran et Bluetooth physique non exécutés**
+Statut : **ORANGE — build APK et tests unitaires Android PASS sur le dernier code BLE précédent; correction de saturation intégrée, validation CI de ce nouveau changement en attente; essais sur téléphone non exécutés**
 
 ## 1. Périmètre contrôlé
 
@@ -28,7 +28,10 @@ L'ACK n'est émis qu'après insertion confirmée ou vérification serveur de tou
 
 - Accusé de réception des événements natifs après traitement, sans expiration arbitraire de 12 secondes.
 - Événement conservé en cas d'échec temporaire de traitement.
-- Signalement explicite du débordement de la file native bornée.
+- Débordement BLE durci : les 300 événements déjà acceptés ne sont plus tronqués. Le nouvel événement qui arrive à saturation est refusé et comptabilisé dans une métadonnée AES-GCM séparée (`queue_overflow`), hors de la file des mesures.
+- Si une mesure est refusée, le service coupe les connexions BLE actives, annule les tentatives de reconnexion et efface les sessions persistées. La collecte ne repart qu'après action explicite de reconnexion; le Worker est quand même réveillé pour vider les mesures conservées.
+- Le statut natif affiche le nombre d'événements refusés et, lorsque disponible, le sous-total de mesures. Les anciens marqueurs ne contenant pas la répartition restent explicitement « détail inconnu ».
+- Le consommateur fusionne le marqueur séparé à la lecture et l'acquitte avec son identifiant courant; un marqueur mis à jour entre lecture et acquittement reste donc visible.
 - Purge des sessions Bluetooth aux trois parcours de déconnexion.
 - Revalidation serveur du compte et correspondance du propriétaire avant reprise d'une session.
 - Récepteur Android de redémarrage avec contrôle de session et permission Bluetooth.
@@ -65,7 +68,7 @@ Le décodeur Kotlin de l'APK couvre actuellement fréquence cardiaque, tension (
 4. **Profils d'activité :** vitesse/cadence reconnues mais non persistées car le contrat SQL ne possède pas de types compatibles. Ne pas les convertir en pas ou minutes.
 5. **Sessions chiffrées :** le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; confirmer la migration sur appareil.
 6. **Permissions Android :** tester SCAN et CONNECT, versions Android, refus, révocation et restrictions de démarrage en arrière-plan.
-7. **File bornée :** le marqueur de débordement signale une perte, mais ne restaure pas les événements supprimés; tester persistance atomique et scénarios de crash.
+7. **File bornée : CORRECTION INTÉGRÉE — validation CI en attente.** Les mesures déjà acceptées ne sont plus éjectées pour faire place à de nouveaux événements. Au plafond de 300, les nouveaux événements sont refusés, le compte est conservé séparément et une mesure refusée suspend toutes les connexions BLE pour éviter la poursuite silencieuse de la collecte. Les événements déjà en file restent synchronisables. Les mesures arrivant pendant la saturation ne sont pas récupérées par NAXA : le compteur les rend visibles, mais une éventuelle mémoire interne de l'appareil n'est pas présumée. À tester : 300 mesures hors ligne, refus de la 301e, arrêt des notifications/reconnexions, redémarrage, synchronisation complète, suppression du marqueur et reconnexion manuelle.
 8. **Validation clinique et matérielle :** consentement, isolation de comptes, absence de diagnostic automatique, essais sur modèles physiques et preuve d'APK restent à faire.
 
 ## 6. Décision d'architecture appliquée
@@ -81,7 +84,7 @@ Le chantier ne pourra être déclaré vert qu'après :
 - parcours utilisateur complet dans l'APK installé;
 - scan, sélection, connexion, notifications GATT, déconnexion et reconnexion;
 - contrôle de consentement et isolation de comptes;
-- stockage hors ligne, synchronisation sans doublon et reprise après redémarrage;
+- stockage hors ligne, synchronisation sans doublon, saturation à 300 sans éviction des mesures déjà acceptées et reprise manuelle après vidage;
 - tests de décodage automatisés exécutés;
 - essais physiques documentés pour chaque modèle annoncé compatible;
 - preuve de build APK et rapport de test reproductible.
