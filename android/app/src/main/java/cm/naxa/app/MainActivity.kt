@@ -536,7 +536,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
-        if (grants.values.all { it }) {
+        if (grants.values.all { it } && consentLoaded && selectedFamily in consentFamilies) {
             devices = emptyList()
             scanning = true
             status = "Recherche Bluetooth en cours…"
