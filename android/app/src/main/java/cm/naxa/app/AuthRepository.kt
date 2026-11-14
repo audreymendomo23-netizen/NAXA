@@ -17,10 +17,20 @@ data class NaxaProfile(
     val activeRole: String = role,
     val activePharmacyId: String? = null,
     val activePartnerId: String? = null,
-    val activePartnerType: String? = null
+    val activePartnerType: String? = null,
+    val activeWorkspace: String = inferNativeWorkspace(activeRole),
+    val activeCenterId: String? = null
 ) {
     val effectiveRole: String
         get() = activeRole.ifBlank { role }
+}
+
+private fun inferNativeWorkspace(role: String): String = when (role) {
+    "admin" -> "admin"
+    "client" -> "client"
+    "promoteur", "pharmacie", "caisse", "responsable", "comptable",
+    "pharmacien", "gestionnaire_stock", "magasinier", "livreur" -> "pharmacy"
+    else -> "unresolved"
 }
 data class AuthResult(val profile: NaxaProfile, val accessToken: String, val refreshToken: String)
 
@@ -143,14 +153,18 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
             )
         }
         val baseRole = profile.optString("role", "Compte NAXA")
+        val activeRole = profile.optString("activeRole").takeIf { it.isNotBlank() } ?: baseRole
         return NaxaProfile(
             userId = userId,
             role = baseRole,
             ageVerified = true,
-            activeRole = profile.optString("activeRole").takeIf { it.isNotBlank() } ?: baseRole,
+            activeRole = activeRole,
             activePharmacyId = profile.optString("activePharmacyId").takeIf { it.isNotBlank() },
             activePartnerId = profile.optString("activePartnerId").takeIf { it.isNotBlank() },
-            activePartnerType = profile.optString("activePartnerType").takeIf { it.isNotBlank() }
+            activePartnerType = profile.optString("activePartnerType").takeIf { it.isNotBlank() },
+            activeWorkspace = profile.optString("activeWorkspace").takeIf { it.isNotBlank() }
+                ?: inferNativeWorkspace(activeRole),
+            activeCenterId = profile.optString("activeCenterId").takeIf { it.isNotBlank() }
         )
     }
 
