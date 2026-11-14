@@ -1,9 +1,9 @@
 package cm.naxa.app
 
 /**
- * Fail-closed native workspace routing.
- * Until a role-specific native workspace is implemented, only the Client
- * workspace may use the Client navigation.
+ * Native workspace routing.
+ * Each supported role is routed only to a native workspace that has an
+ * implemented screen; unsupported roles remain fail-closed.
  */
 internal object NaxaNativeRole {
     fun supportsClientWorkspace(role: String, workspace: String): Boolean =
@@ -11,4 +11,7 @@ internal object NaxaNativeRole {
 
     fun supportsAdminWorkspace(role: String, workspace: String): Boolean =
         role == "admin" && workspace == "admin"
+
+    fun supportsCourierWorkspace(role: String, workspace: String): Boolean =
+        role == "livreur" && workspace in setOf("pharmacy", "partner", "livreur")
 }
