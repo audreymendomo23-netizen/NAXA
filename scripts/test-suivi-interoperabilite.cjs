@@ -42,6 +42,15 @@ const bodyComposition = decodeBle("181B", "2A9C", [0, 0, 250, 0]);
 assert.equal(bodyComposition[0].measurement_type, "masse_grasse");
 assert.equal(bodyComposition[0].value_numeric, 25);
 
+const glucose = decodeBle("1808", "2A18", [2, 1, 0, 0xe8, 0x07, 1, 1, 0, 0, 0, 12, 0xf0, 1, 1]);
+assert.equal(glucose[0].measurement_type, "glycemie");
+assert.equal(glucose[0].value_numeric, 1.2);
+assert.equal(glucose[0].unit, "kg/L");
+assert.equal(glucose[0].measured_at, "2024-01-01T00:00:00.000Z");
+
+assert.throws(() => decodeBle("1810", "2A35", [0, 0xff, 0x07, 80, 0, 93, 0]), /SFLOAT/);
+
+
 const running = decodeBle("1814", "2A53", [0, 0, 2, 90]);
 assert.equal(running.find(value => value.measurement_type === "vitesse_course").value_numeric, 2);
 assert.equal(running.find(value => value.measurement_type === "cadence_course").value_numeric, 90);
