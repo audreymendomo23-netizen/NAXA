@@ -1,3 +1,16 @@
+## Sécurité ciblée — projections publiques Assurance — 14/11/2026
+
+- **Migration Replay :** `20261114073423_marketplace_assurance_views_invoker_public_read`, `20261114073529_marketplace_assurance_conventions_safe_projection`, `20261114073605_marketplace_assureurs_invoker_active_column`. Les trois fichiers correspondants sont versionnés dans `supabase/migrations/`.
+- **Vue assureurs :** `public.marketplace_assureurs` est passée en `security_invoker=true` + `security_barrier=true`. Le rôle `anon` ne peut lire que `id`, `nom`, `code`, `actif`; la policy ne laisse passer que les assureurs actifs. Requête réelle sous `SET ROLE anon` : **5 assureurs visibles** sur Replay.
+- **Vue conventions :** `public.marketplace_assurance_conventions` reste une projection `security_barrier=true` contrôlée. Le passage `security_invoker` a été annulé après test : la vue exigeait un SELECT général sur la table source et celui-ci aurait aussi exposé des colonnes confidentielles. Le rôle `anon` conserve uniquement les droits colonnaires sur les champs publiés ; pas de SELECT global sur `assurance_conventions`. Les références, créateur, horodatages et statut interne restent non lisibles directement. Requête réelle sous `SET ROLE anon` : exécution réussie, **0 convention publiée** sur le jeu Replay.
+- **Test :** `supabase/tests/20261114073630_marketplace_assurance_public_projection_acl.sql` exécuté depuis `main` sur Replay : **PASS**. Le test verrouille les options de vue, policies, droits de colonnes et lecture réelle des deux vues par `anon`.
+- **Advisor après correction :** 1 erreur `security_definer_view` restante (la vue conventions, exception explicitement bornée) ; 3 fonctions `SECURITY DEFINER` toujours exécutables par `anon` ; 233 exécutables par `authenticated` ; 1 avertissement protection mots de passe compromis ; 70 INFO RLS sans policy. Les RPC restent à analyser fonction par fonction ; aucune révocation globale.
+- **CI :** run `43571621927` sur le commit `4f28fff01074a2cf26206a2426b7f499d4c04362` : **success**. Run `43571942355` sur le HEAD `7f9386ba5e21c115d487838ad11759dcfcb1cadb` : encore en attente au dernier contrôle.
+
+**Périmètre :** Replay et `main` uniquement. Aucune migration Production, aucune opération Vercel et aucun déploiement.
+
+---
+
 ## Reprise — postes professionnels autonomes et notifications Livraison — 14/11/2026
 
 **État de la recette E2E globale : PARTIELLE.** Les tests SQL ciblés ci-dessous sont verts sur Supabase Replay. Cette passe ne certifie ni le go-live ni les parcours sur appareils réels.
@@ -29,7 +42,7 @@
 
 ### Réserves non clôturées
 
-- Supabase Security Advisors Replay après les migrations : 2 vues `SECURITY DEFINER` classées ERROR ; 3 fonctions `SECURITY DEFINER` accessibles à `anon` ; 233 accessibles à `authenticated` ; protection des mots de passe compromis désactivée. Les droits ne sont pas révoqués en masse : chaque RPC doit être vérifiée selon son contrat d'accès.
+- Supabase Security Advisors Replay après les migrations : 1 vue `SECURITY DEFINER` classée ERROR (projection publique contrôlée des conventions) ; 3 fonctions `SECURITY DEFINER` accessibles à `anon` ; 233 accessibles à `authenticated` ; protection des mots de passe compromis désactivée. Les droits ne sont pas révoqués en masse : chaque RPC doit être vérifiée selon son contrat d'accès.
 - E2E Auth multi-comptes, Storage avec isolation réelle, parcours navigateur, scanner/caméra/PDF/OCR, GPS/Bluetooth/push/SMS sur appareils Android, et livraison réelle jusqu'à la clôture restent à exécuter.
 - Tests SQL non exécutés : le dépôt contient 328 fichiers dans `supabase/tests`; la présente passe ne les certifie pas tous.
 - La file push et les déclencheurs sont installés, mais l'envoi mobile réel n'est pas démontré. Aucun téléphone n'a été enrôlé dans cette passe.
