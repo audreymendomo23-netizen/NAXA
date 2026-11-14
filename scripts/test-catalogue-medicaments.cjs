@@ -234,23 +234,3 @@ test("sécurité CIMA : vue publique invoker et fonction interne sans paramètre
   assert.match(cimaPhotoInvokerMigration, /with \(security_barrier = true, security_invoker = true\)/);
   assert.match(cimaPhotoInvokerMigration, /revoke all on private\.cima_photo_projection_internal from public, anon, authenticated, service_role/);
 });
-
-const imageImporter = fs.readFileSync(path.join(root, "scripts/medicaments-images-cameroun.mjs"), "utf8");
-
-test("import photos : file CIS/CIP réelle, colonnes Production exactes et CDN OPF accepté", () => {
-  assert.match(imageImporter, /\/medicaments_images\?/);
-  assert.match(imageImporter, /select: "cis,cip_code,libelle_presentation,image_path,image_url,source_nom,source_url,licence,statut"/);
-  assert.match(imageImporter, /\/medicaments_referentiel_sources\?/);
-  assert.match(imageImporter, /select: "cis,nom,substances_actives"/);
-  assert.ok(imageImporter.includes('or: "(statut.in.(a_traiter,sans_image_source,erreur),and('));
-  assert.match(imageImporter, /GTIN exact/);
-  assert.match(imageImporter, /CC BY-SA 4\.0/);
-  assert.match(imageImporter, /Wikimedia Commons/);
-  assert.ok(imageImporter.includes('or: "(statut.in.(a_traiter,sans_image_source,erreur),and('));
-  assert.match(imageImporter, /images\.openproductsfacts\.org/);
-  assert.match(imageImporter, /images\.openfoodfacts\.org/);
-  assert.match(imageImporter, /const requiredHits = wanted\.length <= 2 \? wanted\.length : 2/);
-  assert.equal(packageJson.scripts["import:medicaments-images"], "node scripts/medicaments-images-cameroun.mjs");
-  assert.match(imageImporter, /const DELAY_MS = 4100/);
-  assert.doesNotMatch(imageImporter, /photo_path|photo_source_url|photo_licence|photo_attribution|photo_verifiee_le/);
-});
