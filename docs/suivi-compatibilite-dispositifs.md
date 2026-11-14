@@ -42,7 +42,7 @@ Le détecteur explore les services GATT médicaux standards et conserve le nom d
 - Vélo d’intérieur / ergomètre : `fitness_machine / indoor_bike_data` (vitesse cycliste en km/h, cadence et fréquence cardiaque lorsque les champs sont présents dans la trame).
 - Capteur de cadence cycliste : `cycling_speed_cadence / csc_measurement` (cadence calculée à partir des révolutions de pédalier et des horodatages Bluetooth successifs; vitesse non déduite sans circonférence de roue configurée).
 
-Les montres et bracelets qui exposent le profil cardiaque standard peuvent alimenter la fréquence cardiaque. Les vélos d’intérieur exposant le profil Fitness Machine standard peuvent fournir la vitesse, la cadence et la fréquence cardiaque. Les capteurs CSC peuvent fournir la cadence après réception de deux trames successives; la vitesse n’est pas inventée sans dimension de roue connue. Les champs absents, incomplets ou hors plage sont ignorés; les protocoles propriétaires ne sont jamais assimilés à ce profil. Les autres appareils restent détectables, mais leur mesure n'est pas décodée tant qu'un adaptateur de protocole vérifié n'existe pas. Les protocoles propriétaires ne doivent jamais être interprétés comme des valeurs standard par simple heuristique.
+Les montres et bracelets qui exposent le profil cardiaque standard peuvent alimenter la fréquence cardiaque. La PWA peut décoder vitesse/cadence sur ces profils, mais la persistance de ces deux valeurs n'est pas déclarée active tant que les types correspondants ne sont pas autorisés par le schéma SQL. Le décodeur Android conserve uniquement la fréquence cardiaque des trames vélo lorsqu'elle est présente; il ne réétiquette jamais vitesse ou cadence en pas ou en durée. Les champs absents, incomplets ou hors plage sont ignorés; les protocoles propriétaires ne sont jamais assimilés à ce profil. Les autres appareils restent détectables, mais leur mesure n'est pas décodée tant qu'un adaptateur de protocole vérifié n'existe pas. Les protocoles propriétaires ne doivent jamais être interprétés comme des valeurs standard par simple heuristique.
 
 ## Scan et saisie
 
@@ -55,14 +55,16 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 
 - L'écran Compose « Suivi connecté » déclenche le scan natif (12 secondes), affiche les appareils découverts et transmet la sélection au service GATT. Les permissions `BLUETOOTH_SCAN`/`BLUETOOTH_CONNECT` sont demandées au runtime sur Android 12+; localisation fine est demandée sur les versions antérieures.
 - Le scan et l'association sont conditionnés au consentement explicite de la famille de mesures, lu et enregistré via `suivi_set_family_consent`. Les événements BLE sont filtrés par propriétaire de compte et les profils GATT par catégorie d'appareil.
-- Limite actuelle : les événements de mesure natifs restent dans la file chiffrée; leur décodage et leur insertion dans `suivi_measurements`, ainsi que l'enregistrement de l'appareil dans `suivi_user_devices`, doivent encore être raccordés dans le parcours Compose.
+- Le décodeur Kotlin natif traite les profils cardiaque, tension, température, oxymétrie, glycémie, poids et composition corporelle. L'enregistrement de l'appareil utilise `platform_device_id`; les mesures sont insérées dans `suivi_measurements` avec `sync_origin=android_native` et `device_event_id` stable.
+- L'événement n'est acquitté qu'après insertion confirmée ou vérification serveur d'un doublon complet. Une panne réseau conserve l'événement chiffré; le retry se fait tant que l'écran Compose est ouvert et reprend à la prochaine ouverture de cet écran.
+- Les trames mal formées et les profils non pris en charge sont signalés puis acquittés afin de ne pas bloquer les autres événements. Les champs vitesse/cadence non autorisés par le schéma ne sont pas persistés.
 - Le service conserve les connexions GATT, réessaie la reconnexion avec temporisation progressive et conserve les événements de mesure dans une file locale native chiffrée avec AES-GCM et une clé Android Keystore (maximum 300 événements en attente).
 - Les métadonnées des sessions persistées (adresse, identifiant logique du dispositif, propriétaire) sont également chiffrées avec AES-GCM et Android Keystore; les anciennes sessions JSON en clair restent lisibles une fois pour permettre leur migration au prochain enregistrement.
 - Chaque liaison est associée au compte qui l’a autorisée; une session appartenant à un autre compte est arrêtée plutôt que réattribuée.
 - Toute déconnexion purge les sessions Bluetooth persistées avant la révocation locale du compte; les trois parcours de déconnexion Android appliquent cette règle.
 - Après redémarrage Android ou reprise du service après arrêt du processus, les sessions ne sont restaurées qu'après revalidation serveur du compte et correspondance exacte de son identifiant propriétaire.
 - La reprise au démarrage vérifie aussi l'autorisation Bluetooth Android; en cas d'absence de permission ou d'indisponibilité réseau, aucune liaison n'est relancée sans validation ultérieure.
-- La PWA navigateur reprend les événements persistés à son retour et les transmet au parcours web de consentement et d’enregistrement. L’écran Compose Android utilise son propre lecteur d’événements natifs; son décodage et sa persistance des mesures restent à intégrer.
+- La PWA navigateur reprend ses événements via le parcours Web Bluetooth et IndexedDB. L'écran Compose Android utilise son propre lecteur natif, son décodeur Kotlin et le dépôt Supabase; aucun pont WebView n'est supposé.
 - Android affiche une notification persistante pendant le maintien des connexions. Le retrait d’un appareil arrête sa session de fond.
 - Si la file native atteint sa capacité, les événements les plus anciens écartés sont comptabilisés dans un événement `queueOverflow` visible dans l’interface; cette alerte impose de vérifier l’historique et la synchronisation.
 - La continuité Bluetooth en arrière-plan n’est pas disponible dans une PWA de navigateur; elle dépend du cycle de vie du navigateur et de ses autorisations.
@@ -70,7 +72,8 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 ## Synchronisation hors connexion
 
 - Les mesures Bluetooth reçues mais non envoyées sont conservées dans une file IndexedDB locale, limitée à 500 événements par navigateur.
-- La reprise se déclenche au retour du réseau et lorsque l’espace redevient visible; les envois sont regroupés par lots.
+- PWA : la reprise se déclenche au retour du réseau et lorsque l’espace redevient visible; les envois sont regroupés par lots.
+- APK : les événements reçus restent dans la file locale native chiffrée; la synchronisation est relancée lorsque l'écran Compose est actif et à sa prochaine ouverture. Le vidage périodique hors écran n'est pas encore implémenté.
 - La file est propre à l’utilisateur authentifié. Les mesures dont le consentement familial n’est plus actif sont supprimées avant toute reprise.
 - Une mesure n’est retirée de la file qu’après confirmation de l’insertion serveur. Les actions qui exigent le serveur restent indisponibles hors connexion.
 
@@ -101,5 +104,6 @@ Les montres et bracelets qui exposent le profil cardiaque standard peuvent alime
 - `supabase/tests/20261112230000_naxa_fcm_android_tokens.sql`
 - `supabase/tests/150_suivi_mesures_multidispositifs.sql`
 - `npm run test:suivi-interoperabilite`
+- `android/app/src/test/java/cm/naxa/app/NaxaGattMeasurementDecoderTest.kt` (tests JUnit ajoutés; exécution Gradle à confirmer)
 
 La présence d'une catégorie dans le catalogue n'est pas une certification universelle de toutes les références commerciales. La compatibilité d'un modèle est prouvée uniquement par un profil effectivement découvert et une mesure décodée et validée.
