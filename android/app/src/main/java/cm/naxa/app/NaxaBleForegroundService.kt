@@ -96,6 +96,31 @@ class NaxaBleForegroundService : Service() {
             }.toSet()
         }
 
+        fun requestScan(context: android.content.Context, ownerId: String) {
+            val intent = Intent(context, NaxaBleForegroundService::class.java)
+                .setAction(ACTION_SCAN).putExtra(EXTRA_OWNER, ownerId)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                androidx.core.content.ContextCompat.startForegroundService(context, intent)
+            } else context.startService(intent)
+        }
+
+        fun requestConnect(context: android.content.Context, address: String, deviceKey: String, ownerId: String) {
+            val intent = Intent(context, NaxaBleForegroundService::class.java)
+                .setAction(ACTION_CONNECT)
+                .putExtra(EXTRA_ADDRESS, address)
+                .putExtra(EXTRA_KEY, deviceKey)
+                .putExtra(EXTRA_OWNER, ownerId)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                androidx.core.content.ContextCompat.startForegroundService(context, intent)
+            } else context.startService(intent)
+        }
+
+        fun requestDisconnect(context: android.content.Context, address: String) {
+            val intent = Intent(context, NaxaBleForegroundService::class.java)
+                .setAction(ACTION_DISCONNECT).putExtra(EXTRA_ADDRESS, address)
+            context.startService(intent)
+        }
+
         fun stopForLogout(context: android.content.Context) {
             val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             synchronized(NaxaBleForegroundService::class.java) {
