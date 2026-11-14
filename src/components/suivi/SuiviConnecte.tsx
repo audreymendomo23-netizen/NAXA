@@ -377,11 +377,18 @@ export function SuiviConnecte() {
           }
           if(!row)throw new Error("L'appareil Android n'est pas encore associé au compte.");
           const item=deviceCatalog.find(entry=>entry.key===row!.deviceKey);
-          if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);throw new Error("Consentement retiré : liaison Bluetooth arrêtée et mesure ignorée.");}
+          if(!item||!consents[item.family]){(window as any).NaxaAndroid?.disconnect(deviceId);detail.acknowledge?.();return;}
           const hex=String(detail.payloadHex??"");
           if(!hex||hex.length%2!==0)throw new Error("Trame Bluetooth invalide.");
           const bytes=Uint8Array.from(hex.match(/.{2}/g)??[],part=>parseInt(part,16));
-          const decoded=decodeStandardGattMeasurement(bluetoothShortUuid(String(detail.serviceUuid??"")),bluetoothShortUuid(String(detail.characteristicUuid??"")),new DataView(bytes.buffer),deviceId);
+          let decoded;
+          try{
+            decoded=decodeStandardGattMeasurement(bluetoothShortUuid(String(detail.serviceUuid??"")),bluetoothShortUuid(String(detail.characteristicUuid??"")),new DataView(bytes.buffer),deviceId);
+          }catch(error){
+            setNotice(error instanceof Error?error.message:"Trame Bluetooth non reconnue; aucune mesure enregistrée.");
+            detail.acknowledge?.();
+            return;
+          }
           const allowed=decoded.filter(measurement=>{
             const family=types.find(type=>type.key===measurement.measurement_type)?.family;
             return !!family&&!!consents[family];
@@ -389,7 +396,7 @@ export function SuiviConnecte() {
           if(!allowed.length){detail.acknowledge?.();return;}
           const {data:authData}=await sb.auth.getUser();
           if(!authData.user)throw new Error("Session expirée.");
-          if(String(detail.ownerUserId??"")!==authData.user.id)throw new Error("Mesure Bluetooth écartée : compte propriétaire différent.");
+          if(String(detail.ownerUserId??"")!==authData.user.id){(window as any).NaxaAndroid?.disconnect(deviceId);detail.acknowledge?.();return;}
           const receivedAt=new Date().toISOString();
           const rows=allowed.map((measurement,index)=>({
             user_id:authData.user!.id,device_id:row!.id,measurement_type:measurement.measurement_type,
