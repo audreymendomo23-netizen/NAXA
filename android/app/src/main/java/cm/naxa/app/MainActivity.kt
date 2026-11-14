@@ -87,6 +87,7 @@ private fun NaxaRoot(
             loading = false
         }
     }
+    val currentProfile = profile
     Surface(Modifier.fillMaxSize(), color = NaxaBackground) {
         when {
             !adultDeclared -> AgeDeclarationScreen(
@@ -117,9 +118,9 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
-            profile != null && !NaxaNativeRole.supportsClientWorkspace(profile.role) ->
+            currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.role) ->
                 UnsupportedNativeRoleScreen(
-                    role = profile.role,
+                    role = currentProfile.role,
                     onLogout = {
                         loading = true
                         scope.launch {
