@@ -193,15 +193,15 @@ assert.match(bootReceiver, /owners\.contains\(profile\.userId\)/, "la reprise BL
 assert.match(bootReceiver, /checkSelfPermission\(bluetoothPermission\) != PackageManager\.PERMISSION_GRANTED/, "la reprise au démarrage doit respecter l'autorisation Bluetooth Android");
 assert.match(nativeBleService, /fun stopForLogout\(context: android\.content\.Context\)/, "une déconnexion doit pouvoir purger les sessions BLE persistées");
 assert.match(nativeBleService, /fun savedSessionOwners\(context: android\.content\.Context\)/, "les propriétaires des sessions BLE doivent pouvoir être vérifiés");
-const logoutHandlerStarts = [...nativeMainActivity.matchAll(/onLogout\\s*=\\s*\\{/g)].map(match => match.index);
+const logoutHandlerStarts = [...nativeMainActivity.matchAll(/onLogout\s*=\s*\{/g)].map(match => match.index);
 assert.ok(logoutHandlerStarts.length >= 1, "au moins un parcours de déconnexion doit être déclaré");
 for (let index = 0; index < logoutHandlerStarts.length; index += 1) {
   const start = logoutHandlerStarts[index];
   const end = logoutHandlerStarts[index + 1] ?? nativeMainActivity.length;
   const handler = nativeMainActivity.slice(start, end);
-  assert.match(handler, /NaxaBleForegroundService\\.stopForLogout\\(appContext\\)/,
+  assert.match(handler, /NaxaBleForegroundService\.stopForLogout\(appContext\)/,
     `le parcours de déconnexion ${index + 1} doit arrêter les sessions BLE`);
-  assert.match(handler, /repository\\.signOut\\(\\)/,
+  assert.match(handler, /repository\.signOut\(\)/,
     `le parcours de déconnexion ${index + 1} doit terminer la session authentifiée`);
 }
 assert.match(nativeBleService, /resumeSavedSessionsAfterAuth\(\)/, "un redémarrage du service doit revalider le compte avant reconnexion");
