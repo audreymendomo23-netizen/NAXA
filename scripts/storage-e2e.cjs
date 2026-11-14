@@ -101,7 +101,8 @@ async function createTemporaryUser(createdUsers) {
     throw new Error("Création du compte temporaire refusée (HTTP " + response.status + ").");
   }
 
-  createdUsers.push(payload.id);
+  const cleanupRecord = { id: payload.id, accessToken: null };
+  createdUsers.push(cleanupRecord);
 
   const login = await http("/auth/v1/token?grant_type=password", {
     method: "POST",
@@ -112,6 +113,7 @@ async function createTemporaryUser(createdUsers) {
   if (!login.ok || !session.access_token || !session.user?.id) {
     throw new Error("Connexion du compte temporaire impossible (HTTP " + login.status + "). Le compte créé reste enregistré pour le nettoyage final.");
   }
+  cleanupRecord.accessToken = session.access_token;
   return { id: session.user.id, token: session.access_token };
 }
 
@@ -126,6 +128,16 @@ async function loginExisting(email, password, label) {
     throw new Error("Connexion du rôle " + label + " impossible (HTTP " + response.status + ").");
   }
   return { id: session.user.id, token: session.access_token };
+}
+
+async function logoutTemporaryUser(accessToken) {
+  const response = await http("/auth/v1/logout?scope=local", {
+    method: "POST",
+    accessToken,
+  });
+  if (!response.ok && response.status !== 401 && response.status !== 404) {
+    throw new Error("Révocation de la session temporaire impossible (HTTP " + response.status + ").");
+  }
 }
 
 async function deleteUser(userId) {
@@ -423,9 +435,19 @@ async function run() {
         process.stderr.write("CLEANUP FAIL — " + detail + "\n");
       }
     }
-    for (const id of createdUsers.reverse()) {
+    for (const user of createdUsers.reverse()) {
+      if (user.accessToken) {
+        try {
+          await logoutTemporaryUser(user.accessToken);
+          process.stdout.write("CLEANUP PASS — session temporaire révoquée\n");
+        } catch (error) {
+          const detail = "session temporaire : " + (error?.message || "erreur inconnue");
+          cleanupFailures.push(detail);
+          process.stderr.write("CLEANUP FAIL — " + detail + "\n");
+        }
+      }
       try {
-        await deleteUser(id);
+        await deleteUser(user.id);
         process.stdout.write("CLEANUP PASS — compte temporaire supprimé\n");
       } catch (error) {
         const detail = "compte temporaire : " + (error?.message || "erreur inconnue");
