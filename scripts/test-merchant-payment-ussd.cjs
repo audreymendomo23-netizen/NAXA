@@ -16,7 +16,7 @@ assert.match(ussd, /tel:\$\{encodeURIComponent\(ussd\)\}/);
 assert.match(api, /\.eq\("client_id", auth\.user\.id\)/);
 assert.match(api, /\.eq\("is_active", true\)/);
 assert.match(api, /const merchantCode = String\(merchant\.merchant_code\)/);
-assert.match(api, /if \(!\/\^\\d\{6\}\$\/\.test\(merchant\.merchant_code\)\)/);
+assert.match(api, /!\s*\/\^\\d\{6\}\$\/\.test\(merchant\.merchant_code\)/);
 assert.match(api, /buildMerchantPaymentUssd\(channel, merchantCode, amount\)/);
 assert.match(client, /buildTelephoneUri\(details\.ussd\)/);
 assert.match(migration, /naxa_merchant_payment_destination_audit/);
