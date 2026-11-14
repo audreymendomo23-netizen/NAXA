@@ -289,9 +289,3 @@ class NaxaReminderReceiver : AndroidBroadcastReceiver() {
         }
     }
 }
-
-class NaxaBootReceiver : AndroidBroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) NaxaReminderScheduler.scheduleAll(context)
-    }
-}
