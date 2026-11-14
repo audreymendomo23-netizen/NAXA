@@ -181,6 +181,12 @@ class NaxaBleForegroundService : Service() {
                 return START_STICKY
             }
             ACTION_CONNECT -> {
+                if (!hasBleRuntimePermission()) {
+                    enqueueEvent(this, JSONObject().put("type", "error")
+                        .put("message", "Autorisation Bluetooth requise pour démarrer la liaison."))
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
                 ensureForeground()
                 val address = intent.getStringExtra(EXTRA_ADDRESS).orEmpty()
                 val key = intent.getStringExtra(EXTRA_KEY).orEmpty()
@@ -190,12 +196,22 @@ class NaxaBleForegroundService : Service() {
             else -> {
                 val sessionsJson = savedSessions()
                 if (sessionsJson.length() > 0) {
+                    if (!hasBleRuntimePermission()) return START_NOT_STICKY
                     ensureForeground()
                     resumeSavedSessionsAfterAuth()
                 }
             }
         }
         return START_STICKY
+    }
+
+    private fun hasBleRuntimePermission(): Boolean {
+        val permission = if (Build.VERSION.SDK_INT >= 31) {
+            android.Manifest.permission.BLUETOOTH_CONNECT
+        } else {
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        return checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun savedSessions(): JSONArray {
