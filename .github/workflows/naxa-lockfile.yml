@@ -2,32 +2,47 @@ name: NAXA lockfile generation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - ".github/workflows/naxa-lockfile.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: naxa-lockfile-${{ github.ref }}
-  cancel-in-progress: true
+  group: naxa-lockfile-main
+  cancel-in-progress: false
 
 jobs:
   lockfile:
-    name: Generate and commit npm lockfile
+    if: github.ref == 'refs/heads/main'
+    name: Generate and verify npm lockfile on main
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Checkout QA branch
-        uses: actions/checkout@v7
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: main
           persist-credentials: true
+
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "22"
-      - name: Resolve deterministic dependency tree
+
+      - name: Generate dependency lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify clean install from generated lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Commit package-lock.json when changed
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json
@@ -36,4 +51,4 @@ jobs:
             exit 0
           fi
           git commit -m "build(deps): generate deterministic npm lockfile"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin HEAD:main
