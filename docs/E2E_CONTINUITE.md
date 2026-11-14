@@ -391,3 +391,33 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 **État : EN ATTENTE —** le job est en file d'attente. Aucun résultat PASS/FAIL de cette nouvelle tentative n'est encore disponible.
 
 **Point de reprise :** recontrôler le job `132477787960` et ses logs après exécution ; vérifier séparément le résultat Storage, l'authentification Admin et le nettoyage. Ne pas conclure au succès sur la seule acceptation de la relance.
+
+
+## 19. Création du compte Admin Replay — erreur Auth confirmée par les journaux (14/11/2026)
+
+**Retour utilisateur :** la création manuelle dans Supabase Authentication > Users retourne `Failed to create user: Database error creating new user`.
+
+**Preuve PostgreSQL Replay :**
+- Projet contrôlé : Replay `pwfftcsjyeibxxqhwysw` uniquement.
+- Les journaux PostgreSQL contiennent deux tentatives d'insertion Auth autour de 14:39 UTC, avec SQLSTATE `P0001`.
+- Message exact levé : `Nom d'utilisateur invalide`.
+- Contexte PostgreSQL : `PL/pgSQL function public.handle_new_user() line 27 at RAISE`.
+- La fonction `public.handle_new_user()` est déclenchée par `on_auth_user_created`, après insertion dans `auth.users`.
+- Le code de la fonction exige un `raw_user_meta_data.username` valide, sauf si le marqueur `naxa_signup_pending=true` est présent. Le formulaire Dashboard utilisé n'a pas fourni ce marqueur ni le nom d'utilisateur attendu ; l'exception annule donc la transaction Auth.
+- La documentation Supabase confirme qu'un trigger de création de profil qui échoue peut bloquer l'inscription.
+
+**Cause racine :** incompatibilité entre la création d'un utilisateur depuis le Dashboard Supabase (métadonnées métier absentes) et le contrat strict du trigger NAXA `handle_new_user()`. Ce n'est pas un problème de mot de passe, d'adresse email ou de disponibilité du projet.
+
+**État et sécurité :**
+- La transaction ayant échoué, aucune identité Auth issue de ces tentatives n'est considérée créée.
+- Aucun trigger n'a été désactivé ou modifié ; aucune donnée Auth/profil/rôle n'a été insérée directement par SQL.
+- Le compte technique Admin E2E existant reste intact.
+- Aucun changement sur Production, Vercel, GitHub Secrets ou Play Store.
+- La route `/api/auth/admin-bootstrap` ne crée pas l'identité Auth ; elle ne peut promouvoir que le compte `naxa.home@gmail.com` déjà créé, confirmé et doté d'un profil NAXA.
+
+**Correction à concevoir avant reprise :**
+1. Utiliser le parcours NAXA d'inscription contrôlée qui envoie explicitement `naxa_signup_pending=true`, puis finalise le profil avec les validations normales ; ou
+2. concevoir un chemin d'invitation Auth Admin qui fournisse un marqueur de création provisoire sans affaiblir les validations du parcours Client ni attribuer de rôle à la création Auth.
+3. Pour le premier Admin, garantir ensuite la création du profil minimal requis avant l'appel sécurisé du bootstrap ; ne pas modifier `auth.users` directement.
+
+**État : BLOQUÉ — cause racine prouvée, correction non appliquée.** Aucun nouveau compte métier n'est créé par cette étape. Production reste exclue.
