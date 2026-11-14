@@ -6,5 +6,9 @@ package cm.naxa.app
  * workspace may use the Client navigation.
  */
 internal object NaxaNativeRole {
-    fun supportsClientWorkspace(role: String): Boolean = role == "client"
+    fun supportsClientWorkspace(role: String, workspace: String): Boolean =
+        role == "client" && workspace == "client"
+
+    fun supportsAdminWorkspace(role: String, workspace: String): Boolean =
+        role == "admin" && workspace == "admin"
 }
