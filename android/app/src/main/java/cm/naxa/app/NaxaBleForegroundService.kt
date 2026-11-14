@@ -58,7 +58,7 @@ class NaxaBleForegroundService : Service() {
                 event.put("eventId", UUID.randomUUID().toString())
                 queue.put(event)
                 val hasOverflowMarker = queue.optJSONObject(0)?.optString("type") == "queueOverflow"
-                val normalCapacity = if (hasOverflowMarker) 299 else 300
+                val normalCapacity = 300
                 if (queue.length() > normalCapacity) {
                     val droppedNow = if (hasOverflowMarker) queue.length() - 300 else queue.length() - 299
                     val previousDropped = if (hasOverflowMarker) queue.optJSONObject(0)?.optInt("droppedCount", 0) ?: 0 else 0
