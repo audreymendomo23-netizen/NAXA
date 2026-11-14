@@ -38,37 +38,36 @@ Les bases ne doivent pas être forcées à l'identique si cela détruit les règ
 - La notification spécifique de l'équipe pharmacie est une extension Naxa.
 - Les divergences de fonctions sont conservées lorsqu'elles portent un garde-fou de périmètre, préparation, paiement ou notification.
 
-## Contrôles structurels
+## Contrôles structurels et SQL vérifiés
 
-- Les 28 tables du périmètre ciblé sont présentes sur les deux projets.
-- RLS est activé sur les tables ciblées.
-- Les 18 index ajoutés sont présents sur Naxa.
-- `preparation_statut` est non nullable.
-- Les fonctions sensibles relues conservent `SECURITY DEFINER` avec `search_path = ''`.
-- Les vues de projection sont lisibles en lecture seule par les rôles API.
-- Quatre réservations existantes sur Naxa ont toujours `paiement_mode IS NULL`. Elles n'ont pas été réécrites automatiquement ; les nouveaux garde-fous les empêchent de franchir les étapes Livraison concernées.
+- Les 28 tables du périmètre de réconciliation précédemment comparées sont présentes sur les deux projets. Le contrôle ciblé complémentaire de cette clôture confirme les mêmes 14 tables Livraison / Partenaire indépendant sur Replay et NAXA.
+- Les 12 tables de Livraison identifiées par le préfixe `naxa_delivery_*` / `naxa_livreur_*` ont RLS activé sur les deux projets ; aucune de ces 12 tables ne présente RLS désactivé.
+- Les 18 index ajoutés sont présents sur NAXA (`18/18`).
+- `reservations.preparation_statut` est `NOT NULL` et aucune ligne n'a cette colonne à NULL.
+- Les neuf fonctions métier relues conservent `SECURITY DEFINER` et `search_path = ''`.
+- Le helper `naxa_delivery_make_available_before_preparation_gate(uuid)` est exécutable par `service_role` uniquement ; l'exécution par `anon` et `authenticated` est refusée.
+- Les vues `marketplace_assureurs`, `marketplace_assurance_conventions` et `medicaments_cima_photos_public` autorisent SELECT aux rôles API, sans INSERT, UPDATE ni DELETE pour `anon`, `authenticated` ou `service_role`.
+- Les droits directs `anon` sur `suivi_professional_weekly_availability` et `suivi_professionals` sont retirés.
+- La contrainte active NAXA de frais de livraison est bien `1 500–3 500 FCFA`. Replay conserve la contrainte historique `1 500–20 000 FCFA NOT VALID` : cette divergence est intentionnelle et ne doit pas être copiée vers NAXA.
+- Quatre réservations NAXA ont toujours `paiement_mode IS NULL` : le relevé SQL confirme `1` statut `annulée` et `3` statuts `expirée`. Aucune n'est une commande active ; aucune donnée n'a été corrigée artificiellement. Leurs transitions Livraison restent bloquées par les garde-fous.
 
-Ces contrôles structurels ne certifient pas tous les catalogues PostgreSQL ni les parcours fonctionnels de bout en bout.
+## Tests et CI GitHub — preuve finale
 
-## Tests et CI GitHub
+Sur le commit applicatif `09d194b56b3c93624cff6ee83e4d2a581457d0bb`, le workflow GitHub Actions `43538536989` est terminé avec `conclusion=success`.
 
-Sur le HEAD `8b0f694…`, le run qualité observé comptait 358 réussites et 3 échecs :
+- Tests Node : `392/392` réussis, `0` échec, `0` ignoré.
+- TypeScript : `npx tsc --noEmit` réussi.
+- ESLint : `0` erreur et `225` avertissements ; le job ne présente aucun échec de lint.
+- Build Next.js : compilation réussie et `150/150` pages statiques générées.
+- Serwist : `public/sw.js` généré avec `216` URL pré-cachées, total `6,44 Mo`.
+- Le script de contrat contrôle les deux migrations versionnées, les 18 index attendus, les points d'entrée du flux Livraison, les bornes tarifaires et les ACL de projection.
 
-1. test catalogue attaché à l'ancien fichier supprimé `src/lib/medicaments/photos-externes.ts), alors que l'endpoint actuel ne renvoie que les photos du catalogue local vérifiées ;
-2. test USSD pointant vers l'ancien nom de migration, alors que le fichier source présent est `20261113163408_merchant_payment_destinations.sql` ;
-3. test Android qui interdisait `RECEIVE_SMS` au manifeste Professionnel, contrairement à la règle validée : Standard Client/Promoteur sans capture ; Professionnel Pharmacie/Partenaire et Admin avec capture après consentement et permission Android.
+Le run est consultable ici : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43538536989
 
-Les trois assertions ont été réalignées. Un test Node contrôle également les deux migrations SQL versionnées. Le run GitHub Actions déclenché par le commit de correction doit encore fournir la preuve : aucun PASS CI n'est revendiqué avant lecture de son résultat.
+## Hors périmètre de cette réconciliation
 
-## Réserves
-
-- E2E réels Client / Stock / Livreur / Caisse / Promoteur non réalisés.
-- Aucun paiement réel ni capture SMS réelle généré pendant cette passe.
-- Les quatre réservations à mode de paiement nul restent à traiter opérationnellement.
-- Restauration de sauvegarde non testée.
-- Les ACL hors périmètre ciblé ne sont pas certifiées globalement.
-- La protection de `main` et la visibilité du dépôt restent des sujets de gouvernance séparés.
+Les éléments ci-dessous restent non certifiés et ne sont pas déclarés réalisés : E2E terrain Client / Stock / Livreur / Caisse / Promoteur, paiement et capture SMS réels, répétition de restauration de sauvegarde, audit de toutes les ACL hors périmètre ciblé, protection de `main` et visibilité du dépôt. Ils restent nécessaires à une éventuelle certification globale du produit, mais ne constituent pas des écarts ouverts dans le périmètre SQL/structurel de ce rapport.
 
 ## État
 
-**EN COURS — PAS ENCORE VERT.** Les deux migrations correctives sont versionnées, les trois tests défaillants sont réalignés et les tests SQL de contrôle sont ajoutés. La CI après correction et les tests fonctionnels E2E restent nécessaires.
+**VERT — RÉCONCILIATION SUPABASE REPLAY / NAXA, PÉRIMÈTRE CIBLÉ.** Les migrations correctives sont versionnées et enregistrées sur NAXA ; les contrôles structurels, les ACL ciblées, les règles de sécurité Livraison, les écarts métier assumés et la CI sont vérifiés. Aucun déploiement n'a été effectué. Ce statut ne vaut pas déclaration de go-live global NAXA.
