@@ -145,6 +145,15 @@ assert.match(nativeBleService, /private fun hasBleScanPermission\(\): Boolean/, 
 assert.match(nativeBleService, /scanner\.startScan\(null, ScanSettings\.Builder\(\)/, "la découverte BLE native doit lancer un scan GATT");
 assert.match(nativeBleService, /"deviceFound"/, "les appareils découverts doivent être publiés dans la file d événements");
 assert.match(nativeBleService, /handler\.postDelayed\(timeout, 12000L\)/, "la découverte BLE doit être bornée dans le temps");
+assert.match(nativeMainActivity, /NativeSuiviBluetoothScreen\(/, "le parcours Bluetooth Android doit être rendu dans un écran Jetpack Compose");
+assert.match(nativeMainActivity, /onOpenSuiviBluetooth/, "l’espace client natif doit permettre d’ouvrir le suivi connecté");
+assert.match(nativeMainActivity, /RequestMultiplePermissions\(\)/, "les permissions BLE doivent être demandées par le flux Activity Result Compose");
+assert.match(nativeMainActivity, /NaxaBleForegroundService\.requestScan\(context, ownerUserId\)/, "l’écran Compose doit déclencher le scan par le service BLE natif");
+assert.match(nativeMainActivity, /NaxaBleForegroundService\.requestConnect\(context, device\.id, selectedDeviceKey, ownerUserId\)/, "l’écran Compose doit associer l’appareil via le service BLE natif");
+assert.match(nativeMainActivity, /eventOwner != ownerUserId/, "l’écran Compose doit isoler les événements Bluetooth par compte");
+assert.match(nativeBleService, /fun requestScan\(context: android\.content\.Context, ownerId: String\)/, "le service doit exposer une commande de scan au code Compose");
+assert.match(nativeBleService, /fun requestConnect\(context: android\.content\.Context, address: String, deviceKey: String, ownerId: String\)/, "le service doit exposer une commande de connexion au code Compose");
+assert.match(nativeBleService, /\.put\("ownerUserId", session\.ownerId\)/, "les événements GATT doivent porter le compte propriétaire");
 assert.match(nativeBleService, /private fun hasBleRuntimePermission\(\): Boolean/, "le service doit contrôler l'autorisation Bluetooth avant le foreground");
 assert.match(nativeBleService, /if \(!hasBleRuntimePermission\(\)\) return START_NOT_STICKY/, "le service ne doit pas redémarrer sans permission Bluetooth");
 
