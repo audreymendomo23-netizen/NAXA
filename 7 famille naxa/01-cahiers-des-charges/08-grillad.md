@@ -1,8 +1,8 @@
 # Cahier des charges — GrillaD
 
 > Document de référence fonctionnelle de l'application GrillaD.
-> Version 1.0 · 14 novembre 2026 · Application n° 10 de la Famille NAXA.
-> Statut : périmètre métier principal confirmé ; certains paramètres d'exploitation restent à arbitrer.
+> Version 1.1 · 14 novembre 2026 · Application n° 10 de la Famille NAXA.
+> Statut : périmètre grillades et architecture opérationnelle à deux niveaux confirmés ; paramètres secondaires signalés comme ouverts.
 
 ## 0. Lecture du document
 
@@ -54,7 +54,20 @@ Aucune autre famille de produits ne doit être ajoutée au catalogue métier de 
 | Caissier | Encaissements, dépenses autorisées, ouverture et clôture de caisse |
 | Comptable | Consultation et export des écritures et rapports autorisés |
 
-Les rôles sont des permissions métier, pas des comptes partagés. Chaque collaborateur utilise son propre accès. Un même utilisateur peut recevoir plusieurs fonctions, mais les droits effectifs doivent être calculés explicitement et journalisés. [P]
+Les rôles sont des permissions métier, pas des comptes partagés. Chaque collaborateur utilise son propre accès. Un même utilisateur peut recevoir plusieurs fonctions, mais les droits effectifs doivent être calculés explicitement et journalisés. [V]
+
+### 2.2.1 Architecture opérationnelle à deux niveaux [V]
+
+GrillaD doit obligatoirement prendre en charge une organisation hiérarchique à deux niveaux :
+
+1. **Niveau Manager** : un manager supervise un ou plusieurs points vendeurs, pilote les équipes affectées, consulte les opérations et les indicateurs consolidés en temps réel, contrôle les prises et fins de service et confirme les clôtures de présence.
+2. **Niveau Point vendeur / Employé** : chaque point vendeur dispose d'un ou plusieurs employés opérationnels qui prennent leur service depuis l'application, déclarent leur présence avec géolocalisation, exécutent les opérations autorisées et transmettent en continu les données de ventes, caisse, stock, production et dépenses.
+
+Le manager doit pouvoir superviser plusieurs points vendeurs simultanément, comparer leur activité et ouvrir le détail d'un point sans mélanger ses données avec celles des autres. Un point vendeur est rattaché à une organisation et à un manager responsable ; les remplacements et délégations doivent être explicitement affectés et historisés.
+
+Le manager ne doit pas avoir à appeler l'employé pour connaître son état de service : le statut, les heures déclarées, la dernière position partagée et l'état de synchronisation sont consultables dans son tableau de bord, sous réserve des autorisations de localisation accordées.
+
+### 2.3 Point de vente et mobilité
 
 ### 2.2 Point de vente et mobilité
 
@@ -254,6 +267,63 @@ Rapports par soirée, jour, période, produit, famille, point et utilisateur :
 
 Exports PDF/CSV/XLSX selon capacités du socle et permissions. Les règles de calcul doivent être documentées. La comptabilité légale complète n'est pas présumée incluse : le périmètre initial est le pilotage de gestion, avec export vers un comptable.
 
+### G13. Prise de fonction, présence et géolocalisation [V]
+
+Chaque employé doit pouvoir déclarer depuis son compte personnel qu'il est arrivé à son point vendeur et qu'il prend effectivement son poste. Cette déclaration constitue une **prise de fonction** horodatée, distincte d'une simple connexion à l'application.
+
+**Prise de fonction :**
+
+- L'employé sélectionne le point vendeur et la session auxquels il est affecté.
+- Il appuie sur « Prendre mon poste ».
+- L'application demande/emploie l'autorisation Android de localisation au moment nécessaire, récupère une position et sa précision, puis enregistre l'heure locale, l'heure serveur, l'identifiant du point, l'employé, l'appareil et l'état de synchronisation.
+- L'employé confirme la déclaration. Le manager voit immédiatement le statut « Présence déclarée — à confirmer » puis la position sur la carte et l'heure d'arrivée.
+- Le manager peut confirmer la prise de fonction ou la signaler comme à vérifier/refusée avec motif. La confirmation et toute contestation sont journalisées.
+- Si la localisation est indisponible, refusée ou trop imprécise, l'employé peut signaler un problème, mais l'application ne doit pas fabriquer une position ni présenter la présence géolocalisée comme vérifiée. Le manager voit clairement l'absence de preuve GPS et peut appliquer une procédure de vérification alternative.
+
+**Suivi pendant le service :**
+
+- Le manager voit pour chaque point et chaque employé : statut de service, heure de prise de poste, dernière position partagée, précision, heure du dernier signal, état en ligne/hors connexion et éventuelles alertes.
+- La géolocalisation pendant le travail est limitée à ce qui est nécessaire pour confirmer la présence au point et assurer le suivi opérationnel. La fréquence de mise à jour doit être paramétrable et économe en batterie ; elle ne doit pas être assimilée à une surveillance permanente hors service.
+- Toute position affichée porte son horodatage et son niveau de précision. Une ancienne position ne doit jamais être présentée comme actuelle.
+- Le manager peut voir sur la même vue les ventes, commandes, recettes/encaissements, chiffre d'affaires, dépenses, caisse, production, pertes, stocks disponibles et alertes du point vendeur, avec rafraîchissement temps réel ou indication explicite du dernier événement reçu.
+
+**Fin de service :**
+
+- L'employé appuie sur « Terminer mon service » et partage une nouvelle position géolocalisée avec son heure de départ.
+- L'application enregistre l'heure de demande de fin, l'heure serveur, la position, sa précision, le point, l'appareil et l'état de synchronisation.
+- Le manager reçoit une demande « Fin de service à confirmer », voit l'heure et la position de départ, puis confirme ou demande une vérification avec motif.
+- Tant que le manager n'a pas confirmé, le statut reste « Fin déclarée — en attente de confirmation » ; la déclaration de l'employé et la confirmation du manager restent deux événements distincts.
+- Une fin de service ne clôture pas automatiquement la caisse, la session du point vendeur ou les commandes en cours. Ces opérations suivent leurs propres contrôles.
+- En cas de perte de réseau, la déclaration est conservée localement avec son horodatage appareil, marquée non synchronisée, puis transmise à la reconnexion. Le manager voit qu'elle n'est pas encore vérifiée par le serveur.
+
+**Protection et gouvernance de la localisation :**
+
+- Autorisation Android explicite et révocable ; demander la permission au moment de la prise de fonction, expliquer son usage et ne pas exiger une localisation en arrière-plan permanente si le cas d'usage ne la nécessite pas.
+- Aucune collecte de localisation avant la prise de poste ni après la fin de service confirmée, sauf nouvelle prise de service autorisée.
+- Accès aux positions réservé au manager responsable, aux délégataires autorisés et à l'administration habilitée, avec journalisation des consultations sensibles.
+- Durée de conservation, information des employés, accès et suppression doivent respecter les règles applicables de protection des données. Définir une durée minimale nécessaire et documenter la politique avant mise en production.
+- Enregistrer les coordonnées, précision, source, horodatages, consentement/permission et état de validation ; protéger les données en transit et au repos.
+- Les positions GPS sont un indice de présence au lieu, pas une preuve absolue d'identité ou d'activité. Les contrôles anti-usurpation éventuels ne doivent pas être présentés comme infaillibles.
+
+### G14. Pilotage temps réel multi-points par le manager [V]
+
+Le manager dispose d'un tableau de bord de supervision présentant tous les points vendeurs qui lui sont affectés :
+
+- état ouvert/fermé/en préparation/en service/en clôture ;
+- employés attendus, présents, absents, en retard, en pause si cette fonction est activée, ou en fin de service à confirmer ;
+- heures de prise de poste et de départ, confirmations et anomalies de présence ;
+- localisation la plus récente de chaque employé en service, avec heure et précision ;
+- chiffre d'affaires en temps réel, ventes par produit et par famille autorisée, nombre de commandes et panier moyen ;
+- recettes encaissées ventilées par espèces, Mobile Money et autres modes autorisés ; distinction stricte entre montant vendu, montant encaissé, montant déclaré et montant vérifié ;
+- stock des matières premières et produits prêts à vendre, quantités préparées, consommées, vendues, perdues et seuils d'alerte ;
+- dépenses, caisse théorique, mouvements, écarts et demandes d'autorisation ;
+- rendement de cuisson, invendus et pertes ;
+- dernière synchronisation, événements en attente et incidents de connexion.
+
+Le manager peut filtrer par point, employé, session, date et famille de grillades, puis comparer les points. Les indicateurs consolidés doivent être calculés depuis les écritures sources et respecter les droits d'accès. Chaque donnée temps réel doit indiquer son heure de mise à jour ; en cas de réseau dégradé, l'interface affiche « données en retard » et ne prétend pas être à jour.
+
+Le manager peut recevoir des alertes configurables : absence de prise de poste, point sans activité, rupture imminente, écart de caisse, dépense dépassant un plafond, baisse inhabituelle des ventes, stock incohérent, fin de service demandée ou perte de connexion prolongée. Les alertes sont informatives et ne remplacent pas la validation humaine.
+
 ### G12. Assistant et analyses intelligentes
 
 Fonctions proposées :
@@ -312,6 +382,9 @@ Chaque recommandation affiche les données et hypothèses utilisées. L'utilisat
 10. Toute action sensible est autorisée côté serveur et auditée.
 11. Les données d'un point d'activité ne sont pas visibles depuis un autre point sans permission explicite.
 12. L'IA ne valide ni paiement, ni dépense, ni stock, ni clôture.
+13. La prise de fonction et la fin de service sont déclarées par l'employé et confirmées séparément par le manager habilité.
+14. Chaque preuve de présence géolocalisée est horodatée, liée au point affecté et présentée avec sa précision et son état de synchronisation.
+15. Le suivi géographique est limité au temps de service et aux finalités opérationnelles documentées ; aucune localisation hors service ne doit être collectée.
 
 ## 7. Données et architecture
 
@@ -326,7 +399,11 @@ Entités métier indicatives à étudier, sans imposer leur création si un équ
 - grillad_orders, grillad_order_lines, grillad_sales ;
 - grillad_payments, grillad_cash_registers, grillad_cash_movements ;
 - grillad_expenses, grillad_losses, grillad_inventory_counts ;
-- grillad_reports ou vues de reporting.
+- grillad_reports ou vues de reporting ;
+- grillad_staff_assignments (affectations manager / points / employés) si le socle ne fournit pas d'équivalent ;
+- grillad_shift_sessions (prise de fonction, fin de service, statuts et confirmations manager) ;
+- grillad_attendance_locations (positions horodatées, précision, source, statut de validation et synchronisation) ;
+- vues/RPC sécurisées de supervision multi-points et d'indicateurs temps réel.
 
 Exigences :
 
@@ -358,6 +435,10 @@ Exigences :
 14. Équipe et permissions.
 15. Rapports et exports.
 16. Paramètres, synchronisation et aide.
+17. Espace Manager : supervision multi-points et carte des présences.
+18. Détail d'un point vendeur : ventes, recettes, stocks, production, dépenses et équipe en direct.
+19. Écran employé : prendre mon poste, présence en cours, terminer mon service.
+20. Écran Manager : confirmer/contester prise de poste et fin de service.
 
 La navigation doit rester courte, adaptée au téléphone et utilisable d'une seule main lorsque possible.
 
@@ -372,6 +453,10 @@ La navigation doit rester courte, adaptée au téléphone et utilisable d'une se
 - Journalisation sans secrets ni données sensibles inutiles.
 - Accessibilité : contrastes suffisants, libellés et icônes, tailles tactiles adaptées.
 - Tests unitaires, tests SQL/RLS et tests de parcours de vente/clôture.
+- Géolocalisation soumise à permission explicite, avec contrôle des états permission refusée, GPS désactivé, position imprécise, réseau absent et position ancienne.
+- Synchronisation temps réel des événements de présence et des indicateurs, avec horodatage et signalement des retards.
+- Tests de séparation des accès Manager / Employé et de l'isolation entre points vendeurs.
+- Tests de non-collecte de localisation avant prise de poste et après fin de service.
 
 ## 10. Critères de recette
 
@@ -391,6 +476,13 @@ GrillaD ne peut être déclaré prêt que si les preuves suivantes existent :
 - [ ] Les rôles et RLS empêchent l'accès entre organisations et points non autorisés.
 - [ ] Les exports respectent les permissions et indiquent période et point.
 - [ ] Les cinq parcours principaux sont testés sur Android.
+- [ ] Un employé peut déclarer sa prise de poste avec heure, point et position horodatés.
+- [ ] Le manager voit la déclaration, la dernière position et la précision, puis confirme ou conteste avec motif.
+- [ ] Un employé peut déclarer sa fin de service avec heure et nouvelle position géolocalisée.
+- [ ] La fin de service reste en attente jusqu'à la confirmation du manager.
+- [ ] Le manager supervise simultanément plusieurs points et voit ventes, recettes, CA, stocks, production, dépenses et équipe avec l'heure de dernière mise à jour.
+- [ ] Les données anciennes ou non synchronisées sont explicitement signalées.
+- [ ] Aucune position n'est collectée hors service selon la politique définie.
 
 ## 11. Points ouverts à arbitrer
 
@@ -403,6 +495,9 @@ Ces éléments ne bloquent pas la conception initiale, mais doivent être confir
 5. [O] Conservation, transfert ou destruction des invendus en fin de soirée.
 6. [O] Plafonds de remise, dépenses et achats selon les rôles.
 7. [O] Tarification de l'abonnement GrillaD : à définir dans le socle commun, sans inventer de montant.
+8. [O] Fréquence exacte de rafraîchissement GPS pendant le service et seuil de précision acceptable, à définir après essais terrain et analyse de batterie.
+9. [O] Durée de conservation des positions et des justificatifs de présence, à fixer selon les obligations applicables et le principe de minimisation.
+10. [O] Règle de délégation/remplacement du manager et procédure d'escalade si aucun manager n'est disponible pour confirmer une présence.
 
 ## 12. Hors périmètre
 
@@ -416,4 +511,4 @@ Ces éléments ne bloquent pas la conception initiale, mais doivent être confir
 
 ## 13. Statut
 
-Le périmètre strict des cinq familles de grillades est [V]. La structure fonctionnelle décrite dans les sections 4 à 10 constitue la base de spécification à auditer et valider au fil de la construction. Les points listés en section 11 restent [O] et ne doivent pas être présentés comme des décisions déjà prises.
+Le périmètre strict des cinq familles de grillades est [V]. L'architecture opérationnelle à deux niveaux (Manager / points vendeurs et employés), la prise de fonction, la fin de service géolocalisées et la supervision multi-points sont [V]. La structure fonctionnelle décrite dans les sections 4 à 10 et les modules G13/G14 constitue la base de spécification à auditer et valider au fil de la construction. Les points listés en section 11 restent [O] et ne doivent pas être présentés comme des décisions déjà prises.
