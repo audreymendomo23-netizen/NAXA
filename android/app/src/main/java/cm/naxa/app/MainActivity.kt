@@ -555,7 +555,7 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                 val events = JSONArray(NaxaBleForegroundService.pendingEvents(context))
                 pendingMeasurements = (0 until events.length()).count { index ->
                     val pending = events.optJSONObject(index)
-                    pending?.optString("type") == "measurement" && pending.optString("ownerUserId") == ownerUserId
+                    pending?.optString("type") == "measurement" && pending?.optString("ownerUserId") == ownerUserId
                 }
                 for (index in 0 until events.length()) {
                     val event = events.optJSONObject(index) ?: continue
@@ -601,7 +601,6 @@ private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) 
                                     val deviceRowId = trackingRepository.ensureNativeDevice(
                                         ownerUserId, deviceKey, deviceName, address, "Bluetooth SIG", deviceKey
                                     )
-                                    nativeDeviceIds = nativeDeviceIds + (address to deviceRowId)
                                     status = "Appareil enregistré. Profils GATT détectés; synchronisation active."
                                 } else {
                                     status = if (event.optInt("profileCount") > 0) {
