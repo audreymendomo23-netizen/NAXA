@@ -42,11 +42,12 @@ class MainActivity : ComponentActivity() {
         val tokenStore = SecureTokenStore(this)
         val repository = AuthRepository(tokenStore)
         val clientHistory = ClientHistoryRepository(tokenStore)
+        val adminDashboard = AdminDashboardRepository(tokenStore)
         val catalogue = CatalogueRepository()
         val pharmacies = PharmacyRepository(this)
         val ageGate = AgeGateStore(this)
         val fcmRegistration = FcmRegistrationRepository(this, tokenStore)
-        setContent { NaxaTheme { NaxaRoot(repository, clientHistory, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
+        setContent { NaxaTheme { NaxaRoot(repository, clientHistory, adminDashboard, catalogue, pharmacies, ageGate, fcmRegistration, onExit = { finish() }) } }
     }
 }
 
@@ -66,6 +67,7 @@ private fun NaxaTheme(content: @Composable () -> Unit) {
 private fun NaxaRoot(
     repository: AuthRepository,
     clientHistory: ClientHistoryRepository,
+    adminDashboard: AdminDashboardRepository,
     catalogue: CatalogueRepository,
     pharmacies: PharmacyRepository,
     ageGate: AgeGateStore,
@@ -118,6 +120,21 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
+            currentProfile != null && currentProfile.effectiveRole == "admin" ->
+                NativeAdminDashboardScreen(
+                    repository = adminDashboard,
+                    onLogout = {
+                        loading = true
+                        scope.launch {
+                            try { fcmRegistration.unregisterCurrentDevice() } catch (_: Exception) { }
+                            repository.signOut()
+                            profile = null
+                            guestMode = false
+                            error = null
+                            loading = false
+                        }
+                    }
+                )
             currentProfile != null && !NaxaNativeRole.supportsClientWorkspace(currentProfile.effectiveRole) ->
                 UnsupportedNativeRoleScreen(
                     role = currentProfile.effectiveRole,
