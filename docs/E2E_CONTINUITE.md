@@ -713,3 +713,12 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Aucun paramètre Supabase/Vercel touché. Aucun déploiement Preview ou Production lancé ; le garde-fou Vercel n'a pas été modifié.
 
 **État : IMPLÉMENTATION COMMITÉE SUR MAIN ; inventaire et couverture statique des routes conformes. Validation qualité distante en attente, contrôle navigateur et validation responsive réelle encore requis. Ne pas déclarer la navigation entièrement verte avant le succès du workflow et un parcours Admin authentifié desktop/mobile.**
+
+
+**Complément qualité après le premier run (14/11/2026) :**
+- Workflow `43615999167` sur le commit `ffe3880d4a69c208fe4f8b1c61dee7403c26cd67` : échec TypeScript après exécution des tests.
+- Résultat tests : **392 PASS / 0 FAIL**. Validation `actionlint` : PASS.
+- Cause exacte : inférence TypeScript incorrecte sur le résultat de `groups.flatMap()` en raison de la déclaration `as const`, entraînant un type d'union incompatible et des références `unknown`.
+- Correction : types communs explicites `AdminNavItem` / `AdminNavGroup`, tableau `groups: AdminNavGroup[]` et type explicite du tableau aplati `AdminNavItem[]`.
+- Commit de correction : `c57f40435945536c4ef82a2de466187d48b6d221`.
+- Le contrôle qualité complet doit être jugé sur le commit final après correction et après la présente mise à jour documentaire. Déploiement conditionné à un succès complet de ce contrôle.
