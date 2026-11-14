@@ -94,7 +94,7 @@ async function createTemporaryUser(createdUsers) {
     method: "POST",
     apiKey: adminKey,
     contentType: "application/json",
-    body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { naxa_storage_e2e: true } }),
+    body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { naxa_storage_e2e: true, naxa_signup_pending: true } }),
   });
   const payload = await json(response);
   if (!response.ok || !payload.id) {
