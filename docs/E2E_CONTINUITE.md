@@ -561,3 +561,37 @@ order by p.role;
 - L'inventaire confirme les rôles et l'existence d'une identité Auth liée à chaque profil, mais ne vérifie pas les mots de passe ni la possibilité de connexion.
 - Étape suivante : examiner les champs non secrets des 10 profils et leurs relations métier (notamment Promoteur/pharmacies) pour établir une matrice de réutilisation ; ensuite tester les connexions uniquement par un mécanisme sécurisé, sans afficher ni demander les mots de passe dans la conversation.
 - **État : INVENTAIRE PRODUCTION CONFIRMÉ ; réutilisation autorisée mais tests de connexion et matrice E2E non encore exécutés.**
+
+
+## 24. Détail des profils Production et relations métier — inventaire en lecture seule (14/11/2026)
+
+**Périmètre :** suite à l'autorisation utilisateur de réutiliser les comptes de test déjà présents en Production, inventaire agrégé des profils, états Auth et relations métier. Aucune capture d'écran demandée.
+
+**Comptes / état Auth (Production `eouwtuusnsuxaejsxknf`) :**
+- Admin : 1 profil actif ; identité Auth liée et e-mail confirmé ; aucune interdiction Auth active ; connexion antérieure enregistrée.
+- Promoteur : 1 profil **inactif** ; identité Auth liée et e-mail confirmé ; aucune interdiction Auth active ; connexion antérieure enregistrée.
+- Client : 8 profils actifs ; 8 identités Auth liées ; 7 e-mails confirmés, 7 connexions antérieures ; aucune interdiction Auth active.
+- Pour les 8 Clients, les champs de profil agrégés sont renseignés comme suit : username 8/8 ; nom/prénom 7/8 ; téléphone 7/8 ; vérification d'âge 7/8 ; consentement enregistré 7/8. L'identité Auth non confirmée et les champs incomplets doivent être traités comme réserve, pas comme compte prêt à tester.
+- Aucun e-mail, nom, téléphone, date de naissance, UUID, mot de passe ou jeton n'a été extrait dans le rapport.
+
+**Relations professionnelles et pharmacies :**
+- `naxa_professional_assignments` : 0 affectation.
+- `profile_accreditations` : 0 accréditation.
+- `naxa_profile_privileges` : 103 privilèges actifs rattachés au seul profil Promoteur (93 de portée PHARMACIE, 10 de portée RESEAU).
+- `promoteur_pharmacies` : 1 lien actif entre le profil Promoteur et 1 pharmacie.
+- Le profil Promoteur porte aussi un `pharmacie_id` direct.
+- Contradiction à traiter : le profil Promoteur est inactif alors que son lien Promoteur-pharmacie et ses 103 privilèges restent actifs. La pharmacie liée est à Yaoundé, marquée non-démo, inactive et visible dans la recherche. Ne pas l'utiliser pour des mutations métier de recette avant clarification et isolation.
+- Inventaire global des pharmacies Production : 4 lignes, 3 marquées démo, 0 active, 1 visible en recherche. La pharmacie reliée au Promoteur n'est pas marquée démo.
+
+**Matrice de réutilisation proposée (sans écriture) :**
+- Admin : 1 identité techniquement liée/confirmée ; candidat à un contrôle d'accès en lecture seule, mais ne pas exercer d'action Admin destructive en Production.
+- Client : 7 identités confirmées candidates à des essais de connexion non destructifs ; 1 identité non confirmée à exclure tant que son état n'est pas résolu.
+- Promoteur : identité confirmée mais profil inactif et relation/privileges incohérents ; exclu des tests métier jusqu'à correction contrôlée ou préparation d'un environnement isolé.
+- Aucun compte Gestionnaire stock, Caisse, Comptable, Pharmacien, Responsable ou Livreur n'est présent dans cet inventaire de profils.
+
+**Décision de sécurité :**
+- L'utilisateur confirme que les comptes visibles sont des comptes de test et autorise leur réutilisation. Cette autorisation ne transforme pas les données liées en données jetables : Production reste protégée. Pas de modification des profils, statuts, privilèges, relations, pharmacies, sessions ou Auth.
+- Les comptes sont inventoriés, mais les mots de passe ne sont pas connus et aucune connexion n'a été testée dans cette passe.
+- Replay reste le seul environnement autorisé pour les scénarios E2E avec mutations de données.
+
+**État : INVENTAIRE MÉTIER EFFECTUÉ ; réutilisation partielle possible pour contrôles de connexion non destructifs seulement. Le Promoteur et les données de pharmacie associées sont bloqués par incohérence d'état ; les rôles professionnels manquants doivent être créés/préparés sur Replay, pas en Production.**
