@@ -14,6 +14,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
+import org.json.JSONArray
 
 class MainActivity : ComponentActivity() {
     private var pendingOpenPath by mutableStateOf<String?>(null)
@@ -106,6 +108,7 @@ private fun NaxaRoot(
     var adultDeclared by remember { mutableStateOf(ageGate.isAdultDeclared()) }
     var guestMode by remember { mutableStateOf(false) }
     var showingNotifications by remember { mutableStateOf(false) }
+    var showingSuiviBluetooth by remember { mutableStateOf(false) }
     var selectedClientTab by remember { mutableIntStateOf(0) }
     var searchPrefill by remember { mutableStateOf<String?>(null) }
     var deepLinkNavigationId by remember { mutableIntStateOf(0) }
@@ -210,6 +213,11 @@ private fun NaxaRoot(
                         deepLinkNotice = null
                     }
                 )
+            currentProfile != null && showingSuiviBluetooth ->
+                NativeSuiviBluetoothScreen(
+                    ownerUserId = currentProfile.userId,
+                    onBack = { showingSuiviBluetooth = false }
+                )
             currentProfile != null && NaxaNativeRole.supportsAdminWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace) ->
                 NativeAdminDashboardScreen(
                     repository = adminDashboard,
@@ -262,6 +270,10 @@ private fun NaxaRoot(
                 },
                 isGuest = profile == null,
                 onSignIn = { guestMode = false },
+                onOpenSuiviBluetooth = {
+                    if (profile != null) showingSuiviBluetooth = true
+                    else deepLinkNotice = "Connectez-vous pour associer un dispositif Bluetooth à votre espace de suivi."
+                },
                 onLogout = {
                     loading = true
                     scope.launch {
@@ -364,6 +376,7 @@ private fun NativeHome(
     onOpenNotifications: () -> Unit,
     isGuest: Boolean,
     onSignIn: () -> Unit,
+    onOpenSuiviBluetooth: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selected by remember { mutableIntStateOf(initialTab.coerceIn(0, 4)) }
@@ -423,6 +436,18 @@ private fun NativeHome(
                 0 -> {
                     Text("Vos services", fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     PharmaciesScreen(pharmacies)
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable(enabled = !isGuest, onClick = onOpenSuiviBluetooth),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Suivi connecté", color = NaxaGreen, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            Spacer(Modifier.height(5.dp))
+                            Text("Associer un tensiomètre, oxymètre, thermomètre ou autre appareil Bluetooth compatible.", color = Color(0xFF65776F), fontSize = 13.sp)
+                            if (isGuest) Text("Connexion requise", color = Color(0xFF9A6B00), fontSize = 12.sp)
+                        }
+                    }
                     FeatureCard("Dispositifs médicaux", "Catalogue des dispositifs médicaux.")
                 }
                 1 -> CatalogueScreen(
@@ -459,6 +484,200 @@ private fun NativeHome(
     }
 }
 
+
+
+private data class NativeBleDevice(val id: String, val name: String, val rssi: Int)
+
+@Composable
+private fun NativeSuiviBluetoothScreen(ownerUserId: String, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var selectedDeviceKey by remember { mutableStateOf("capteur_cardiaque_bluetooth") }
+    var devices by remember { mutableStateOf<List<NativeBleDevice>>(emptyList()) }
+    var connected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var status by remember { mutableStateOf("Choisissez une famille de mesures puis recherchez les appareils à proximité.") }
+    var scanning by remember { mutableStateOf(false) }
+    var pendingMeasurements by remember { mutableIntStateOf(0) }
+    var showDeviceTypes by remember { mutableStateOf(false) }
+    val deviceTypes = listOf(
+        "capteur_cardiaque_bluetooth" to "Fréquence cardiaque",
+        "tensiometre" to "Tensiomètre",
+        "thermometre" to "Thermomètre",
+        "oxymetre" to "Oxymètre",
+        "glucometre" to "Glucomètre",
+        "balance" to "Balance connectée",
+        "balance_impedance" to "Balance impédancemètre",
+        "ecg" to "ECG",
+        "montre_connectee" to "Montre connectée",
+        "bracelet_activite" to "Bracelet d’activité",
+        "podometre" to "Podomètre"
+    )
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.all { it }) {
+            devices = emptyList()
+            scanning = true
+            status = "Recherche Bluetooth en cours…"
+            NaxaBleForegroundService.requestScan(context, ownerUserId)
+        } else {
+            scanning = false
+            status = "Autorisation Bluetooth refusée. Autorisez la recherche et la connexion Bluetooth dans Android."
+        }
+    }
+
+    LaunchedEffect(ownerUserId) {
+        while (true) {
+            try {
+                val events = JSONArray(NaxaBleForegroundService.pendingEvents(context))
+                for (index in 0 until events.length()) {
+                    val event = events.optJSONObject(index) ?: continue
+                    val eventId = event.optString("eventId")
+                    when (event.optString("type")) {
+                        "scanning" -> {
+                            scanning = true
+                            status = "Recherche Bluetooth en cours…"
+                        }
+                        "deviceFound" -> {
+                            if (event.optString("ownerUserId") == ownerUserId) {
+                                val id = event.optString("deviceId")
+                                if (id.isNotBlank() && devices.none { it.id == id }) {
+                                    devices = devices + NativeBleDevice(
+                                        id, event.optString("deviceName", "Appareil Bluetooth"),
+                                        event.optInt("rssi", 0)
+                                    )
+                                }
+                            }
+                        }
+                        "scanFinished" -> {
+                            scanning = false
+                            status = if (devices.isEmpty()) "Aucun appareil détecté. Vérifiez qu’il est allumé et à proximité."
+                                else "${devices.size} appareil(s) détecté(s). Sélectionnez celui à associer."
+                        }
+                        "connecting" -> status = "Connexion à ${event.optString("deviceName", "l’appareil")}…"
+                        "connected" -> {
+                            if (event.optString("ownerUserId") == ownerUserId) {
+                                connected = connected + event.optString("deviceId")
+                                status = "Connexion Bluetooth établie. Vérification des profils GATT en cours."
+                            }
+                        }
+                        "profiles" -> {
+                            if (event.optString("ownerUserId") == ownerUserId) {
+                                status = if (event.optInt("profileCount") > 0) "Profils Bluetooth détectés. La liaison est active."
+                                    else "Aucun profil de mesure standard reconnu pour cet appareil."
+                            }
+                        }
+                        "measurement" -> pendingMeasurements += 1
+                        "reconnecting" -> status = "Reconnexion Bluetooth automatique en cours…"
+                        "disconnected" -> {
+                            connected = connected - event.optString("deviceId")
+                            status = "Appareil déconnecté."
+                        }
+                        "error" -> status = event.optString("message", "Erreur Bluetooth.")
+                        "queueOverflow" -> status = "Attention : la file Bluetooth a débordé. Vérifiez l’historique des mesures."
+                    }
+                    if (eventId.isNotBlank() && event.optString("type") != "measurement") {
+                        NaxaBleForegroundService.acknowledgeEvents(context, setOf(eventId))
+                    }
+                }
+            } catch (_: Exception) {
+                status = "Lecture des événements Bluetooth impossible. Les événements non acquittés sont conservés."
+            }
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Column(
+        Modifier.fillMaxSize().background(NaxaBackground).verticalScroll(rememberScrollState()).padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("Retour") }
+            Spacer(Modifier.weight(1f))
+            Text("SUIVI CONNECTÉ", color = NaxaGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("Appareils Bluetooth", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = NaxaInk)
+        Text("La connexion est gérée par Android et le service Bluetooth natif de NAXA.", color = Color(0xFF65776F), fontSize = 13.sp)
+        Spacer(Modifier.height(18.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Famille de mesures", fontWeight = FontWeight.SemiBold, color = NaxaInk)
+                Box {
+                    OutlinedButton(onClick = { showDeviceTypes = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(deviceTypes.firstOrNull { it.first == selectedDeviceKey }?.second ?: "Choisir un appareil")
+                    }
+                    DropdownMenu(expanded = showDeviceTypes, onDismissRequest = { showDeviceTypes = false }) {
+                        deviceTypes.forEach { (key, label) ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = {
+                                selectedDeviceKey = key
+                                showDeviceTypes = false
+                            })
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = {
+                        val permissions = if (Build.VERSION.SDK_INT >= 31) {
+                            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+                        } else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                        val missing = permissions.filter {
+                            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+                        }
+                        if (missing.isEmpty()) {
+                            devices = emptyList()
+                            scanning = true
+                            status = "Recherche Bluetooth en cours…"
+                            NaxaBleForegroundService.requestScan(context, ownerUserId)
+                        } else permissionLauncher.launch(missing.toTypedArray())
+                    },
+                    enabled = !scanning,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (scanning) "Recherche en cours…" else "Rechercher les appareils") }
+                Spacer(Modifier.height(10.dp))
+                Text(status, color = Color(0xFF65776F), fontSize = 13.sp)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Appareils détectés", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = NaxaInk)
+        if (devices.isEmpty()) {
+            Text("Les appareils compatibles apparaîtront ici après la recherche.", color = Color(0xFF65776F), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+        } else {
+            devices.forEach { device ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(device.name, fontWeight = FontWeight.SemiBold, color = NaxaInk)
+                            Text("Signal Bluetooth : ${device.rssi} dBm", color = Color(0xFF65776F), fontSize = 12.sp)
+                        }
+                        Button(
+                            onClick = {
+                                NaxaBleForegroundService.requestConnect(context, device.id, selectedDeviceKey, ownerUserId)
+                                status = "Demande de connexion envoyée à Android…"
+                            },
+                            enabled = device.id !in connected
+                        ) { Text(if (device.id in connected) "Connecté" else "Associer") }
+                    }
+                }
+            }
+        }
+        if (pendingMeasurements > 0) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "$pendingMeasurements événement(s) de mesure attendent encore le moteur de synchronisation NAXA.",
+                color = Color(0xFF9A6B00), fontSize = 12.sp
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "La détection et l’association Android sont raccordées. Le traitement et l’enregistrement des événements de mesure dans l’historique doivent encore être validés avant activation complète.",
+            color = Color(0xFF65776F), fontSize = 12.sp
+        )
+    }
+}
 
 @Composable
 private fun CatalogueScreen(
