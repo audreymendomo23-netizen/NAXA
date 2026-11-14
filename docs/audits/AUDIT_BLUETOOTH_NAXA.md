@@ -2,7 +2,7 @@
 
 Date de travail : 14 novembre 2026
 Branche : `main`
-Statut : **ORANGE — build APK et tests unitaires Android PASS sur le dernier code BLE précédent; correction de saturation intégrée, validation CI de ce nouveau changement en attente; essais sur téléphone non exécutés**
+Statut : **ORANGE pour l'audit Bluetooth global — sous-point « file bornée à 300 » VERT logiciel/CI; build Android et qualité NAXA PASS; validation matérielle sur téléphone encore non exécutée**
 
 ## 1. Périmètre contrôlé
 
@@ -22,7 +22,7 @@ Le parcours Compose utilise le service BLE Android natif et ne dépend pas d'un 
 
 L'ACK n'est émis qu'après insertion confirmée ou vérification serveur de toutes les clés lors d'un conflit 409. Les mesures sont commitées dans la file AES-GCM avant la programmation d'un `OneTimeWorkRequest` WorkManager soumis à la contrainte réseau. Le Worker revalide la session et le consentement, isole les événements par propriétaire, puis persiste et acquitte; en cas d'échec réseau/serveur, WorkManager réessaie avec backoff exponentiel sans retirer la mesure de la file. La synchronisation ne dépend donc plus de la présence de l'écran Compose. Les profils non pris en charge et les trames invalides sont acquittés après classification pour éviter de bloquer les événements suivants.
 
-**Conséquence :** le pipeline natif est raccordé et le build Android principal a compilé, exécuté les tests unitaires et assemblé l'APK de debug avec succès sur le commit `808c65013b067ca64b6140aa49c3e72baf08ee6d`. L'artefact interne `naxa-main-app-debug-internal` a été publié par Actions. Le contrôle qualité Node/TypeScript/lint du HEAD suivant reste en cours; les essais BLE/WorkManager sur téléphone restent nécessaires. Le parcours Web Bluetooth navigateur reste séparé.
+**Conséquence :** le build Android `43549423189` a réussi sur `cb23e0b5ee5c639014746db480e9016023bd5eed`, y compris compilation, tests unitaires, assemblage APK et publication de l'artefact `naxa-main-app-debug-internal` (37 220 252 octets). Les deux jobs Android ont réussi, y compris les variantes privées du compagnon. Le HEAD `aa6b6d61a31e9d3e767560fb8141d82e03596f55` ne modifie ensuite que le test structurel : le code Kotlin compilé est identique. Le workflow qualité `43549435331` a réussi sur ce HEAD : `npm test` (dont `test-suivi-interoperabilite.cjs`), TypeScript, ESLint et build Next.js. Les essais BLE/WorkManager sur téléphone restent nécessaires. Le parcours Web Bluetooth navigateur reste séparé.
 
 ## 3. Corrections déjà intégrées
 
@@ -62,13 +62,13 @@ Le décodeur Kotlin de l'APK couvre actuellement fréquence cardiaque, tension (
 
 ## 5. Risques et travaux non clos
 
-1. **Exécution des tests Android : PASS.** `:app:testDebugUnitTest` s'est terminé avec succès sur le build du SHA `808c65013b067ca64b6140aa49c3e72baf08ee6d`; les tests du décodeur et des familles de consentement sont inclus. Les assertions Node structurelles sont ajoutées mais le workflow qualité global est encore en cours.
-2. **Build APK : PASS.** `:app:assembleDebug` et l'étape d'upload de `naxa-main-app-debug-internal` ont réussi dans le run Android `43548801852`. L'artefact est un APK debug interne, pas une version de production ni une certification d'installation terrain.
+1. **Tests automatisés : PASS.** `:app:testDebugUnitTest` a réussi dans le run Android `43549423189`. Le workflow qualité `43549435331` a aussi réussi sur le HEAD `aa6b6d61a31e9d3e767560fb8141d82e03596f55` : `npm test` exécute les scripts `node --test scripts/test-*.cjs`, dont les assertions de saturation BLE, puis TypeScript et ESLint passent.
+2. **Build APK : PASS.** `:app:assembleDebug` et l'upload `naxa-main-app-debug-internal` ont réussi dans le run `43549423189` (37 220 252 octets). Il s'agit d'un APK debug interne, pas d'une version de production ni d'une certification d'installation terrain.
 3. **Validation WorkManager : PARTIELLE.** Le `OneTimeWorkRequest` réseau est compilé dans le build et son déclenchement suit l'écriture durable des mesures. La reprise réelle après fermeture forcée, reconnexion réseau, changement de compte et redémarrage Android reste à vérifier sur téléphone. Aucun job périodique n'est utilisé : le déclenchement est événementiel.
 4. **Profils d'activité :** vitesse/cadence reconnues mais non persistées car le contrat SQL ne possède pas de types compatibles. Ne pas les convertir en pas ou minutes.
 5. **Sessions chiffrées :** le lecteur accepte encore les anciennes sessions JSON en clair pour migration au prochain enregistrement; confirmer la migration sur appareil.
 6. **Permissions Android :** tester SCAN et CONNECT, versions Android, refus, révocation et restrictions de démarrage en arrière-plan.
-7. **File bornée : CORRECTION INTÉGRÉE — validation CI en attente.** Les mesures déjà acceptées ne sont plus éjectées pour faire place à de nouveaux événements. Au plafond de 300, les nouveaux événements sont refusés, le compte est conservé séparément et une mesure refusée suspend toutes les connexions BLE pour éviter la poursuite silencieuse de la collecte. Les événements déjà en file restent synchronisables. Les mesures arrivant pendant la saturation ne sont pas récupérées par NAXA : le compteur les rend visibles, mais une éventuelle mémoire interne de l'appareil n'est pas présumée. À tester : 300 mesures hors ligne, refus de la 301e, arrêt des notifications/reconnexions, redémarrage, synchronisation complète, suppression du marqueur et reconnexion manuelle.
+7. **File bornée : VERT logiciel/CI.** La limite 300, le refus du nouvel événement sans éviction de ceux déjà acceptés, le marqueur AES-GCM séparé, le compteur des mesures refusées, la suspension BLE et l'acquittement sûr sont couverts par les assertions structurelles `npm test`. Le build Android, les tests JUnit et le workflow qualité complet sont PASS. Les mesures déjà acceptées restent synchronisables. Une mesure qui arrive après saturation est refusée et comptabilisée, mais son contenu n'est pas récupéré par NAXA; aucune mémoire interne de l'appareil n'est présumée. **Validation terrain restante :** reproduire sur téléphone 300 mesures hors ligne, vérifier le refus de la 301e, l'arrêt des notifications/reconnexions, redémarrer, synchroniser les 300 conservées, acquitter le marqueur puis reconnecter manuellement.
 8. **Validation clinique et matérielle :** consentement, isolation de comptes, absence de diagnostic automatique, essais sur modèles physiques et preuve d'APK restent à faire.
 
 ## 6. Décision d'architecture appliquée
@@ -84,7 +84,7 @@ Le chantier ne pourra être déclaré vert qu'après :
 - parcours utilisateur complet dans l'APK installé;
 - scan, sélection, connexion, notifications GATT, déconnexion et reconnexion;
 - contrôle de consentement et isolation de comptes;
-- stockage hors ligne, synchronisation sans doublon, saturation à 300 sans éviction des mesures déjà acceptées et reprise manuelle après vidage;
+- règle logicielle de saturation à 300 sans éviction des mesures déjà acceptées : PASS code/CI; scénario réel sur appareil (300 mesures hors ligne, refus de la 301e, vidage et reprise manuelle) à confirmer;
 - tests de décodage automatisés exécutés;
 - essais physiques documentés pour chaque modèle annoncé compatible;
 - preuve de build APK et rapport de test reproductible.
