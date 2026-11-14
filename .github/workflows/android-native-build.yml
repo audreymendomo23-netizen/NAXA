@@ -26,6 +26,9 @@ jobs:
     name: NAXA main app · Compose · tests + debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -56,6 +59,11 @@ jobs:
       - name: Compile, test and assemble NAXA main app
         working-directory: android
         run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
+            echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY are required to build a usable NAXA Android APK." >&2
+            exit 1
+          fi
           gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
 
       - name: Publish internal main-app debug APK
@@ -71,6 +79,9 @@ jobs:
     name: NAXA main app · Android emulator integration
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -100,7 +111,14 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: cd android && gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest
+          script: |
+            set -euo pipefail
+            if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
+              echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY are required for Android emulator integration tests." >&2
+              exit 1
+            fi
+            cd android
+            gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest
 
       - name: Publish emulator instrumentation reports
         if: always()
