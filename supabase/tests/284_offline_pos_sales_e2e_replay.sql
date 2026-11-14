@@ -41,8 +41,10 @@ begin
     raise exception 'F07_284_FAIL: Replay demo pharmacy fixture unavailable';
   end if;
 
-  -- Simulate a genuine, public-listed pharmacy only inside this transaction.
+  -- Simulate a genuine, public-listed pharmacy and validated catalogue fiche
+  -- only inside this transaction; final ROLLBACK restores both demo fixtures.
   update public.pharmacies set est_demo=false where id=v_pharmacy;
+  update public.produits set fiche_validee=true where id=v_product;
   select prix,quantite into v_price,v_stock_before
   from public.stocks where pharmacie_id=v_pharmacy and produit_id=v_product
     and (date_peremption is null or date_peremption>=current_date)
@@ -188,8 +190,10 @@ begin
     raise exception 'F07_284_FAIL: Replay demo pharmacy fixture unavailable for closure';
   end if;
 
-  -- Simulate a genuine, public-listed pharmacy only inside this transaction.
+  -- Simulate a genuine, public-listed pharmacy and validated catalogue fiche
+  -- only inside this transaction; final ROLLBACK restores both demo fixtures.
   update public.pharmacies set est_demo=false where id=p;
+  update public.produits set fiche_validee=true where id=product;
   select prix,quantite into price,before_qty from public.stocks
   where pharmacie_id=p and produit_id=product and (date_peremption is null or date_peremption>=current_date)
   for update;
