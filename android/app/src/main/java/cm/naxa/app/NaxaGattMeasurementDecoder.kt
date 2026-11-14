@@ -270,8 +270,16 @@ object NaxaGattMeasurementDecoder {
         if (flags and 64 != 0) { requireBytes(bytes, offset + 2, "Puissance"); offset += 2 }
         if (flags and 128 != 0) { requireBytes(bytes, offset + 2, "Puissance moyenne"); offset += 2 }
         if (flags and 256 != 0) { requireBytes(bytes, offset + 5, "Énergie"); offset += 5 }
-        if (flags and 512 != 0) { requireBytes(bytes, offset + 1, "Fréquence cardiaque vélo"); value("frequence_cardiaque", u8(bytes, offset).toDouble(), "bpm").also { return it }; }
-        return emptyList()
+        var heartRate = emptyList<NativeGattMeasurement>()
+        if (flags and 512 != 0) {
+            requireBytes(bytes, offset + 1, "Fréquence cardiaque vélo")
+            val bpm = u8(bytes, offset++)
+            if (bpm in 1..250) heartRate = value("frequence_cardiaque", bpm.toDouble(), "bpm")
+        }
+        if (flags and 1024 != 0) { requireBytes(bytes, offset + 1, "Équivalent métabolique"); offset++ }
+        if (flags and 2048 != 0) { requireBytes(bytes, offset + 2, "Temps écoulé"); offset += 2 }
+        if (flags and 4096 != 0) { requireBytes(bytes, offset + 2, "Temps restant"); offset += 2 }
+        return heartRate
     }
 
     private fun cyclingSpeedCadence(bytes: ByteArray, deviceId: String): List<NativeGattMeasurement> {
