@@ -11,6 +11,9 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Intent
@@ -39,6 +42,7 @@ class NaxaBleForegroundService : Service() {
         const val ACTION_CONNECT = "cm.naxa.app.BLE_CONNECT"
         const val ACTION_DISCONNECT = "cm.naxa.app.BLE_DISCONNECT"
         const val ACTION_STOP = "cm.naxa.app.BLE_STOP"
+        const val ACTION_SCAN = "cm.naxa.app.BLE_SCAN"
         const val EXTRA_ADDRESS = "deviceAddress"
         const val EXTRA_KEY = "deviceKey"
         const val EXTRA_OWNER = "ownerUserId"
@@ -165,6 +169,9 @@ class NaxaBleForegroundService : Service() {
     private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
     private val adapter: BluetoothAdapter? get() = bluetoothManager?.adapter
     private var foregroundStarted = false
+    private var activeScanCallback: ScanCallback? = null
+    private var scanTimeout: Runnable? = null
+    private val discoveredAddresses = mutableSetOf<String>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -174,6 +181,16 @@ class NaxaBleForegroundService : Service() {
                 stopAll()
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            ACTION_SCAN -> {
+                if (!hasBleScanPermission()) {
+                    enqueueEvent(this, JSONObject().put("type", "error")
+                        .put("message", "Autorisation de recherche Bluetooth requise."))
+                    if (sessions.isEmpty()) stopSelf()
+                    return START_NOT_STICKY
+                }
+                ensureForeground()
+                startDeviceScan(intent.getStringExtra(EXTRA_OWNER).orEmpty())
             }
             ACTION_DISCONNECT -> {
                 val address = intent.getStringExtra(EXTRA_ADDRESS).orEmpty()
@@ -204,6 +221,93 @@ class NaxaBleForegroundService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun hasBleScanPermission(): Boolean {
+        val permission = if (Build.VERSION.SDK_INT >= 31) {
+            android.Manifest.permission.BLUETOOTH_SCAN
+        } else {
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        return checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    @Suppress("MissingPermission")
+    private fun startDeviceScan(ownerId: String) {
+        stopDeviceScan()
+        val scanner = adapter?.bluetoothLeScanner
+        if (scanner == null || adapter?.isEnabled != true) {
+            enqueueEvent(this, JSONObject().put("type", "error")
+                .put("message", "Bluetooth est désactivé ou le scanner est indisponible."))
+            if (sessions.isEmpty()) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            return
+        }
+        discoveredAddresses.clear()
+        enqueueEvent(this, JSONObject().put("type", "scanning").put("ownerUserId", ownerId))
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                val address = result.device.address ?: return
+                if (!discoveredAddresses.add(address)) return
+                val services = JSONArray()
+                result.scanRecord?.serviceUuids?.forEach { services.put(it.toString()) }
+                enqueueEvent(this@NaxaBleForegroundService, JSONObject()
+                    .put("type", "deviceFound")
+                    .put("deviceId", address)
+                    .put("deviceName", safeName(result.device))
+                    .put("rssi", result.rssi)
+                    .put("serviceUuids", services)
+                    .put("ownerUserId", ownerId))
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                enqueueEvent(this@NaxaBleForegroundService, JSONObject().put("type", "error")
+                    .put("message", "La recherche Bluetooth a échoué (code $errorCode)."))
+                stopDeviceScan()
+                if (sessions.isEmpty()) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
+        }
+        activeScanCallback = callback
+        try {
+            scanner.startScan(null, ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build(), callback)
+            val timeout = Runnable {
+                stopDeviceScan()
+                enqueueEvent(this, JSONObject().put("type", "scanFinished")
+                    .put("deviceCount", discoveredAddresses.size))
+                if (sessions.isEmpty()) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
+            scanTimeout = timeout
+            handler.postDelayed(timeout, 12000L)
+        } catch (_: SecurityException) {
+            enqueueEvent(this, JSONObject().put("type", "error")
+                .put("message", "Permission Bluetooth refusée pendant la recherche."))
+            stopDeviceScan()
+            if (sessions.isEmpty()) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    @Suppress("MissingPermission")
+    private fun stopDeviceScan() {
+        scanTimeout?.let(handler::removeCallbacks)
+        scanTimeout = null
+        val callback = activeScanCallback
+        activeScanCallback = null
+        if (callback != null) {
+            try { adapter?.bluetoothLeScanner?.stopScan(callback) } catch (_: SecurityException) { }
+        }
     }
 
     private fun hasBleRuntimePermission(): Boolean {
@@ -465,6 +569,7 @@ class NaxaBleForegroundService : Service() {
     }
 
     private fun stopAll() {
+        stopDeviceScan()
         sessions.keys.toList().forEach(::disconnectDevice)
         sessions.clear()
         saveSessions()
@@ -475,6 +580,7 @@ class NaxaBleForegroundService : Service() {
         UUID.fromString("0000" + short.lowercase() + "-0000-1000-8000-00805f9b34fb")
 
     override fun onDestroy() {
+        stopDeviceScan()
         stopAll()
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
