@@ -38,7 +38,7 @@ BEGIN
   INTO v_privdef;
   SELECT pg_get_functiondef('public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure)
   INTO v_def;
-  IF v_privdef NOT ILIKE '%ph.est_demo IS TRUE%'
+  IF v_privdef NOT ILIKE '%ph.est_demo is false%'
      OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
      OR v_privdef NOT ILIKE '%coalesce(l.bloque%'
      OR v_privdef NOT ILIKE '%date_peremption%'
