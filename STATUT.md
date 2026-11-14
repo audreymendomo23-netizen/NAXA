@@ -1,10 +1,59 @@
+## Reprise — durcissement Marketplace, rôle actif et POS hors ligne — 14/11/2026
+
+**État global : PARTIEL — non déclarable AU VERT.** Les contrôles ciblés ci-dessous sont exécutés sur Supabase Replay. Le résultat ne vaut pas validation des 328 tests SQL du dépôt, ni recette complète sur appareils réels.
+
+### Corrections Replay versionnées sur `main`
+
+- **Caisse autonome :** `naxa_select_active_role` accepte désormais un profil Client/Admin avec une affectation Caisse active et valide, sans retirer la compatibilité des anciens profils Caisse. Test 295 corrigé pour initialiser le JWT avant les contrôles. Migration : `20261114073016_naxa_select_active_role_caisse_assignment`.
+- **Notifications Livraison :** migrations appliquées sur Replay pour FCM tokens, outbox push, disponibilité produit et notifications équipe pharmacie. Le secret Vault attendu est absent et `pg_net` désactivé : aucun cron d’envoi externe ni envoi push réel n’est revendiqué.
+- **Assurance Marketplace :** projection assureurs passée en `SECURITY INVOKER`; rôle `anon` limité à `id/nom/code/actif` et aux assureurs actifs. Vue conventions gardée en projection `SECURITY DEFINER` avec barrier et grants colonnaires minimaux, car le mode invoker exigerait un accès global à la table source. Champs référence, créateur, horodatages et statut interne non lisibles par `anon`.
+- **Recherche Marketplace :** les trois RPC de stock/recherche sont désormais des wrappers publics `SECURITY INVOKER`, délégant à des fonctions privées. Le helper privé Marketplace impose fiche validée, pharmacie active/publiée, fraîcheur de mouvement, péremption, lots bloqués et réservations. L’ancien helper privé reste inaccessible aux rôles clients. Bornes d’entrée : 1–20 termes, 2–120 caractères ; recherche groupée avec quantités 1–10 et tableaux de même taille.
+- **Fiche non validée :** 20 produits Replay avaient du stock mais `fiche_validee=false`. Appel sous `anon` : offre, recherche simple et recherche groupée pour une fiche non validée renvoient 0 résultat. Les entrées invalides/bornes incorrectes renvoient également 0 résultat.
+- **Rôle actif public :** `public.naxa_business_function(uuid)` est désormais invoker et ne répond que pour `auth.uid()`. Les fonctions internes ont été redirigées vers les helpers privés ; helper partenaire privé révoqué de `PUBLIC/anon`.
+
+### Preuves Replay après ces corrections
+
+- Postes autonomes : tests 287 **9/9**, 295 **11/11**, 296 **6/6**, 297 **8/8**, 298 **7/7**, 299 **4/4** — **45 assertions PASS**.
+- Sécurité Catalogue : `20261105142000_security_hardening_public_catalog_and_helper_scopes.sql` **PASS** ; test 301 garde recherche/fraîcheur **PASS** ; test 305 retrait helper privé **PASS** ; test 20261114075000 self-scope rôle **PASS**.
+- Assurance : test `20261114073630_marketplace_assurance_public_projection_acl.sql` **PASS** ; lecture `anon` réelle : 5 assureurs, 0 convention dans le jeu Replay.
+- FCM/Notifications : contrat FCM **PASS** ; notifications disponibilité et équipe livraison exécutées sans exception SQL. Pas de preuve de réception sur appareil.
+- Paiement Livraison : SMS payeur facultatif, instantané d’intention, double SMS, restitution Caisse, notifications et gardes null-safe — **6 tests SQL sans exception**.
+- POS hors ligne : test 284 **PASS** après ajustement de fixture uniquement. Vente appliquée **4 700 FCFA**, rendu **300 FCFA**, stock **52 → 51**, une vente payée, clôture `cloturee`, comptage/théorique **14 700 FCFA**, écart **0 FCFA**. Le test marque la pharmacie et la fiche du produit de démo comme réelles/validées uniquement dans la transaction, puis `ROLLBACK`.
+- Télémétrie recherche : test 319 **PASS**. Index livraison : test 321 **PASS**, 18 assertions structurelles + 18 assertions planner.
+
+### Sécurité et performance — alertes restantes
+
+Advisor Replay après les changements :
+- **1 ERROR** `security_definer_view` : projection contrôlée `marketplace_assurance_conventions` (exception documentée et bornée).
+- **0 WARN** fonction `SECURITY DEFINER` exécutable par `anon` (3 auparavant).
+- **229 WARN** fonctions `SECURITY DEFINER` exécutables par `authenticated` (233 auparavant). Certaines sont des RPC métier protégées par `auth.uid()`/garde de rôle ; audit fonction par fonction encore requis. Aucune révocation massive.
+- **1 WARN** protection des mots de passe compromis HaveIBeenPwned désactivée.
+- **70 INFO** tables avec RLS sans policy, majoritairement objets de service/private à vérifier par grants et exposition.
+- Performance : **221** clés étrangères non indexées, **6** avertissements RLS initplan, **236** index inutilisés, **45** groupes de policies permissives multiples. Dette d’optimisation, pas automatiquement une faille.
+
+### Limites de recette encore ouvertes
+
+- Le dépôt compte 328 fichiers SQL : cette passe n’en exécute qu’un sous-ensemble ciblé.
+- Auth multi-comptes et rôles sur vrais comptes, Storage E2E avec isolation, navigateur, caméra/gallery/PDF/OCR, GPS/Bluetooth, SMS et FCM sur téléphones, flux livraison réel jusqu’à la clôture.
+- Enrôlement d’un appareil FCM réel et mise en service autorisée du dispatcher push.
+- Vérification manuelle et activation de la protection mots de passe compromis dans les paramètres Supabase Auth.
+- Fin de l’audit des 229 fonctions authentifiées, de l’unique vue projetée et des 70 INFO RLS.
+
+### Git / CI
+
+- Dernier commit correctif applicatif/test : `ef60ca47a1b801a6523afe6accf0c6790c598d85`.
+- GitHub Actions `43573146538` sur ce SHA : validation de syntaxe workflows **PASS** ; job `Tests, TypeScript et lint` encore en cours au dernier contrôle. Le succès du run précédent `43572815532` (`93dc2a4`) ne vaut pas preuve CI sur `ef60ca4`.
+- Aucune migration Supabase Production, aucun déploiement Vercel, aucun passage Play Store.
+
+---
+
 ## Sécurité ciblée — projections publiques Assurance — 14/11/2026
 
 - **Migration Replay :** `20261114073423_marketplace_assurance_views_invoker_public_read`, `20261114073529_marketplace_assurance_conventions_safe_projection`, `20261114073605_marketplace_assureurs_invoker_active_column`. Les trois fichiers correspondants sont versionnés dans `supabase/migrations/`.
 - **Vue assureurs :** `public.marketplace_assureurs` est passée en `security_invoker=true` + `security_barrier=true`. Le rôle `anon` ne peut lire que `id`, `nom`, `code`, `actif`; la policy ne laisse passer que les assureurs actifs. Requête réelle sous `SET ROLE anon` : **5 assureurs visibles** sur Replay.
 - **Vue conventions :** `public.marketplace_assurance_conventions` reste une projection `security_barrier=true` contrôlée. Le passage `security_invoker` a été annulé après test : la vue exigeait un SELECT général sur la table source et celui-ci aurait aussi exposé des colonnes confidentielles. Le rôle `anon` conserve uniquement les droits colonnaires sur les champs publiés ; pas de SELECT global sur `assurance_conventions`. Les références, créateur, horodatages et statut interne restent non lisibles directement. Requête réelle sous `SET ROLE anon` : exécution réussie, **0 convention publiée** sur le jeu Replay.
 - **Test :** `supabase/tests/20261114073630_marketplace_assurance_public_projection_acl.sql` exécuté depuis `main` sur Replay : **PASS**. Le test verrouille les options de vue, policies, droits de colonnes et lecture réelle des deux vues par `anon`.
-- **Advisor après correction :** 1 erreur `security_definer_view` restante (la vue conventions, exception explicitement bornée) ; 3 fonctions `SECURITY DEFINER` toujours exécutables par `anon` ; 233 exécutables par `authenticated` ; 1 avertissement protection mots de passe compromis ; 70 INFO RLS sans policy. Les RPC restent à analyser fonction par fonction ; aucune révocation globale.
+- **Advisor après correction :** 1 erreur `security_definer_view` restante (la vue conventions, exception explicitement bornée) ; **0 fonction `SECURITY DEFINER` exécutable par `anon`** (3 → 0) ; 229 exécutables par `authenticated` (233 → 229) ; 1 avertissement protection mots de passe compromis ; 70 INFO RLS sans policy. Les 229 fonctions authentifiées restent à auditer individuellement ; aucune révocation globale.
 - **CI :** run `43571621927` sur le commit `4f28fff01074a2cf26206a2426b7f499d4c04362` : **success**. Run `43571942355` sur le HEAD `7f9386ba5e21c115d487838ad11759dcfcb1cadb` : encore en attente au dernier contrôle.
 
 **Périmètre :** Replay et `main` uniquement. Aucune migration Production, aucune opération Vercel et aucun déploiement.
