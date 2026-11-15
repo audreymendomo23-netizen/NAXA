@@ -870,3 +870,36 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 **Conclusion :** la cause du SKIP Admin est traitée au niveau du code et du workflow. La matrice est maintenant exigée au lieu d'être silencieusement facultative. Sa validation d'exécution reste en attente de lecture des logs du run déclenché par le push.
 
 **Point exact de reprise :** consulter le run GitHub Actions du commit `5f24e339b562704830b9d77043745f14eaa6888b`. Vérifier successivement : tests unitaires Admin, contrôle strict de la fixture, provisionnement Promoteur, matrices Storage Admin et Promoteur, fermeture des sessions et suppression des fichiers secrets temporaires. En cas d'échec, isoler la première assertion en erreur ; ne pas désactiver le caractère obligatoire des matrices.
+
+
+## 32. Audit du parcours Livreur et préparation de la fixture E2E Replay (15/11/2026)
+
+**Périmètre : inventaire Replay en lecture seule et préparation de code sur main.** Aucun compte Livreur, invitation, affectation, commande, mission ou paiement n'a été créé pendant cet audit. Production et Vercel exclus.
+
+**État réel des profils Replay :**
+- Deux profils seulement : un Admin actif/confirmé et un Promoteur actif/confirmé.
+- Aucun profil Client ; aucun compte Pharmacie ou Caisse ; aucune affectation professionnelle.
+- `naxa_livreur_invites` : 0 invitation ; `naxa_professional_assignments` : 0 ligne ; affectations Livreur actives : 0.
+- Le rôle `livreur` est actif et assignable dans `naxa_roles`. La table `naxa_role_privileges` ne contient actuellement aucune ligne pour `role_key='livreur'` et aucun code correspondant directement à un privilège Livreur n'a été trouvé dans le référentiel `naxa_privileges`. Le catalogue décrit d'ailleurs les privilèges opérationnels du poste comme restant à définir explicitement ; ce point demeure une réserve d'autorisation/UI à examiner, sans ajout arbitraire de droits pendant cette passe.
+
+**Contrat métier établi par inspection des fonctions Replay :**
+1. Le Promoteur valide (pharmacie explicitement liée + privilège `ASSIGN_USER_TO_PHARMACY`) ou le compte Pharmacie propre à l'établissement peut créer une invitation Livreur par `naxa_create_livreur_invite`. L'invitation expire après 7 jours ; les invitations en attente précédentes pour le même e-mail et la même pharmacie sont révoquées.
+2. Le titulaire doit accepter avec un compte Auth déjà confirmé, dont le profil racine est un Client actif, majeur, complet et consentant. `naxa_accept_livreur_invite` refuse les postes professionnels non-Livreur simultanément actifs, crée l'affectation permanente ordinaire, puis sélectionne le rôle actif Livreur.
+3. Un candidat du personnel déjà rattaché à la pharmacie ou au réseau peut, selon le contrôle métier, recevoir une permanence Livreur temporaire ; il n'est pas converti en compte Livreur indépendant.
+4. Le Promoteur et la Pharmacie peuvent consulter la liste des livreurs de leur périmètre par `naxa_livreurs_management_list`. Un Promoteur ne peut demander une pharmacie hors réseau. La révocation d'une affectation Livreur est bloquée si une livraison est encore acceptée, retirée ou arrivée.
+5. La publication d'une mission est réservée au processus Stock/Magasinier après confirmation physique `prete_au_retrait`, horodatage de confirmation Stock et paiement choisi/vérifié (exception : paiement en espèces à la livraison).
+6. Un Livreur avec affectation et rôle actif dans la pharmacie peut accepter une mission disponible, retirer le colis après validation Stock/paiement, signaler l'arrivée et confirmer la remise.
+7. Le Client propriétaire de la réservation confirme la réception après l'arrivée. La clôture `livree` n'est finalisée que lorsque le Client ET le Livreur ont confirmé et que le paiement est validé. Le suivi Client est fourni par `naxa_delivery_tracking`; le tableau de bord Livreur par `naxa_delivery_my_missions`.
+8. Les RPC sensibles contrôlées sont exécutables par `authenticated` et non par `anon`. Les tables d'invitations et de missions ont RLS activé ; les invitations ne sont pas exposées en accès direct au rôle authenticated et passent par les RPC serveur prévues.
+
+**Points de vigilance métier/technique :**
+- Le simple rôle de catalogue `livreur` n'accorde pas de privilèges génériques ; l'accès aux opérations de livraison s'appuie surtout sur profil actif, affectation, rôle actif, pharmacie active et propriété de mission. La matrice de permissions du dashboard reste à examiner avant validation UI.
+- Le test d'isolation doit couvrir explicitement un Promoteur qui tente de consulter une pharmacie non rattachée ainsi qu'un Livreur qui tente d'accepter une mission d'une autre pharmacie.
+- La recette E2E complète exige un vrai enchaînement réservation → Stock prêt → paiement → mission disponible → acceptation → retrait → arrivée → confirmations Client/Livreur → clôture. Aucun enregistrement métier de cette chaîne n'a encore été créé.
+
+**Harnais Livreur préparé sur main, non exécuté :**
+- `scripts/e2e/provision-replay-livreur-safe.cjs` — commit `0ca7a84a357335878454cd876a69b89c910ebcfe`. Le script est limité à Replay, définit une fixture Client synthétique et complète, puis vise le parcours normal création d'invitation Promoteur → acceptation Client → affectation Livreur permanente → sélection du rôle → contrôle de liste Promoteur/isolation → appel du dashboard Livreur. Le profil racine reste `client`; aucune mission ni aucun paiement n'est créé par ce script.
+- `scripts/test-replay-livreur-safe.cjs` — commit `0a994333e48138efc0f6c0cd44fca993c12cfc18`. Huit tests unitaires codés pour l'épinglage Replay, les marqueurs de fixture, l'âge/consentement/profil Client et les secrets éphémères. Tests non encore exécutés dans cette étape.
+- Les deux scripts ne sont pas encore raccordés au workflow E2E actif ; la fixture et l'affectation Livreur ne sont donc **pas** créées.
+
+**Point exact de reprise :** corriger/compléter le harnais de provisionnement Livreur, en particulier la fermeture locale des sessions Promoteur/Livreur, intégrer les deux fichiers au workflow Replay après le provisionnement Promoteur et avant la matrice Storage, exécuter les tests unitaires, puis contrôler les logs et les lignes Auth/profil/invitation/affectation sur Replay. Ensuite seulement, préparer le parcours réel Stock → mission → Livreur → Client ; ne créer aucune fausse réservation ou paiement sans que les conditions de recette métier soient conçues et nettoyables.
