@@ -774,9 +774,38 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Les cinq privilèges réseau canoniques (VIEW_CA_BY_PHARMACY, VIEW_COMPARISON, VIEW_NETWORK_HEALTH, VIEW_NETWORK_PILOTAGE, VIEW_NETWORK_REPORT) présentent chacun 20 lignes actives pour le même profil avec pharmacie_id IS NULL et scope_type='RESEAU'.
 - Cause racine vérifiée dans public.naxa_provision_promoteur_pharmacie(uuid,uuid) : l'INSERT réseau utilise ON CONFLICT(profile_id,privilege_code,pharmacie_id,scope_type), mais la clé contient pharmacie_id=NULL et l'index unique PostgreSQL standard traite les NULL comme distincts. Chaque nouvel événement de provisionnement peut donc ajouter une nouvelle ligne réseau au lieu de réutiliser la ligne existante.
 - Les deux privilèges d'affectation par pharmacie restent présents ; cette duplication réseau n'a pas fait échouer la recette Storage, mais rend les données d'autorisation non canoniques et doit être corrigée avant de déclarer la recette des privilèges Promoteur verte.
-- Aucune migration de correction de cette duplication n'a encore été appliquée ni aucun doublon supprimé. Le correctif doit être additif, préserver une ligne active canonique et l'historique, puis être testé avec plusieurs réactivations/reprovisionnements du lien sans augmentation du nombre de lignes actives.
+- À la découverte initiale, aucune migration de correction n'avait encore été appliquée ; cette réserve a depuis été corrigée sur Replay et les preuves figurent en §29.
 - Pas de changement Production, pas de déploiement Vercel.
 
-**État : STORAGE PROMOTEUR E2E VALIDÉ SUR REPLAY ; QUALITÉ AUTOMATISÉE PASS ; RECETTE GLOBALE NON VERTE — correction idempotence des privilèges RESEAU encore ouverte.**
+**État au moment du contrôle initial : STORAGE PROMOTEUR E2E VALIDÉ SUR REPLAY ; QUALITÉ AUTOMATISÉE PASS ; réserve d'idempotence RESEAU ouverte. Cette réserve est levée sur Replay au §29 ; la recette globale reste partielle pour les autres matrices non exécutées.**
 
-**Point exact de reprise :** corriger l'idempotence des privilèges RESEAU sur Replay, normaliser uniquement les doublons de la fixture dans une transaction protégée, prouver qu'au moins trois cycles de reprovisionnement ne créent aucune ligne active supplémentaire, puis reprendre la matrice E2E des rôles Admin/Promoteur et des autres profils professionnels.
+**Point de reprise initial (clos au §29) :** corriger l'idempotence des privilèges RESEAU sur Replay, normaliser les doublons, puis prouver la stabilité sur plusieurs cycles. Ces trois éléments sont maintenant exécutés et documentés au §29.
+
+
+## 29. Correction idempotence des privilèges Promoteur RESEAU — Replay (15/11/2026)
+
+**Périmètre : Replay uniquement.** Projet ciblé : `pwfftcsjyeibxxqhwysw`. Production et Vercel n'ont pas été modifiés.
+
+**Audit avant correction :**
+- L'inventaire global Replay montrait un seul profil affecté : la fixture `naxa.e2e.promoteur@example.invalid`.
+- Pour chacun des cinq codes `VIEW_CA_BY_PHARMACY`, `VIEW_COMPARISON`, `VIEW_NETWORK_HEALTH`, `VIEW_NETWORK_PILOTAGE` et `VIEW_NETWORK_REPORT`, 20 lignes étaient actives avec `pharmacie_id IS NULL` et `scope_type='RESEAU'`.
+- Cause racine confirmée dans `public.naxa_provision_promoteur_pharmacie(uuid,uuid)` : la cible `ON CONFLICT(profile_id,privilege_code,pharmacie_id,scope_type)` ne détecte pas les doublons lorsque `pharmacie_id` vaut NULL, puisque l'index unique standard traite ces NULL comme des valeurs distinctes.
+
+**Correction appliquée :**
+- Migration versionnée : `supabase/migrations/20261115100000_promoteur_reseau_privilege_idempotence.sql` ; commit `15cfe4b990312848c41fefc1023920a24b6ea350`.
+- Dans une transaction protégée par verrou de table, conservation de la ligne active la plus ancienne pour chaque combinaison Promoteur/droit/portée ; les autres lignes actives sont révoquées (`active=false`, `revoked_at` renseigné), sans suppression physique.
+- Création de l'index unique partiel `naxa_profile_privileges_active_reseau_scope_uidx`, limité aux lignes réseau actives, non révoquées, sans pharmacie ni partenaire.
+- Modification de la fonction de provisionnement pour cibler explicitement cet index partiel dans l'upsert RESEAU. Les contrôles d'identité Promoteur, de validité commerciale, d'affectation active et d'architecture sont conservés ; l'upsert des privilèges PHARMACIE reste inchangé.
+- Test de non-régression versionné : `supabase/tests/20261115100000_promoteur_reseau_privilege_idempotence.sql` ; commit `d24856eeda59af7c84772e8ab104f074a91424fa`.
+
+**Preuve d'exécution sur Replay :**
+- Test SQL exécuté avec succès : 3 cycles de provisionnement sur chacune des 2 pharmacies actives liées (6 appels à la fonction).
+- Avant/après : les cinq codes RESEAU conservent chacun exactement **1 ligne active**. Aucun ajout ni perte de privilège réseau.
+- Nettoyage : **95 doublons** (19 par code) conservés comme historique et révoqués ; aucune suppression physique.
+- Vérification globale après correction : **0 groupe de doublons actifs restant** dans `naxa_profile_privileges` pour les portées RESEAU.
+- Vérification catalogue PostgreSQL : l'index unique partiel est présent avec le prédicat attendu.
+- La migration a été appliquée sur Replay ; aucun changement Production ni déploiement Vercel.
+
+**Conclusion :** la réserve d'idempotence des privilèges RESEAU est **CORRIGÉE ET TESTÉE SUR REPLAY**. Cela ne valide pas encore la matrice complète des rôles : la matrice Storage Admin reste SKIP faute d'identifiants Admin E2E, et les parcours des autres profils professionnels restent à exécuter. La recette globale NAXA demeure PARTIELLE, sans déclaration AU VERT.
+
+**Point exact de reprise :** reprendre la matrice Admin/Promoteur et les profils professionnels sur Replay ; conserver la séparation explicite entre validations SQL ciblées, E2E Storage déjà passé et recette métier complète non encore exécutée.
