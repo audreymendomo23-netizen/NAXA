@@ -78,7 +78,7 @@ test("le rôle Caisse conserve le scope métier sans exiger la publication Marke
 
 test("le contrat Replay prouve le POS vendable sur une pharmacie active mais cachée", () => {
   assert.ok(sqlContract.includes("visible_recherche = false"));
-  assert.ok(sqlContract.includes("ph.est_demo is true"));
+  assert.ok(sqlContract.includes("and est_demo is true"));
   assert.ok(sqlContract.includes("private.naxa_pos_stock_vendable"));
   assert.ok(sqlContract.includes("v_quantity <= 0"));
   assert.ok(sqlContract.includes("rollback;"));
