@@ -10,6 +10,10 @@ const migration = fs.readFileSync(path.join(root, "supabase/migrations/202611151
 const sqlContract = fs.readFileSync(path.join(root, "supabase/tests/20261115101000_assurance_amount_proposal_workflow.sql"), "utf8");
 const client = fs.readFileSync(path.join(root, "src/components/assurance/AssuranceReceiptDetails.tsx"), "utf8");
 const pharmacy = fs.readFileSync(path.join(root, "src/app/pharmacie/assurance/page.tsx"), "utf8");
+const activeClientMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115102000_assurance_proposal_response_requires_active_client_role.sql"), "utf8");
+const refusalEventMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115103000_assurance_client_refusal_event_visibility.sql"), "utf8");
+const accountingIdempotenceMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115104000_assurance_accounting_event_idempotence_scope.sql"), "utf8");
+const refusalEventSqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115103000_assurance_client_refusal_event_visibility.sql"), "utf8");
 
 test("la proposition de montant est versionnée et séparée du snapshot initial", () => {
   assert.match(migration, /create table if not exists public\.assurance_montant_propositions/);
@@ -83,4 +87,21 @@ test("les contrats SQL couvrent RLS, ACL, montant initial immuable et événemen
   assert.match(sqlContract, /assurance_proposer_montant/);
   assert.match(sqlContract, /assurance_repondre_proposition_montant/);
   assert.match(sqlContract, /accord_client_refuse/);
+});
+
+
+test("la décision exige le rôle métier Client actif, et non une simple racine de profil Client", () => {
+  assert.match(activeClientMigration, /naxa_business_function\(v_uid\)<>'client'/);
+  assert.match(activeClientMigration, /p\.role='client' and p\.actif=true/);
+});
+
+test("le refus reste lisible par le Client propriétaire et par le personnel de sa pharmacie", () => {
+  assert.match(refusalEventMigration, /accord_client_refuse/);
+  assert.match(refusalEventMigration, /r\.client_id=\(select auth\.uid\(\)\)/);
+  assert.match(refusalEventSqlTest, /accord_client_refuse/);
+});
+
+test("la créance Assurance utilise la clé d'idempotence unique réellement définie en comptabilité", () => {
+  assert.match(accountingIdempotenceMigration, /on conflict \(pharmacie_id,cle_idempotence\) do nothing/i);
+  assert.doesNotMatch(accountingIdempotenceMigration, /on conflict \(cle_idempotence\) do nothing/i);
 });
