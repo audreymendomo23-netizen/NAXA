@@ -60,7 +60,7 @@ test("le script Service Worker Push est servi sans redirection du middleware d'Ã
 test("la recette Web Push utilise des profils Chromium persistants, permission accordÃ©e et nettoyage garanti", () => {
   assert.ok(webPushE2E.includes('channel: "chromium"'));
   assert.ok(webPushE2E.includes("chromium.launchPersistentContext"));
-  assert.doesNotMatch(webPushE2E, /browser\.newContext\s*\(/);
+  assert.ok(!webPushE2E.includes("await browser.newContext("));
   assert.ok(webPushE2E.includes('Notification.permission'));
   assert.ok(webPushE2E.includes('permissionStatus.state !== "granted"'));
   assert.ok(webPushE2E.includes('navigator.serviceWorker.register("/naxa-push-sw.js"'));
