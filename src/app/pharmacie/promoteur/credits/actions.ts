@@ -68,3 +68,24 @@ export async function configurerCreditClient(formData:FormData){
   revalidatePath("/pharmacie/caisse");
   redirect("/pharmacie/promoteur/credits?ok=configuration");
 }
+
+export async function configurerPlafondResponsable(formData:FormData){
+  const sb=supabaseServer();
+  const {data:auth}=await sb.auth.getUser();
+  if(!auth.user)redirect("/connexion?retour=/pharmacie/promoteur/credits");
+  const {data:profile}=await sb.from("profiles").select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
+  if(!profile||profile.role!=="promoteur"||profile.actif!==true||profile.niveau_interne!==1)redirect("/");
+  const responsable=String(formData.get("responsable_id")??"");
+  const pharmacie=String(formData.get("pharmacie_id")??"");
+  const plafond=Number(formData.get("plafond_fcfa")??NaN);
+  if(!valid(responsable)||!valid(pharmacie)||!Number.isSafeInteger(plafond)||plafond<0||plafond>2147483647){
+    redirect("/pharmacie/promoteur/credits?erreur=plafond");
+  }
+  const {error}=await sb.rpc("naxa_responsable_credit_limit_configurer",{
+    p_responsable:responsable,p_pharmacie:pharmacie,p_plafond_fcfa:plafond,
+  });
+  if(error)redirect("/pharmacie/promoteur/credits?erreur=plafond");
+  revalidatePath("/pharmacie/promoteur/credits");
+  revalidatePath("/pharmacie/responsable/credits");
+  redirect("/pharmacie/promoteur/credits?ok=plafond_responsable");
+}
