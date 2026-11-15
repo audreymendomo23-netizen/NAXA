@@ -792,11 +792,11 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Cause racine confirmée dans `public.naxa_provision_promoteur_pharmacie(uuid,uuid)` : la cible `ON CONFLICT(profile_id,privilege_code,pharmacie_id,scope_type)` ne détecte pas les doublons lorsque `pharmacie_id` vaut NULL, puisque l'index unique standard traite ces NULL comme des valeurs distinctes.
 
 **Correction appliquée :**
-- Migration versionnée : `supabase/migrations/20261115100000_promoteur_reseau_privilege_idempotence.sql` ; commit `15cfe4b990312848c41fefc1023920a24b6ea350`.
+- Migration versionnée : `supabase/migrations/20261115100000_promoteur_reseau_privilege_idempotence.sql` ; commit `15cfe4b990312848c41fefc1023920a24b6ea350`. Historique Replay : version `20261115054533`, nom `promoteur_reseau_privilege_idempotence`.
 - Dans une transaction protégée par verrou de table, conservation de la ligne active la plus ancienne pour chaque combinaison Promoteur/droit/portée ; les autres lignes actives sont révoquées (`active=false`, `revoked_at` renseigné), sans suppression physique.
 - Création de l'index unique partiel `naxa_profile_privileges_active_reseau_scope_uidx`, limité aux lignes réseau actives, non révoquées, sans pharmacie ni partenaire.
 - Modification de la fonction de provisionnement pour cibler explicitement cet index partiel dans l'upsert RESEAU. Les contrôles d'identité Promoteur, de validité commerciale, d'affectation active et d'architecture sont conservés ; l'upsert des privilèges PHARMACIE reste inchangé.
-- Test de non-régression versionné : `supabase/tests/20261115100000_promoteur_reseau_privilege_idempotence.sql` ; commit `d24856eeda59af7c84772e8ab104f074a91424fa`.
+- Test de non-régression versionné : `supabase/tests/20261115100000_promoteur_reseau_privilege_idempotence.sql` ; commit initial `d24856eeda59af7c84772e8ab104f074a91424fa`, puis assertion ajoutée pour prouver que l'index rejette lui-même une insertion active en double.
 
 **Preuve d'exécution sur Replay :**
 - Test SQL exécuté avec succès : 3 cycles de provisionnement sur chacune des 2 pharmacies actives liées (6 appels à la fonction).
