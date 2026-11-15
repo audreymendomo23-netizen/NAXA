@@ -254,20 +254,25 @@ async function provision(env = process.env) {
         throw new Error("Un autre poste ou une autre pharmacie est déjà actif sur la fixture " + persona.key + ".");
       }
       const existing = active.find(row => row.role_code === persona.role && row.pharmacie_id === pharmacyId);
-      if (!existing) {
-        const provisioned = persona.role === "caisse"
-          ? await rpc("naxa_provision_caisse", promoter.token, {
-              p_target: fixtures[persona.key].id,
-              p_pharmacie: pharmacyId,
-            })
-          : await rpc("naxa_grant_professional_assignment", promoter.token, {
-              p_target: fixtures[persona.key].id,
-              p_pharmacie: pharmacyId,
-              p_fonction: persona.role,
-              p_commence_at: new Date().toISOString(),
-              p_expire_at: null,
-              p_motif: "Affectation professionnelle E2E Replay du " + persona.role + ".",
-            });
+      if (persona.role === "caisse") {
+        // Idempotent: also repairs a pre-existing active Caisse assignment
+        // if the physical pharmacy register was never provisioned.
+        const provisioned = await rpc("naxa_provision_caisse", promoter.token, {
+          p_target: fixtures[persona.key].id,
+          p_pharmacie: pharmacyId,
+        });
+        if (!provisioned.ok) {
+          throw new Error("Provisionnement Caisse refusé (HTTP " + provisioned.status + ").");
+        }
+      } else if (!existing) {
+        const provisioned = await rpc("naxa_grant_professional_assignment", promoter.token, {
+          p_target: fixtures[persona.key].id,
+          p_pharmacie: pharmacyId,
+          p_fonction: persona.role,
+          p_commence_at: new Date().toISOString(),
+          p_expire_at: null,
+          p_motif: "Affectation professionnelle E2E Replay du " + persona.role + ".",
+        });
         if (!provisioned.ok) {
           throw new Error("Affectation " + persona.role + " refusée (HTTP " + provisioned.status + ").");
         }
