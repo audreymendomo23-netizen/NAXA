@@ -24,6 +24,7 @@ test("le gestionnaire Stock peut déclarer une référence absente du catalogue"
   assert.match(workspace, /name="prix"/);
   assert.match(workspace, /name="sur_ordonnance"/);
   assert.match(workspace, /action=\{declarerProduitEtInitialiserReferenceStock\}/);
+  assert.match(workspace, /"promoteur","pharmacie","pharmacien"/);
 });
 
 test("l'action utilise la RPC atomique et ne crée pas de quantité vendable", () => {
