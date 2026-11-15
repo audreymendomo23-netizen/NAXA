@@ -14,7 +14,6 @@ type ProduitCatalogue = {
   description: string | null;
   indications: string | null;
   source_fiche: string | null;
-  fiche_validee: boolean | null;
 };
 
 export async function GET() {
@@ -22,8 +21,7 @@ export async function GET() {
     const sb = supabaseServer();
     const { data, error } = await sb
       .from("produits")
-      .select("id,nom,dci,forme,synonymes,photo_url,description,indications,source_fiche,fiche_validee")
-      .eq("fiche_validee", true)
+      .select("id,nom,dci,forme,synonymes,photo_url,description,indications,source_fiche")
       .order("nom", { ascending: true })
       .limit(500);
 
@@ -38,28 +36,27 @@ export async function GET() {
       // Aucun chemin, licence ni date de vérification photo n'existe encore
       // dans public.produits : ne jamais afficher photo_url sans ces preuves.
       const imageUrl = null;
-      const validated = product.fiche_validee === true;
       return {
         id: product.id,
         name: product.nom,
         brand: null,
         activeIngredient: product.dci,
         form: product.forme,
-        definition: validated ? product.description : null,
-        indications: validated ? product.indications : null,
+        definition: product.description,
+        indications: product.indications,
         imageUrl,
         imageSource: product.photo_url ? "Photo masquée jusqu’à validation de sa provenance et de ses droits" : null,
         imageSourceUrl: null,
         imageLicense: null,
         imageAttribution: null,
         imageTitle: null,
-        source: ["Catalogue NAXA"],
+        source: ["Données déclarées par une pharmacie partenaire"],
         availability: "non_verifiee" as const,
         partnerPharmacyCount: null,
         lowestPartnerPrice: null,
         localProductId: product.id,
-        localInformationValidated: validated,
         localInformationSource: product.source_fiche,
+        informationNotice: "Données déclarées par la pharmacie ; NAXA ne certifie pas cette fiche.",
         cameroonRegulatoryStatus: "a_verifier" as const,
         cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
         synonyms: product.synonymes ?? [],
