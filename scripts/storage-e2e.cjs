@@ -140,6 +140,16 @@ async function logoutTemporaryUser(accessToken) {
   }
 }
 
+async function logoutRoleSession(accessToken) {
+  const response = await http("/auth/v1/logout?scope=local", {
+    method: "POST",
+    accessToken,
+  });
+  if (!response.ok && response.status !== 401 && response.status !== 404) {
+    throw new Error("Fermeture de la session métier E2E impossible (HTTP " + response.status + ").");
+  }
+}
+
 async function deleteUser(userId) {
   const response = await http("/auth/v1/admin/users/" + encodeURIComponent(userId), {
     method: "DELETE",
@@ -228,6 +238,7 @@ async function expectBytes(response, expected, label) {
 async function run() {
   const createdUsers = [];
   const cleanupObjects = [];
+  const roleSessions = [];
   const passed = [];
   const skipped = [];
   const suffix = randomUUID();
@@ -349,6 +360,7 @@ async function run() {
 
     if (adminEmail && adminPassword) {
       const admin = await loginExisting(adminEmail, adminPassword, "Admin actif");
+      roleSessions.push(admin.token);
       const docPath = "storage-e2e/" + suffix + ".pdf";
       const medicinePath = "storage-e2e/" + suffix + ".png";
       cleanupObjects.push([BUCKET_PHARMACY_DOCS, docPath], [BUCKET_MEDICAMENTS, medicinePath]);
@@ -381,6 +393,7 @@ async function run() {
 
     if (promoterEmail && promoterPassword && pharmacyId && otherPharmacyId) {
       const promoter = await loginExisting(promoterEmail, promoterPassword, "Promoteur actif");
+      roleSessions.push(promoter.token);
       const ownPath = "logos/" + pharmacyId + "/storage-e2e-" + suffix + ".png";
       const otherPath = "logos/" + otherPharmacyId + "/storage-e2e-" + suffix + ".png";
       cleanupObjects.push([BUCKET_PHARMACY_PHOTOS, ownPath]);
@@ -431,6 +444,16 @@ async function run() {
         process.stdout.write("CLEANUP PASS — objet " + bucket + "\n");
       } catch (error) {
         const detail = "objet " + bucket + " : " + (error?.message || "erreur inconnue");
+        cleanupFailures.push(detail);
+        process.stderr.write("CLEANUP FAIL — " + detail + "\n");
+      }
+    }
+    for (const token of roleSessions.reverse()) {
+      try {
+        await logoutRoleSession(token);
+        process.stdout.write("CLEANUP PASS — session métier E2E fermée\n");
+      } catch (error) {
+        const detail = "session métier E2E : " + (error?.message || "erreur inconnue");
         cleanupFailures.push(detail);
         process.stderr.write("CLEANUP FAIL — " + detail + "\n");
       }
