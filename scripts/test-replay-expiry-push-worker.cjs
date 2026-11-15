@@ -46,8 +46,8 @@ test("le dispatcher réel de péremption ne peut être appelé qu'avec le JWT se
 });
 
 test("le script Service Worker Push est servi sans redirection du middleware d'âge", () => {
-  assert.match(middleware, /naxa-push-sw\\\\\.js/);
-  assert.match(middleware, /matcher:\\s*\\[/);
-  assert.match(pushServiceWorker, /addEventListener\\(\\"push\\"/);
-  assert.match(pushServiceWorker, /showNotification/);
+  assert.ok(middleware.includes("naxa-push-sw\\.js"));
+  assert.ok(middleware.includes("matcher: ["));
+  assert.ok(pushServiceWorker.includes('self.addEventListener("push"'));
+  assert.ok(pushServiceWorker.includes("showNotification"));
 });
