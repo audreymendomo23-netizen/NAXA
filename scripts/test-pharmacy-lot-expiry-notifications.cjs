@@ -22,6 +22,10 @@ const stockUi = fs.readFileSync(
   path.join(root, "src/components/pharmacie/GestionnaireStockEspace.tsx"),
   "utf8"
 );
+const notificationsUi = fs.readFileSync(
+  path.join(root, "src/app/notifications/page.tsx"),
+  "utf8"
+);
 
 test("rappels quotidiens J-30, J-15, J-7, J-3 et J0 selon Africa/Douala", () => {
   for (const offset of [30, 15, 7, 3, 0]) {
@@ -78,4 +82,9 @@ test("interface Lots & péremptions utilise la date civile Africa/Douala et non 
   assert.ok(stockUi.includes('timeZone:"Africa/Douala"'));
   assert.ok(stockUi.includes("dateDouala(new Date())"));
   assert.equal(stockUi.includes("toISOString().slice(0,10)"), false);
+});
+
+test("les rappels de péremption ouvrent directement l'espace Lots & péremptions", () => {
+  assert.ok(notificationsUi.includes('n.type==="lot_expiry_reminder"'));
+  assert.ok(notificationsUi.includes('href="/pharmacie/gestionnaire-stock/lots-peremptions"'));
 });
