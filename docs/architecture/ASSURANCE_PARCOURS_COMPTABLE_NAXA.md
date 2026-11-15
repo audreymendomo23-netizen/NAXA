@@ -237,3 +237,58 @@ Toutes les données sont dans une transaction annulée. Après rollback : aucun 
 - Le test runtime est une preuve backend SQL/RPC avec rollback ; le parcours navigateur réel des espaces Client, Assurance et Caisse reste à exécuter sur une pharmacie autorisée.
 
 **État : PARTIEL — PAS AU VERT GLOBAL.** Le chemin backend Marketplace → Assurance → POS → reçu → règlements est démontré sur Replay ; l'import assureur réel, la recette navigateur et la configuration comptable de la pharmacie restent ouverts. Production et Vercel inchangés.
+
+
+## Vérification finale intégrée — import, négociation, POS et grand livre Replay (15 novembre 2026)
+
+### Composants effectivement livrés
+
+- Import professionnel CSV/XLS/XLSX : limite 10 Mo/5 000 lignes, normalisation d'en-têtes et dates, SHA-256, référence source, simulation obligatoire, contrôle du doublon fichier, des adhérents sans correspondance, ambigus, doublons et invalides. L'application d'une liste complète ou d'un delta crée des états de vérification versionnés par pharmacie. Une modification de déclaration client invalide la vérification antérieure. Le modèle fictif est `public/modeles/assureur-liste-assures-exemple.csv`.
+- Vérification de couverture : le devis n'est calculable que si le rapprochement assureur le plus récent est positif pour la couverture et la pharmacie de la réservation ; une suspension/expiration ou une correction de la déclaration bloque l'ancien état.
+- Négociation versionnée : `assurance_montant_propositions` conserve chaque offre, motif et réponse. La pharmacie ne peut que diminuer la part assureur initialement proposée. Le snapshot initial (montant brut, calcul de départ, items et règles) n'est jamais réécrit. Seul le Client propriétaire, en rôle Client actif, peut accepter/refuser ; une proposition non répondue bloque la confirmation définitive.
+- POS et reçu : le dernier partage accepté est repris pour les lignes Client/Assurance. Le reçu Client exclut les lignes `ASSURANCE:%` des montants réellement reçus et restitue le partage initial et le partage négocié.
+- Comptabilité : l'outbox émet la créance, les remboursements reçus et la vente encaissée (uniquement la part Client). Le worker traite désormais les événements dans la recette intégrée, avec mappings et période provisoires annulés à la fin.
+
+### Tests Replay exécutés
+
+- `20261115121500_assurance_import_membership_negotiation.sql` — **PASS** : tables, RLS, droits RPC, confidentialité des imports et contrôles de vérification.
+- `20261115123000_assurance_import_runtime_multipharmacy.sql` — **8 contrôles PASS** : mode complet, delta, suspension, réactivation, correction de déclaration, vérification limitée à la pharmacie et rejet des devis hors pharmacie.
+- `20261115101000_assurance_amount_proposal_workflow.sql` — **PASS** : versionnage, rôle et périmètre professionnel, accord/refus explicite Client, immutabilité du snapshot et blocage de confirmation.
+- `20261115103000_assurance_client_refusal_event_visibility.sql` — **PASS**.
+- `20261115104000_assurance_accounting_event_idempotence_scope.sql` — **PASS**.
+- `20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql` — **PASS**, réexécuté après extension au worker comptable.
+
+### Résultat chiffré du runtime intégré
+
+| Étape | Preuve |
+|---|---:|
+| Réservation brute Marketplace | 10 000 FCFA |
+| Part assureur initiale / Client initiale | 6 000 / 4 000 FCFA |
+| Proposition pharmacie puis nouvel accord Client | 5 500 / 4 500 FCFA |
+| Espèces remises / monnaie rendue | 5 000 / 500 FCFA |
+| Remboursements assureur partiel + solde | 2 000 + 3 500 FCFA |
+| Événements traités par le worker | 4 : créance, 2 règlements, vente Client |
+| Écritures générées | 4, toutes à 2 lignes équilibrées |
+| Grand livre : créance assureur | Débit 5 500 / crédit 5 500 FCFA |
+| Grand livre : espèces Client | Débit 4 500 FCFA |
+| Grand livre : revenu cumulé Client + Assurance | Crédit 10 000 FCFA |
+
+Le test réutilise une identité Client et un compte Caisse Replay existants. Le rôle Responsable est temporairement ajouté au même compte professionnel pour la recette, activé puis quitté via la RPC officielle de sélection de rôle. Le plan comptable (4 comptes), les 6 mappings, les 3 journaux, la période, les réservations, ventes, règlements, vérifications, propositions, écritures et lignes sont tous créés dans une transaction de test puis annulés par `ROLLBACK`.
+
+### Nettoyage confirmé après runtime
+
+- Rôle du compte professionnel : `caisse` restauré.
+- Affectation Responsable temporaire de recette : absente.
+- Réservation de recette, vente de recette, événements en attente : 0.
+- Import, lignes d'import, vérifications, couvertures, conventions, snapshots, dossiers, propositions et règlements : 0 persistant.
+- Périodes, comptes, mappings, paramètres, événements comptables, écritures et lignes : 0 persistant.
+- Stock/coût de test et lots du produit de recette : 0 fixture persistante.
+
+### Limites réelles qui restent ouvertes
+
+1. Aucun export provenant d'un assureur n'a été fourni. Le modèle et les alias canoniques sont prêts, mais le format propriétaire doit être confirmé sur un exemple expurgé reçu par un opérateur autorisé. Le SHA-256 atteste l'intégrité du fichier, pas l'identité de son émetteur.
+2. Le runtime est une preuve backend PostgreSQL/RPC sous JWT de recette dans une pharmacie de démonstration visible ; il ne vaut pas validation navigateur de tous les écrans ni vente commerciale dans une pharmacie non-démo autorisée.
+3. Les écritures ont été effectivement générées et contrôlées par le worker, mais uniquement avec un plan, des mappings, journaux et une période temporaires de test rollbackés. La comptabilité persistante d'une pharmacie exige les comptes, journaux, mappings et période fournis/validés par son responsable comptable. Aucun compte normalisé ou OHADA n'a été inventé.
+4. Le workflow GitHub qualité sur la dernière tête doit terminer Node/TypeScript/lint/build ; le contrôle actionlint du run courant est déjà PASS. Le check Supabase Preview reste annulé par la limite mensuelle des push events, sans affecter Replay.
+
+**État de clôture : PARTIEL — PAS AU VERT GLOBAL.** Les défauts d'implémentation import, négociation, POS, ticket et intégration comptable runtime sont corrigés et testés sur Replay. Les seuls blocages restants sont la validation sur un vrai fichier d'assureur, la recette navigateur avec les utilisateurs et la pharmacie autorisés, la configuration comptable réelle de cette pharmacie et le résultat final CI du commit de clôture. Production et Vercel inchangés.
