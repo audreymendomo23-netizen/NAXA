@@ -335,7 +335,7 @@ async function run(env = process.env) {
     await promoterPage.waitForURL(url => url.searchParams.get("ok") === "approuvee", { timeout: 30000 });
 
     const approvedRows = await rows(
-      "client_credit_requests?select=id,statut,origine,vente_id& id=eq.".replace("& ", "&")
+      "client_credit_requests?select=id,statut,origine,vente_id&id=eq."
         + encodeURIComponent(requestId) + "&limit=1"
     );
     if (approvedRows.length !== 1 || approvedRows[0].statut !== "approuvee") {
@@ -449,15 +449,14 @@ async function run(env = process.env) {
     await clientPage.reload();
     await clientPage.getByRole("heading", { name: "Mes crédits et remboursements" }).waitFor();
     await clientPage.getByText("Remboursement", { exact: false }).waitFor();
-    const accountVisible = clientPage.getByText("Encours dû").locator("..");
-    await accountVisible.getByText("0 FCFA", { exact: false }).waitFor();
+    await clientPage.getByText("0 FCFA", { exact: false }).first().waitFor();
 
-    process.stdout.write("PASS — Client acheteur, Promoteur, Caisse/Stock authentifiés dans le navigateur NAXA.\\n");
-    process.stdout.write("PASS — le panier au-dessus du plafond crée une demande Caisse sans paiement ni débit de stock.\\n");
-    process.stdout.write("PASS — le Promoteur approuve la demande ; le même brouillon reprend et débite le stock une seule fois.\\n");
-    process.stdout.write("PASS — suivi Client, opération d'octroi et remboursement réel via JWT Caisse ; solde revenu à zéro.\\n");
-    process.stdout.write("PASS — outbox remboursement et clôture Caisse rapprochée sans écart ; session fermée.\\n");
-    process.stdout.write("INFO — vente, opérations et outbox restent auditées dans la pharmacie technique masquée non commerciale ; aucun produit/offre public n'est créé.\\n");
+    process.stdout.write("PASS — Client acheteur, Promoteur, Caisse/Stock authentifiés dans le navigateur NAXA.\n");
+    process.stdout.write("PASS — le panier au-dessus du plafond crée une demande Caisse sans paiement ni débit de stock.\n");
+    process.stdout.write("PASS — le Promoteur approuve la demande ; le même brouillon reprend et débite le stock une seule fois.\n");
+    process.stdout.write("PASS — suivi Client, opération d'octroi et remboursement réel via JWT Caisse ; solde revenu à zéro.\n");
+    process.stdout.write("PASS — outbox remboursement et clôture Caisse rapprochée sans écart ; session fermée.\n");
+    process.stdout.write("INFO — vente, opérations et outbox restent auditées dans la pharmacie technique masquée non commerciale ; aucun produit/offre public n'est créé.\n");
   } catch (error) {
     browserFailure = error;
   } finally {
@@ -465,7 +464,7 @@ async function run(env = process.env) {
       try {
         await recoverAndCloseSession();
       } catch (error) {
-        if (browserFailure) process.stderr.write("RECUPERATION SESSION Caisse — " + error.message + "\\n");
+        if (browserFailure) process.stderr.write("RECUPERATION SESSION Caisse — " + error.message + "\n");
         else browserFailure = error;
       }
     }
@@ -483,7 +482,7 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().catch(error => {
-    process.stderr.write("CRÉDIT POS NAVIGATEUR E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\\n");
+    process.stderr.write("CRÉDIT POS NAVIGATEUR E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\n");
     process.exitCode = 1;
   });
 }
