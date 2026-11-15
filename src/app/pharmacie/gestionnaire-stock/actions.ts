@@ -372,3 +372,69 @@ export async function declarerProduitEtInitialiserReferenceStock(formData: FormD
   revalidatePath("/api/medicaments/catalogue-hors-ligne");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=produit_declare");
 }
+
+
+export async function modifierFicheProduitPharmacie(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+
+  const { data: activeFunction, error: activeFunctionError } = await sb.rpc("naxa_business_function");
+  if (activeFunctionError || !["promoteur","pharmacie","pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(String(activeFunction))) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=modification_fiche");
+  }
+
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  const produit = String(formData.get("produit_id") ?? "");
+  const nom = String(formData.get("nom") ?? "").trim();
+  const dci = String(formData.get("dci") ?? "").trim();
+  const dosage = String(formData.get("dosage") ?? "").trim();
+  const forme = String(formData.get("forme") ?? "").trim();
+  const codeBarre = String(formData.get("code_barre") ?? "").trim();
+  const conditionnement = String(formData.get("conditionnement") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const indications = String(formData.get("indications") ?? "").trim();
+  const precautions = String(formData.get("precautions") ?? "").trim();
+  const fabricant = String(formData.get("fabricant") ?? "").trim();
+  const surOrdonnance = formData.get("sur_ordonnance") === "on";
+
+  if (!safeUuid(pharmacie) || !safeUuid(produit)
+    || nom.length < 2 || nom.length > 180
+    || dci.length < 1 || dci.length > 180
+    || dosage.length < 1 || dosage.length > 80
+    || forme.length < 1 || forme.length > 100
+    || (codeBarre && !/^\d{8,14}$/.test(codeBarre))
+    || conditionnement.length > 160
+    || description.length > 2000 || indications.length > 2000
+    || precautions.length > 2000 || fabricant.length > 180) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=modification_fiche");
+  }
+
+  // RLS + trigger verify that this fiche belongs to this pharmacy.
+  // Provenance, owner, legacy validation flag and photo rights remain immutable.
+  const { data, error } = await sb.from("produits").update({
+    nom,
+    dci,
+    dosage,
+    forme,
+    code_barre: codeBarre || null,
+    conditionnement: conditionnement || null,
+    description: description || null,
+    indications: indications || null,
+    precautions: precautions || null,
+    fabricant: fabricant || null,
+    sur_ordonnance: surOrdonnance,
+  }).eq("id", produit)
+    .eq("created_by_pharmacie_id", pharmacie)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data?.id) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=modification_fiche");
+  }
+
+  revalidatePath("/pharmacie/gestionnaire-stock");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/api/medicaments/catalogue-hors-ligne");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=fiche_modifiee");
+}
