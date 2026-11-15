@@ -603,7 +603,7 @@ begin
     select count(*),coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
       into v_entry_count,v_debit,v_credit
     from public.compta_ligne l where l.ecriture_id=v_entry;
-    if v_entry_count<>2 or v_debit<>v_credit or v_debit<>v_credit then
+    if v_entry_count<>2 or v_debit<=0 or v_debit<>v_credit then
       raise exception 'Écriture comptable non équilibrée : % lignes %, débit %, crédit %',v_entry,v_entry_count,v_debit,v_credit;
     end if;
   end loop;
@@ -612,8 +612,7 @@ begin
     into v_debit,v_credit
   from public.compta_ligne l
   where l.pharmacie_id=v_pharmacy and l.compte_id=v_receivable
-    and l.ecriture_id in (v_insurer_entry) or
-       (l.pharmacie_id=v_pharmacy and l.compte_id=v_receivable and l.ecriture_id=any(v_payment_entries));
+    and l.ecriture_id=any(array_append(v_payment_entries,v_insurer_entry));
   if v_debit<>5500 or v_credit<>5500 then
     raise exception 'Créance assureur non soldée au grand livre : débit %, crédit %',v_debit,v_credit;
   end if;
