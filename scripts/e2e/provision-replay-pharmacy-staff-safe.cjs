@@ -229,7 +229,7 @@ async function provision(env = process.env) {
   try {
     const promoter = await login(promoterEmail, promoterPassword, "Promoteur E2E");
     const pharmacy = await restAdmin(
-      "pharmacies?select=id,actif,archivee_le& id=eq." + encodeURIComponent(pharmacyId) + "&limit=1"
+      "pharmacies?select=id,actif,archivee_le&id=eq." + encodeURIComponent(pharmacyId) + "&limit=1"
     );
     if (!Array.isArray(pharmacy) || pharmacy.length !== 1
       || pharmacy[0].actif !== true || pharmacy[0].archivee_le !== null) {
