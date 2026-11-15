@@ -108,3 +108,21 @@ La carte de proximité ne calcule ni ne présente plus de prix de livraison indi
 - La validation E2E d'un trajet réel reste conditionnée à l'existence d'une pharmacie partenaire active, publiée et géolocalisée, ainsi qu'à un trajet routier disponible. Les données de démonstration ne constituent pas une preuve terrain.
 
 **État attendu après correction QA :** aucun champ `fraisLivraisonIndicatifs`, aucun calcul `1000 + distanceKm * 200`, aucun affichage « Livraison estimée » dans la recherche de pharmacies. Le devis officiel reste l'unique source du prix.
+
+
+## 7. Décision de gouvernance — aucune commission NAXA sur les livraisons (15 novembre 2026)
+
+**Cette décision remplace les dispositions de commission NAXA de la section 3 et la règle de commission de la section 6.** Les dispositions historiques du 7 novembre sont conservées dans le document pour traçabilité, mais ne sont plus applicables.
+
+- Commission ou retenue NAXA sur une livraison : **0 FCFA**.
+- Le montant total payé par le Client au titre de la livraison reste celui du devis serveur et du barème progressif des sections 1 et 2 ; le barème et les majorations de zone ne changent pas.
+- La totalité des frais de livraison est affectée au service de livraison : `solde_livraison = frais_livraison_client`.
+- Aucun frais ou commission de livraison n'est ajouté à l'abonnement mensuel de la pharmacie.
+- Aucun rapport Admin ou Promoteur ne doit afficher de commissions acquises, à régler ou réglées. Les écrans affichent les frais Clients et le montant intégral affecté au service.
+- Le revenu NAXA reste le prix des licences de gestion/ERP pharmacie, selon le modèle NAXA ; il n'existe ni commission marketplace ni commission de livraison.
+- Les paiements, la disponibilité, le stock et l'organisation concrète de la livraison restent gérés par la pharmacie selon le flux métier existant.
+- La livraison ne se clôture toujours qu'après paiement validé et confirmations Client + Livreur. Cette condition opérationnelle n'est pas assouplie.
+
+**Application technique :** migration `20261115130000_delivery_no_naxa_commission_policy.sql` et test SQL associé, exécutés sur Replay uniquement le 15 novembre 2026. Les lignes historiques non nulles auraient bloqué la migration et exigé un rapprochement manuel ; l'inventaire Replay avant correction était vide (0 ligne, 0 FCFA). Aucune donnée financière historique n'a été réécrite.
+
+**Périmètre :** Replay uniquement. Aucune migration Production, aucun déploiement Vercel.
