@@ -96,9 +96,6 @@ async function provision(env = process.env) {
     throw new Error("Provisionnement autorisé uniquement dans un job GitHub Actions avec stockage temporaire.");
   }
 
-  const roleSessions = [];
-  let passwordFile = null;
-  let failed = false;
   if (!fs.existsSync(promoterPasswordFile)) {
     throw new Error("Le fichier de mot de passe Promoteur est introuvable.");
   }
@@ -236,12 +233,11 @@ async function provision(env = process.env) {
     await adminRequest("/auth/v1/admin/users/" + encodeURIComponent(user.id), "PUT", { password });
   }
 
-  const verifiedUsers = await adminRequest("/auth/v1/admin/users?page=1&per_page=1000");
-  const verified = (verifiedUsers.users || []).filter(
-    x => String(x.email || "").trim().toLowerCase() === EMAIL
-  );
-  if (verified.length !== 1) throw new Error("L'identité Livreur n'est plus unique après provisionnement.");
-  user = verified[0];
+  const verifiedFixtures = await findAuthFixtureUsers();
+  if (verifiedFixtures.matches.length !== 1) {
+    throw new Error("L'identité Livreur n'est plus unique après provisionnement.");
+  }
+  user = verifiedFixtures.matches[0];
 
   const profiles = await restAdmin(
     "profiles?select=id,role,actif,age_verified,consent_accepted_at,username,first_name,last_name,phone,date_of_birth,fonction_interne&id=eq."
