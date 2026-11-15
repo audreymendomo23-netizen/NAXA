@@ -481,7 +481,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                       {medicament.lowestPartnerPrice !== null ? ` · dès ${new Intl.NumberFormat("fr-FR").format(medicament.lowestPartnerPrice)} FCFA` : ""}
                     </p>
                   )}
-                  {medicament.availability === "non_verifiee" && <p className="text-xs text-slate-500">Le statut ne sera confirmé qu'après vérification des stocks NAXA.</p>}
+                  {medicament.availability === "non_verifiee" && <p className="text-xs text-slate-500">Le statut sera confirmé après actualisation du stock par la pharmacie partenaire.</p>}
                   {medicament.localProductId && <p className="text-xs text-slate-600">Informations déclarées par la pharmacie partenaire ; NAXA ne certifie pas cette fiche.</p>}
                   <a href={medicament.cameroonRegulatoryReference} target="_blank" rel="noreferrer" className="inline-block text-xs font-semibold text-naxa-green-800 underline">Vérifier l’autorisation au Cameroun (DPML)</a>
                 </div>
