@@ -173,6 +173,42 @@ async function run(env = process.env) {
       catch (error) { errors.push(error.message); }
     }
 
+    if (operationId && operationDeleted) {
+      try {
+        const remainingOps = await adminRows(
+          "client_credit_operations?select=id&reference=eq." + encodeURIComponent(marker) + "&limit=2"
+        );
+        const remainingEvents = await adminRows(
+          "compta_evenement?select=id&source_type=eq.credit_operation&source_id=eq."
+            + encodeURIComponent(operationId) + "&evenement_type=eq.credit_remboursement&limit=2"
+        );
+        if (remainingOps.length || remainingEvents.length) {
+          errors.push("Des lignes de remboursement ou outbox subsistent après nettoyage.");
+        }
+      } catch (error) { errors.push(error.message); }
+    }
+    if (creditId && operationDeleted) {
+      try {
+        const remainingCredits = await adminRows(
+          "client_credits?select=id&id=eq." + encodeURIComponent(creditId) + "&limit=2"
+        );
+        if (remainingCredits.length) errors.push("Le compte crédit de fixture subsiste après nettoyage.");
+      } catch (error) { errors.push(error.message); }
+    }
+    if (cashierSessionId && sessionClosed) {
+      try {
+        const closedRows = await adminRows(
+          "caisses_sessions?select=id,statut,total_theorique,total_compte,ecart&id=eq."
+            + encodeURIComponent(cashierSessionId) + "&limit=1"
+        );
+        const row = closedRows[0];
+        if (!row || row.statut !== "cloturee" || Number(row.total_theorique) !== 0
+          || Number(row.total_compte) !== 0 || Number(row.ecart) !== 0) {
+          errors.push("La session d'audit Caisse n'est pas clôturée à zéro après le nettoyage du test.");
+        }
+      } catch (error) { errors.push(error.message); }
+    }
+
     for (const token of [...new Set(sessions)].reverse()) {
       try {
         await call("/auth/v1/logout?scope=local", { method: "POST", token, label: "Fermeture session E2E" });
@@ -275,7 +311,8 @@ async function run(env = process.env) {
     );
     if (events.length !== 1 || events[0].source_id !== operationId
       || events[0].evenement_type !== "credit_remboursement"
-      || events[0].source_type !== "credit_operation") {
+      || events[0].source_type !== "credit_operation"
+      || events[0].donnees?.montant_fcfa !== String(amount)) {
       throw new Error("L'outbox comptable du remboursement n'a pas été émise une seule fois.");
     }
 
