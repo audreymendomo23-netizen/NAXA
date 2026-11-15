@@ -2713,3 +2713,38 @@ Relecture des fonctions actives Replay après le correctif Caisse :
 **Tête du code testée avant l'ajout de cette note :** 43d55e53aed354bcf9b235fc54db21ccc7ec275a. **Commit documentaire courant :** [43b0b1e0](https://github.com/audreymendomo23-netizen/NAXA/commit/43b0b1e0bdc54000b5d7c8a00a2f9c4f5315d099).
 
 **Verdict §66 :** contrat ERP interne sur pharmacie masquée confirmé par lecture SQL ; parcours navigateur Playwright non encore exécuté/confirmé ; aucun PASS de bout en bout ajouté. PARTIEL / NO-GO GLOBAL inchangé. Production, Vercel et Play Store inchangés.
+
+
+## 67. Recette crédit étendue sur comptes existants Replay (15/11/2026)
+
+### Comptes et pharmacie réutilisés
+
+La recette réutilise les identités Replay déjà provisionnées : Promoteur, Client acheteur, Responsable, Gestionnaire Stock/Caisse et Livreur. Aucun nouveau compte commercial n'est créé pour ce chantier.
+
+La pharmacie technique reste strictement non commerciale :
+- ID : `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`.
+- Active, non archivée, `est_demo=false), masquée par `visible_recherche=false).
+- Produit interne de recette : `dfd7313c-46a4-455a-b67d-50f0ce2a3686), prix 1 000 FCFA, quantité rétablie à 4 après le run précédent.
+- Contrôle post-run du 15/11/2026 : visibilité `false), stock 4, zéro compte crédit, zéro demande, zéro réservation et zéro compte comptable technique résiduel.
+
+### Correctifs et contrats ajoutés
+
+- Le navigateur de recette initialise les deux marqueurs de déclaration d'âge adulte exigés (cookie middleware et déclaration locale), sans désactiver les contrôles d'âge.
+- Le formulaire Promoteur de plan comptable expose maintenant `credit_octroi` et `credit_remboursement`, déjà autorisés par les RPC de configuration et le worker.
+- Tests navigateur Replay ajoutés :
+  - Marketplace : authentification Client, publication temporaire de la seule pharmacie technique Replay, consultation de l'offre, ajout au panier, envoi du justificatif, soumission de la demande et refus Promoteur ; vérification de l'absence de débit de stock et restauration du masquage dans `finally).
+  - Comptabilité : connexion Promoteur, sélection de la pharmacie, création/validation de deux comptes techniques, deux journaux crédit et quatre mappings débit/crédit ; nettoyage ciblé des lignes techniques créées, en conservant les événements d'audit.
+- Les tests statiques de ces parcours ne lancent pas Playwright pendant la phase de qualité ; les véritables scénarios Chromium sont exécutés dans le workflow Replay dédié.
+
+### Preuves CI au SHA 12cb810
+
+- Qualité complète : run [43769591812](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43769591812) **SUCCESS** sur `12cb81088af77fa57cbdce1d6998e64580200edb) : tests Node, TypeScript, ESLint, build Next.js et contrôles syntaxiques GitHub Actions passés.
+- Run Replay antérieur [43768982230](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43768982230) sur `466a1e0` : provisionnements, build, Web Push Chromium 3/3 et remboursement authentifié par JWT Caisse passés ; le parcours navigateur Caisse a ensuite échoué sur un délai de redirection après connexion. L'étape Storage a été sautée à cause de cet échec.
+- Après cet échec, vérification SQL Replay : pharmacie masquée, stock 4, aucun compte crédit, aucune demande, aucune réservation et aucun compte de plan comptable résiduel.
+- Nouveau run Replay [43769591849](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43769591849) sur le SHA `12cb810` : en cours après le provisionnement des comptes et de la pharmacie technique ; Chromium est en installation. Il inclut le nouveau diagnostic de l'API de connexion, puis les parcours POS, Marketplace et paramétrage comptable. **Aucun résultat navigateur de ce nouveau run n'est encore déclaré PASS.**
+
+### Verdict §67
+
+**PARTIEL / NO-GO global.** La qualité du code est verte au SHA indiqué ; les preuves backend Web Push et remboursement JWT sont vertes ; la configuration comptable backend et worker est déjà vérifiée par SQL transactionnel. Les nouvelles recettes d'interface POS, Marketplace et paramétrage comptable attendent le résultat terminal du run Replay `43769591849`. La réussite du parcours Marketplace d'approbation et de l'interface comptable ne doit pas être extrapolée du seul test SQL.
+
+Aucune migration Production, aucun déploiement Vercel et aucune publication Play Store n'ont été effectués.
