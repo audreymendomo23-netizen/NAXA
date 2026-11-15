@@ -17,7 +17,7 @@ const productIdentityMigration = fs.readFileSync(path.join(root, "supabase/migra
 const productIdentitySqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115110000_pharmacy_product_identity_scoped_by_pharmacy.sql"), "utf8");
 
 test("le gestionnaire Stock peut déclarer une référence absente du catalogue", () => {
-  assert.match(workspace, /Déclarer un produit absent du catalogue/);
+  assert.match(workspace, /Créer ma fiche produit pour cette pharmacie/);
   assert.match(workspace, /NAXA ne valide ni n’approuve la fiche/);
   assert.match(workspace, /name="nom"/);
   assert.match(workspace, /name="dci"/);
