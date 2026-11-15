@@ -391,7 +391,7 @@ begin
       'assureur_id',v_s.assureur_id::text
     ),
     'a_traiter'
-  ) on conflict (cle_idempotence) do nothing;
+  ) on conflict (pharmacie_id,cle_idempotence) do nothing;
 end;
 $function$;
 
