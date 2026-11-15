@@ -389,11 +389,11 @@ begin
   );
   v_assurance:=v_ticket->'assurance';
   if v_ticket->'sale'->>'statut'<>'payee'
-     or (v_assurance->>'montant_brut_fcfa')::bigint<>10000
-     or (v_assurance->>'montant_assureur_initial_fcfa')::bigint<>6000
-     or (v_assurance->>'montant_client_initial_fcfa')::bigint<>4000
-     or (v_assurance->>'montant_assureur_fcfa')::bigint<>5500
-     or (v_assurance->>'montant_client_fcfa')::bigint<>4500
+     or (v_assurance->>'montant_brut_fcfa')::numeric<>10000
+     or (v_assurance->>'montant_assureur_initial_fcfa')::numeric<>6000
+     or (v_assurance->>'montant_client_initial_fcfa')::numeric<>4000
+     or (v_assurance->>'montant_assureur_fcfa')::numeric<>5500
+     or (v_assurance->>'montant_client_fcfa')::numeric<>4500
      or v_assurance->'proposition_acceptee' is null then
     raise exception 'Ticket client : partage initial/négocié incorrect : %',v_assurance;
   end if;
@@ -465,7 +465,7 @@ begin
   select count(*) into v_sale_events from public.compta_evenement e
   where e.pharmacie_id=v_pharmacy and e.evenement_type='vente_encaissee'
     and e.source_id=v_vente::text
-    and (e.donnees->>'montant_fcfa')::bigint=4500;
+    and (e.donnees->>'montant_fcfa')::numeric=4500;
   if v_sale_events<>1 then
     raise exception 'Outbox vente encaissée ne doit retenir que la part client : %',v_sale_events;
   end if;
