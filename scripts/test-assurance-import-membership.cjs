@@ -14,6 +14,8 @@ const runtimeImportTest = fs.readFileSync(path.join(root, "supabase/tests/202611
 const declarationStampMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql"), "utf8");
 const pharmacyPage = fs.readFileSync(path.join(root, "src/app/pharmacie/assurance/page.tsx"), "utf8");
 const clientPage = fs.readFileSync(path.join(root, "src/components/assurance/AssuranceReceiptDetails.tsx"), "utf8");
+const csvTemplate = fs.readFileSync(path.join(root, "public/modeles/assureur-liste-assures-exemple.csv"), "utf8");
+const importGuide = fs.readFileSync(path.join(root, "docs/architecture/ASSURANCE_IMPORT_FORMAT_NAXA.md"), "utf8");
 
 test("l'import accepte CSV/XLS/XLSX, plafonne les fichiers et calcule une empreinte SHA-256", () => {
   assert.match(pharmacyPage, /\["csv","xls","xlsx"\]/);
@@ -101,6 +103,18 @@ test("le test runtime utilise un Responsable réellement affecté et bloque les 
   assert.ok(verificationMigration.includes("verification_le timestamptz not null default clock_timestamp()"));
   assert.ok(quoteCorrelationMigration.includes("v.couverture_id=c.id"));
   assert.ok(quoteCorrelationMigration.includes("v2.couverture_id=c.id"));
+});
+
+test("le modèle CSV utilise les colonnes canoniques, dont le bénéficiaire, et n'embarque que des données fictives", () => {
+  const headers = csvTemplate.split(/\\r?\\n/)[0];
+  for (const header of ["numero_adherent","numero_police","beneficiaire_nom","date_debut","date_fin","statut"]) {
+    assert.ok(headers.split(",").includes(header), `colonne absente du modèle: ${header}`);
+  }
+  assert.match(csvTemplate, /EXEMPLE-/);
+  assert.match(pharmacyPage, /beneficiairenom/);
+  assert.match(pharmacyPage, /assureur-liste-assures-exemple\\.csv/);
+  assert.match(importGuide, /SHA-256/);
+  assert.match(importGuide, /ne prouvent pas cryptographiquement/);
 });
 
 test("les fichiers et les tests de contrat couvrent le contrôle des imports et du POS négocié", () => {
