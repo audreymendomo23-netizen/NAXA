@@ -281,7 +281,13 @@ async function run(env = process.env) {
         method: "GET", headers: { Authorization: "Bearer " + cronSecret },
       });
       if (!sent.ok || sent.data?.claimed !== 1 || sent.data?.sent !== 1 || sent.data?.webPushSent !== 1) {
-        throw new Error("Le worker NAXA n'a pas confirmé un envoi ciblé pour " + item.label + " (HTTP " + sent.status + ").");
+        const counters = ["claimed", "sent", "noDevice", "retried", "failed", "webPushSent", "fcmSent"]
+          .map((key) => key + "=" + String(Number(sent.data?.[key] ?? 0))).join(", ");
+        const workerError = typeof sent.data?.error === "string" ? " · " + sent.data.error.slice(0, 120) : "";
+        throw new Error(
+          "Le worker NAXA n'a pas confirmé un envoi Web Push ciblé pour " + item.label
+          + " (HTTP " + sent.status + " ; " + counters + workerError + ")."
+        );
       }
       await item.page.waitForFunction(async () => {
         const registrations = await navigator.serviceWorker.getRegistrations();
