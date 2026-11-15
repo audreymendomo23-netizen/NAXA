@@ -50,7 +50,6 @@ async function run(env = process.env) {
   const sessions = [];
   let promoterToken = null;
   let cashierToken = null;
-  let clientToken = null;
   let creditId = null;
   let cashierSessionId = null;
   let operationId = null;
@@ -189,7 +188,6 @@ async function run(env = process.env) {
     const cashier = await login(CASHIER_EMAIL, cashierPassword, "Caisse");
     cashierToken = cashier.token;
     const client = await login(CLIENT_EMAIL, clientPassword, "Client");
-    clientToken = client.token;
     clientId = client.id;
 
     await rpc("naxa_select_active_role", promoterToken, {
