@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, "..");
 const importMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115120000_assurance_import_membership_pos_negotiation.sql"), "utf8");
 const verificationMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql"), "utf8");
 const importContract = fs.readFileSync(path.join(root, "supabase/tests/20261115121500_assurance_import_membership_pos_negotiation.sql"), "utf8");
+const declarationStampMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql"), "utf8");
 const pharmacyPage = fs.readFileSync(path.join(root, "src/app/pharmacie/assurance/page.tsx"), "utf8");
 const clientPage = fs.readFileSync(path.join(root, "src/components/assurance/AssuranceReceiptDetails.tsx"), "utf8");
 
@@ -62,6 +63,11 @@ test("les vérifications sont multi-pharmacies, versionnées et annulées par un
   assert.match(verificationMigration, /v2\.couverture_id=c\.id/);
   assert.doesNotMatch(verificationMigration, /v\.couverture_id=v_c\.id/);
   assert.match(verificationMigration, /assurance_stamp_couverture_declaration/);
+});
+
+test("une correction de couverture invalide l’ancienne vérification avec un horodatage distinct", () => {
+  assert.match(declarationStampMigration, /new\.declaration_maj_at:=clock_timestamp\(\)/);
+  assert.doesNotMatch(declarationStampMigration, /new\.declaration_maj_at:=now\(\)/);
 });
 
 test("le Client ne peut calculer un devis qu'après vérification de sa couverture dans la pharmacie réservée", () => {
