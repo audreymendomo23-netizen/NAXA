@@ -42,7 +42,7 @@ export default function AssuranceDashboardPage(){
  const [loading,setLoading]=useState(true),[error,setError]=useState(""),[role,setRole]=useState(""),[pharmacies,setPharmacies]=useState<string[]>([]),[dossiers,setDossiers]=useState<Dossier[]>([]),[events,setEvents]=useState<Evenement[]>([]),[assureurs,setAssureurs]=useState<Record<string,string>>({}),[newInsurer,setNewInsurer]=useState(""),[newCode,setNewCode]=useState(""),[savingInsurer,setSavingInsurer]=useState(false),[notice,setNotice]=useState(""),[pharmacyOptions,setPharmacyOptions]=useState<PharmacyOption[]>([]),[assureurOptions,setAssureurOptions]=useState<Assureur[]>([]),[selectedPharmacy,setSelectedPharmacy]=useState(""),[selectedInsurer,setSelectedInsurer]=useState(""),[ruleRate,setRuleRate]=useState(""),[ruleCap,setRuleCap]=useState(""),[ruleFranchise,setRuleFranchise]=useState("0"),[savingConvention,setSavingConvention]=useState(false);
  const [conventions,setConventions]=useState<Convention[]>([]),[conventionRules,setConventionRules]=useState<ConventionRule[]>([]),[products,setProducts]=useState<ProductOption[]>([]),[selectedConventionId,setSelectedConventionId]=useState("");
  const [snapshots,setSnapshots]=useState<Snapshot[]>([]),[busyDossier,setBusyDossier]=useState("");
- const [importFile,setImportFile]=useState<File|null>(null),[importSourceRef,setImportSourceRef]=useState(""),[importPreview,setImportPreview]=useState<ImportPreview|null>(null),[importBusy,setImportBusy]=useState(false);
+ const [importFile,setImportFile]=useState<File|null>(null),[importSourceRef,setImportSourceRef]=useState(""),[importPreview,setImportPreview]=useState<ImportPreview|null>(null),[importBusy,setImportBusy]=useState(false),[importMode,setImportMode]=useState<"complet"|"delta">("complet");
  const [proposals,setProposals]=useState<Proposition[]>([]),[proposalAmounts,setProposalAmounts]=useState<Record<string,string>>({}),[proposalReasons,setProposalReasons]=useState<Record<string,string>>({}),[savingProposal,setSavingProposal]=useState("");
  const [insurerRefs,setInsurerRefs]=useState<Record<string,string>>({}),[repaymentAmounts,setRepaymentAmounts]=useState<Record<string,string>>({}),[repaymentDates,setRepaymentDates]=useState<Record<string,string>>({}),[repaymentRefs,setRepaymentRefs]=useState<Record<string,string>>({});
  const todayLocal=()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10)};
@@ -201,9 +201,9 @@ export default function AssuranceDashboardPage(){
    }));
    const hashBytes=await crypto.subtle.digest("SHA-256",buffer);
    const sha256=Array.from(new Uint8Array(hashBytes)).map(byte=>byte.toString(16).padStart(2,"0")).join("");
-   const {data,error:e}=await supabaseBrowser().rpc("assurance_import_simuler",{
+   const {data,error:e}=await supabaseBrowser().rpc("assurance_import_simuler_mode",{
     p_pharmacie:selectedPharmacy,p_assureur:selectedInsurer,p_reference_source:importSourceRef.trim(),
-    p_nom_fichier:importFile.name,p_sha256:sha256,p_lignes:rows
+    p_nom_fichier:importFile.name,p_sha256:sha256,p_lignes:rows,p_mode_import:importMode
    });
    if(e)throw new Error(e.message||"La simulation de rapprochement a échoué.");
    setImportPreview(data as ImportPreview);
@@ -220,9 +220,9 @@ export default function AssuranceDashboardPage(){
   const {data,error:e}=await supabaseBrowser().rpc("assurance_import_appliquer",{p_import:importPreview.import_id});
   if(e)setError(e.message||"L'application de l'import a échoué.");
   else {
-   const result=data as {statut?:string;couvertures_appliquees?:number;suspendues?:number;expirees?:number};
+   const result=data as {statut?:string;mode_import?:string;couvertures_appliquees?:number;suspendues?:number;expirees?:number};
    setImportPreview(current=>current?{...current,statut:"appliquee"}:current);
-   setNotice((result.couvertures_appliquees??0)+" couverture(s) rapprochée(s) ; "+(result.suspendues??0)+" suspendue(s), "+(result.expirees??0)+" expirée(s).");
+   setNotice((result.couvertures_appliquees??0)+" couverture(s) rapprochée(s) ; "+(result.suspendues??0)+" suspendue(s), "+(result.expirees??0)+" expirée(s). Mode "+(result.mode_import==="complet"?"liste complète":"mise à jour partielle")+".");
    setImportFile(null);
    await load();
   }
@@ -277,6 +277,7 @@ export default function AssuranceDashboardPage(){
     <label className="text-sm font-semibold">Pharmacie<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedPharmacy} onChange={e=>{setSelectedPharmacy(e.target.value);setImportPreview(null);}}>{pharmacyOptions.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
     <label className="text-sm font-semibold">Assureur<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedInsurer} onChange={e=>{setSelectedInsurer(e.target.value);setImportPreview(null);}}>{assureurOptions.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
     <label className="text-sm font-semibold sm:col-span-2">Référence de transmission / courrier assureur<input className="mt-1 w-full rounded-xl border p-3 font-normal" value={importSourceRef} onChange={e=>setImportSourceRef(e.target.value)} placeholder="Référence du courrier ou du fichier transmis"/></label>
+    <label className="text-sm font-semibold sm:col-span-2">Type de fichier reçu<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={importMode} onChange={e=>{setImportMode(e.target.value as "complet"|"delta");setImportPreview(null);}}><option value="complet">Liste complète des assurés à jour</option><option value="delta">Mise à jour partielle / changements uniquement</option></select><span className="mt-1 block text-xs font-normal text-slate-500">Une liste complète remplace les vérifications précédentes de cette pharmacie pour cet assureur. Une mise à jour partielle ne modifie que les personnes présentes dans le fichier.</span></label>
     <label className="text-sm font-semibold sm:col-span-2">Fichier assureur<input type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="mt-1 w-full rounded-xl border p-3 font-normal" onChange={e=>{setImportFile(e.target.files?.[0]??null);setImportPreview(null);}}/><span className="mt-1 block text-xs font-normal text-slate-500">{importFile?importFile.name:"Choisir un fichier de liste des adhérents"}</span></label>
    </div>
    <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Colonnes attendues : numéro adhérent, date début et statut. Numéro de police, nom du bénéficiaire et date de fin sont facultatifs. Les dates doivent être lisibles en AAAA-MM-JJ ou JJ/MM/AAAA. Les colonnes peuvent porter des intitulés usuels équivalents.</p>
