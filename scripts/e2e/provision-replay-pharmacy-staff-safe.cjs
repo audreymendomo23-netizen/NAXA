@@ -317,6 +317,14 @@ async function provision(env = process.env) {
         }
       }
       if (persona.role === "gestionnaire_stock") {
+        const assignment = await rpc("naxa_has_active_professional_assignment", session.token, {
+          p_profile: session.id,
+          p_pharmacie: pharmacyId,
+          p_fonction: "gestionnaire_stock",
+        });
+        if (!assignment.ok || assignment.data !== true) {
+          throw new Error("La RPC serveur ne confirme pas l'affectation Gestionnaire Stock active (HTTP " + assignment.status + ").");
+        }
         const visible = await request(
           "/rest/v1/stocks?select=pharmacie_id,produit_id,quantite&pharmacie_id=eq."
             + encodeURIComponent(pharmacyId) + "&limit=1",
