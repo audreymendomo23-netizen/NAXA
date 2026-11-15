@@ -191,8 +191,14 @@ async function run(env = process.env) {
       headers: { apikey: adminKey, Authorization: "Bearer " + adminKey, "Content-Type": "application/json" },
       body: JSON.stringify({ p_today: localCameroonDate(), p_limit: 1000 }),
     });
-    if (!dispatched.ok || typeof dispatched.data !== "number" || dispatched.data < 3) {
-      throw new Error("Le dispatcher n'a pas émis les trois rappels attendus (HTTP " + dispatched.status + ").");
+    if (!dispatched.ok) {
+      const summary = restErrorSummary(dispatched.data);
+      throw new Error("Le dispatcher a refusé la distribution (HTTP " + dispatched.status
+        + (summary ? " [" + summary + "]" : "") + ").");
+    }
+    if (typeof dispatched.data !== "number" || dispatched.data < 3) {
+      throw new Error("Le dispatcher n'a pas émis les trois rappels attendus (résultat "
+        + String(dispatched.data).slice(0, 80) + ").");
     }
 
     const notifications = await admin("/rest/v1/notifications?select=id,user_id,type,related_entity_id,titre,corps"
