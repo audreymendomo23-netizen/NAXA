@@ -52,7 +52,7 @@ begin
   perform public.vente_ajouter_produit(v_sale,v_product,1);
   select x.resultat,x.demande_id,x.operation_id,x.numero_vente,x.total
     into v_status,v_request,v_operation,v_number,v_total
-  from public.vente_credit_finaliser(v_sale,'E2E-CREDIT-POS-OVER');
+  from public.vente_credit_finaliser(v_sale,'E2E-CREDIT-POS-OVER') x;
   if v_status<>'decision_requise' or v_request is null or v_total<>1000 then
     raise exception 'Le dépassement du plafond ne crée pas de demande Caisse cohérente';
   end if;
@@ -70,7 +70,7 @@ begin
   perform public.client_credit_demande_decider(v_request,true);
   select x.resultat,x.demande_id,x.operation_id,x.numero_vente,x.total
     into v_status,v_request,v_operation,v_number,v_total
-  from public.vente_credit_finaliser(v_sale,'E2E-CREDIT-POS-APPROVED');
+  from public.vente_credit_finaliser(v_sale,'E2E-CREDIT-POS-APPROVED') x;
   if v_status<>'finalisee' or v_operation is null or v_total<>1000 then
     raise exception 'La vente n’a pas repris après approbation du crédit';
   end if;
@@ -93,7 +93,7 @@ begin
   perform public.vente_ajouter_produit(v_sale,v_product,1);
   select x.resultat,x.demande_id,x.operation_id,x.numero_vente,x.total
     into v_status,v_request,v_operation,v_number,v_total
-  from public.vente_credit_finaliser(v_sale,'E2E-CREDIT-POS-WITHIN-LIMIT');
+  from public.vente_credit_finaliser(v_sale,'E2E-CREDIT-POS-WITHIN-LIMIT') x;
   if v_status<>'finalisee' or v_operation is null then
     raise exception 'Le crédit sous plafond n’a pas été finalisé directement';
   end if;
