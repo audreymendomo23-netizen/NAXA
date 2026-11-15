@@ -51,6 +51,6 @@ test("les serveurs locaux de recette fournissent un secret anti-bruteforce √©ph√
     path.join(__dirname, "../.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml"),
     "utf8",
   );
-  assert.equal((workflow.match(/NAXA_RATE_LIMIT_SECRET="\\$\\(openssl rand -hex 32\\)"\\n\\s*export NAXA_RATE_LIMIT_SECRET/g) || []).length, 2);
+  assert.equal((workflow.match(/NAXA_RATE_LIMIT_SECRET="\$\(openssl rand -hex 32\)"\r?\n\s*export NAXA_RATE_LIMIT_SECRET/g) || []).length, 2);
   assert.equal((workflow.match(/echo "::add-mask::\$NAXA_RATE_LIMIT_SECRET"/g) || []).length, 2);
 });
