@@ -210,10 +210,10 @@ async function run(env = process.env) {
       { encoding: "utf8", mode: 0o600 }
     );
 
-    process.stdout.write("PASS — Caisse technique provisionnée par le Promoteur sur la pharmacie HYBRIDE masquée.\\n");
-    process.stdout.write("PASS — Caisse et rôle Gestionnaire Stock sont attribués au même profil, utilisables séparément via sélection du rôle actif.\\n");
-    process.stdout.write("PASS — fiche propriétaire et référence Stock initialisées par les RPC pharmacie/Stock, stock 4 unités, aucun lot.\\n");
-    process.stdout.write("PASS — visibilité Marketplace de la pharmacie demeure false ; aucune offre publique créée.\\n");
+    process.stdout.write("PASS — Caisse technique provisionnée par le Promoteur sur la pharmacie HYBRIDE masquée.\n");
+    process.stdout.write("PASS — Caisse et rôle Gestionnaire Stock sont attribués au même profil, utilisables séparément via sélection du rôle actif.\n");
+    process.stdout.write("PASS — fiche propriétaire et référence Stock initialisées par les RPC pharmacie/Stock, stock 4 unités, aucun lot.\n");
+    process.stdout.write("PASS — visibilité Marketplace de la pharmacie demeure false ; aucune offre publique créée.\n");
   } finally {
     for (const token of [...new Set(tokens)].reverse()) {
       await call("/auth/v1/logout?scope=local", {
@@ -225,7 +225,7 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().catch(error => {
-    process.stderr.write("PROVISIONNEMENT CRÉDIT E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\\n");
+    process.stderr.write("PROVISIONNEMENT CRÉDIT E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\n");
     process.exitCode = 1;
   });
 }
