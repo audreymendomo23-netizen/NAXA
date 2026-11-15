@@ -7,6 +7,7 @@ declare
   v_pos text;
   v_link text;
   v_ticket text;
+  v_stamp text;
   v_rls boolean;
   v_policy text;
 begin
@@ -74,6 +75,10 @@ begin
   end if;
 
   v_calculate:=pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure);
+  v_stamp:=pg_get_functiondef('private.assurance_stamp_couverture_declaration()'::regprocedure);
+  if position('new.declaration_maj_at:=clock_timestamp()' in replace(lower(v_stamp),' ',''))=0 then
+    raise exception 'Une correction de déclaration doit avancer son horodatage, même dans une transaction unique';
+  end if;
   if position('assurance_couverture_verifications' in v_calculate)=0
      or position('where c.id=p_couverture and c.client_id=v_uid' in replace(lower(v_calculate),E'\\n',' '))=0
      or position('v.couverture_id=c.id' in lower(v_calculate))=0
