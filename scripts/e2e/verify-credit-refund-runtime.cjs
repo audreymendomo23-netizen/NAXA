@@ -115,11 +115,14 @@ async function run(env = process.env) {
         + encodeURIComponent(cashierSessionId) + "&nature=eq.remboursement"
     ).catch(() => []);
     const refundTotal = rows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
-    await rpc("caisse_cloturer", cashierToken, {
+    const closed = await rpc("caisse_cloturer", cashierToken, {
       p_session: cashierSessionId, p_total_compte: refundTotal,
-    }, "Clôture de la session E2E")
-      .then(() => { sessionClosed = true; })
-      .catch(() => null);
+    }, "Clôture de la session E2E");
+    const row = Array.isArray(closed) ? closed[0] : closed;
+    if (!row || Number(row.total_theorique) !== refundTotal || Number(row.ecart) !== 0) {
+      throw new Error("La clôture technique de la session Caisse n'a pas été rapprochée à zéro.");
+    }
+    sessionClosed = true;
   }
 
   async function cleanup() {
@@ -164,9 +167,12 @@ async function run(env = process.env) {
       } catch (error) { errors.push(error.message); }
     }
     // Close only after removing the temporary transaction: the retained session
-    // audit then accurately records a zero-cash session. If deletion failed,
+    // audit then accurately records the actual remaining cash. If deletion failed,
     // closeSessionSafely reconciles any still-present refund operation.
-    if (cashierSessionId && !sessionClosed) await closeSessionSafely();
+    if (cashierSessionId && !sessionClosed) {
+      try { await closeSessionSafely(); }
+      catch (error) { errors.push(error.message); }
+    }
 
     for (const token of [...new Set(sessions)].reverse()) {
       try {
@@ -292,19 +298,19 @@ async function run(env = process.env) {
       throw new Error("Le refus du montant excessif a modifié le solde.");
     }
 
-    const close = await rpc("caisse_cloturer", cashierToken, {
-      p_session: cashierSessionId, p_total_compte: amount,
-    }, "Rapprochement de caisse après remboursement");
-    const closeRow = Array.isArray(close) ? close[0] : close;
-    if (Number(closeRow?.total_theorique) !== amount || Number(closeRow?.ecart) !== 0) {
-      throw new Error("Le remboursement n'a pas été intégré au rapprochement espèces de la session.");
+    const sessionRefundRows = await adminRows(
+      "client_credit_operations?select=montant&caisse_session_id=eq."
+        + encodeURIComponent(cashierSessionId) + "&nature=eq.remboursement&mode_paiement=eq.especes"
+    );
+    const sessionRefundTotal = sessionRefundRows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
+    if (sessionRefundTotal !== amount) {
+      throw new Error("Le registre des remboursements espèces ne rattache pas exactement 250 FCFA à la session Caisse.");
     }
-    sessionClosed = true;
 
     process.stdout.write("PASS — remboursement exécuté via JWT du compte Caisse Replay authentifié.\n");
     process.stdout.write("PASS — solde diminué exactement de 250 FCFA ; opération espèces reliée à la session personnelle.\n");
     process.stdout.write("PASS — outbox credit_remboursement émise une seule fois ; dépassement de solde refusé sans mutation.\n");
-    process.stdout.write("PASS — rapprochement de la session Caisse : espèces théoriques 250 FCFA, écart 0 ; session clôturée.\n");
+    process.stdout.write("PASS — registre espèces de la session : remboursement lié de 250 FCFA ; nettoyage des lignes avant clôture d'audit.\n");
     process.stdout.write("INFO — le solde initial de 500 FCFA a été préchargé uniquement par le service Replay pour tester le RPC de remboursement ; ce test ne simule pas une vente ni une créance commerciale.\n");
   } catch (error) {
     mainError = error;
