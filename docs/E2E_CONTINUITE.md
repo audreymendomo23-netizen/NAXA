@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — matrice Storage Admin + Promoteur validée sur Replay (17 PASS / 0 SKIP, §35) ; protections SQL Livreur testées (§37) ; provisionnement Caisse corrigé (SQL PASS, §39) ; lecture RLS Stock corrigée (SQL PASS, §40) ; exposition publique des fiches non validées fermée et insertion auto-validante interdite (SQL PASS, §41). Les profils E2E Stock/Caisse/Client acheteur ne sont pas encore provisionnés ; aucun produit n'est validé, aucune référence DPML n'est importée et les deux pharmacies E2E n'ont aucun stock ni lot vendable. La réservation réelle reste bloquée.
+**État global :** 🟡 PARTIEL — matrice Storage Admin + Promoteur validée sur Replay (17 PASS / 0 SKIP, §35) ; protections SQL Livreur testées (§37) ; provisionnement Caisse corrigé (SQL PASS, §39) ; lecture RLS Stock corrigée (SQL PASS, §40) ; exposition publique des fiches non validées fermée et insertion auto-validante interdite (SQL PASS, §41) ; helper RPC de stock interne isolé des appels directs anon/authenticated, avec wrapper public filtré conservé (SQL PASS, §42). Les profils E2E Stock/Caisse/Client acheteur ne sont pas encore provisionnés ; aucun produit n'est validé, aucune référence DPML n'est importée et les deux pharmacies E2E n'ont aucun stock ni lot vendable. La réservation réelle reste bloquée.
 
 ## 1. Règles et périmètre sécurisé
 
@@ -1316,4 +1316,49 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 3. Pour au moins un produit réellement homologué et disponible, faire enregistrer par la pharmacie une pièce d'approvisionnement réelle, le lot et la date de péremption via les parcours métier audités ; ne pas injecter quantité ou lot inventés.
 4. Relancer/consulter le workflow Replay, prouver le provisionnement Client acheteur/Stock/Caisse et l'accès réel sous JWT ; ouvrir/fermer le service Stock sans fonds Caisse fictifs.
 5. Seulement après ces prérequis, exécuter la réservation Client, préparation Stock, affectation Livreur, suivi, livraison et encaissement réel par la Caisse.
+
+
+
+## 42. Isolation du helper Marketplace de disponibilité du stock (15/11/2026)
+
+**Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Aucun changement Production/Vercel.
+
+### Audit → contradiction → cause racine
+
+- La fonction interne `private.marketplace_offre_stock_disponible_guarded(uuid,uuid)` vérifiait déjà le produit validé, la pharmacie active/publiée/non-démo/non archivée, la fraîcheur du stock (48 h), les lots non bloqués/non périmés lorsqu'ils existent et les réservations actives.
+- Mais le schéma `private` accordait `USAGE` à `anon`, et le helper avait `EXECUTE` accordé directement à `anon` et `authenticated`.
+- Le wrapper public `public.marketplace_offre_stock_disponible(uuid,uuid)` était `SECURITY INVOKER` et appelait directement ce helper. Il fallait donc conserver l'API Marketplace publique de lecture des offres tout en supprimant la voie d'appel directe du helper privé.
+- Les recherches SQL ont également identifié les consommateurs internes connus : fonctions de recherche et opérations POS/débit sous `SECURITY DEFINER` ; elles s'exécutent comme propriétaire PostgreSQL et n'ont pas besoin d'un EXECUTE direct accordé aux rôles API.
+
+### Correction appliquée sur Replay et versionnée sur main
+
+- Migration : `supabase/migrations/20261115191000_guard_marketplace_offer_internal_rpc.sql`, commit [`6a4d958c2a64c6cad8be1fdfb74f1608242c5832`](https://github.com/audreymendomo23-netizen/NAXA/commit/6a4d958c2a64c6cad8be1fdfb74f1608242c5832).
+- Version enregistrée sur Replay : `20261115074138`, migration `guard_marketplace_offer_internal_rpc`.
+- Le wrapper `public.marketplace_offre_stock_disponible` est maintenant `SECURITY DEFINER`, `STABLE`, avec `search_path=''` et appel qualifié du helper interne. C'est le point d'entrée public filtré uniquement.
+- EXECUTE du wrapper public est explicitement limité à `anon`, `authenticated`, `service_role` ; EXECUTE sur le helper `private.marketplace_offre_stock_disponible_guarded` est révoqué à `PUBLIC`, `anon` et `authenticated`. Le propriétaire PostgreSQL conserve ses droits pour les appels internes gardés.
+- Le corps du helper n'a pas été modifié ; aucune règle commerciale de disponibilité, quantité, fraîcheur, réservation ou lot n'a été élargie. Aucune ligne produit/stock/lot/réservation/paiement n'a été modifiée.
+
+### Test et preuve
+
+- Test SQL : `supabase/tests/20261115191000_guard_marketplace_offer_internal_rpc.sql`, commit initial [`eb46483fc9f79a8ff6b74a52feff5696d83f21eb`](https://github.com/audreymendomo23-netizen/NAXA/commit/eb46483fc9f79a8ff6b74a52feff5696d83f21eb), puis correction de transaction sur le même fichier commit [`09dd984e6e416595b4a087888617350cee79e192`](https://github.com/audreymendomo23-netizen/NAXA/commit/09dd984e6e416595b4a087888617350cee79e192).
+- Exécution SQL sur Replay : **PASS** — sous rôle `anon`, l'appel direct du helper privé lève `insufficient_privilege` ; le wrapper public reste appelable et renvoie zéro ligne pour une fiche non validée avec ligne de stock présente. Contrôles ACL post-migration : wrapper public `SECURITY DEFINER=true`, `anon/authenticated EXECUTE=true`, helper privé `anon/authenticated EXECUTE=false`.
+- Test Node statique `scripts/test-marketplace-offer-rpc-security.cjs` ajouté (4 tests), commit [`5c0c1fd9cc69c9315097e4c31ebc367ebbeb03d9`](https://github.com/audreymendomo23-netizen/NAXA/commit/5c0c1fd9cc69c9315097e4c31ebc367ebbeb03d9).
+- Workflow mis à jour pour suivre les deux migrations/tests SQL et exécuter les tests Node catalogue + RPC ; commit [`9a95314a55671a6923284a22ead156d285203ca7`](https://github.com/audreymendomo23-netizen/NAXA/commit/9a95314a55671a6923284a22ead156d285203ca7).
+- L'exécution Node GitHub Actions n'est pas encore prouvée : les statuts consultables restent sans checks et le connecteur run ne remonte pas les exécutions déclenchées par push. Ne pas revendiquer PASS CI.
+
+### Limites restantes
+
+- Le test de disponibilité réel reste bloqué : Replay a 20 produits de test, 0 fiche validée, 100 lignes de stock positives agrégées sur ces produits non validés et 0 lot global. Dans les deux pharmacies E2E du Promoteur, il reste 0 ligne de stock et 0 lot.
+- Les trois fixtures Stock/Caisse/Client acheteur sont absentes ; aucune Caisse physique n'est active pour les pharmacies E2E.
+- Le répertoire officiel DPML des médicaments homologués est la source camerounaise de référence ; son portail expose une recherche et une page de téléchargements, mais l'ouverture du portail retourne HTTP 403 dans cette session et aucun export structuré officiel n'a pu être récupéré/vérifié. La DPML indique que son répertoire rend accessible une partie des informations officielles AMM. Sources : [répertoire homologué](https://dpml.cm/repertoireDesAmm/), [téléchargements](https://dpml.cm/repertoireDesAmm/telechargements.php), [présentation des AMM](https://dpml.cm/index.php/fr/catalogue/produits-pharmaceutiques-amm). La LNME est complémentaire et ne remplace pas la preuve AMM de la spécialité.
+- Aucun produit n'a été créé ou validé, aucun stock/lot n'a été inventé et aucun paiement ou reçu n'a été simulé. Le blocage métier et documentaire demeure : obtenir un extrait DPML vérifiable, validation pharmaceutique puis approvisionnement réel traçable sur la pharmacie E2E.
+
+**État :** fuite potentielle via helper RPC interne — **CORRIGÉE / SQL PASS Replay** ; exposition publique des fiches non validées — **CORRIGÉE / SQL PASS Replay (§41)** ; source DPML exploitable — **BLOQUÉE** ; validation NAXA du catalogue — **0** ; stock/lot vendable sur les pharmacies E2E — **0** ; profils E2E Stock/Caisse/Client acheteur — **non provisionnés** ; recette réservation → préparation → livraison → encaissement — **NON EXÉCUTABLE** ; état global — **PARTIEL**, non AU VERT.
+
+**Point exact de reprise :**
+1. Faire confirmer par la DPML le mécanisme d'accès/export du répertoire AMM et récupérer une extraction officielle datée avec numéro AMM, statut/validité, titulaire et spécialité.
+2. Importer cette donnée dans un référentiel réglementaire camerounais distinct ; rapprocher les identités exactes et attendre l'approbation pharmacien/Admin avant publication.
+3. Faire approvisionner une pharmacie E2E par un flux réel (réception, mouvement audité, numéro de lot, date de péremption) ; aucun INSERT SQL de stock manuel.
+4. Relancer et contrôler le workflow Replay ; provisionner/valider réellement Client acheteur, Gestionnaire Stock et Caisse ; prouver l'accès sous JWT et ouvrir/fermer le service Stock, sans fonds Caisse fictifs.
+5. Exécuter le parcours Client → préparation Stock → mission Livreur → livraison → encaissement uniquement après ces prérequis.
 
