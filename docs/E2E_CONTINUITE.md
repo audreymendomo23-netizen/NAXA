@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — publication autonome des fiches et stocks par les pharmacies, sans validation NAXA, implémentée sur Replay (§43) ; correction du marqueur `declaration_pharmacie` et de la lecture catalogue par Promoteur (§44) ; tests runtime sous JWT Promoteur et Gestionnaire Stock **PASS**, refus hors périmètre **PASS**, transactions de recette annulées et aucun produit/stock temporaire conservé. Le workflow inclut les tests structurels mais son dernier run reste à confirmer. Les produits et stocks positifs de démonstration demeurent limités aux pharmacies démo ; aucune offre réelle n'est publiée sur les pharmacies E2E, aucun lot réel ni réservation n'a été créé. Production et Vercel inchangés.
+**État global :** 🟡 PARTIEL — déclaration autonome des produits par Promoteur et Gestionnaire Stock, avec attribution et stock initial zéro, runtime PASS (§44) ; édition des fiches appartenant à la pharmacie intégrée à l’espace Stock, runtime édition propre PASS et tentative hors périmètre refusée (§45). Aucune approbation Admin/validation NAXA. Les tests Node sont raccordés au workflow, mais le run post-commit est à confirmer. Les pharmacies de recette n'ont encore aucun approvisionnement réel, lot vendable ni réservation. Production/Vercel inchangés.
 
 
 
@@ -1483,4 +1483,37 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 3. Publier une référence et un prix par la pharmacie de recette ; effectuer ensuite une réception fournisseur réelle et enregistrer les lots/péremptions dans le flux métier, sans stock fictif.
 4. Vérifier l'affichage public à quantité zéro et l'absence de fiche d'une pharmacie démo ; vérifier une offre achetable seulement après quantité vendable réelle.
 5. Reprendre la recette Client → préparation Stock → mission Livreur → livraison → encaissement.
+
+
+
+## 45. Édition autonome des fiches appartenant à la pharmacie (15/11/2026)
+
+**Décision métier :** une pharmacie doit pouvoir corriger les fiches qu'elle a déclarées, sans passer par l'Administrateur. NAXA ne relit pas, ne valide pas et n'approuve ces modifications. Les règles de sécurité limitent uniquement l'auteur et le périmètre pharmacie.
+
+### Correction UI / serveur sur main
+
+- Action serveur ajoutée dans `src/app/pharmacie/gestionnaire-stock/actions.ts` : `modifierFicheProduitPharmacie`, commit [`e19ca6bcc084e5b617c4fc3648db4217118d2187`](https://github.com/audreymendomo23-netizen/NAXA/commit/e19ca6bcc084e5b617c4fc3648db4217118d2187).
+- Elle exige une session et une fonction professionnelle autorisée (Promoteur, Pharmacie, Pharmacien, Assistant, Responsable, Gestionnaire Stock ou Magasinier). Elle met à jour uniquement l'identifiant produit fourni avec le filtre supplémentaire `created_by_pharmacie_id = pharmacie_id`. Le filtrage RLS `produits_update` et le trigger de protection conservent l'auteur, la pharmacie propriétaire, la source déclarative et les droits photo ; la valeur legacy `fiche_validee` n'est pas modifiée.
+- L'espace `src/components/pharmacie/GestionnaireStockEspace.tsx` affiche désormais « Modifier mes fiches produits », limité aux fiches dont `created_by_pharmacie_id` est dans le réseau actif du Promoteur ou dans la pharmacie active du personnel ; Admin ne voit pas ce formulaire. Champs éditables : nom, DCI, dosage, forme, conditionnement, code-barres, fabricant, description, indications, précautions et statut ordonnance. Commit UI [`b9c74af0a3121090757a6397827db187d9be5029`](https://github.com/audreymendomo23-netizen/NAXA/commit/b9c74af0a3121090757a6397827db187d9be5029).
+- Test de contrat étendu dans `scripts/test-pharmacy-led-product-publication.cjs` (propriétaire seulement, filtre serveur `created_by_pharmacie_id`, liste UI par périmètre, absence de mutation `fiche_validee)), commit [`cfa660b0dfd6ff630978a22bb0cb563809354b2c`](https://github.com/audreymendomo23-netizen/NAXA/commit/cfa660b0dfd6ff630978a22bb0cb563809354b2c). Le fichier de test est déjà inclus dans le workflow Replay ; son dernier run CI n'est pas confirmé.
+
+### Tests runtime Replay sous JWT
+
+1. **Édition de sa propre fiche : PASS.** Un Gestionnaire Stock avec affectation active a créé une référence, puis modifié nom, description et fabricant sous le même JWT ; l'écriture a affecté exactement une ligne et la relecture confirme les valeurs. L'auteur, la pharmacie propriétaire et le flag historique sont restés inchangés.
+2. **Tentative hors périmètre : PASS (refus).** Une ligne temporaire déclarée pour une autre pharmacie a été préparée dans la même transaction par le rôle de service ; le Gestionnaire Stock n'a modifié aucune ligne (`row_count=0`) en ciblant cette fiche.
+3. Les deux transactions ont été annulées par `ROLLBACK`. Aucun produit ou stock temporaire n'a été conservé.
+
+### Limite de modèle à ne pas masquer
+
+- Le schéma conserve une identité de produit catalogue partagée, avec une contrainte unique globale `(nom,dosage,forme)` et une contrainte globale sur le code-barres. La RPC de déclaration réutilise une correspondance exacte déjà existante avant de créer une nouvelle ligne.
+- Ainsi, plusieurs pharmacies peuvent gérer leurs prix, stocks et lots séparément sur une même référence catalogue ; toutefois, lorsque cette référence exacte a été créée par une autre pharmacie, la seconde pharmacie réutilise la référence et ne peut pas modifier la fiche descriptive appartenant à la première.
+- Si l'exigence attend une copie descriptive indépendante par pharmacie même pour un médicament identique, il faudra séparer proprement la référence commune et la fiche déclarative par pharmacie, puis adapter le regroupement des offres/recherches et des pages produit. Cette évolution n'est pas revendiquée comme réalisée ici. En attendant, l'édition est libre sur les fiches dont la pharmacie est propriétaire et le stock/prix restent propres à chaque pharmacie.
+
+**État :** édition propriétaire dans UI — **implémentée sur main** ; édition propre sous JWT Stock — **RUNTIME PASS Replay** ; modification d'une fiche hors périmètre — **REFUS PASS** ; approbation Admin — **aucune** ; CI Node — **run à confirmer** ; autonomie descriptive complète pour doublons de référence entre pharmacies — **limite d'architecture restante** ; publication et gestion de stock propres à la pharmacie — **implémentées** ; approvisionnement et lots réels — **absents**, chaîne de réservation encore non exécutée.
+
+**Point exact de reprise :**
+1. Confirmer le prochain workflow Replay et relever les tests Node du catalogue.
+2. Tester l'édition depuis le navigateur réel avec un compte Promoteur et un Gestionnaire Stock, puis vérifier qu'Admin n'offre aucune action sur les fiches.
+3. Décider si une référence identique doit être dupliquée en fiche descriptive par pharmacie ou rester une identité commune, avant de modifier la contrainte catalogue et les agrégations de recherche.
+4. Exécuter une réception fournisseur réelle avec lot/péremption, puis la chaîne commande → préparation → Livreur → réception Client → encaissement Caisse.
 
