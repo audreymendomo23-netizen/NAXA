@@ -20,7 +20,7 @@ begin
   select pg_get_functiondef('public.restore_stock(uuid)'::regprocedure) into rs;
   select pg_get_functiondef('private.set_reservation_status(uuid,public.resa_statut)'::regprocedure) into c;
   select pg_get_functiondef('public.expirer_reservations_cron(integer)'::regprocedure) into e;
-  select pg_get_functiondef('public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure) into o;
+  select pg_get_functiondef('private.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure) into o;
   compact:=lower(regexp_replace(w,'[[:space:]]+','','g'));
 
   -- 1: allocation propre à chaque réservation et verrouillage lot+allocation.
