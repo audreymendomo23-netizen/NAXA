@@ -101,14 +101,45 @@ begin
   loop
     v_definition := pg_get_functiondef(v_signature);
     v_before := v_definition;
-    v_definition := replace(
-      v_definition,
-      'public.marketplace_offre_stock_disponible(',
-      'private.naxa_pos_stock_vendable('
-    );
-    if v_definition = v_before then
-      raise exception 'Appel Marketplace attendu absent de %; rebranchement POS interrompu', v_signature;
+
+    if v_signature in (
+      'private.naxa_pos_debit_stock(uuid)'::regprocedure,
+      'public.vente_ajouter_produit(uuid,uuid,integer)'::regprocedure
+    ) then
+      v_definition := replace(
+        v_definition,
+        'public.marketplace_offre_stock_disponible(',
+        'private.naxa_pos_stock_vendable('
+      );
+    elsif v_signature = 'public.caisse_rechercher_produit(uuid,text,text)'::regprocedure then
+      v_definition := replace(
+        v_definition,
+        'p.code_barre,s.prix,s.quantite,s.emplacement',
+        'p.code_barre,avail.prix,avail.quantite,s.emplacement'
+      );
+      v_definition := replace(
+        v_definition,
+        'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  where',
+        'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail\n  where'
+      );
+    else
+      v_definition := replace(
+        v_definition,
+        'p.dosage,s.prix,s.quantite,s.emplacement',
+        'p.dosage,avail.prix,avail.quantite,s.emplacement'
+      );
+      v_definition := replace(
+        v_definition,
+        'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  where',
+        'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail\n  where'
+      );
     end if;
+
+    if v_definition = v_before
+       or v_definition not ilike '%private.naxa_pos_stock_vendable(%' then
+      raise exception 'Le consommateur POS % ne peut pas être rebranché sur le stock interne', v_signature;
+    end if;
+
     execute v_definition;
   end loop;
 end

@@ -43,6 +43,17 @@ begin
        or v_definition ilike '%public.marketplace_offre_stock_disponible(%' then
       raise exception 'Le consommateur POS % appelle encore le filtre Marketplace', v_signature;
     end if;
+
+    if v_signature in (
+      'public.caisse_rechercher_produit(uuid,text,text)'::regprocedure,
+      'public.caisse_rechercher_codes(uuid,text[])'::regprocedure
+    ) and (
+      v_definition not ilike '%avail.prix%'
+      or v_definition not ilike '%avail.quantite%'
+      or v_definition ilike '%s.quantite%'
+    ) then
+      raise exception 'La recherche Caisse doit retourner le stock vendable interne, pas la quantité brute agrégée';
+    end if;
   end loop;
 end
 $contract$;
