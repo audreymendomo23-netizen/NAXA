@@ -194,7 +194,8 @@ begin
      or (v_simulation->>'invalides')::integer<>0
      or (v_simulation->>'ambiguite')::integer<>0
      or (v_simulation->>'doublons')::integer<>0 then
-    raise exception 'Rapprochement assureur non unique : %',v_simulation;
+    raise exception 'Rapprochement assureur non unique : %, lignes %',v_simulation,
+      (select jsonb_agg(jsonb_build_object('resultat',l.resultat,'motif',l.motif,'adherent',l.numero_adherent,'police',l.numero_police,'date_debut',l.date_debut,'date_fin',l.date_fin,'statut',l.membre_statut)) from public.assurance_import_lignes l where l.import_id=(v_simulation->>'import_id')::uuid);
   end if;
 
   v_import:=(v_simulation->>'import_id')::uuid;
