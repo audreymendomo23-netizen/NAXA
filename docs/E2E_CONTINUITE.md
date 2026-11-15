@@ -897,6 +897,13 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Le test d'isolation doit couvrir explicitement un Promoteur qui tente de consulter une pharmacie non rattachée ainsi qu'un Livreur qui tente d'accepter une mission d'une autre pharmacie.
 - La recette E2E complète exige un vrai enchaînement réservation → Stock prêt → paiement → mission disponible → acceptation → retrait → arrivée → confirmations Client/Livreur → clôture. Aucun enregistrement métier de cette chaîne n'a encore été créé.
 
+**Précontrôle RPC Promoteur — transaction annulée :**
+- Simulation du JWT métier de la fixture Promoteur dans une transaction SQL locale, puis appel de `naxa_livreurs_management_list` sur sa pharmacie Mvan liée : autorisé.
+- Même RPC sur la pharmacie Bastos, active mais réellement non rattachée au Promoteur : refus attendu « hors du réseau Promoteur ».
+- Appel de `naxa_create_livreur_invite` avec l'adresse synthétique E2E pour la pharmacie Mvan : UUID d'invitation retourné. La transaction entière a ensuite été annulée.
+- Contrôle après rollback : **0 invitation persistée** pour l'adresse Livreur E2E. Aucun profil, invitation, affectation ou donnée métier n'a été créé par ce précontrôle.
+- Ce contrôle valide les gardes SQL et le chemin serveur de création d'invitation sous claims simulés ; il ne remplace pas l'acceptation Auth réelle ni un test HTTP/Client.
+
 **Harnais Livreur préparé sur main, non exécuté :**
 - `scripts/e2e/provision-replay-livreur-safe.cjs` — commit `0ca7a84a357335878454cd876a69b89c910ebcfe`. Le script est limité à Replay, définit une fixture Client synthétique et complète, puis vise le parcours normal création d'invitation Promoteur → acceptation Client → affectation Livreur permanente → sélection du rôle → contrôle de liste Promoteur/isolation → appel du dashboard Livreur. Le profil racine reste `client`; aucune mission ni aucun paiement n'est créé par ce script.
 - `scripts/test-replay-livreur-safe.cjs` — commit `0a994333e48138efc0f6c0cd44fca993c12cfc18`. Huit tests unitaires codés pour l'épinglage Replay, les marqueurs de fixture, l'âge/consentement/profil Client et les secrets éphémères. Tests non encore exécutés dans cette étape.
