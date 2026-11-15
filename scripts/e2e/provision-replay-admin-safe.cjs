@@ -132,7 +132,7 @@ async function provision(env = process.env) {
 
   // Update ONLY the password of the exact, already validated test fixture.
   await api(
-    "/auth/v1/admin/user/" + encodeURIComponent(user.id),
+    "/auth/v1/admin/users/" + encodeURIComponent(user.id),
     "PUT", { password }, "rotation du mot de passe de la fixture Admin"
   );
 
