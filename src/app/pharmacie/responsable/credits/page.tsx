@@ -114,9 +114,9 @@ export default async function ResponsableCreditsMarketplacePage({
         </div>
         <div className="text-right"><p className="text-xl font-black">{fcfa(r.montant)}</p><p className="text-sm font-bold">{r.statut}</p></div>
       </div>
-      {r.panier_items?.length>0&&<div className="rounded-xl bg-slate-50 p-3">
+      {(r.panier_items ?? []).length>0&&<div className="rounded-xl bg-slate-50 p-3">
         <p className="text-sm font-bold">Médicaments demandés</p>
-        <ul className="mt-2 space-y-1 text-sm">{r.panier_items.map(i=><li key={i.produit_id}>{i.quantite} × {names.get(i.produit_id)??"Produit"}</li>)}</ul>
+        <ul className="mt-2 space-y-1 text-sm">{(r.panier_items ?? []).map(i=><li key={i.produit_id}>{i.quantite} × {names.get(i.produit_id)??"Produit"}</li>)}</ul>
       </div>}
       <p className="text-sm">{r.justificatif_path
         ?<a className="font-bold underline" href={"/api/pharmacie/promoteur/credits/"+r.id+"/justificatif"}>Télécharger le justificatif sécurisé</a>
