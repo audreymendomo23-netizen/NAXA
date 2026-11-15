@@ -16,7 +16,7 @@
 
 ## Contrat comptable
 
-La vente Assurance conserve le total brut. Le paiement réellement reçu du client et la part assureur sont deux lignes de règlement distinctes : la vente comptabilise uniquement la part client ; la prise en charge confirmée crée la créance assureur à la vente finalisée ; le remboursement réellement reçu réduit ensuite cette créance. Les événements assurance_prise_en_charge et assurance_remboursement_recu entrent dans la file comptable existante. Le worker conserve ses contrôles : période ouverte, journal validé, mapping débit/crédit unique et comptes validés. Il n'utilise aucun compte implicite.
+La vente Assurance conserve le total brut. Le paiement réellement reçu du client et la part assureur sont deux lignes de règlement distinctes : la vente comptabilise uniquement la part client ; la confirmation de prise en charge après accord client et contrôle documentaire crée l'événement de créance assureur ; le rattachement POS réutilise la même clé d'idempotence ; le remboursement réellement reçu réduit ensuite cette créance. Les événements assurance_prise_en_charge et assurance_remboursement_recu entrent dans la file comptable existante. Le worker conserve ses contrôles : période ouverte, journal validé, mapping débit/crédit unique et comptes validés. Il n'utilise aucun compte implicite.
 
 Le plan comptable et les mappings doivent être configurés/validés par la pharmacie via le processus comptable existant avant qu'une écriture puisse être postée. En leur absence, l'événement reste en attente puis passe par la politique de retry du worker ; le tableau ne doit jamais annoncer une écriture comptable validée sans ligne dans le journal.
 
@@ -34,7 +34,7 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 
 ## Restitutions livrées
 
-- Tableau de bord /pharmacie/assurance : dossiers, créances, remboursements réellement reçus et journal d'événements.
+- Tableau de bord /pharmacie/assurance : conventions, règles, dossiers, contrôles documentaires, confirmations de prise en charge, remboursements réellement reçus et journal d'événements.
 - Accès depuis l'espace Promoteur, Caisse et Comptable.
 - Reçu client : déclaration/choix de couverture, calcul du devis, acceptation par le client, montant brut, part assureur (créance, non encaissée), part client et état du contrôle des justificatifs.
 - Ticket Caisse : montant brut, part assureur, part client, règlements reçus et solde de créance, lorsque le dossier est relié à la vente POS.
@@ -48,9 +48,9 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Le POS fractionné et les reçus sont raccordés dans le code et la migration Replay ; aucun test E2E réel de retrait Assurance n'a encore été exécuté.
 - Le Replay ne contient aucun compte, mapping, paramètre ni période comptable configuré ; aucune écriture métier réelle n'a donc été postée. Le test positif ci-dessous utilise exclusivement des comptes synthétiques dans une transaction annulée.
 - Le contrat SQL vérifie également que `compta_emettre_evenement_metier` exclut les lignes `ASSURANCE:%` du montant de vente encaissé et que la clôture de caisse ne retient que les paiements en espèces. Ces garde-fous structurels ne remplacent pas un test de rapprochement avec une vente réelle.
-- La recherche publique n'est pas encore raccordée au filtre Assurance.
+- Le filtre Assurance est déjà raccordé à la recherche Marketplace `/resultats` via les projections publiques des assureurs et des conventions actives ; la recette HTTP/browser multi-pharmacies reste à exécuter.
 - Le mécanisme de proposition d'un nouveau montant par la pharmacie et d'accord client en cas d'écart de droits reste à construire.
-- La recette UI/build TypeScript, les scénarios métier authentifiés de remboursement partiel/total et le parcours de modification du devis restent à exécuter.
+- Le build TypeScript/UI et les scénarios métier authentifiés restent à exécuter. Le tableau Assurance expose désormais les actions documentaires, confirmation et remboursement ; aucun test navigateur/role JWT de ces actions n'est encore prouvé. Le parcours de proposition d'un nouveau montant reste à construire.
 - Aucune migration ni écriture sur Supabase Production ; aucun déploiement Vercel.
 
 
@@ -146,3 +146,33 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Migration Replay : `20261112191000_assurance_exclusion_consumption_guard` et `20261112192000_assurance_confirmation_creance_comptable`.
 - Test ciblé : `supabase/tests/202611121_assurance_rule_precedence_calculation.sql` — contrat de priorité, calcul, exclusions/plafond et frontières comptables. Exécuté sur Replay avec succès.
 - Limite : ce test est un contrat SQL/structurel et un calcul de cas synthétiques ; il ne remplace pas un parcours E2E authentifié avec un vrai client, une pharmacie, une convention et un règlement.
+
+
+## Clôture opérationnelle du parcours Marketplace Assurance — 15 novembre 2026
+
+### Corrections versionnées sur `main`
+
+- `8dc029c25617cb1c61f68455c732c34cde438d21` : la page Caisse ne consulte plus directement le registre privé `couvertures_assurance`. Elle affiche les snapshots financiers accessibles à la pharmacie, et charge les dossiers par `pharmacie_id` sans filtre erroné sur le créateur du dossier. Les données personnelles de couverture ne sont donc pas exposées à la Caisse.
+- `368235024af9ffa1af6b5d1382e0d4e2e6ade3f0` : le tableau Assurance charge les snapshots et ajoute les actions de contrôle documentaire, de confirmation de prise en charge et d'enregistrement d'un remboursement réel. Les RPC gardent la décision finale : accord client, justificatifs conformes, statut du dossier, montant restant, date non future et référence obligatoire.
+- `131b3a125054a8c3a0c96d24399aedb901d53632` : migration additive `caisse_annulation_propre_vente_guard`, appliquée sur Replay uniquement, qui limite une demande d'annulation à la vente créée par le compte demandeur.
+- Les tests contractuels ont été alignés aux fonctions effectivement déployées : créance créée à la confirmation, même clé d'idempotence au rattachement POS, et taux appliqué issu de la règle pharmacie alors que la couverture déclarative du client est forcée à 100 %.
+
+### Tests SQL exécutés sur Replay
+
+- `supabase/tests/202611120_assurance_comptabilite_contract.sql` : terminé sans exception (transaction annulée).
+- `supabase/tests/202611121_assurance_rule_precedence_calculation.sql` : `ASSURANCE_ACCOUNTING_EVENT_BOUNDARIES PASS`.
+- `supabase/tests/202611121_assurance_compta_worker_positive.sql` : `202611121_assurance_compta_worker_positive PASS`. Fixtures synthétiques, prise en charge 10 000 FCFA, remboursements 4 000 + 6 000 FCFA, écritures équilibrées et idempotence ; `ROLLBACK` final.
+- `supabase/tests/187_caisse_parcours_scope_assurances.sql` : `187_caisse_parcours_scope_assurances PASS` (RLS snapshots/dossiers, confidentialité des couvertures, demande d'annulation limitée à sa vente).
+- `supabase/tests/20261114073630_marketplace_assurance_public_projection_acl.sql` : terminé sans exception ; les contrôles d'ACL/projections sont validés, avec 0 convention active exposée car Replay ne contient aucune convention.
+- `supabase/tests/049_assurances.sql` : `049_assurances PASS`.
+
+### Limites restantes — pas AU VERT
+
+- Aucune importation de liste d'assurés transmise par assureur n'existe. Le format source, les clés fiables de rapprochement adhérent/bénéficiaire, l'identité de l'émetteur, la version et la date d'effet doivent être contractés avant d'importer des données personnelles. Aucune fausse liste ni correspondance approximative n'a été créée.
+- Le mécanisme de proposition d'un nouveau montant par la pharmacie et de nouvel accord du client n'existe pas. Le snapshot actuel reste immuable ; la mise en place doit préserver cette immutabilité et créer une nouvelle version de négociation traçable.
+- Aucun compte Client/Pharmacien/Caisse/Comptable affecté n'a réalisé une réservation, une vérification de droits, un contrôle documentaire, un encaissement POS ou un remboursement de bout en bout.
+- Replay conserve 5 assureurs, mais 0 couverture, 0 convention, 0 règle, 0 snapshot, 0 dossier, 0 événement Assurance, 0 règlement, 0 période comptable, 0 événement comptable et 0 écriture persistante.
+- Le test positif du worker valide un jeu synthétique rollbacké ; il ne prouve pas une comptabilité réelle ni le rapprochement d'une vente réelle.
+- Le workflow GitHub qualité doit terminer avec Node/TypeScript/lint/build ; aucun résultat complet n'est encore retenu comme preuve dans cette clôture.
+
+**État : PARTIEL — PAS AU VERT.** Les contrats SQL et les corrections de code sont avancés et testés sur Replay, mais le chargement assuré, la négociation d'écart, les comptes métier authentifiés et le parcours réel complet restent bloquants. Production et Vercel inchangés.
