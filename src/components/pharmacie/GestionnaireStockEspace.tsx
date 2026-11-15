@@ -34,7 +34,7 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
  ]);
  if(activeRoleError||activePharmacyError||typeof activeRoleData!=="string") redirect("/");
  const fonction=activeRoleData.toLowerCase();
- if(!["admin","promoteur","pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fonction)) redirect("/");
+ if(!["admin","promoteur","pharmacie","pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"].includes(fonction)) redirect("/");
  let ids:string[]=[];
  let pharmacyError:any=null;
  if(fonction==="promoteur"){
