@@ -30,7 +30,8 @@ test("le claim push ciblé est réservé au service_role et verrouille une seule
 });
 
 test("le dispatcher réel de péremption ne peut être appelé qu'avec le JWT service_role", () => {
-  assert.match(migration, /request\.jwt\.claim\.role/);
+  assert.match(migration, /auth\.role\(\)/);
+  assert.doesNotMatch(migration, /request\.jwt\.claim\.role/);
   assert.match(migration, /private\.dispatch_pharmacy_lot_expiry_alerts\(p_today,p_limit\)/);
   assert.match(migration, /grant execute on function public\.naxa_dispatch_pharmacy_lot_expiry_alerts_internal\(date,integer\)\s+to service_role/i);
   assert.match(migration, /revoke all on function public\.naxa_dispatch_pharmacy_lot_expiry_alerts_internal\(date,integer\)\s+from public,anon,authenticated/i);
