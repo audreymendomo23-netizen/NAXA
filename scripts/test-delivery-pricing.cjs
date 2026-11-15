@@ -56,31 +56,13 @@ test("la résolution géographique choisit la zone la plus contraignante en cas 
   assert.equal(selectionnerZoneTarifaire({ lat: 8.5, lng: 13.4 }, zones), null);
 });
 
-test("la commission NAXA reste fixe à 500 FCFA et est incluse dans chaque tarif", () => {
-  assert.deepEqual(repartirFraisLivraison(1500), {
-    fraisClient: 1500,
-    commissionNaxa: 500,
-    soldeLivraison: 1000,
-  });
-  assert.deepEqual(repartirFraisLivraison(3500), {
-    fraisClient: 3500,
-    commissionNaxa: 500,
-    soldeLivraison: 3000,
-  });
-  assert.deepEqual(repartirFraisLivraison(5200), {
-    fraisClient: 5200,
-    commissionNaxa: 500,
-    soldeLivraison: 4700,
-  });
-  assert.deepEqual(repartirFraisLivraison(13200), {
-    fraisClient: 13200,
-    commissionNaxa: 500,
-    soldeLivraison: 12700,
-  });
+test("100 % des frais de livraison sont affectés au service ; NAXA ne prélève aucune commission", () => {
   for (const amount of [1500, 1750, 3500, 5200, 13200, 20000]) {
-    const split = repartirFraisLivraison(amount);
-    assert.equal(split.fraisClient, split.commissionNaxa + split.soldeLivraison);
-    assert.equal(split.commissionNaxa, 500);
+    assert.deepEqual(repartirFraisLivraison(amount), {
+      fraisClient: amount,
+      commissionNaxa: 0,
+      soldeLivraison: amount,
+    });
   }
 });
 
