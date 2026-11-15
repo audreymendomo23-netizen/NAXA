@@ -1074,3 +1074,53 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 2. Effectuer une revue finale des gardes du rôle Livreur et de son harnais, puis préparer une réservation de recette annulable sur Replay.
 3. Exécuter le cycle Stock prêt → paiement réel de test contrôlé → mission → acceptation Livreur → retrait → arrivée → double confirmation → clôture, en vérifiant qu'aucune commission ni retenue ne réapparaît.
 4. Ne pas migrer Production ni déployer avant une autorisation spécifique et une validation métier complète.
+
+
+## 37. Reprise Livreur — durcissement des RPC conversation/GPS et intégration du harnais (15/11/2026)
+
+**Périmètre : Replay uniquement pour les changements SQL.** Projet `pwfftcsjyeibxxqhwysw`. Aucun changement Production, Vercel ou Play Store.
+
+**État de départ repris :**
+- La matrice Storage Admin + Promoteur était déjà close au §35 : 17 PASS / 0 FAIL / 0 SKIP ; qualité automatisée PASS sur le commit de recette documenté au §35.
+- La réserve d'idempotence des droits Promoteur RESEAU était close au §29.
+- Le tableau de bord et les fonctions de livraison existaient, mais aucune mission réelle Client → Stock → Livreur → Client n'avait encore été exécutée.
+- Le catalogue `naxa_role_privileges` ne porte aucune ligne `role_key='livreur'`. Aucun privilège générique n'a été ajouté sans définition métier explicite.
+
+**Audit des gardes SQL :**
+- Les RPC d'acceptation, de retrait, d'arrivée, d'ajout de position, de signalement, de confirmation de remise et de déclaration espèces utilisent le contrôle serveur `private.naxa_delivery_driver_can_act`, qui vérifie notamment le profil actif, le poste Livreur, l'affectation active à la pharmacie de la mission, le rôle actif sélectionné, la pharmacie active/non archivée, la préparation Stock et le mode/paiement requis.
+- Une faiblesse supplémentaire a été trouvée dans la conversation de livraison : les fonctions de liste des messages, d'envoi de message et de partage GPS ne vérifiaient pas toutes de manière suffisante le contexte d'affectation active et de pharmacie.
+- Une première version de correction a fermé les lectures Livreur et les branches d'envoi Livreur, mais la relecture contradictoire a révélé que le Client pouvait encore appeler directement les RPC d'envoi même lorsque le contexte Livreur n'était plus valide.
+- La correction finale exige donc la validité de l'affectation Livreur et de la pharmacie pour **les deux côtés** avant d'autoriser l'envoi d'un message ou d'une position ; la conversation existante devient en lecture seule lorsque la livraison ou le contexte Livreur/pharmacie est suspendu.
+
+**Migrations Replay appliquées :**
+- `delivery_courier_chat_location_active_assignment`, version Replay `20261115064751` — code source `supabase/migrations/20261115160000_delivery_courier_chat_location_active_assignment.sql`, commit `6402d757e6126b9957f212e9be6884a4dadcfccd`.
+- `delivery_chat_requires_live_courier_assignment`, version Replay `20261115064839` — code source `supabase/migrations/20261115161000_delivery_chat_requires_live_courier_assignment.sql`, commit `3c4c17d7c0984aee562b46feb9a051478cf2ad83`.
+- Les définitions des RPC ont été relues après application. Aucun privilège générique `livreur` n'a été ajouté.
+
+**Tests SQL réellement exécutés sur Replay :**
+- `supabase/tests/20261115140000_delivery_driver_active_pharmacy_scope.sql` : **PASS** — confirmation de remise et déclaration espèces limitées au Livreur affecté dans sa pharmacie active.
+- `supabase/tests/20261115160000_delivery_courier_chat_location_active_assignment.sql` : **PASS** — lecture conversation et droit d'écriture Livreur contrôlés ; ACL `anon` refusée et `authenticated` autorisée.
+- `supabase/tests/20261115161000_delivery_chat_requires_live_courier_assignment.sql` : **PASS** — envoi de message et partage GPS refusés dès que le contexte Livreur/pharmacie active n'est plus valable, y compris lorsque l'appelant est le Client.
+- Historique Replay vérifié : les trois versions `20261115062505`, `20261115064751` et `20261115064839` sont présentes.
+- Ces tests vérifient les définitions, les gardes et les ACL SQL ; ils ne constituent pas une simulation d'une livraison réelle ni un test navigateur.
+
+**Harnais Client/Livreur raccordé au workflow Replay :**
+- `scripts/e2e/provision-replay-livreur-safe.cjs` : pagination Auth bornée à 20 pages de 50, refus des identités multiples, génération d'un mot de passe éphémère, et fermeture locale (`scope=local`) de toutes les sessions Promoteur/Livreur ouvertes. Aucun mot de passe n'est affiché.
+- Le script suit le vrai parcours d'invitation : création/reprise de la fixture racine Client majeure et consentante, invitation par le Promoteur, acceptation avec ce compte Client confirmé, affectation Livreur permanente ordinaire, sélection du poste actif et vérification de l'isolation multi-pharmacies. Le rôle racine reste `client`.
+- Le script n'émet aucune réservation, mission, déclaration d'espèces ou preuve de paiement. La fixture Livreur, si le job aboutit, est conservée sur Replay pour les prochaines recettes.
+- Huit-neuf assertions unitaires du fichier `scripts/test-replay-livreur-safe.cjs` sont intégrées à la commande Node `--test` du workflow avec les suites Promoteur et Admin. Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` crée la fixture Livreur après les fixtures Promoteur et Admin, puis lance la matrice Storage déjà établie. Le nettoyage `always()` supprime également le fichier de mot de passe Livreur.
+- Commit du harnais avec pagination/nettoyage final : `f17edafd53a09e9ddf5432465fb17a4e97ff52e8`. Commit d'intégration au workflow : `c60d44084f28b2ae4a82d5f0499445d48b87b646`.
+
+**Limite de preuve / statut CI :**
+- La présence du script et du step workflow a été vérifiée sur `main`.
+- Au moment de cette entrée, je ne dispose pas d'un journal de run Actions consultable pour le commit d'intégration ; le test unitaire et le provisionnement Auth Client/Livreur ne sont donc **pas encore déclarés PASS en exécution**.
+- Aucune identité Livreur, affectation, invitation, réservation ou mission n'est considérée comme créée sur Replay par cette passe tant que le run et son contrôle SQL post-job ne l'ont pas prouvé.
+- Le dernier run qualité consulté précédemment (`43685140386`) avait son job Tests/TypeScript/lint annulé et son job actionlint en succès ; il ne vaut pas qualité complète PASS pour les changements actuels.
+
+**État :** gardes SQL Livraison — **corrigées et testées sur Replay** ; workflow de préparation Client/Livreur — **intégré sur main, exécution CI à confirmer** ; matrice Storage Admin + Promoteur — **validée au §35** ; recette métier Livraison complète — **NON EXÉCUTÉE**. La recette globale NAXA demeure **PARTIELLE**, sans statut AU VERT.
+
+**Point exact de reprise :**
+1. Consulter les runs déclenchés par le commit `c60d44084f28b2ae4a82d5f0499445d48b87b646` ; vérifier le résultat de la suite unitaires et du provisionnement Client/Livreur, puis vérifier sur Replay l'identité, le profil Client, l'invitation acceptée, l'affectation Livreur permanente, le rôle actif et l'absence de sessions ouvertes.
+2. Si le provisionnement passe, préparer une réservation de recette annulable, avec un paiement contrôlé sans fausse preuve ; faire valider physiquement la préparation par Stock avant publication de mission.
+3. Exécuter ensuite le cycle réel : mission disponible → acceptation Livreur → retrait → suivi GPS/chat → arrivée → confirmation Livreur + Client → paiement confirmé → clôture `livree`. Vérifier aussi les refus hors pharmacie et après suspension/expiration.
+4. Continuer sans modifier Production ni déployer Vercel ; ne pas déclarer AU VERT avant les preuves métier et appareil réel encore manquantes.
