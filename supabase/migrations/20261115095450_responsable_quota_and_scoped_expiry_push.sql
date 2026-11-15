@@ -224,7 +224,7 @@ security definer
 set search_path to ''
 as $function$
 begin
-  if coalesce(current_setting('request.jwt.claim.role',true),'')<>'service_role' then
+  if coalesce(auth.role(),'')<>'service_role' then
     raise insufficient_privilege using message='Réservé au service NAXA';
   end if;
   if p_today is null or p_limit is null or p_limit<1 or p_limit>5000 then
