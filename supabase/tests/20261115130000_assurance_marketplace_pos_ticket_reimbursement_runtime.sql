@@ -87,9 +87,14 @@ begin
       v_admin,now(),'ordinaire','responsable'
     );
   end if;
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('role','authenticated','sub',v_cashier)::text,true);
+  perform set_config('request.jwt.claim.sub',v_cashier::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform public.naxa_select_active_role('responsable',v_pharmacy);
   if private.naxa_business_function(v_cashier)<>'responsable'
      or private.naxa_active_role_pharmacy(v_cashier) is distinct from v_pharmacy then
-    raise exception 'Bascule temporaire vers le rôle Responsable non appliquée';
+    raise exception 'RPC de sélection n''a pas activé le rôle Responsable';
   end if;
 
   -- Stock agrégé temporaire : aucune ligne de lot n'est créée.
