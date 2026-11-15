@@ -36,7 +36,7 @@ begin
   end if;
   -- 3: lots bloqués/périmés exclus et quantité restante refusée.
   if position('coalesce(v_lot.bloque,false)' in compact)=0
-     or position('v_lot.date_peremption<current_date' in compact)=0
+     or position('v_lot.date_peremption<private.naxa_date_cameroun()' in compact)=0
      or position('ifv_remaining>0thenraiseexception' in compact)=0 then
     raise exception 'Scénario 3 : le retrait ne refuse plus un lot bloqué/périmé ou une allocation restante';
   end if;
