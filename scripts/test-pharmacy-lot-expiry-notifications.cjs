@@ -14,6 +14,10 @@ const sqlTest = fs.readFileSync(
   path.join(root, "supabase/tests/20261115100000_pharmacy_lot_expiry_reminders_and_cameroon_date_guard.sql"),
   "utf8"
 );
+const stockUi = fs.readFileSync(
+  path.join(root, "src/components/pharmacie/GestionnaireStockEspace.tsx"),
+  "utf8"
+);
 
 test("rappels quotidiens J-30, J-15, J-7, J-3 et J0 selon Africa/Douala", () => {
   for (const offset of [30, 15, 7, 3, 0]) {
@@ -56,4 +60,10 @@ test("table privée, ACL et fixture transactionnelle annulée", () => {
   assert.match(sqlTest, /begin;[\s\S]*rollback;/i);
   assert.match(sqlTest, /est_demo=false/);
   assert.match(sqlTest, /related_entity_id=any\(v_lot_ids\)/);
+});
+
+test("interface Lots & péremptions utilise la date civile Africa/Douala et non UTC", () => {
+  assert.match(stockUi, /Africa\\/Douala/);
+  assert.match(stockUi, /dateDouala\\(new Date\\(\\)\\)/);
+  assert.doesNotMatch(stockUi, /toISOString\\(\\)\\.slice\\(0,10\\)/);
 });
