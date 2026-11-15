@@ -27,7 +27,7 @@ type MedicamentRecherche = {
   imageVariants?: { boite: MedicamentPhotoItem | null; comprime: MedicamentPhotoItem | null };
   synonyms?: string[]; source: string[]; availability: "disponible" | "indisponible" | "non_verifiee";
   partnerPharmacyCount: number | null; lowestPartnerPrice: number | null; localProductId: string | null;
-  localInformationValidated: boolean; localInformationSource: string | null;
+  localInformationSource: string | null;
   cameroonRegulatoryStatus: "a_verifier"; cameroonRegulatoryReference: string
 };
 const PHOTO_MEDICAMENT_PAR_DEFAUT = "/medicaments/placeholder.svg";
@@ -483,7 +483,7 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                     </p>
                   )}
                   {medicament.availability === "non_verifiee" && <p className="text-xs text-slate-500">Le statut ne sera confirmé qu'après vérification des stocks NAXA.</p>}
-                  {medicament.localInformationValidated && <p className="text-xs font-semibold text-emerald-700">Fiche locale validée par NAXA</p>}
+                  {medicament.localProductId && <p className="text-xs text-slate-600">Informations déclarées par la pharmacie partenaire ; NAXA ne certifie pas cette fiche.</p>}
                   <a href={medicament.cameroonRegulatoryReference} target="_blank" rel="noreferrer" className="inline-block text-xs font-semibold text-naxa-green-800 underline">Vérifier l’autorisation au Cameroun (DPML)</a>
                 </div>
                 <p className="mt-2 text-xs text-slate-600">Sources des informations : {medicament.source.join(", ") || "source de données non confirmée"}. Les données médicales sont informatives et ne remplacent pas l’avis d’un pharmacien.</p>
