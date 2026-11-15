@@ -26,7 +26,9 @@ test("l'import accepte CSV/XLS/XLSX, plafonne les fichiers et calcule une emprei
 test("les colonnes sont normalisées et les champs requis sont contrôlés avant l'envoi", () => {
   assert.match(pharmacyPage, /normalizeImportHeader/);
   assert.match(pharmacyPage, /numero_adherent/);
+  assert.match(pharmacyPage, /beneficiairenom/);
   assert.match(pharmacyPage, /date_debut/);
+  assert.match(pharmacyPage, /assureur-liste-assures-exemple\\.csv/);
   assert.match(pharmacyPage, /statut/);
   assert.match(pharmacyPage, /Colonne obligatoire absente/);
   assert.match(pharmacyPage, /importDateToIso/);
