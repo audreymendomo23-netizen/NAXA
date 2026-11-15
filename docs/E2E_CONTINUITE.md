@@ -864,12 +864,12 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Les fichiers et le workflow ont été relus après écriture ; le câblage des deux provisionneurs, les huit tests unitaires et le nettoyage des sessions sont présents.
 - Contrôle SQL Replay : le bucket `pharmacie-documents` est privé avec les politiques Admin SELECT/INSERT/UPDATE/DELETE ; le bucket `medicaments` est public avec les politiques Admin INSERT/UPDATE/DELETE et SELECT public. Les limites et MIME sont conformes aux fichiers utilisés par le test.
 - Simulation transactionnelle des claims JWT de la fixture : `auth.uid()` résout le profil Admin attendu et `is_admin()` retourne `true` ; transaction annulée après le contrôle. Cela prouve le garde SQL, pas une opération HTTP Storage réelle.
-- L'outil GitHub disponible dans cette séquence ne fournit pas le listing des runs déclenchés par `push` ; le statut et les logs du job ne sont donc pas consultables depuis cette session. **Aucun PASS E2E Admin HTTP n'est revendiqué à ce stade.**
-- Le succès historique Promoteur/Storage (14 PASS / 1 SKIP Admin) reste valable pour son commit précédent ; il ne prouve pas encore la nouvelle matrice Admin.
+- Le run GitHub Actions `43682840616` (commit `5f24e339b562704830b9d77043745f14eaa6888b`) a été consulté : les huit tests unitaires Admin passent, le provisionneur Promoteur passe, mais le provisionneur Admin échoue car la liste Auth REST ne renvoie pas exactement une fixture correspondante. La matrice Storage a été sautée après cet échec. **Aucun PASS E2E Admin HTTP n'est revendiqué.**
+- Le succès historique Promoteur/Storage (run `43618611055`, 14 PASS / 1 SKIP Admin) reste valable pour son commit précédent ; il ne prouve pas encore la nouvelle matrice Admin. Le workflow Storage historique séparé (`43682835966`) a passé ses 11 scénarios de base et le nettoyage, puis échoué sur l'ancienne connexion Admin avec HTTP 400.
 
 **Conclusion :** la cause du SKIP Admin est traitée au niveau du code et du workflow. La matrice est maintenant exigée au lieu d'être silencieusement facultative. Sa validation d'exécution reste en attente de lecture des logs du run déclenché par le push.
 
-**Point exact de reprise :** consulter le run GitHub Actions du commit `5f24e339b562704830b9d77043745f14eaa6888b`. Vérifier successivement : tests unitaires Admin, contrôle strict de la fixture, provisionnement Promoteur, matrices Storage Admin et Promoteur, fermeture des sessions et suppression des fichiers secrets temporaires. En cas d'échec, isoler la première assertion en erreur ; ne pas désactiver le caractère obligatoire des matrices.
+**Point exact de reprise :** diagnostiquer le contrat de pagination/énumération Auth Admin qui ne retrouve pas l'identité pourtant confirmée et présente en SQL ; ne pas créer de compte de remplacement. Puis faire passer la matrice Storage complète, en privilégiant le provisionneur secret-safe plutôt que l'ancien secret Admin statique.
 
 
 ## 32. Audit du parcours Livreur et préparation de la fixture E2E Replay (15/11/2026)
@@ -910,3 +910,41 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Les deux scripts ne sont pas encore raccordés au workflow E2E actif ; la fixture et l'affectation Livreur ne sont donc **pas** créées.
 
 **Point exact de reprise :** corriger/compléter le harnais de provisionnement Livreur, en particulier la fermeture locale des sessions Promoteur/Livreur, intégrer les deux fichiers au workflow Replay après le provisionnement Promoteur et avant la matrice Storage, exécuter les tests unitaires, puis contrôler les logs et les lignes Auth/profil/invitation/affectation sur Replay. Ensuite seulement, préparer le parcours réel Stock → mission → Livreur → Client ; ne créer aucune fausse réservation ou paiement sans que les conditions de recette métier soient conçues et nettoyables.
+
+
+## 33. Consolidation des résultats CI et audit du front Livreur existant (15/11/2026)
+
+**Résultats GitHub Actions consultés après le §31 :**
+- Run [43682840616 — Promoteur / Admin / Storage](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43682840616), commit `5f24e339b562704830b9d77043745f14eaa6888b` : **FAIL**. Les 8 tests unitaires de sécurité de la fixture Admin passent ; le provisionnement Promoteur passe ; l'étape de provisionnement Admin échoue avec `Une seule fixture Auth Admin exactement est requise`. L'étape Storage est donc SKIP et le job finit en échec. Les fichiers temporaires Promoteur sont nettoyés par l'étape `always()`.
+- Contradiction à investiguer : l'API Auth Admin REST interrogée par le script ne renvoie pas exactement une correspondance, alors que l'inventaire SQL Replay voit seulement 2 lignes Auth et confirme une unique identité `naxa.e2e.20261104.admin@example.invalid`, confirmée et liée à un profil Admin actif avec marqueurs E2E exacts. La cause technique (pagination, forme de réponse ou filtre) n'est **pas encore prouvée**. Ne pas créer une autre identité.
+- Run [43682835966 — ancien Storage E2E](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43682835966), commit `90439d0fab52330abfdc062ecccef7529449012d` : **FAIL**. Les 11 scénarios Storage de base passent et les deux utilisateurs temporaires ainsi que les objets sont nettoyés ; le test échoue ensuite à la connexion Admin historique, HTTP 400. Cette matrice consomme encore le secret Admin statique de dépôt, distinct du mot de passe éphémère du workflow secret-safe. Ne pas confondre ce run avec le run Promoteur/Admin ci-dessus.
+- Run [43682840610 — NAXA quality](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43682840610), même commit : actionlint **PASS** ; tests **407 PASS / 1 FAIL** sur 408. Unique échec : `scripts/test-security-gateway-agent.cjs`, test « agent événements : empreinte stable et métadonnées bornées », rejet `Date d’événement invalide.`. Le test fixe une date au 08/11/2026 alors que le validateur n'accepte que les sept derniers jours glissants ; le run du 15/11/2026 l'a donc dépassée. Cause d'instabilité temporelle établie ; correction du test non encore appliquée.
+
+**Audit du front-end Livreur sur main — fonctions déjà présentes :**
+- `src/app/pharmacie/affectations/page.tsx` : écran commun Promoteur/Pharmacie, filtre les pharmacies dans le périmètre, affiche le formulaire d'invitation, le gestionnaire d'affectations Livreur et la configuration de livraison ; conserve aussi l'attribution de fonctions urgentes temporaires.
+- `src/components/pharmacie/InvitationLivreurForm.tsx` : création d'une invitation nominative par RPC, lien à copier et validité 7 jours ; texte explicite : aucun SMS/WhatsApp automatique.
+- `src/components/pharmacie/LivreursAssignmentsManager.tsx` : liste des Livreurs du périmètre, statut, compte actif, période, type d'affectation et révocation motivée ; les refus de révocation sur mission active sont rendus visibles à l'utilisateur.
+- `src/app/invitation/livreur/page.tsx` et `src/components/AcceptCourierInvitationClient.tsx` : acceptation du lien par le seul compte destinataire connecté ; création du poste Livreur sans remplacer le rôle racine Client ; retour vers le tableau de bord Livreur.
+- `src/app/pharmacie/livreur/page.tsx`, `src/components/pharmacie/LivreurWorkspaceClient.tsx` et `LivreurProfileClient.tsx` : espace Livreur et profil ; file de missions, acceptation, navigation vers pharmacie/Client, coordonnées Client après attribution, messagerie, retrait géolocalisé, arrivée, déclaration d'espèces à la livraison, confirmation de remise, GPS manuel/automatique, gestion des affectations multi-pharmacies, performances sur 30 jours, historique CSV, changement sécurisé de mot de passe et déconnexion.
+- `src/app/pharmacie/gestionnaire-stock/commandes/page.tsx` et `src/app/pharmacie/gestionnaire-stock/livraison-actions.ts` : confirmation de la demande par Stock, démarrage de la préparation et confirmation « Prête pour livraison ». La page indique que les Livreurs ne sont sollicités qu'après préparation physique et validation du paiement requis.
+- `src/components/SuiviLivraison.tsx` et `src/components/SuiviLivraisonPharmacie.tsx` : suivi Client et Pharmacie, rafraîchissement périodique, jalons, état, coordonnées GPS et confirmation de réception Client.
+- Ces fichiers démontrent la présence du parcours front et de ses appels RPC, **pas** son fonctionnement complet en exécution réelle. Aucun parcours navigateur Client → Stock → Livreur → Client n'a encore été exécuté dans cette séquence.
+
+**Réserves Livreur restant à fermer :**
+1. La matrice de privilèges `role_key='livreur'` demeure vide dans `naxa_role_privileges` ; les opérations sensibles sont actuellement gardées surtout par l'affectation, le rôle actif, la pharmacie et la propriété de mission. Il faut terminer l'audit des autorisations RPC/UI, sans attribuer des droits génériques non validés.
+2. Le harnais `scripts/e2e/provision-replay-livreur-safe.cjs` et ses huit tests unitaires sont présents sur main, mais n'ont pas été exécutés ni raccordés au workflow actif. Le harnais doit aussi fermer explicitement les sessions Promoteur et Livreur en local avant de devenir exécutable dans le workflow.
+3. Le précontrôle SQL en transaction annulée (§32) couvre l'autorisation Promoteur et le refus hors réseau, pas l'acceptation Auth réelle ni l'activation du rôle Client/Livreur.
+4. Il reste à fabriquer une réservation de recette correctement nettoyable et à vérifier les étapes Stock → paiement → publication mission → acceptation → retrait → arrivée → confirmation des deux parties → clôture. Ne pas produire de fausses preuves de paiement.
+
+**État corrigé de la suite :**
+- Réserve idempotence RESEAU : **corrigée et testée sur Replay** (§29).
+- Admin Storage HTTP : **non validé**, bloque au provisionnement Auth et doit encore réussir.
+- Qualité : **échec unique temporel** (date de test dépassée), à corriger.
+- Front Livreur : **présent sur main**, recette E2E métier non exécutée.
+- Données métier Livreur : **aucune** créée durant cette séquence.
+- Production / Vercel : **intacts, non touchés**.
+
+**Point exact de reprise :**
+1. Corriger le test de date d'événement avec une date relative au temps d'exécution, puis relancer la qualité.
+2. Diagnostiquer le listing Auth Admin REST malgré la fixture SQL unique ; débloquer le provisionneur strictement sans nouvelle identité ni conversion de rôle, puis exécuter la matrice Storage Admin et Promoteur complète.
+3. Faire une passe d'audit des garde-fous du rôle Livreur et du cycle de mission, intégrer/assainir le harnais, puis seulement préparer les comptes et données métier de recette sur Replay.
