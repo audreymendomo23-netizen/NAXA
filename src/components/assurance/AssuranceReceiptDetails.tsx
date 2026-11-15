@@ -126,7 +126,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
    <button disabled={!selected||busy} onClick={()=>void quote()} className="btn btn-vert w-full">{busy?"Calcul…":"Calculer mon devis assurance"}</button>
   </>}
   {coverages.length>0&&eligibleCoverages.length===0&&<p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Votre couverture est enregistrée, mais elle n’a pas encore été rapprochée avec une liste de cet assureur importée par cette pharmacie. Le devis Assurance reste indisponible tant que cette vérification n’est pas faite.</p>}
-  {coverages.some(x=>x.verification_statut==="suspendue"&&x.verification_pharmacie_id===reservationPharmacyId)&&<p className="text-xs text-amber-800">Une couverture a été suspendue pour cette pharmacie selon la dernière liste importée.</p>}
+  {coverages.some(x=>x.verification_statut==="suspendue")&&<p className="text-xs text-amber-800">Une couverture a été suspendue pour cette pharmacie selon la dernière liste importée.</p>}
   <details className="rounded-xl border p-3">
    <summary className="cursor-pointer text-sm font-bold">{coverages.length?"Ajouter ou corriger ma couverture":"Enregistrer ma couverture"}</summary>
    <div className="mt-3 grid gap-3 sm:grid-cols-2">
