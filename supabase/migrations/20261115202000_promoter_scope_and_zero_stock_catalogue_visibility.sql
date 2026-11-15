@@ -103,11 +103,14 @@ begin
   ) then
     raise exception 'La déclaration produit est réservée aux fonctions professionnelles de la pharmacie';
   end if;
+
   if not private.naxa_scope_allows(v_user,p_pharmacie,'PHARMACIE') then
     raise exception 'Pharmacie hors périmètre de votre compte';
   end if;
 
-  select p.actif into v_profile_active from public.profiles p where p.id=v_user;
+  select p.actif into v_profile_active
+  from public.profiles p
+  where p.id=v_user;
   if v_profile_active is not true then raise exception 'Profil inactif'; end if;
 
   if p_nom is null or char_length(trim(p_nom)) not between 2 and 180
@@ -116,101 +119,12 @@ begin
      or p_forme is null or char_length(trim(p_forme)) not between 1 and 100 then
     raise exception 'Nom, DCI, dosage et forme sont obligatoires';
   end if;
+
   if p_prix is null or p_prix<0 then raise exception 'Prix de vente FCFA invalide'; end if;
   if p_emplacement is not null and char_length(trim(p_emplacement))>160 then
     raise exception 'Emplacement limité à 160 caractères';
   end if;
-  if p_code_barre is not null and trim(p_code_barre)<>'' and trim(p_code_barre) !~ '^[0-9]{8,14}
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $function$
-  -- Products declared by any active public partner pharmacy remain discoverable
-  -- even at quantity zero. Offer search still separately requires fresh sellable stock.
-  select p_produit is not null and exists (
-    select 1
-    from public.stocks s
-    join public.pharmacies ph on ph.id=s.pharmacie_id
-    where s.produit_id=p_produit
-      and ph.actif is true
-      and ph.visible_recherche is true
-      and ph.est_demo is false
-      and ph.archivee_le is null
-  );
-$function$;
-
-drop policy if exists produits_authenticated_live_offer_read on public.produits;
-create policy produits_authenticated_live_offer_read
-on public.produits
-for select
-to authenticated
-using (
-  public.marketplace_produit_visible(id)
-  or (select public.is_admin())
-  or (
-    (select private.naxa_business_function(auth.uid()))='promoteur'
-    and (select private.naxa_promoteur_valide(auth.uid()))
-  )
-  or (
-    (select private.naxa_business_function(auth.uid())) in (
-      'pharmacie','caisse','responsable','comptable','pharmacien',
-      'gestionnaire_stock','magasinier'
-    )
-    and (select public.my_pharmacie()) is not null
-  )
-);
-
-drop policy if exists produits_write on public.produits;
-create policy produits_write
-on public.produits
-for insert
-to authenticated
-with check (
-  (select public.is_admin())
-  or (
-    (select private.naxa_business_function(auth.uid())) in (
-      'promoteur','pharmacie','pharmacien','pharmacien_assistant',
-      'responsable','gestionnaire_stock','magasinier'
-    )
-    and created_by=auth.uid()
-    and created_by_pharmacie_id is not null
-    and (select private.naxa_scope_allows(auth.uid(),created_by_pharmacie_id,'PHARMACIE'))
-    and fiche_validee is not true
-  )
-);
-
-drop policy if exists produits_update on public.produits;
-create policy produits_update
-on public.produits
-for update
-to authenticated
-using (
-  (select public.is_admin())
-  or (
-    (select private.naxa_business_function(auth.uid())) in (
-      'promoteur','pharmacie','pharmacien','pharmacien_assistant',
-      'responsable','gestionnaire_stock','magasinier'
-    )
-    and created_by_pharmacie_id is not null
-    and (select private.naxa_scope_allows(auth.uid(),created_by_pharmacie_id,'PHARMACIE'))
-  )
-)
-with check (
-  (select public.is_admin())
-  or (
-    (select private.naxa_business_function(auth.uid())) in (
-      'promoteur','pharmacie','pharmacien','pharmacien_assistant',
-      'responsable','gestionnaire_stock','magasinier'
-    )
-    and created_by_pharmacie_id is not null
-    and (select private.naxa_scope_allows(auth.uid(),created_by_pharmacie_id,'PHARMACIE'))
-  )
-);
-
-commit;
- then
+  if p_code_barre is not null and trim(p_code_barre)<>'' and trim(p_code_barre) !~ '^[0-9]{8,14}$' then
     raise exception 'Code-barres invalide (8 à 14 chiffres)';
   end if;
 
