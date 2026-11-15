@@ -20,7 +20,7 @@ const photoUpload = fs.readFileSync(
 );
 
 test("l'administration consulte le catalogue sans approuver ni modifier les fiches", () => {
-  assert.match(adminProductsPage, /requireAdminActive\("/admin/produits"\)/);
+  assert.match(adminProductsPage, /requireAdminActive\("\/admin\/produits"\)/);
   assert.match(adminProductsPage, /en lecture seule/i);
   assert.match(adminProductsPage, /NAXA ne vérifie, ne certifie, n'approuve et ne corrige pas les fiches/i);
   assert.doesNotMatch(adminProductsPage, /fiche_validee|Fiche relue par un pharmacien|brouillonIA|enregistrerFiche|formAction/);
