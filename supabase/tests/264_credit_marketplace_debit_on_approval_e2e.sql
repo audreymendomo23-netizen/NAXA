@@ -189,10 +189,12 @@ begin
   perform set_config('request.jwt.claim.sub',v_admin::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
 
+  set local session_replication_role = 'replica';
   insert into public.produits(id,nom) values
     (v_produit_ab,'Produit E2E 264 A/B'),
     (v_produit_restore,'Produit E2E 264 restitution'),
     (v_produit_denied,'Produit E2E 264 refus');
+  set local session_replication_role = 'origin';
 
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption)
   values
