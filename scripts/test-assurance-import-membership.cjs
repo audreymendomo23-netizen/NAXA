@@ -84,7 +84,7 @@ test("le test runtime vérifie import delta/complet multi-pharmacies et rollback
   assert.match(runtimeImportTest, /rollback/i);
   assert.match(runtimeImportTest, /v_verification_a<>'suspendue'/);
   assert.match(runtimeImportTest, /v_verification_b<>'verifiee'/);
-  assert.match(verificationMigration, /verification_le timestamptz not null default clock_timestamp\\(\\)/);
+  assert.ok(verificationMigration.includes("verification_le timestamptz not null default clock_timestamp()"));
 });
 
 test("les fichiers et les tests de contrat couvrent le contrôle des imports et du POS négocié", () => {
