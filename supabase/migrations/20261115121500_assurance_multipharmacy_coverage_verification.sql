@@ -220,17 +220,17 @@ begin
   if exists(select 1 from public.assurance_reservation_snapshots where reservation_id=v_r.id) then
     raise exception 'Un devis est déjà figé pour cette réservation ; créez une nouvelle réservation pour recalculer';
   end if;
-  select * into v_c from public.couvertures_assurance
-  where id=p_couverture and client_id=v_uid and actif
+  select c.* into v_c from public.couvertures_assurance c
+  where c.id=p_couverture and client_id=v_uid and actif
     and date_debut<=current_date and (date_fin is null or date_fin>=current_date)
     and exists (
       select 1
       from public.assurance_couverture_verifications v
-      where v.couverture_id=v_c.id
+      where v.couverture_id=c.id
         and v.pharmacie_id=v_r.pharmacie_id
         and v.id=(
           select v2.id from public.assurance_couverture_verifications v2
-          where v2.couverture_id=v_c.id and v2.pharmacie_id=v_r.pharmacie_id
+          where v2.couverture_id=c.id and v2.pharmacie_id=v_r.pharmacie_id
           order by v2.verification_le desc,v2.id desc
           limit 1
         )
