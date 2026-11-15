@@ -57,8 +57,8 @@ test("le runtime couvre partage Client/Assureur, monnaie rendue, ticket, rembour
 });
 
 test("le runtime réutilise des identités Replay existantes et ne crée aucun utilisateur Auth", () => {
-  assert.match(runtime, /naxa_select_active_role\\('responsable'/);
-  assert.match(runtime, /naxa_select_active_role\\('caisse'/);
+  assert.ok(runtime.includes("naxa_select_active_role('responsable'"));
+  assert.ok(runtime.includes("naxa_select_active_role('caisse'"));
   assert.match(runtime, /naxa_professional_assignments/);
-  assert.doesNotMatch(runtime, /insert into auth\\.users/i);
+  assert.ok(!runtime.toLowerCase().includes("insert into auth.users"));
 });
