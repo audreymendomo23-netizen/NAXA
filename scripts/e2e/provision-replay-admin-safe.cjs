@@ -78,8 +78,7 @@ async function provision(env = process.env) {
     return data;
   }
 
-  // Locate the unique, already-active fixture profile first, then fetch its
-  // Auth identity directly by ID. Avoid relying on paginated Auth user listing.
+  // Locate the unique, already-active fixture profile first.
   const profiles = await api(
     "/rest/v1/profiles?select=id,username,role,actif"
       + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2",
@@ -89,11 +88,36 @@ async function provision(env = process.env) {
     throw new Error("Le profil unique de la fixture Admin active est introuvable ; aucune création automatique.");
   }
   const profile = profiles[0];
-  const authResult = await api(
-    "/auth/v1/admin/user/" + encodeURIComponent(profile.id),
-    "GET", undefined, "lecture Auth Admin par ID"
-  );
-  const user = authResult && authResult.user ? authResult.user : authResult;
+
+  async function findAuthFixture() {
+    let returnedUsers = 0;
+    for (let page = 1; page <= 20; page += 1) {
+      const listed = await api(
+        "/auth/v1/admin/users?page=" + page + "&per_page=50",
+        "GET", undefined, "lecture paginée de la liste Auth Admin"
+      );
+      const users = Array.isArray(listed?.users)
+        ? listed.users
+        : Array.isArray(listed?.data?.users)
+          ? listed.data.users
+          : Array.isArray(listed)
+            ? listed
+            : [];
+      returnedUsers += users.length;
+      const match = users.find(candidate =>
+        candidate.id === profile.id
+        && String(candidate.email || "").trim().toLowerCase() === EMAIL
+      );
+      if (match) return match;
+      if (users.length < 50) break;
+    }
+    throw new Error(
+      "La fixture Auth Admin ne figure pas dans les pages Auth consultées ("
+        + returnedUsers + " identité(s) retournée(s)) ; aucun compte n'a été créé."
+    );
+  }
+
+  const user = await findAuthFixture();
   assertAdminFixture(user, profile);
 
   const password = generateEphemeralPassword();
@@ -113,13 +137,7 @@ async function provision(env = process.env) {
   );
 
   // Re-read the same Auth identity and profile after the password rotation.
-  const verifiedAuthResult = await api(
-    "/auth/v1/admin/user/" + encodeURIComponent(user.id),
-    "GET", undefined, "relecture Auth Admin après rotation"
-  );
-  const verifiedUser = verifiedAuthResult && verifiedAuthResult.user
-    ? verifiedAuthResult.user
-    : verifiedAuthResult;
+  const verifiedUser = await findAuthFixture();
   const verifiedProfiles = await api(
     "/rest/v1/profiles?select=id,username,role,actif"
       + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2",
