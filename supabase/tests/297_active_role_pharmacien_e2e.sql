@@ -270,9 +270,8 @@ begin
   -- Le client reste isolé des ordonnances d'un autre compte.
   perform set_config('request.jwt.claim.sub',v_client::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_client::text,'role','authenticated')::text,true);
-  select count(*) into v_count from public.naxa_client_mes_ordonnances() r
-    where r.client_id=v_client;
-  -- La fonction n'expose pas de champ client_id ; le nombre attendu est limité aux 2 dossiers propres.
+  select count(*) into v_count from public.naxa_client_mes_ordonnances();
+  -- La fonction est auto-scopee sur auth.uid() et ne retourne que les dossiers du Client courant.
   if v_count<>2 then raise exception 'Le suivi Client ne retourne pas exactement ses deux ordonnances'; end if;
   insert into naxa_role_297_results values('suivi_client_limite_au_compte',true,
     'Le suivi Client retourne ses deux dossiers créés par cette recette');
