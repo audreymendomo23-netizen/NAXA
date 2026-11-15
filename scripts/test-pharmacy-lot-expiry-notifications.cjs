@@ -14,6 +14,10 @@ const sqlTest = fs.readFileSync(
   path.join(root, "supabase/tests/20261115100000_pharmacy_lot_expiry_reminders_and_cameroon_date_guard.sql"),
   "utf8"
 );
+const batchMigration = fs.readFileSync(
+  path.join(root, "supabase/migrations/20261115103000_batch_pharmacy_lot_expiry_dispatch.sql"),
+  "utf8"
+);
 const stockUi = fs.readFileSync(
   path.join(root, "src/components/pharmacie/GestionnaireStockEspace.tsx"),
   "utf8"
@@ -25,7 +29,7 @@ test("rappels quotidiens J-30, J-15, J-7, J-3 et J0 selon Africa/Douala", () => 
     assert.match(sqlTest, new RegExp("\\b" + offset + "\\b"));
   }
   assert.match(migration, /Africa\/Douala/);
-  assert.match(migration, /0 6 \* \* \*/);
+  assert.match(batchMigration, /\*\/10 \* \* \* \*/);
   assert.match(migration, /private\.dispatch_pharmacy_lot_expiry_alerts/);
 });
 
@@ -60,6 +64,14 @@ test("table privée, ACL et fixture transactionnelle annulée", () => {
   assert.match(sqlTest, /begin;[\s\S]*rollback;/i);
   assert.match(sqlTest, /est_demo=false/);
   assert.match(sqlTest, /related_entity_id=any\(v_lot_ids\)/);
+});
+
+test("le job traite les rappels par lots successifs sans retenter les destinataires déjà servis", () => {
+  assert.match(batchMigration, /\*\/10 \* \* \* \*/);
+  assert.match(batchMigration, /not exists \([\s\S]*?from private\.pharmacy_lot_expiry_notification_dispatches d/);
+  assert.match(batchMigration, /d\.destinataire_id=recipients\.destinataire_id/);
+  assert.match(sqlTest, /for v_batch in 1\.\.6 loop/);
+  assert.match(sqlTest, /dispatch_pharmacy_lot_expiry_alerts\(v_today,1\)/);
 });
 
 test("interface Lots & péremptions utilise la date civile Africa/Douala et non UTC", () => {
