@@ -95,6 +95,10 @@ async function provision(env = process.env) {
   if (!env.GITHUB_ENV || !env.RUNNER_TEMP) {
     throw new Error("Provisionnement autorisé uniquement dans un job GitHub Actions avec stockage temporaire.");
   }
+
+  const roleSessions = [];
+  let passwordFile = null;
+  let failed = false;
   if (!fs.existsSync(promoterPasswordFile)) {
     throw new Error("Le fichier de mot de passe Promoteur est introuvable.");
   }
@@ -153,16 +157,54 @@ async function provision(env = process.env) {
     if (!result.ok || !result.data?.access_token || !result.data?.user?.id) {
       throw new Error("Connexion du compte " + label + " impossible (HTTP " + result.status + ").");
     }
+    roleSessions.push(result.data.access_token);
     return { id: result.data.user.id, token: result.data.access_token };
   }
 
-  const listed = await adminRequest("/auth/v1/admin/users?page=1&per_page=1000");
-  const users = Array.isArray(listed?.users) ? listed.users : [];
-  const matches = users.filter(x => String(x.email || "").trim().toLowerCase() === EMAIL);
-  if (matches.length > 1) throw new Error("Plusieurs identités Auth portent l'e-mail de la fixture Livreur.");
+  async function logoutRoleSession(accessToken) {
+    const result = await request("/auth/v1/logout?scope=local", {
+      method: "POST",
+      accessToken,
+    });
+    if (!result.ok && result.status !== 401 && result.status !== 404) {
+      throw new Error("Fermeture locale d'une session E2E Livreur/Promoteur impossible (HTTP " + result.status + ").");
+    }
+  }
+
+  async function findAuthFixtureUsers() {
+    const matches = [];
+    let inspected = 0;
+    for (let page = 1; page <= 20; page += 1) {
+      const listed = await adminRequest("/auth/v1/admin/users?page=" + page + "&per_page=50");
+      const users = Array.isArray(listed?.users)
+        ? listed.users
+        : Array.isArray(listed?.data?.users)
+          ? listed.data.users
+          : Array.isArray(listed)
+            ? listed
+            : [];
+      inspected += users.length;
+      matches.push(...users.filter(x => String(x.email || "").trim().toLowerCase() === EMAIL));
+      if (users.length < 50) break;
+    }
+    if (matches.length > 1) {
+      throw new Error("Plusieurs identités Auth portent l'e-mail de la fixture Livreur ; aucune modification.");
+    }
+    return { matches, inspected };
+  }
+
+  let matches = [];
+  let inspected = 0;
+  let passwordFile = null;
+  let failed = false;
+  const roleSessions = [];
+  try {
+    const authFixtures = await findAuthFixtureUsers();
+    matches = authFixtures.matches;
+    inspected = authFixtures.inspected;
 
   const password = generateEphemeralPassword();
-  const passwordFile = env.RUNNER_TEMP + "/naxa-e2e-livreur-" + randomBytes(8).toString("hex") + ".secret";
+  passwordFile = env.RUNNER_TEMP + "/naxa-e2e-livreur-" + randomBytes(8).toString("hex") + ".secret";
   fs.writeFileSync(passwordFile, password, { encoding: "utf8", flag: "wx", mode: 0o600 });
   fs.appendFileSync(
     env.GITHUB_ENV,
@@ -341,6 +383,28 @@ async function provision(env = process.env) {
   process.stdout.write("PASS — gestion Promoteur : Livreur visible sur sa pharmacie ; consultation hors réseau refusée.\n");
   process.stdout.write("PASS — RPC tableau de bord Livreur accessible ; missions actuelles : " + missions.data.length + ".\n");
   process.stdout.write("INFO — fixture Courier conservée sur Replay pour les prochaines recettes ; aucun ordre ou paiement créé.\n");
+  process.stdout.write("INFO — " + inspected + " identité(s) Auth consultée(s) par pages bornées.\n");
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    const cleanupErrors = [];
+    for (const token of [...new Set(roleSessions)].reverse()) {
+      try {
+        await logoutRoleSession(token);
+      } catch (error) {
+        cleanupErrors.push(error?.message || "erreur inconnue");
+      }
+    }
+    if (failed && passwordFile && fs.existsSync(passwordFile)) {
+      try { fs.unlinkSync(passwordFile); } catch { /* nettoyage final du workflow en second recours */ }
+    }
+    if (cleanupErrors.length) {
+      const message = "CLEANUP sessions Livreur/Promoteur : " + cleanupErrors.join(" ; ");
+      if (failed) process.stderr.write(message + "\n");
+      else throw new Error(message);
+    }
+  }
 }
 
 if (require.main === module) {
