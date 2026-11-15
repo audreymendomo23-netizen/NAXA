@@ -39,7 +39,9 @@ function sumLotQuantities(rows) {
     if (!Number.isSafeInteger(quantity) || quantity < 0) {
       throw new Error("Une quantité de lot est invalide.");
     }
-    return sum + quantity;
+    const next = sum + quantity;
+    if (!Number.isSafeInteger(next)) throw new Error("La somme des lots dépasse la plage numérique sûre.");
+    return next;
   }, 0);
 }
 
@@ -320,8 +322,6 @@ async function run(env = process.env) {
         + encodeURIComponent(pharmacyId) + "&produit_id=eq." + encodeURIComponent(productId)).catch(() => null);
       if (Array.isArray(remainingLots)) {
         const restoredQuantity = sumLotQuantities(remainingLots);
-        const stockFilter = "&pharmacie_id=eq." + encodeURIComponent(pharmacyId)
-          + "&produit_id=eq." + encodeURIComponent(productId);
         if (baseStock) {
           await admin("/rest/v1/stocks?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
             + "&produit_id=eq." + encodeURIComponent(productId),
