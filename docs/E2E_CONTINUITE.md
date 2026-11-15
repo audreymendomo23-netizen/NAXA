@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — la recette Storage de base est validée sur Replay (11/11 PASS) ; matrices Admin/Promoteur et autres parcours E2E toujours ouverts.
+**État global :** 🟡 PARTIEL — recette Storage Promoteur validée sur Replay (14 PASS, 1 SKIP Admin lors du run précédent) ; matrice Admin désormais câblée dans le workflow secret-safe, résultat du nouveau run à confirmer ; parcours des autres profils professionnels encore ouverts.
 
 ## 1. Règles et périmètre sécurisé
 
@@ -830,8 +830,41 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 
 **Décision technique de reprise :**
 - Ne pas créer, supprimer, renommer, convertir ou réattribuer de rôle à un compte Auth.
-- Ajouter un approvisionneur strictement épinglé à Replay qui vérifie l'e-mail exact, les deux marqueurs E2E, la confirmation Auth, le profil lié `admin/actif`, puis ne modifie que le mot de passe de cette fixture dédiée (aléatoire, propre au job, jamais journalisé).
-- Transmettre le mot de passe via un fichier temporaire privé runner (mode 0600), masquer la valeur dans GitHub Actions, puis supprimer le fichier au terme du job.
-- Exécuter ensuite Storage E2E avec matrices Admin et Promoteur obligatoires, sans toucher à Production ni Vercel.
+- Approvisionneur dédié désormais ajouté : validation stricte de l'e-mail exact, des deux marqueurs E2E, de la confirmation Auth et du profil lié `admin/actif`. Seul le mot de passe de cette fixture est renouvelé, aléatoirement et pour le job en cours.
+- Le mot de passe est transmis via un fichier temporaire privé runner (mode 0600), masqué dans GitHub Actions puis supprimé par nettoyage, y compris en cas d'échec.
+- Le workflow E2E exige maintenant les matrices Admin et Promoteur, et ferme les sessions des deux rôles en fin de recette.
 
-**Point exact de reprise :** implémenter les tests unitaires de validation de la fixture Admin, l'approvisionneur secret-safe et son intégration au workflow Replay Promoteur/Storage ; exécuter le workflow, vérifier les assertions Admin et confirmer le nettoyage Storage. Aucune mutation Admin n'a encore été faite dans cette étape de préparation.
+**Point exact de reprise :** code et tests sont versionnés au §31. Confirmer le résultat du run déclenché par le push `main`, examiner ses assertions Admin/Promoteur et ses lignes de nettoyage. Ne pas annoncer la matrice Admin PASS tant que les logs du job ne sont pas consultés.
+
+
+## 31. Activation de la matrice Storage Admin — provisionnement secret-safe (15/11/2026)
+
+**Périmètre : Replay uniquement.** Pas de Production, Vercel ni Play Store.
+
+**Fixture Admin conservée :**
+- Identité existante `naxa.e2e.20261104.admin@example.invalid` ; Auth confirmé ; profil lié `role='admin'`, `actif=true`.
+- Marqueurs validés en lecture seule : `naxa_e2e_fixture='NAXA-E2E-20261104'`, `naxa_e2e_persona='admin'`.
+- Le compte n'a été ni créé, ni supprimé, ni renommé, ni converti, ni réactivé durant le contrôle. Aucun rôle ou privilège n'a été modifié.
+- Aucun compte Replay correspondant à `naxa.home@gmail.com` n'a été trouvé ; l'identité Admin technique dédiée reste la seule utilisée pour la recette.
+
+**Code versionné sur main :**
+- `scripts/e2e/provision-replay-admin-safe.cjs` — commit `3dff0daca9734460f5567c50d3d6f1c444868673`. L'approvisionneur refuse tout hôte autre que Replay, exige exactement une identité avec marqueurs Admin E2E + confirmation Auth et un profil Admin actif lié ; il ne crée aucun compte et ne change aucun rôle. Il renouvelle seulement le mot de passe de cette fixture avec une valeur aléatoire propre au job.
+- `scripts/test-replay-admin-safe.cjs` — commit `ebfdfd656b33b05c357401b0f8bb443fae341f39`. Huit tests unitaires codés pour URL Replay, identité, marqueurs, confirmation, liaison Auth/profil, rôle actif et génération de secret.
+- `scripts/storage-e2e.cjs` — commit `90439d0fab52330abfdc062ecccef7529449012d`. Les sessions existantes Admin et Promoteur sont maintenant fermées localement après leur matrice ; elles ne sont ni supprimées ni globalement révoquées.
+- `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` — commit `5f24e339b562704830b9d77043745f14eaa6888b`. Le workflow exécute les tests de provisionnement, prépare la fixture Admin puis la fixture Promoteur, exige `NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX=1`, exécute les deux matrices et supprime les fichiers de mot de passe éphémère dans un bloc de nettoyage `always()`.
+
+**Protections :**
+- URL épinglée sur `https://pwfftcsjyeibxxqhwysw.supabase.co`; l'URL Production est explicitement refusée.
+- Aucune valeur de mot de passe n'est écrite dans Git, les logs ou le document ; génération au runtime, fichier sous `RUNNER_TEMP` avec mode 0600 et masquage GitHub Actions.
+- Les tests Admin utilisent seulement l'identité confirmée et déjà marquée comme fixture. Le profil Auth n'est jamais converti ni réactivé automatiquement.
+- Les sessions Admin et Promoteur ouvertes pour la recette sont fermées avec le scope local ; aucune révocation globale.
+
+**État d'exécution :**
+- Le push du workflow sur `main` est le déclencheur configuré pour lancer le nouveau job obligatoire.
+- Les fichiers et le workflow ont été relus après écriture ; le câblage des deux provisionneurs, les huit tests unitaires et le nettoyage des sessions sont présents.
+- L'outil GitHub disponible dans cette séquence ne fournit pas le listing des runs déclenchés par `push` ; le statut et les logs du job ne sont donc pas consultables depuis cette session. **Aucun PASS E2E Admin n'est revendiqué à ce stade.**
+- Le succès historique Promoteur/Storage (14 PASS / 1 SKIP Admin) reste valable pour son commit précédent ; il ne prouve pas encore la nouvelle matrice Admin.
+
+**Conclusion :** la cause du SKIP Admin est traitée au niveau du code et du workflow. La matrice est maintenant exigée au lieu d'être silencieusement facultative. Sa validation d'exécution reste en attente de lecture des logs du run déclenché par le push.
+
+**Point exact de reprise :** consulter le run GitHub Actions du commit `5f24e339b562704830b9d77043745f14eaa6888b`. Vérifier successivement : tests unitaires Admin, contrôle strict de la fixture, provisionnement Promoteur, matrices Storage Admin et Promoteur, fermeture des sessions et suppression des fichiers secrets temporaires. En cas d'échec, isoler la première assertion en erreur ; ne pas désactiver le caractère obligatoire des matrices.
