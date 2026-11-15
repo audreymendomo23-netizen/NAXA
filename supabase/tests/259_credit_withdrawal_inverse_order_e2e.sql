@@ -19,7 +19,9 @@ begin
   insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne)
   values (v_admin,'admin','NAXA','Admin test',true,true,now(),1),(v_client_a,'client','NAXA','Client A',true,true,now(),4),(v_client_b,'client','NAXA','Client B',true,true,now(),4);
   insert into public.pharmacies(id,nom,ville,lat,lng,actif,visible_recherche) values(v_ph,'NAXA test retrait 259','Yaoundé',3.87,11.52,true,true);
+  set local session_replication_role='replica';
   insert into public.produits(id,nom) values(v_prod,'NAXA produit retrait 259');
+  set local session_replication_role='origin';
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption) values(v_ph,v_prod,1000,10,current_date+90);
   insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire) values(v_ph,v_prod,500);
   insert into public.stocks_lots(id,pharmacie_id,produit_id,lot,numero_lot,peremption,date_peremption,quantite,bloque)
