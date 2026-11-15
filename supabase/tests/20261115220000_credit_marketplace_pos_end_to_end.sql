@@ -39,6 +39,8 @@ begin
   set local session_replication_role='origin';
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption)
   values(v_ph,v_product,1000,5,private.naxa_date_cameroun()+90);
+  insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire)
+  values(v_ph,v_product,500);
   insert into public.caisses(id,pharmacie_id,nom,actif) values(v_caisse,v_ph,'Caisse credit POS E2E',true);
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,statut,fond_initial)
   values(v_session,v_caisse,v_admin,'ouverte',0);
