@@ -26,6 +26,10 @@ const webPushE2E = fs.readFileSync(
   path.join(root, "scripts/e2e/verify-replay-expiry-webpush.cjs"),
   "utf8"
 );
+const replayWorkflow = fs.readFileSync(
+  path.join(root, ".github/workflows/naxa-replay-promoteur-secret-safe-v2.yml"),
+  "utf8"
+);
 
 test("le worker push accepte un identifiant UUID et conserve le mode batch historique", () => {
   assert.match(route, /const UUID_RE\s*=\s*\/\^\[0-9a-f\]/i);
@@ -65,4 +69,12 @@ test("la recette Web Push utilise des profils Chromium persistants, permission a
   assert.ok(webPushE2E.includes('permissionStatus.state !== "granted"'));
   assert.ok(webPushE2E.includes('navigator.serviceWorker.register("/naxa-push-sw.js"'));
   assert.ok(webPushE2E.includes("fs.rmSync(profileDir"));
+});
+
+test("le serveur Next local Replay transmet la clé serveur attendue par supabaseAdmin sans modifier Production", () => {
+  assert.ok(replayWorkflow.includes('export SUPABASE_SECRET_KEY="${SUPABASE_SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"'));
+  assert.ok(replayWorkflow.includes('echo "::add-mask::$SUPABASE_SECRET_KEY"'));
+  assert.ok(replayWorkflow.includes('if [ -z "$SUPABASE_SECRET_KEY" ]'));
+  assert.ok(replayWorkflow.includes("Ce workflow est strictement limité à NAXA Replay"));
+  assert.ok(!replayWorkflow.includes("VERCEL_ENV=production"));
 });
