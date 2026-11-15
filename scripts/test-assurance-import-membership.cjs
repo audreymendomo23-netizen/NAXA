@@ -69,7 +69,7 @@ test("le Client ne peut calculer un devis qu'après vérification de sa couvertu
   assert.match(verificationMigration, /v\.statut='verifiee'/);
   assert.match(clientPage, /assurance_couverture_verifications/);
   assert.match(clientPage, /eligibleCoverages/);
-  assert.match(clientPage, /n’a pas encore été rapprochée d’une liste assureur/);
+  assert.match(clientPage, /n’a pas encore été rapprochée avec une liste de cet assureur/);
 });
 
 test("les fichiers et les tests de contrat couvrent le contrôle des imports et du POS négocié", () => {
