@@ -60,9 +60,9 @@ test("Marketplace et contrôles opérationnels utilisent la date locale du Camer
   assert.match(sqlTest, /date_peremption>=v_today/);
   assert.match(sqlTest, /v_marketplace_qty,-1\)<>50/);
   assert.match(sqlTest, /v_marketplace_qty,-1\)<>0/);
-  assert.match(sqlTest, /public\\.search_pharmacies\\(array\\[v_product_name\\]/);
+  assert.match(sqlTest, /public\.search_pharmacies\(array\[v_product_name\]/);
   assert.match(sqlTest, /ne doit plus ressortir comme offre Marketplace/);
-  assert.match(sqlTest, /marketplace_produit_visible\\(v_produit\\) is not true/);
+  assert.match(sqlTest, /marketplace_produit_visible\(v_produit\) is not true/);
 });
 
 test("table privée, ACL et fixture transactionnelle annulée", () => {
