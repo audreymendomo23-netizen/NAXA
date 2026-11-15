@@ -2463,7 +2463,39 @@ Tous les scénarios E2E SQL ci-dessus sont annulés par ROLLBACK.
 1. **Remboursement runtime complet :** l'interface appelle le RPC structuré avec mode espèces, montant borné au solde et session personnelle ; les contrats 248/249/250/254/255 passent. Toutefois, le test transactionnel qui ajoutait un appel réel à client_credit_rembourser a été bloqué par le contrôle de sécurité de l'outil SQL ; le remboursement complet n'est donc pas déclaré PASS runtime dans cette passe.
 2. **Comptabilité commerciale :** l'octroi et le remboursement sont maintenant émis et pris en charge par le worker, mais Replay n'a aucun mapping credit_octroi, aucun mapping credit_remboursement, aucun journal pour ces événements et aucune période comptable. Aucun posting au grand livre ne peut être déclaré PASS avant validation du plan, des mappings, journaux et périodes par le Promoteur/Comptable de la pharmacie.
 3. **Recette navigateur crédit :** le test direct comptoir couvre les RPC et transactions sous fixtures Admin/Client avec rollback ; le test 264 couvre l'approbation Responsable. Aucune navigation réelle complète dans le navigateur avec une vraie session Caisse, un Promoteur/Responsable connecté et le Client correspondant n'est encore attestée par cette recette.
-4. **Actions :** les runs 3321 et 124 étaient encore en cours au moment de cette entrée. Leur conclusion finale doit être ajoutée avant de déclarer la qualité ou l'E2E global PASS.
+4. **Actions :** run qualité 3321 : SUCCESS ; Replay E2E 124 : SUCCESS ; run Replay 125 : FAIL Web Push Responsable ; qualité 3332 et Replay 128 restent en cours sur des têtes plus récentes ; Replay 129 est en attente avec diagnostic de compteurs. Leurs conclusions doivent être ajoutées avant tout feu vert global.
 
 **VERDICT : CODE ET BACKEND CRÉDIT CORRIGÉS ; RECETTE SQL CIBLÉE PASS ; PARTIEL / PAS AU VERT GLOBAL.** Les défauts de crédit au comptoir, de file de décision caisse, de plafond Responsable, de double débit Marketplace et d'émission comptable du crédit sont corrigés et testés sur Replay. Les preuves navigateur, remboursement runtime et paramétrage comptable réel restent nécessaires. Production et Vercel inchangés.
+
+
+## 60. Projection Caisse des identités Client crédit et état des Actions (15/11/2026)
+
+**Tête source au contrôle :** 988ef63b08f8b338bc401a222908faa3be651144 sur main. Replay uniquement.
+
+### Correctif de confidentialité Caisse
+
+Le chargement de /pharmacie/caisse ne lit plus directement public.profiles pour récupérer les noms des Clients crédit, car la politique RLS ne permet pas à un compte Caisse standard de lire les profils Client. Cette limite aurait laissé des références UUID dans le sélecteur.
+
+- Migration supabase/migrations/20261115224500_credit_cashier_client_identity_projection.sql appliquée à Replay après dry-run transactionnel.
+- Nouvelle RPC public.caisse_credit_clients_lister(uuid) : SECURITY DEFINER, exécution réservée aux comptes authentifiés, contrôles Admin ou naxa_caisse_actor_for_pharmacy, et projection limitée aux Clients actifs avec un compte crédit actif dans la pharmacie demandée. Seuls ID, solde, plafond, prénom, nom, téléphone et username sont retournés.
+- /pharmacie/caisse appelle cette RPC ; aucun droit général de lecture de profiles n'a été accordé au rôle Caisse.
+- Test versionné supabase/tests/20261115224500_credit_cashier_client_identity_projection.sql : **PASS** sur Replay.
+- Contrôle sous JWT d'un profil Caisse Replay : naxa_caisse_actor_for_pharmacy(pharmacie)=true, RPC autorisée dans sa pharmacie (0 compte crédit existant pour cette fixture) ; tentative de lecture de l'autre pharmacie refusée. Ces vérifications ont été faites dans des transactions annulées et n'ont créé aucune donnée.
+
+Le parcours Client /achats/credit/suivi affiche également comptes, soldes, plafonds, demandes Marketplace et comptoir, journal des octrois/remboursements et reçus.
+
+### État des Actions GitHub après les derniers commits
+
+- [NAXA quality — run 3321](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589972) : **SUCCESS** sur e67d066 ; 511/511 tests Node PASS, TypeScript, ESLint, build Next.js/Serwist et actionlint PASS. Ce run est antérieur au dernier ajustement UI Caisse/Client.
+- [NAXA Replay Promoteur E2E — run 124](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589933) : **SUCCESS** ; 3 notifications Web Push constatées dans Chromium et Storage 17 PASS / 0 SKIP ; nettoyage PASS.
+- [NAXA Replay Promoteur E2E — run 125](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760955655) : **FAIL** à l'étape Web Push ciblée Responsable (réponse HTTP 200 mais assertion des compteurs d'envoi non satisfaite) ; Storage ignoré à cause de cet échec ; étape de nettoyage exécutée. La cause exacte (réclamation, canal ou envoi) n'est pas encore déterminée.
+- [NAXA Replay Promoteur E2E — run 128](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43761405941) : en cours au dernier contrôle, build du worker de notifications après préflight et préparation des rôles.
+- [NAXA Replay Promoteur E2E — run 129](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43761646776) : en attente ; ajoute au message d'échec les compteurs non sensibles claimed/sent/retried/failed/webPushSent/fcmSent pour diagnostiquer le cas Responsable sans affaiblir l'assertion.
+- [NAXA quality — run 3332](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43761646622) : en cours sur la tête 988ef63 ; actionlint PASS, job Node/TypeScript/lint/build en cours.
+
+### Verdict
+
+**Crédit Marketplace / comptoir : BACKEND ET RÈGLES SQL CIBLÉES PASS ; CONFIDENTIALITÉ Caisse PASS ; ENSEMBLE PARTIEL / PAS AU VERT GLOBAL.** Les demandes Marketplace et comptoir, plafonds Promoteur/Responsable, reprise POS, double débit et outbox comptable sont raccordés et testés sur Replay. La dernière projection d'identité Caisse est contrôlée et le refus inter-pharmacies est prouvé.
+
+Restent non validés : remboursement runtime de bout en bout (le test RPC direct avait été bloqué par le garde-fou d'exécution SQL), paramétrage réel des mappings/journaux/périodes de crédit par le Promoteur/Comptable, navigation navigateur crédit complète, et conclusion des Actions 128/129/3332. Le run 125 a révélé un échec Web Push transversal à isoler ; le run 124 précédent était vert. Production, Vercel et Play Store inchangés.
 
