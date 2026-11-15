@@ -15,6 +15,7 @@ const refusalEventMigration = fs.readFileSync(path.join(root, "supabase/migratio
 const accountingIdempotenceMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115104000_assurance_accounting_event_idempotence_scope.sql"), "utf8");
 const refusalEventSqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115103000_assurance_client_refusal_event_visibility.sql"), "utf8");
 const accountingIdempotenceSqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115104000_assurance_accounting_event_idempotence_scope.sql"), "utf8");
+const marketplacePosRuntimeTest = fs.readFileSync(path.join(root, "supabase/tests/20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql"), "utf8");
 
 test("la proposition de montant est versionnée et séparée du snapshot initial", () => {
   assert.match(migration, /create table if not exists public\.assurance_montant_propositions/);
@@ -106,4 +107,19 @@ test("la créance Assurance utilise la clé d'idempotence unique réellement dé
   assert.match(accountingIdempotenceMigration, /on conflict \(pharmacie_id,cle_idempotence\) do nothing/i);
   assert.doesNotMatch(accountingIdempotenceMigration, /on conflict \(cle_idempotence\) do nothing/i);
   assert.match(accountingIdempotenceSqlTest, /compta_evenement_pharmacie_id_cle_idempotence_key/);
+});
+
+
+test("le runtime Marketplace/POS réutilise des professionnels déjà affectés et ne fabrique aucune identité Auth", () => {
+  assert.match(marketplacePosRuntimeTest, /ra\.role_code='responsable'/);
+  assert.match(marketplacePosRuntimeTest, /ra\.pharmacie_id=v_pharmacy/);
+  assert.match(marketplacePosRuntimeTest, /private\.naxa_scope_allows\(rp\.id,v_pharmacy,'PHARMACIE'\)/);
+  assert.match(marketplacePosRuntimeTest, /ph\.est_demo=false/);
+  assert.match(marketplacePosRuntimeTest, /ph\.visible_recherche=true/);
+  assert.match(marketplacePosRuntimeTest, /v_responsable is null/);
+  assert.doesNotMatch(marketplacePosRuntimeTest, /insert into auth\.users/i);
+  assert.doesNotMatch(marketplacePosRuntimeTest, /session_replication_role/i);
+  assert.doesNotMatch(marketplacePosRuntimeTest, /insert into public\.profiles/i);
+  assert.doesNotMatch(marketplacePosRuntimeTest, /insert into public\.naxa_professional_assignments/i);
+  assert.match(marketplacePosRuntimeTest, /rollback;/i);
 });
