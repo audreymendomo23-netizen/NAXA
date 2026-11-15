@@ -60,13 +60,16 @@ async function run(env = process.env) {
 
   async function call(path, options = {}) {
     const admin = options.admin === true;
-    const token = options.token || (admin ? adminKey : null);
     const headers = {
       apikey: admin ? adminKey : anonKey,
       "Content-Type": "application/json",
     };
-    if (token) headers.Authorization = "Bearer " + token;
-    else if (!anonKey.startsWith("sb_publishable_")) headers.Authorization = "Bearer " + anonKey;
+    if (options.token) headers.Authorization = "Bearer " + options.token;
+    else if (admin) {
+      if (!adminKey.startsWith("sb_secret_")) headers.Authorization = "Bearer " + adminKey;
+    } else if (!anonKey.startsWith("sb_publishable_")) {
+      headers.Authorization = "Bearer " + anonKey;
+    }
     if (options.prefer) headers.Prefer = options.prefer;
     const response = await fetch(baseUrl + path, {
       method: options.method || "GET",
@@ -122,6 +125,15 @@ async function run(env = process.env) {
   async function cleanup() {
     const errors = [];
     if (cashierSessionId && !sessionClosed) await closeSessionSafely();
+
+    if (!operationId && clientId) {
+      try {
+        const matches = await adminRows(
+          "client_credit_operations?select=id&reference=eq." + encodeURIComponent(marker) + "&limit=2"
+        );
+        if (matches.length === 1) operationId = matches[0].id;
+      } catch (error) { errors.push(error.message); }
+    }
 
     if (operationId) {
       try {
