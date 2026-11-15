@@ -2155,3 +2155,46 @@ Replay confirme :
 **État §54 : PARTIEL — PAS AU VERT GLOBAL.** Le flux backend transactionnel Marketplace → Assurance → POS → ticket → remboursements est PASS sur Replay avec rollback complet. L'import du fichier réel, le parcours navigateur sur pharmacie autorisée et la comptabilité réelle restent ouverts. Production et Vercel inchangés.
 
 **Point exact de reprise :** recevoir un export assureur expurgé et un plan/mapping comptable validé par la pharmacie, puis exécuter le téléversement navigateur et la recette UI avec ses rôles autorisés. Aucun changement Production/Vercel sans autorisation expresse.
+
+## 55. Qualité applicative confirmée après corrections Assurance/POS (15/11/2026)
+
+### Cause des échecs CI précédents
+
+Les échecs de la suite Node sur les commits antérieurs au \`ab23cdd7ee7ccbe0f5ef11bd1b42d6d9a8e16ea3\` concernaient les contrats de test, pas les RPC métier :
+- le contrat du runtime POS exigeait encore un Responsable et une Caisse pré-affectés à la même pharmacie non-démo, alors que le scénario validé utilise un compte Caisse existant, une affectation Responsable temporaire dans la transaction et la bascule officielle \`naxa_select_active_role\` ;
+- le test d'import séparait mal les lignes CSV et contrôlait le lien du modèle avec un regex trop échappé ;
+- le test split POS contenait un regex invalide pour les apostrophes des appels de sélection de rôle.
+
+Les assertions ont été réalignées sur le scénario effectivement exécuté. Aucune garde métier n'a été supprimée pour faire passer les tests.
+
+### Résultat CI final
+
+- Tête \`main\` contrôlée : \`ab23cdd7ee7ccbe0f5ef11bd1b42d6d9a8e16ea3\`.
+- Workflow GitHub Actions : [NAXA quality — run 43722220545](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43722220545) — **SUCCESS**.
+- Node : **502 tests / 502 PASS / 0 FAIL**.
+- TypeScript : **PASS**.
+- ESLint : **PASS sans erreur bloquante** ; 106 avertissements non bloquants ont été relevés dans l'ensemble du dépôt (navigation interne via \`window.location\`, hooks, images et compatibilité React 18 avec Next 16).
+- Build Next.js 16.4.6 + Serwist : **PASS**, compilation, génération des routes et worker service terminées.
+- Validation \`actionlint\` de tous les workflows actifs : **PASS**.
+- Check Supabase Preview : **CANCELLED** par la limite mensuelle du connecteur Supabase GitHub Preview (1 000 push events atteints). Ce check ne remet pas en cause les migrations Replay appliquées directement via le projet Replay.
+- Le build a signalé que Next.js a réécrit les valeurs recommandées de \`tsconfig.json\` dans le workspace CI ; ce changement local au runner n'est pas un commit source.
+
+### Séparation des preuves Replay
+
+- Le runtime Assurance Marketplace → POS → ticket → remboursements de §54 a PASS avec JWT Auth et rollback.
+- État base après vérification : 0 import, ligne d'import, couverture, vérification, convention, règle, snapshot, dossier, proposition, événement ou règlement Assurance.
+- Comptabilité : 0 compte, mapping, paramètre, période, événement, écriture ou ligne comptable persistante.
+- Un workflow Replay Promoteur E2E distinct, lancé sur l'ancien commit \`e48f68d46b013a87a8a28b38eecbf6cbc1af608c\`, a préparé des comptes et affectations puis échoué à sa construction avant les étapes Web Push/Storage. Il est antérieur à la correction des tests sur \`ab23cdd\` ; il ne constitue donc pas une preuve Web Push/Storage réussie.
+- Ce workflow E2E distinct a conservé ses propres fixtures de référence : pharmacie technique masquée/non commerciale, compte Responsable et Gestionnaire Stock ; un stock et six lots sont présents sur cette pharmacie. Les profils Caisse/Stock/Livreur de Mvan restent affectés dans leur périmètre. Ces lignes ne sont pas issues du runtime Assurance rollbacké.
+- Aucun déploiement Vercel et aucune migration Production.
+
+### Blocages métier restants
+
+1. **Fichier assureur réel** : le modèle CSV est téléchargeable et les colonnes canoniques sont testées, mais aucun export authentique expurgé n'a été fourni. Il faut confirmer les éventuels alias propriétaires et attester le canal de réception ; SHA-256 ne prouve pas l'identité de l'émetteur.
+2. **Comptabilité de la pharmacie** : le plan comptable, les mappings, paramètres et périodes Replay sont toujours vides. Aucun compte OHADA, journal ou mapping n'a été inventé. Le Promoteur/Comptable doit fournir et valider les comptes, journaux, sens débit/crédit et période de la pharmacie avant une écriture commerciale réelle.
+3. **Recette UI commerciale** : le runtime prouve les RPC, déclencheurs et protections SQL sous JWT de recette ; il ne remplace pas une navigation réelle Client → pharmacie → Caisse → ticket dans le navigateur sur une pharmacie autorisée. La pharmacie utilisée par le runtime POS est une pharmacie de démonstration visible.
+4. **Web Push/Storage E2E** : le workflow Promoteur distinct n'a pas atteint ces étapes sur le dernier run observé ; elles restent non confirmées.
+
+**État §55 : CODE ET CONTRATS TECHNIQUES VALIDÉS ; PARCOURS BACKEND ASSURANCE/POS PASS SUR REPLAY ; PAS AU VERT GLOBAL.** La CI applicative est verte sur la tête contrôlée, mais l'import réel, le plan comptable validé par la pharmacie, la recette UI commerciale et Web Push/Storage restent à prouver. Production et Vercel inchangés.
+
+**Point exact de reprise :** recevoir un exemple assureur expurgé et la validation du plan/mappings comptables de la pharmacie ; exécuter ensuite le parcours UI avec les comptes professionnels autorisés. Garder Production et Vercel inchangés sans autorisation expresse.
