@@ -2,7 +2,7 @@ export const FRAIS_LIVRAISON_MIN = 1500;
 export const FRAIS_LIVRAISON_MAX_STANDARD = 3500;
 export const FRAIS_LIVRAISON_MAX_TECHNIQUE = 20000;
 export const FRAIS_LIVRAISON_FORFAIT_KM = 2.5;
-export const COMMISSION_NAXA_LIVRAISON = 500;
+export const COMMISSION_NAXA_LIVRAISON = 0;
 
 export type DeliveryZoneType = "standard" | "periurbaine" | "eloignee" | "difficile";
 
@@ -120,7 +120,7 @@ export function repartirFraisLivraison(frais: number) {
   }
   return {
     fraisClient: frais,
-    commissionNaxa: COMMISSION_NAXA_LIVRAISON,
-    soldeLivraison: frais - COMMISSION_NAXA_LIVRAISON,
+    commissionNaxa: 0,
+    soldeLivraison: frais,
   };
 }
