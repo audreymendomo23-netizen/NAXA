@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§63)  
+**Dernière mise à jour :** 15 novembre 2026 (§64)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — correctifs backend crédit Marketplace/comptoir et tests SQL Replay ciblés PASS (§59–§60). Le run Replay E2E 129 reste SUCCESS : Web Push Chromium 3/3 et Storage 17 PASS / 0 SKIP (§61). La configuration comptable des événements crédit est désormais permise par les RPC et appliquée sur Replay ; worker runtime octroi + remboursement PASS en transaction annulée, écritures équilibrées et zéro fixture comptable persistante (§62). Le vrai remboursement via JWT Caisse est maintenant un scénario automatisé versionné dans le workflow Replay, mais son exécution CI n'est pas encore confirmée. Parcours navigateur complet Client → Marketplace → décision → Stock → Caisse → remboursement toujours non prouvé. Les mappings/journaux commerciaux de chaque pharmacie restent à valider par son Promoteur/Comptable. Aucun PASS qualité actuel post-dernières modifications n'est confirmé. Production, Vercel et Play Store inchangés.
+**État global :** 🟡 PARTIEL — correctifs backend crédit Marketplace/comptoir et tests SQL Replay ciblés PASS (§59–§60). Run Replay E2E 129 : SUCCESS, Web Push Chromium 3/3 et Storage 17 PASS / 0 SKIP (§61). Configuration comptable `credit_octroi` / `credit_remboursement` corrigée sur Replay ; worker runtime octroi + remboursement PASS en transaction annulée, écritures équilibrées (§62–§63). Le contrôle Caisse ne confond plus publication Marketplace et disponibilité ERP : une pharmacie active non archivée, même masquée, peut ouvrir sa propre Caisse. Une fixture interne masquée et un parcours navigateur crédit comptoir (demande au-dessus plafond → décision Promoteur → reprise du même panier → stock unique → remboursement par JWT Caisse → clôture rapprochée) sont maintenant versionnés et branchés à l’Action Replay (§64), mais **leur exécution Actions n'est pas encore confirmée**. Le parcours Marketplace complet dans le navigateur n'est pas encore prouvé. Les mappings/journaux/périodes commerciaux restent à configurer et valider par chaque Promoteur/Comptable. Aucun PASS qualité terminal sur le dernier SHA n'est confirmé. Production, Vercel et Play Store inchangés.
 
 
 
@@ -2614,3 +2614,54 @@ Le fichier \`supabase/tests/20261115230500_credit_accounting_worker_runtime.sql\
 - Le chemin reste intégré au workflow Replay ; le statut combiné des commits consultés ne fournit aucun contexte de statut exploitable et les identifiants de runs récents ne sont pas exposés par les outils disponibles dans cette reprise. La recette remboursement runtime reste donc **INTÉGRÉE / EXÉCUTION CI NON CONFIRMÉE**.
 
 **Verdict §63 :** la comptabilité technique crédit est maintenant prouvée sur Replay par le worker, avec rollback et zéro résidu. Le remboursement authentifié bénéficie d'un harnais plus sûr et d'un nettoyage contrôlé, mais n'est pas déclaré PASS avant une conclusion SUCCESS visible du workflow Replay. Le parcours navigateur complet et les paramètres comptables commerciaux légitimes restent ouverts. Production, Vercel et Play Store inchangés.
+
+
+## 64. Caisse ERP sur pharmacie masquée et recette navigateur du crédit comptoir (15/11/2026)
+
+### Contradiction constatée et correction
+
+Le véritable écran \`/pharmacie/caisse\` refusait l'accès quand \`pharmacies.visible_recherche=false\`, alors que cette colonne décrit la publication Marketplace, pas l'accès interne ERP. Une pharmacie active et non archivée doit pouvoir utiliser sa propre Caisse même si elle n'a pas d'offre publique ; la suspension reste bloquante par \`actif=false\`.
+
+- Correction \`src/app/pharmacie/caisse/page.tsx\` : lecture \`id,nom,actif,archivee_le\`, contrôle uniquement actif/non archivé ; aucune ouverture Caisse ne dépend désormais de \`visible_recherche\`.
+- Contrat \`scripts/test-caisse-unpublished-pharmacy-access.cjs\` : vérifie l'accès ERP interne pour une pharmacie masquée, tout en conservant le blocage inactive/archivée, l'authentification, le rôle Caisse et le périmètre actif.
+- Commits : [\`56274f44\`](https://github.com/audreymendomo23-netizen/NAXA/commit/56274f4472f8e248cbe5e44cb0c519df60e9b23c), [\`59a2098c\`](https://github.com/audreymendomo23-netizen/NAXA/commit/59a2098c7133474a685933478e52b98d98f4ec01), [\`6edbb3e3\`](https://github.com/audreymendomo23-netizen/NAXA/commit/6edbb3e3aa2ee62f5faf4cc53c630b997bcc3fc5).
+
+### Fixture technique privée sur Replay
+
+Une pharmacie HYBRIDE technique existante est utilisée : \`1a4f1ce5-cccf-477e-9a5b-474c8c9fc713\`, active, non archivée, \`est_demo=false\`, \`visible_recherche=false\`. Le Promoteur est relié à cette pharmacie et dispose du privilège de création Caisse ; le profil Gestionnaire Stock a déjà son affectation.
+
+- \`scripts/e2e/provision-replay-credit-pharmacy-safe.cjs\` s'authentifie avec les secrets Replay, puis appelle les RPC officielles Promoteur/Stock : \`naxa_provision_caisse\`, \`naxa_select_active_role\`, \`pharmacie_produit_declarer_et_reference_initialiser\`, \`gestionnaire_stock_quantite_ajuster\`.
+- Le même profil peut recevoir plusieurs fonctions, mais un seul rôle actif à la fois : le harnais passe du Gestionnaire Stock à la Caisse puis vérifie explicitement \`naxa_business_function='caisse'\` et la pharmacie active.
+- La fiche produit technique \`NAXA E2E — Produit crédit comptoir\` est déclarée comme fiche propriétaire de cette seule pharmacie masquée ; son stock interne est réglé à **4 unités à 1 000 FCFA**, sans lot. Aucun enregistrement d'offre publique, aucune visibilité publique ou validation centrale n'est ajouté.
+- Le produit est conservé uniquement dans cette pharmacie non commerciale ; la provisionneuse remet la quantité à 4 avant chaque nouvelle tentative.
+- Fichiers : \`scripts/e2e/provision-replay-credit-pharmacy-safe.cjs\`, \`scripts/test-credit-pharmacy-provisioner.cjs\`. Commits : [\`c31ba6f6\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c31ba6f6ae1687aa35ce5a03d92fe03de384ad5a), [\`a8859041\`](https://github.com/audreymendomo23-netizen/NAXA/commit/a8859041733c5144bea81e244f9c8715f92e6f18), [\`637e5d64\`](https://github.com/audreymendomo23-netizen/NAXA/commit/637e5d645b92b383fa9386e442a9b29543e6f7cc), [\`a4dee238\`](https://github.com/audreymendomo23-netizen/NAXA/commit/a4dee2388ccdce23f085397ba04a7e09cdb12cea).
+
+### Scénario Playwright crédit comptoir branché
+
+\`scripts/e2e/verify-credit-pos-browser.cjs\` couvre le chemin suivant sur Replay, avec les comptes Client, Promoteur et Gestionnaire Stock/Caisse authentifiés :
+1. Le Promoteur active un plafond Client à **500 FCFA** sur la pharmacie masquée.
+2. Le compte Caisse ouvre sa session, associe le Client au panier et ajoute une unité à **1 000 FCFA**.
+3. La finalisation crée une demande \`origine='caisse'\` au-dessus du plafond ; le harnais vérifie avant décision : quantité physique toujours à 4, aucun paiement POS.
+4. Le Promoteur approuve cette demande via la vraie page \`/pharmacie/promoteur/credits\`.
+5. Le même brouillon est repris depuis \`/pharmacie/caisse\` ; le test vérifie la vente \`payee / credit\`, la ligne \`vente_paiements\`, l'opération de crédit rattachée à la session et le stock diminué **une seule fois** (4 → 3).
+6. Le Client consulte \`/achats/credit/suivi\`. Le RPC \`client_credit_rembourser\` est ensuite appelé avec le JWT réel du compte Caisse, montant 1 000 FCFA, espèces ; le harnais vérifie solde nul, lien session, opération et événement \`credit_remboursement\`.
+7. La session Caisse est clôturée et doit présenter montant théorique 1 000 FCFA, montant compté 1 000 FCFA, écart 0.
+
+**Récupération en cas d'interruption :** s'il existe un panier avec demande encore en attente, le Promoteur technique la refuse puis le Caisse abandonne le brouillon. Si la demande a déjà été approuvée, le harnais reprend et finalise le même brouillon avant de rembourser le solde ; il ne transforme pas une approbation en refus fictif. Toute session laissée ouverte est rapprochée avant la prochaine tentative. Une demande technique résiduelle non résolue bloque le nouveau scénario plutôt que d'être ignorée.
+
+Le scénario garde les ventes, demandes consommées, opérations de crédit/remboursement, événements outbox et sessions clôturées dans la pharmacie masquée pour laisser une trace technique cohérente. Aucun de ces produits/offres n'est public. Les événements d'outbox de cette pharmacie non commerciale ne prouvent pas le posting comptable commercial ; celui-ci reste conditionné à une configuration légitime du Promoteur/Comptable.
+
+**Fichiers et Actions :**
+- \`scripts/e2e/verify-credit-pos-browser.cjs\` — [commit \`c34cef57\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c34cef5732924ba5b049603c45e6519b23bc6a60), corrigé dans [\`427e8149\`](https://github.com/audreymendomo23-netizen/NAXA/commit/427e8149c230d8f09bc609df806b365414d36fdc) et durci dans [\`22af25ca\`](https://github.com/audreymendomo23-netizen/NAXA/commit/22af25ca1b14343867dd1abe4a2560ff090d9fff).
+- \`scripts/test-credit-pos-browser.cjs\` — [commit \`c70f85b8\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c70f85b8a13196f535014bf63c19810eecaecf39), ajustements pour ne pas dépendre de l'installation tardive de Playwright et aligner les assertions : [\`cc06f923\`](https://github.com/audreymendomo23-netizen/NAXA/commit/cc06f92314fcbe8e76d629498aacfa88f9e7f61b), [\`9af01924\`](https://github.com/audreymendomo23-netizen/NAXA/commit/9af019248fcdee489892a3ed79c33446b47b9eb5), [\`c2a2bec5\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c2a2bec53be687f3c2fb685673959ae3026c2060).
+- \`.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml\` provisionne la caisse/stock privés, installe Chromium, exécute le remboursement runtime JWT Caisse, puis le parcours navigateur crédit et enfin Storage. Les secrets demeurent dans des fichiers runner temporaires 0600 et sont supprimés dans l'étape \`always()\`. Commit du branchement navigateur : [\`5ff7b078\`](https://github.com/audreymendomo23-netizen/NAXA/commit/5ff7b0787cfaf69d2a4e90c5688e60c5cf07946f).
+
+### État de preuve au §64
+
+- **Code et contrats statiques : INTÉGRÉS** sur \`main\`.
+- **Provisionnement runtime et parcours Playwright : À EXÉCUTER / NON CONFIRMÉS**. Les commits poussent le workflow par filtres de chemins, mais aucun run terminal associé à cette dernière tête n'est observable via les statuts consultés ici. Aucun PASS navigateur ne doit être déclaré avant le log de succès et le nettoyage.
+- **Parcours Marketplace navigateur complet : NON PROUVÉ**. Les scénarios SQL Marketplace 259/264 restent les preuves backend ; le nouveau navigateur couvre le crédit direct Caisse.
+- **Qualité générale dernier SHA : NON CONFIRMÉE**. Le run 3332 antérieur avait été annulé ; le run 3321 est antérieur aux corrections de cette séquence.
+- **Comptabilité commerciale : CONDITIONNELLE** tant que chaque pharmacie n'a pas ses comptes, mappings, journaux et période validés par son Promoteur/Comptable.
+
+**Verdict §64 : PARTIEL / NO-GO GLOBAL.** La cause racine « publication Marketplace obligatoire pour ouvrir la Caisse interne » est corrigée ; une recette navigateur authentifiée et limitée à une pharmacie masquée est prête et branchée au workflow Replay, mais sa première exécution reste à confirmer. Le worker comptable crédit reste PASS transactionnel selon §62–§63. Aucun déploiement Production, Vercel ou Play Store.
