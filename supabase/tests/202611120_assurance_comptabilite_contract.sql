@@ -55,8 +55,8 @@ begin
     raise exception 'ASSURANCE_RECEIVABLE_RECOGNITION_TIMING_OR_IDEMPOTENCE_INVALID';
   end if;
   if not has_function_privilege('authenticated','public.assurance_configurer_convention(uuid,uuid,text,date,date,numeric,bigint,bigint)','EXECUTE')
-    or position('v_rate:=v_rule.taux' in pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure))=0
-    or position('least(v_c.taux_prise_en_charge' in pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure))>0
+    or position('least(v_c.taux_prise_en_charge,v_rule.taux)' in pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure))=0
+    or position('taux_prise_en_charge=100' in pg_get_functiondef('public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)'::regprocedure))=0
     or position('plafond=null' in pg_get_functiondef('public.assurance_enregistrer_couverture(uuid,text,text,date,date,numeric,numeric)'::regprocedure))=0 then
     raise exception 'ASSURANCE_PHARMACY_RATE_SOURCE_INVALID';
   end if;
