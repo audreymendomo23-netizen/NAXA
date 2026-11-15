@@ -12,7 +12,7 @@ begin
   if not found
      or v_policy.cmd<>'SELECT'
      or v_policy.roles<>'{authenticated}'
-     or position('public.naxa_promoteur_valide' in lower(v_policy.qual))=0
+     or position('naxa_promoteur_valide' in lower(v_policy.qual))=0
      or position('private.naxa_promoteur_valide' in lower(v_policy.qual))>0 then
     raise exception 'La policy catalogue doit appeler le wrapper public auto-scopé, pas le helper privé';
   end if;
