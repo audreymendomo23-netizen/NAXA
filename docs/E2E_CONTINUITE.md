@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§61)  
+**Dernière mise à jour :** 15 novembre 2026 (§62)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — le chantier crédit Marketplace + Caisse a reçu ses correctifs et ses recettes SQL Replay (§59–§60). La recette Replay Promoteur E2E run 129 est maintenant **SUCCESS** : Web Push reçu 3/3 dans Chromium et Storage **17 PASS / 0 SKIP**, avec nettoyage réussi ; le run 128 précédent avait échoué sur la vérification Web Push Responsable (§61). La qualité générale sur la dernière tête applicative reste à confirmer : le run 3332 a été annulé et aucun résultat PASS final post-ajustements n'est actuellement établi. Restent au crédit : remboursement runtime complet, posting comptable avec paramétrage de pharmacie valide et parcours navigateur Client → décision Promoteur/Responsable → Caisse à crédit → remboursement. Les tests SQL qui passent en transaction annulée ne remplacent pas ces preuves. Production, Vercel et Play Store inchangés.
+**État global :** 🟡 PARTIEL — correctifs backend crédit Marketplace/comptoir et tests SQL Replay ciblés PASS (§59–§60). Le run Replay E2E 129 reste SUCCESS : Web Push Chromium 3/3 et Storage 17 PASS / 0 SKIP (§61). La configuration comptable des événements crédit est désormais permise par les RPC et appliquée sur Replay ; worker runtime octroi + remboursement PASS en transaction annulée, écritures équilibrées et zéro fixture comptable persistante (§62). Le vrai remboursement via JWT Caisse est maintenant un scénario automatisé versionné dans le workflow Replay, mais son exécution CI n'est pas encore confirmée. Parcours navigateur complet Client → Marketplace → décision → Stock → Caisse → remboursement toujours non prouvé. Les mappings/journaux commerciaux de chaque pharmacie restent à valider par son Promoteur/Comptable. Aucun PASS qualité actuel post-dernières modifications n'est confirmé. Production, Vercel et Play Store inchangés.
 
 
 
@@ -2534,3 +2534,59 @@ Restent non validés : remboursement runtime de bout en bout (le test RPC direct
 - Priorité D : relancer/obtenir qualité complète sur le dernier SHA et rejouer les workflows Replay concernés sur ce même SHA pour une preuve cohérente.
 
 **Verdict au §61 : PARTIEL / NO-GO GLOBAL.** Web Push Chromium 3/3 et Storage 17/17 sont désormais confirmés au run 129. Les correctifs backend et contrats SQL crédit restent valides selon §59/§60. Remboursement runtime, posting comptable avec paramétrage légitime, parcours navigateur crédit et qualité finale sur le dernier SHA ne sont pas encore prouvés. Aucune migration Production, aucun déploiement Vercel ni Play Store.
+
+
+## 62. Configuration comptable du crédit et préparation du remboursement runtime (15/11/2026)
+
+**Tête \`main\` au début du chantier :** \`88463ff4ba85f800879e249f85993fa94ee7a015\`. Les changements de cette section sont versionnés directement sur \`main\`. Toutes les applications de migration et recettes DB décrites ci-dessous ciblent Replay \`pwfftcsjyeibxxqhwysw\`.
+
+### Correction du raccordement de configuration comptable
+
+**Cause racine supplémentaire :** le worker \`compta_traiter_evenement\` acceptait déjà \`credit_octroi\` et \`credit_remboursement\` (§59), mais les fonctions métier de configuration refusaient encore ces deux événements :
+- \`compta_config_enregistrer_journal\` autorisait uniquement les types Vente, Dépense, Annulation et Assurance ;
+- \`compta_plan_enregistrer_mapping\` autorisait uniquement Vente, Dépense et Assurance.
+
+Le Promoteur/Comptable ne pouvait donc pas créer les journaux et mappings des types de crédit au moyen des RPC officielles, même si le worker les prenait en charge.
+
+**Correction intégrée :**
+- Migration \`supabase/migrations/20261115230000_credit_accounting_configuration_options.sql\` — commit [\`e7fc4952\`](https://github.com/audreymendomo23-netizen/NAXA/commit/e7fc4952ac4f736fc6966dfa0b67575b81d1f6dc).
+- Test de contrat \`supabase/tests/20261115230000_credit_accounting_configuration_contract.sql\` — commit [\`de2625a3\`](https://github.com/audreymendomo23-netizen/NAXA/commit/de2625a3f0b1503d1d6fe88d3a0e807db595ef56).
+- Migration appliquée à Replay et répertoriée version \`20261115212217\`, nom \`20261115230000_credit_accounting_configuration_options\`.
+- Dry-run transactionnel PASS avant application ; contrat après application **PASS** : les deux RPC acceptent désormais les deux types de crédit et conservent \`compta_ecriture_autorisee\`.
+- Aucun plan comptable, mapping commercial, journal ou période commerciale n'a été créé par la migration.
+
+### Exécution runtime du worker comptable — PASS
+
+Test versionné : \`supabase/tests/20261115230500_credit_accounting_worker_runtime.sql\`, commit [\`8d80a6a0\`](https://github.com/audreymendomo23-netizen/NAXA/commit/8d80a6a0d810892f58b9f406218e1644b6a1d15d).
+
+Exécution sur Replay avec une pharmacie technique active mais masquée, un plan et un journal synthétiques, tous insérés dans une transaction annulée :
+- Événement \`credit_octroi\` : worker retourne \`traite\`.
+- Événement \`credit_remboursement\` : worker retourne \`traite\`.
+- Deux écritures produites, quatre lignes au total : débits cumulés **500 FCFA**, crédits cumulés **500 FCFA**.
+- Les deux événements sont marqués \`traite\` avant rollback.
+- \`ROLLBACK\` exécuté après les assertions.
+
+**Contrôle de propreté post-test :** sur la pharmacie technique Replay, zéro compte de plan \`E2E-CR-%\`, zéro mapping crédit, zéro journal \`journal_code.credit_*\`, zéro période technique du jour, zéro événement \`E2E-WORKER-%\`, zéro écriture \`E2E-WORKER-%\`. Le contrôle ne laisse donc aucun compte, période, événement ou écriture fictive persistante.
+
+Cette preuve valide le traitement technique et la partie double du worker ; elle ne remplace pas les comptes, journaux, périodes et mappings réels à valider pour chaque pharmacie par son Promoteur/Comptable.
+
+### Nouveau contrôle runtime du remboursement — intégré, exécution CI à confirmer
+
+Fichiers ajoutés :
+- \`scripts/e2e/verify-credit-refund-runtime.cjs\` — commit initial [\`2ca9b4f9\`](https://github.com/audreymendomo23-netizen/NAXA/commit/2ca9b4f9de9527005c362355280b8decb5c8d665), ajustements secrets et nettoyage dans commits ultérieurs.
+- \`scripts/test-credit-refund-runtime.cjs\` — garde-fous du périmètre Replay, commit [\`77d92331\`](https://github.com/audreymendomo23-netizen/NAXA/commit/77d923313603f5078bc1a1c06ceef94f6cb60da4).
+- Le workflow \`.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml\` provisionne désormais des fichiers temporaires de mots de passe Caisse et Client avec permissions \`0600\`, exécute le script remboursement avec le jeton réel du compte Caisse, puis supprime ces fichiers en étape \`always()\`.
+- Le chemin est limité au projet Replay par comparaison stricte de l'URL ; aucune variable de secret ni aucun mot de passe n'est écrit dans les logs ou le dépôt.
+- Scénario prévu : configuration du compte Client par le Promoteur ; solde technique initial 500 FCFA préparé via service_role (ce scénario ne prétend pas simuler une vente) ; ouverture d'une session personnelle par le compte Caisse authentifié ; remboursement réel de 250 FCFA par le RPC structuré ; vérification du solde, de la nature, du mode espèces, du créateur, de la session et de l'événement \`credit_remboursement\` ; refus d'un second remboursement supérieur au solde ; nettoyage des lignes de test puis clôture d'une session vide avec rapprochement 0.
+- La session Caisse clôturée est conservée dans l'audit de session ; les comptes, opérations et événements financiers de fixture doivent être supprimés. En cas d'échec de nettoyage, le job doit échouer et signaler le résidu, plutôt que de déclarer PASS.
+- Le test a été branché après le provisioning des rôles et après la vérification Web Push dans le workflow Replay. Les Actions déclenchées par les derniers commits n'ont pas encore de conclusion terminale confirmée ici : ce scénario est donc **INTÉGRÉ / EXÉCUTION NON CONFIRMÉE**, pas PASS.
+
+### Ce qui reste ouvert
+
+1. **Recette navigateur complète crédit.** Le SQL transactionnel Marketplace/comptoir et les pages opérationnelles sont corrigés, mais aucun parcours Playwright complet Client → demande Marketplace → décision Promoteur/Responsable → préparation Stock → retrait Caisse → crédit comptoir → remboursement n'est attesté. La pharmacie Mvan utilisée par les profils de recette ne retourne actuellement aucun produit avec stock positif au contrôle, donc le test navigateur de vente nécessite un produit/lot/stock technique temporaire, un parcours métier authentifié et un nettoyage cohérent.
+2. **Configuration comptable commerciale.** Les RPC savent maintenant configurer les deux événements de crédit et le worker a prouvé la partie double. Les valeurs comptables de chaque pharmacie ne doivent pas être inventées ni préremplies par NAXA : les comptes, mappings, journaux et périodes doivent être renseignés/validés par le Promoteur/Comptable concerné. En leur absence, la comptabilité commerciale reste CONDITIONNELLE.
+3. **Remboursement runtime Auth.** Le nouveau test authentifié est versionné et branché, mais n'est déclaré PASS qu'après un run GitHub Actions terminé SUCCESS avec les assertions et le nettoyage.
+4. **Qualité et cohérence SHA.** Il faut un run qualité complet terminal PASS sur le SHA final qui inclut les modifications des scripts E2E et du workflow ; le run 3332 précédemment annulé et le succès plus ancien 3321 ne valident pas cette tête.
+5. **Navigateur/Android.** Le succès Chromium Web Push 3/3 du run 129 reste une preuve Web Push navigateur seulement ; FCM Android physique n'a pas été testé ici.
+
+**Verdict §62 : PROGRÈS RÉEL, MAIS PARTIEL / NO-GO GLOBAL.** La configuration des types comptables crédit est rétablie sur Replay ; le worker a passé une vraie exécution transactionnelle octroi + remboursement, équilibrée et annulée. Le test du remboursement avec le véritable JWT Caisse est intégré mais attend sa première exécution CI observée ; le parcours navigateur complet et les paramètres commerciaux restent ouverts. Aucune migration Production, aucun déploiement Vercel ni Play Store.
