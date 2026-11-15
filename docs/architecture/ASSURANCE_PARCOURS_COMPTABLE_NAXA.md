@@ -209,3 +209,31 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Aucun changement Production ni déploiement Vercel.
 
 **État : PARTIEL — PAS AU VERT.** Les blocages d'implémentation de l'import et de la négociation sont levés côté code/Replay et les contrats structurels passent. Les preuves réelles de réception des listes, E2E métier et comptabilité restent à obtenir.
+
+
+## Raccord final POS fractionné et reçu Client — 15 novembre 2026
+
+### Défauts corrigés
+
+- Le garde de changement de statut de réservation exigeait une ligne de règlement POS égale au brut. Il vérifie maintenant la somme des lignes Client + Assurance et exige qu'elle corresponde au total de la vente.
+- Le snapshot de ticket sélectionne désormais le paiement réellement reçu du Client, exclut les lignes `ASSURANCE:%`, et gère une couverture à 100 % sans afficher la créance comme un encaissement.
+- L'import reconnaît l'en-tête canonique `beneficiaire_nom`. Le modèle téléchargeable ne contient que des valeurs d'exemple fictives ; le guide est dans `docs/architecture/ASSURANCE_IMPORT_FORMAT_NAXA.md`.
+
+### Migrations Replay
+
+- `20261115134500_allow_split_pos_payments_for_reservations`
+- `20261115140000_fix_reservation_receipt_snapshot_split_payments`
+
+### Runtime transactionnel Replay
+
+Le test `supabase/tests/20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql` est **PASS**. Il traverse les RPC Client/Responsable/Caisse, le tiers payant, la négociation versionnée, le POS, le ticket, les remboursements partiel/total et l'outbox comptable. Partage final vérifié : 10 000 FCFA brut, 5 500 FCFA assureur, 4 500 FCFA Client ; 5 000 FCFA remis en espèces, 500 FCFA de monnaie ; remboursements 2 000 + 3 500 FCFA.
+
+Toutes les données sont dans une transaction annulée. Après rollback : aucun stock/coût test, réservation, vente, ticket, import, couverture, dossier, règlement, écriture ou ligne comptable ne persiste. Le compte Caisse retrouve son rôle initial. La recette se déroule dans une pharmacie de démonstration visible : elle prouve l'intégration backend sous JWT, pas une recette navigateur ou une vente commerciale réelle.
+
+### Blocages externes restants
+
+- Aucun export réel d'assureur expurgé n'a été reçu : l'alias et le modèle CSV sont en place, mais le format propriétaire doit encore être confirmé à partir d'un fichier reçu par un opérateur habilité. SHA-256 n'authentifie pas l'émetteur.
+- Aucun plan comptable, mapping, journal ou période n'est configuré sur Replay. Le test worker synthétique PASS ne valide pas une écriture comptable réelle. La pharmacie/son Promoteur ou Comptable doit fournir/valider le plan et les mappings selon le cahier Comptable.
+- Le test runtime est une preuve backend SQL/RPC avec rollback ; le parcours navigateur réel des espaces Client, Assurance et Caisse reste à exécuter sur une pharmacie autorisée.
+
+**État : PARTIEL — PAS AU VERT GLOBAL.** Le chemin backend Marketplace → Assurance → POS → reçu → règlements est démontré sur Replay ; l'import assureur réel, la recette navigateur et la configuration comptable de la pharmacie restent ouverts. Production et Vercel inchangés.
