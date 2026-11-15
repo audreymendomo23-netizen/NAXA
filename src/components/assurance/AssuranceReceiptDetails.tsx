@@ -3,7 +3,7 @@ import { useCallback,useEffect,useMemo,useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Snapshot={id:string;assureur_id:string;montant_brut_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;valide_client:boolean;controle_documents_statut:string;calcule_le:string;};
-type Coverage={id:string;assureur_id:string;nom:string;numero_adherent:string;date_debut:string;date_fin:string|null;verification_statut:"non_verifiee"|"verifiee"|"suspendue"|"expiree";verification_pharmacie_id:string|null;};
+type Coverage={id:string;assureur_id:string;nom:string;numero_adherent:string;date_debut:string;date_fin:string|null;declaration_maj_at:string;verification_statut:string|null;verification_date_debut:string|null;verification_date_fin:string|null;};
 type Insurer={id:string;nom:string};
 type Proposal={id:string;version:number;statut:"proposee"|"acceptee"|"refusee"|"remplacee";montant_total_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;motif:string;proposee_le:string;decidee_le:string|null;};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR").format(Number(v||0))+" FCFA";
@@ -41,19 +41,34 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
   if(!u.user){setLoading(false);return;}
   const [{data:reservation,error:reservationError},{data:rows,error:ce}]=await Promise.all([
    sb.from("reservations").select("pharmacie_id").eq("id",reservationId).eq("client_id",u.user.id).maybeSingle(),
-   sb.from("couvertures_assurance").select("id,assureur_id,numero_adherent,date_debut,date_fin,verification_statut,verification_pharmacie_id").eq("client_id",u.user.id).eq("actif",true)
+   sb.from("couvertures_assurance").select("id,assureur_id,numero_adherent,date_debut,date_fin,declaration_maj_at").eq("client_id",u.user.id).eq("actif",true)
   ]);
   if(reservationError||!reservation){setError("Cette réservation n’est pas accessible à votre compte.");setLoading(false);return;}
   if(ce){setError("Impossible de charger vos couvertures Assurance.");setLoading(false);return;}
   const today=new Date().toISOString().slice(0,10);
   setReservationPharmacyId(reservation.pharmacie_id);
   const active=(rows??[]).filter(x=>x.date_debut&&x.date_debut<=today&&(!x.date_fin||x.date_fin>=today));
-  const ids=[...new Set(active.map(x=>x.assureur_id))];
-  const {data:ins}=await sb.from("assureurs").select("id,nom").eq("actif",true).order("nom");
+  const [{data:ins,error:insError},{data:verificationRows,error:verificationError}]=await Promise.all([
+   sb.from("assureurs").select("id,nom").eq("actif",true).order("nom"),
+   sb.from("assurance_couverture_verifications").select("couverture_id,statut,date_debut,date_fin,declaration_maj_at,verification_le").eq("pharmacie_id",reservation.pharmacie_id).order("verification_le",{ascending:false})
+  ]);
+  if(insError||verificationError){setError("Impossible de vérifier la couverture auprès de cette pharmacie.");setLoading(false);return;}
   const names=new Map((ins??[]).map(x=>[x.id,x.nom]));
+  const latest=new Map<string,{statut:string;date_debut:string|null;date_fin:string|null;declaration_maj_at:string}>();
+  for(const v of verificationRows??[])if(!latest.has(v.couverture_id))latest.set(v.couverture_id,v);
   setInsurers((ins??[]) as Insurer[]);
-  const mapped=active.map(x=>({...x,nom:names.get(x.assureur_id)??"Assureur"})) as Coverage[];
-  const eligible=mapped.filter(x=>x.verification_statut==="verifiee"&&x.verification_pharmacie_id===reservation.pharmacie_id);
+  const mapped=active.map(x=>{
+   const verification=latest.get(x.id);
+   const current=verification?.declaration_maj_at===x.declaration_maj_at;
+   return {...x,nom:names.get(x.assureur_id)??"Assureur",
+    verification_statut:current?verification?.statut??null:null,
+    verification_date_debut:current?verification?.date_debut??null:null,
+    verification_date_fin:current?verification?.date_fin??null:null
+   };
+  }) as Coverage[];
+  const eligible=mapped.filter(x=>x.verification_statut==="verifiee"
+    &&(!x.verification_date_debut||x.verification_date_debut<=today)
+    &&(!x.verification_date_fin||x.verification_date_fin>=today));
   setCoverages(mapped);setSelected(eligible[0]?.id??"");setNewInsurer(ins?.[0]?.id??"");setLoading(false);
  },[reservationId,sb]);
 
@@ -95,7 +110,9 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
   else await load();
   setBusy(false);
  };
- const eligibleCoverages=coverages.filter(x=>x.verification_statut==="verifiee"&&x.verification_pharmacie_id===reservationPharmacyId);
+ const eligibleCoverages=coverages.filter(x=>x.verification_statut==="verifiee"
+  &&(!x.verification_date_debut||x.verification_date_debut<=new Date().toISOString().slice(0,10))
+  &&(!x.verification_date_fin||x.verification_date_fin>=new Date().toISOString().slice(0,10)));
  const acceptedProposal=proposals.filter(x=>x.statut==="acceptee").sort((a,b)=>b.version-a.version)[0]??null;
  const pendingProposal=proposals.find(x=>x.statut==="proposee")??null;
  const proposalStatus:Record<string,string>={proposee:"En attente de votre réponse",acceptee:"Acceptée",refusee:"Refusée",remplacee:"Remplacée par une nouvelle proposition"};
