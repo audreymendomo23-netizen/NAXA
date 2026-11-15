@@ -111,7 +111,7 @@ begin
     raise exception 'La recherche simple doit classer et agréger les fiches séparément par pharmacie';
   end if;
   if position('partition by t.n,s.pharmacie_id' in v_bulk)=0
-     or position('group by b.pharmacie_id,b.produit_id' in v_bulk)=0
+     or position('group by pharmacie_id,produit_id' in v_bulk)=0
      or position('group by d.pharmacie_id' in v_bulk)=0 then
     raise exception 'La recherche groupée doit conserver les fiches/offres propres à chaque pharmacie';
   end if;
