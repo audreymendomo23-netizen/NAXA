@@ -32,6 +32,23 @@ function addDays(date, days) {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+function sumLotQuantities(rows) {
+  if (!Array.isArray(rows)) throw new Error("Liste de lots invalide.");
+  return rows.reduce((sum, row) => {
+    const quantity = Number(row?.quantite);
+    if (!Number.isSafeInteger(quantity) || quantity < 0) {
+      throw new Error("Une quantité de lot est invalide.");
+    }
+    return sum + quantity;
+  }, 0);
+}
+
+function restErrorSummary(data) {
+  const code = typeof data?.code === "string" ? data.code.slice(0, 32) : "";
+  const message = typeof data?.message === "string" ? data.message.slice(0, 220) : "";
+  return [code, message].filter(Boolean).join(" — ");
+}
+
 async function run(env = process.env) {
   const baseUrl = assertReplayUrl(env.SUPABASE_URL || env.NAXA_STORAGE_E2E_URL || "");
   const adminKey = String(env.SUPABASE_SERVICE_ROLE_KEY || env.NAXA_STORAGE_E2E_ADMIN_KEY || "").trim();
@@ -58,7 +75,13 @@ async function run(env = process.env) {
     const result = await fetchJson(baseUrl + path, {
       method, headers, body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!result.ok) throw new Error("Échec REST Replay HTTP " + result.status + " sur " + path.split("?")[0] + ".");
+    if (!result.ok) {
+      const summary = restErrorSummary(result.data);
+      throw new Error(
+        "Échec REST Replay HTTP " + result.status + " sur " + path.split("?")[0]
+        + (summary ? " [" + summary + "]" : "") + "."
+      );
+    }
     return result.data;
   }
 
@@ -99,6 +122,10 @@ async function run(env = process.env) {
   let productId = null;
   let lotNumber = null;
   let lotId = null;
+  let baseStock = null;
+  let baseLotsQuantity = 0;
+  let stockRowTouched = false;
+  const notificationIds = [];
   const subscriptions = [];
   const contexts = [];
   let browser = null;
@@ -120,11 +147,36 @@ async function run(env = process.env) {
     lotNumber = "NAXA-E2E-EXPIRY-" + String(env.GITHUB_RUN_ID || Date.now()).replace(/[^0-9]/g, "")
       + "-" + String(env.GITHUB_RUN_ATTEMPT || "1").replace(/[^0-9]/g, "");
     const expiryDate = addDays(localCameroonDate(), 3);
+    const stockFilter = "&pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+      + "&produit_id=eq." + encodeURIComponent(productId);
 
+    const [existingStocks, existingLots] = await Promise.all([
+      admin("/rest/v1/stocks?select=pharmacie_id,produit_id,prix,quantite,date_peremption,emplacement"
+        + stockFilter + "&limit=2"),
+      admin("/rest/v1/stocks_lots?select=id,lot,quantite" + stockFilter),
+    ]);
+    if (!Array.isArray(existingStocks) || existingStocks.length > 1) {
+      throw new Error("Le stock agrégé de la fixture est ambigu.");
+    }
+    baseStock = existingStocks[0] ?? null;
+    baseLotsQuantity = sumLotQuantities(existingLots);
+    if (baseStock && Number(baseStock.quantite) !== baseLotsQuantity) {
+      throw new Error("Stock de recette incohérent avant test : la quantité agrégée ne correspond pas à la somme des lots.");
+    }
+    if (!baseStock && baseLotsQuantity !== 0) {
+      throw new Error("Des lots préexistants sont présents sans stock agrégé ; test interrompu sans correction automatique.");
+    }
+
+    // Respect the lot/aggregate invariant before inserting the new test lot.
     await admin("/rest/v1/stocks?on_conflict=pharmacie_id,produit_id", "POST", {
-      pharmacie_id: pharmacyId, produit_id: productId, prix: 900, quantite: 5,
-      date_peremption: expiryDate, emplacement: "E2E — non commercial",
+      pharmacie_id: pharmacyId,
+      produit_id: productId,
+      prix: baseStock?.prix ?? 900,
+      quantite: baseLotsQuantity,
+      date_peremption: baseStock?.date_peremption ?? null,
+      emplacement: baseStock?.emplacement ?? "E2E — non commercial",
     }, "resolution=merge-duplicates,return=minimal");
+    stockRowTouched = true;
 
     await admin("/rest/v1/stocks_lots?on_conflict=pharmacie_id,produit_id,lot", "POST", {
       pharmacie_id: pharmacyId, produit_id: productId, lot: lotNumber, numero_lot: lotNumber,
@@ -139,6 +191,21 @@ async function run(env = process.env) {
       throw new Error("Le lot J-3 de test n'a pas été créé correctement.");
     }
     lotId = lotRows[0].id;
+
+    const lotsAfterInsert = await admin("/rest/v1/stocks_lots?select=id,quantite" + stockFilter);
+    const expectedAggregate = sumLotQuantities(lotsAfterInsert);
+    if (expectedAggregate !== baseLotsQuantity + 5) {
+      throw new Error("La somme des lots a changé de manière inattendue pendant la création du lot E2E.");
+    }
+    await admin("/rest/v1/stocks?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+      + "&produit_id=eq." + encodeURIComponent(productId),
+      "PATCH", { quantite: expectedAggregate }, "return=minimal");
+
+    const stockAfterInsert = await admin("/rest/v1/stocks?select=quantite" + stockFilter + "&limit=1");
+    if (!Array.isArray(stockAfterInsert) || stockAfterInsert.length !== 1
+      || Number(stockAfterInsert[0].quantite) !== expectedAggregate) {
+      throw new Error("Le stock agrégé ne correspond pas à la somme des lots après création.");
+    }
 
     const dispatched = await fetchJson(baseUrl + "/rest/v1/rpc/naxa_dispatch_pharmacy_lot_expiry_alerts_internal", {
       method: "POST",
@@ -158,6 +225,7 @@ async function run(env = process.env) {
       { label: "Gestionnaire Stock", session: stock, notification: byUser.get(stock.id) },
       { label: "Responsable", session: responsable, notification: byUser.get(responsable.id) },
     ];
+    notificationIds.push(...identities.map(item => item.notification?.id).filter(Boolean));
     for (const item of identities) if (!item.notification) {
       throw new Error("Le dispatcher n'a pas ciblé le rôle actif : " + item.label + ".");
     }
@@ -234,13 +302,45 @@ async function run(env = process.env) {
       await admin("/rest/v1/naxa_push_subscriptions?endpoint=eq." + encodeURIComponent(item.endpoint)
         + "&user_id=eq." + encodeURIComponent(item.userId), "DELETE", undefined, "return=minimal").catch(() => null);
     }
-    if (lotId && productId) {
-      await admin("/rest/v1/stocks_lots?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
-        + "&produit_id=eq." + encodeURIComponent(productId) + "&id=eq." + encodeURIComponent(lotId),
-        "PATCH", { quantite: 0 }, "return=minimal").catch(() => null);
-      await admin("/rest/v1/stocks?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
-        + "&produit_id=eq." + encodeURIComponent(productId),
-        "PATCH", { quantite: 0 }, "return=minimal").catch(() => null);
+    if (notificationIds.length) {
+      await admin("/rest/v1/notifications?id=in.(" + notificationIds.map(encodeURIComponent).join(",") + ")",
+        "DELETE", undefined, "return=minimal").catch(() => null);
+    }
+    if (productId && lotNumber && stockRowTouched) {
+      const lotFilter = "/rest/v1/stocks_lots?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+        + "&produit_id=eq." + encodeURIComponent(productId)
+        + "&lot=eq." + encodeURIComponent(lotNumber);
+      await admin(lotFilter, "DELETE", undefined, "return=minimal").catch(async () => {
+        // If an audit/operational reference prevents deletion, keep a zero-quantity lot
+        // and restore the aggregate to the remaining sum rather than breaking stock integrity.
+        await admin(lotFilter, "PATCH", { quantite: 0 }, "return=minimal").catch(() => null);
+      });
+
+      const remainingLots = await admin("/rest/v1/stocks_lots?select=quantite&pharmacie_id=eq."
+        + encodeURIComponent(pharmacyId) + "&produit_id=eq." + encodeURIComponent(productId)).catch(() => null);
+      if (Array.isArray(remainingLots)) {
+        const restoredQuantity = sumLotQuantities(remainingLots);
+        const stockFilter = "&pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+          + "&produit_id=eq." + encodeURIComponent(productId);
+        if (baseStock) {
+          await admin("/rest/v1/stocks?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+            + "&produit_id=eq." + encodeURIComponent(productId),
+            "PATCH", {
+              prix: baseStock.prix,
+              quantite: restoredQuantity,
+              date_peremption: baseStock.date_peremption,
+              emplacement: baseStock.emplacement,
+            }, "return=minimal").catch(() => null);
+        } else if (remainingLots.length === 0) {
+          await admin("/rest/v1/stocks?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+            + "&produit_id=eq." + encodeURIComponent(productId),
+            "DELETE", undefined, "return=minimal").catch(() => null);
+        } else {
+          await admin("/rest/v1/stocks?pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+            + "&produit_id=eq." + encodeURIComponent(productId),
+            "PATCH", { quantite: restoredQuantity }, "return=minimal").catch(() => null);
+        }
+      }
     }
     for (const session of [promoter, stock, responsable].filter(Boolean)) {
       await fetchJson(baseUrl + "/auth/v1/logout?scope=local", {
@@ -260,4 +360,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assertReplayUrl, localCameroonDate, addDays };
+module.exports = { assertReplayUrl, localCameroonDate, addDays, sumLotQuantities, restErrorSummary };
