@@ -19,6 +19,10 @@ declare
   v_marketplace_qty integer;
   v_batch integer;
   v_stock_price integer:=900;
+  v_product_name text;
+  v_lat double precision;
+  v_lng double precision;
+  v_search_items jsonb;
 begin
   if v_today is distinct from (now() at time zone 'Africa/Douala')::date then
     raise exception 'La date métier ne correspond pas à Africa/Douala';
@@ -51,6 +55,12 @@ begin
   )
   limit 1;
   if v_produit is null then raise exception 'Aucun produit sans lot disponible pour le test transactionnel'; end if;
+
+  select p.nom into v_product_name from public.produits p where p.id=v_produit;
+  select ph.lat,ph.lng into v_lat,v_lng from public.pharmacies ph where ph.id=v_pharmacie;
+  if coalesce(v_product_name,'')='' or v_lat is null or v_lng is null then
+    raise exception 'Produit ou coordonnées E2E absents pour le test de recherche Marketplace';
+  end if;
 
   select count(distinct recipient_id)::integer into v_recipient_count
   from (
@@ -113,6 +123,16 @@ begin
     raise exception 'Le Marketplace doit compter les cinq lots valides (50), jamais le lot périmé (999) ; obtenu %',v_marketplace_qty;
   end if;
 
+  select s.items into v_search_items
+  from public.search_pharmacies(array[v_product_name],v_lat,v_lng,100) s
+  where s.pharmacie_id=v_pharmacie;
+  if not found or not exists(
+    select 1 from jsonb_array_elements(coalesce(v_search_items,'[]'::jsonb)) item
+    where (item->>'quantite')::integer=50
+  ) then
+    raise exception 'La recherche publique doit afficher uniquement 50 unités provenant des cinq lots valides';
+  end if;
+
   -- Une seule fiche/lot est traitée par appel : les passages suivants doivent avancer
   -- vers les lots suivants au lieu de retenter indéfiniment le premier lot déjà notifié.
   v_first:=0;
@@ -169,6 +189,16 @@ begin
   from public.marketplace_offre_stock_disponible(v_pharmacie,v_produit) o;
   if coalesce(v_marketplace_qty,-1)<>0 then
     raise exception 'Un lot périmé seul ne doit jamais maintenir une offre Marketplace ; obtenu %',v_marketplace_qty;
+  end if;
+
+  if exists(
+    select 1 from public.search_pharmacies(array[v_product_name],v_lat,v_lng,100) s
+    where s.pharmacie_id=v_pharmacie
+  ) then
+    raise exception 'La pharmacie ne doit plus ressortir comme offre Marketplace lorsque seul le lot périmé subsiste';
+  end if;
+  if public.marketplace_produit_visible(v_produit) is not true then
+    raise exception 'La référence catalogue pharmacie doit rester découvrable sans offre vendable (sans exposer le lot périmé)';
   end if;
 
   if exists(
