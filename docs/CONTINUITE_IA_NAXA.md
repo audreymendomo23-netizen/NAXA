@@ -2,7 +2,7 @@
 
 > **Priorité opérationnelle — 13/11/2026 :** `AGENTS.md` est la source de consignes. La branche de travail et de référence est `main`. Les anciens journaux de branches, PR et interdictions de fusion ci-dessous sont conservés comme archives et ne remplacent ni `AGENTS.md`, ni les ordres explicites plus récents de l'utilisateur.
 
-Dernière mise à jour : 2026-11-13
+Dernière mise à jour : 2026-11-15
 
 ## Règles opérationnelles courantes
 
@@ -1110,3 +1110,13 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Replay : les trois tables contiennent 0 ligne ; aucune donnée métier fictive n’a été créée. La preuve de ce lot est structurelle, pas une recette comportementale d’un partenaire réel.
 - Advisor `multiple_permissive_policies` : **44 → 41** après cette migration. Les trois tables ne figurent plus dans les findings. Replay conserve 189 FK sans index couvrant et 175 index non utilisés observés.
 - Aucun changement Production, `main`, ACL de table ou déploiement ; migration limitée à Replay/QA.
+
+
+## Addendum 2026-11-15 — séparation stock POS / disponibilité Marketplace
+
+- Revue du HEAD 86ac0c92e2a0b61857059fb08dc9f16c0a1f43e3 : quatre fonctions POS réutilisaient encore le point d'entrée Marketplace. Il applique la publication publique, l'exclusion des pharmacies démo et une fraîcheur de stock de 48 h ; ces règles peuvent refuser une vente interne légitime.
+- Migration ajoutée : supabase/migrations/20261115205000_pos_internal_sellable_stock_scope.sql. Le helper privé private.naxa_pos_stock_vendable vérifie l'activité/non-archivage de la pharmacie, les quantités de lots non bloqués/non périmés et les réservations actives, sans vérifier la visibilité Marketplace, le statut démo ou la fraîcheur 48 h. Accès direct révoqué pour PUBLIC, anon, authenticated et service_role.
+- Test ajouté : supabase/tests/20261115205000_pos_internal_stock_scope.sql, avec fixture Replay active/démo masquée et vérification ACL. Le test 284 est modifié pour ne plus simuler la publication Marketplace ou valider artificiellement la fiche.
+- Contrats historiques alignés sur la propriété des fiches par pharmacie : tests 20261105142000, 20261115190000 et 20261115191000.
+- État PARTIEL jusqu'à exécution réelle des tests SQL/Replay et vérification des workflows. Replay utilisé : pwfftcsjyeibxxqhwysw ; Production eouwtuusnsuxaejsxknf hors périmètre. Aucun déploiement Vercel/Play Store.
+- Blocages externes inchangés : secrets Storage E2E masqués absents, HIBP soumis au plan Supabase Free, exposition API de private à confirmer dans le Dashboard et recette matérielle/utilisateurs réels non effectuée.

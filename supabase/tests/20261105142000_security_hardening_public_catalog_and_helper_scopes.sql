@@ -32,8 +32,8 @@ BEGIN
     RAISE EXCEPTION 'An unguarded public/anon write policy exists';
   END IF;
 
-  -- Public inventory endpoint is invoker-only; the private definer implementation
-  -- contains the strict pharmacy visibility and non-expired / non-blocked lot filters.
+  -- Public inventory endpoint is a narrow SECURITY DEFINER wrapper over a private,
+  -- non-callable implementation. Pharmacy visibility and freshness remain enforced there.
   SELECT pg_get_functiondef('private.marketplace_offre_stock_disponible_guarded(uuid,uuid)'::regprocedure)
   INTO v_privdef;
   SELECT pg_get_functiondef('public.marketplace_offre_stock_disponible(uuid,uuid)'::regprocedure)
@@ -42,9 +42,10 @@ BEGIN
      OR v_privdef NOT ILIKE '%ph.archivee_le IS NULL%'
      OR v_privdef NOT ILIKE '%coalesce(l.bloque%'
      OR v_privdef NOT ILIKE '%date_peremption%'
-     OR v_privdef NOT ILIKE '%fiche_validee IS TRUE%'
+     OR position('fiche_validee' in lower(v_privdef)) > 0
      OR v_privdef NOT ILIKE '%marketplace_stock_last_quantity_update%'
-     OR v_def ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%SECURITY DEFINER%'
+     OR v_def NOT ILIKE '%search_path to%'
      OR v_def NOT ILIKE '%private.marketplace_offre_stock_disponible_guarded%' THEN
     RAISE EXCEPTION 'Marketplace stock wrapper or private guard is invalid';
   END IF;
@@ -156,7 +157,7 @@ BEGIN
     RAISE EXCEPTION 'An anonymous role can execute an internal private helper';
   END IF;
   IF NOT has_function_privilege('anon','private.produits_populaires(integer,integer)','EXECUTE')
-     OR NOT has_function_privilege('anon','private.marketplace_offre_stock_disponible_guarded(uuid,uuid)','EXECUTE')
+     OR has_function_privilege('anon','private.marketplace_offre_stock_disponible_guarded(uuid,uuid)','EXECUTE')
      OR NOT has_function_privilege('anon','private.get_universe_catalog(text)','EXECUTE')
      OR NOT has_function_privilege('anon','private.get_home_service_catalog()','EXECUTE')
      OR NOT has_function_privilege('anon','private.universe_partner_is_public(uuid,text)','EXECUTE') THEN

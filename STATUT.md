@@ -1,3 +1,16 @@
+## Correctifs des blocages POS / catalogue — 15/11/2026
+
+**État : PARTIEL — correctif source préparé, validation Replay à exécuter.** Le catalogue est publié par la pharmacie propriétaire ; la lecture publique reste conditionnée à une offre d'une pharmacie réelle, active et publiée. La Caisse doit calculer son stock indépendamment des filtres de publication Marketplace.
+
+- Migration préparée : `20261115205000_pos_internal_sellable_stock_scope.sql` ; helper privé `private.naxa_pos_stock_vendable`, rebranchement des quatre consommateurs POS (recherche, codes-barres, ajout au panier, débit à l'encaissement).
+- Contrats SQL réalignés : les anciens tests `20261105142000`, `20261115190000` et `20261115191000` attendaient encore une validation NAXA des fiches ou un accès API direct à un helper privé. Les nouvelles assertions gardent la publication contrôlée par pharmacie et les ACL privées.
+- Le test 284 utilise désormais une pharmacie Replay active/démo non publiée (`est_demo=true`, `visible_recherche=false`) et n'altère plus `fiche_validee`. Exécution à confirmer après application transactionnelle du correctif.
+- **Aucune écriture Supabase Production, aucun déploiement.** Replay utilisé : `pwfftcsjyeibxxqhwysw`.
+
+**Prérequis externes inchangés :** secrets Storage E2E Replay absents, HIBP nécessitant un plan Supabase supérieur au plan Free, exposition API de `private` à confirmer dans Settings/API, et recette sur appareils/comptes réels non exécutée. Aucun statut global vert n'est revendiqué.
+
+---
+
 ## Dernière clôture des CI et prérequis d'accès — 14/11/2026
 
 **État : PARTIEL, avec les blocages de code/CI corrigés.** Les parcours SQL ciblés et les trois voies CI ci-dessous sont verts. Les prérequis secrets, plan Supabase et vérification du schéma API restent ouverts ; pas de déclaration AU VERT globale.

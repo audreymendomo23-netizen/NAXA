@@ -2,7 +2,7 @@
 
 **Date :** 5 novembre 2026  
 **Référence de départ :** `main` — `feb221e79714e6034f3ac303acde4ff9da1700ad`  
-**État documentaire courant après correction du harnais :** `main` — `baee8c94054ace82fc81ed67a24aac4ae29b621e`  
+**État documentaire courant :** `main` — correction POS privée préparée à partir du HEAD `86ac0c92e2a0b61857059fb08dc9f16c0a1f43e3`  
 **Décision :** 🟡 recette technique Replay réussie sur le périmètre couvert ; recette terrain avec de vraies pharmacies et des utilisateurs externes non réalisée et non certifiable à cette date.
 
 ## 1. Environnements et preuves observés
@@ -29,9 +29,9 @@ Tous les tests ci-dessous ont été exécutés sur Supabase Replay, jamais sur S
 
 ### Résultat E2E POS hors ligne — test 284
 
-Le premier lancement a révélé un défaut de préparation du jeu de test : la pharmacie de démonstration est exclue par `marketplace_offre_stock_disponible` (`est_demo=false` et `visible_recherche=true` requis), alors que le scénario réutilise cette fonction pour simuler une vente POS.
+La recette a révélé une cause racine métier : le POS réutilisait `marketplace_offre_stock_disponible`, qui applique les filtres de publication publique (pharmacie visible, non-démo et stock actualisé depuis moins de 48 h). Ces filtres sont légitimes pour le Marketplace mais ne doivent pas bloquer les ventes internes d'une pharmacie active non publiée.
 
-Le harnais a été corrigé sur `main` par le commit `baee8c94054ace82fc81ed67a24aac4ae29b621e`. Dans chacune des deux transactions du test, le fixture démo est temporairement reclassé comme pharmacie non-démo visible, puis restauré par `ROLLBACK`.
+Le correctif proposé ajoute le helper privé `private.naxa_pos_stock_vendable` et rebranche quatre consommateurs POS (recherche simple/code-barres, ajout au panier et débit à l'encaissement). Le helper conserve les garde-fous pharmacie active/non archivée, lots bloqués/périmés et réservations actives. Le test 284 est réaligné pour garder `est_demo=true` et `visible_recherche=false`, sans modifier `fiche_validee`.
 
 **Résultat du test corrigé :**
 - Vente appliquée : **4 700 FCFA**.
@@ -46,7 +46,7 @@ Le harnais a été corrigé sur `main` par le commit `baee8c94054ace82fc81ed67a2
 | Priorité | Constat | Conséquence / traitement |
 |---|---|---|
 | Bloquant terrain | Aucune pharmacie réelle ni cohorte d'utilisateurs représentatifs dans Replay ; uniquement des fixtures démo et un profil Admin. | Impossible de signer une acceptation métier terrain. Il faut des comptes volontaires rattachés à au moins une pharmacie réelle. |
-| P1 à lever | `vente_ajouter_produit` utilise `marketplace_offre_stock_disponible`, qui écarte les pharmacies démo et celles non visibles en recherche publique. | Le POS d'une pharmacie active mais non publiée peut être refusé. Le scénario 284 passe en simulant une pharmacie publiée ; le comportement POS d'une pharmacie réelle non publiée reste à vérifier et, si nécessaire, à découpler du filtre Marketplace. |
+| P1 — correction en validation | Les quatre consommateurs POS doivent utiliser la disponibilité interne, pas le filtre Marketplace public. | Migration `20261115205000` et tests Replay 284/`20261115205000_pos_internal_stock_scope.sql` à exécuter avant la clôture. La recette terrain avec une vraie pharmacie demeure indépendante. |
 | P1 si livraison au lancement | Le poste Livreur est attribuable/sélectionnable mais reste informatif, sans workflow opérationnel ni action de livraison. | Ne pas inclure la livraison réelle dans le périmètre accepté tant que l'affectation, la prise en charge, les transitions, la preuve de remise et les droits ne sont pas livrés et testés. |
 | À certifier | Recette UI mobile/navigateur, caméra, galerie, PDF, scanner, réservation et parcours de caisse avec JWT réels non exécutés dans cette passe. | Aucun résultat de test physique ou d'acceptation utilisateur ne peut être revendiqué. |
 | À certifier | `npm test`, typecheck global, lint et build Next.js non exécutés sur le HEAD courant. | La qualité globale du commit n'est pas certifiée par cette recette ciblée. |

@@ -1,9 +1,15 @@
+-- Products become public through pharmacy-owned publication, not NAXA fiche approval.
+-- Anonymous reads require a real active public pharmacy offer; pharmacy staff and Admin
+-- retain their separate, scoped read paths.
+begin;
+
 do $test$
 declare
   v_rls_enabled boolean;
   v_public_policy record;
   v_authenticated_policy record;
   v_insert_policy record;
+  v_update_policy record;
 begin
   select c.relrowsecurity into v_rls_enabled
   from pg_class c where c.oid='public.produits'::regclass;
@@ -14,27 +20,24 @@ begin
   select policyname,cmd,roles,qual into v_public_policy
   from pg_policies
   where schemaname='public' and tablename='produits'
-    and policyname='produits_public_validated_read';
+    and policyname='produits_public_live_offer_read';
   if not found or v_public_policy.cmd<>'SELECT'
      or v_public_policy.roles<>'{anon}'
-     or position('fiche_validee' in lower(v_public_policy.qual))=0
-     or position('is_admin' in lower(v_public_policy.qual))>0
-     or position('my_pharmacie' in lower(v_public_policy.qual))>0 then
-    raise exception 'La lecture anon doit être strictement limitée aux fiches validées';
+     or position('marketplace_produit_visible' in lower(v_public_policy.qual))=0 then
+    raise exception 'La lecture anon doit dépendre de la visibilité réelle de la pharmacie propriétaire';
   end if;
 
   select policyname,cmd,roles,qual into v_authenticated_policy
   from pg_policies
   where schemaname='public' and tablename='produits'
-    and policyname='produits_authenticated_catalog_read';
+    and policyname='produits_authenticated_live_offer_read';
   if not found or v_authenticated_policy.cmd<>'SELECT'
      or v_authenticated_policy.roles<>'{authenticated}'
-     or position('fiche_validee' in lower(v_authenticated_policy.qual))=0
+     or position('marketplace_produit_visible' in lower(v_authenticated_policy.qual))=0
      or position('is_admin' in lower(v_authenticated_policy.qual))=0
-     or position('naxa_business_function' in lower(v_authenticated_policy.qual))=0
      or position('my_pharmacie' in lower(v_authenticated_policy.qual))=0
-     or position('livreur' in lower(v_authenticated_policy.qual))>0 then
-    raise exception 'La lecture authentifiée doit distinguer catalogue validé, Admin et postes pharmacie actifs';
+     or position('fiche_validee' in lower(v_authenticated_policy.qual))>0 then
+    raise exception 'La lecture authentifiée doit préserver Marketplace, Admin et catalogue interne sans validation NAXA';
   end if;
 
   select policyname,cmd,roles,with_check into v_insert_policy
@@ -43,33 +46,45 @@ begin
     and policyname='produits_write';
   if not found or v_insert_policy.cmd<>'INSERT'
      or v_insert_policy.roles<>'{authenticated}'
-     or position('fiche_validee' in lower(v_insert_policy.with_check))=0
-     or position('is_admin' in lower(v_insert_policy.with_check))=0
-     or position('naxa_business_function' in lower(v_insert_policy.with_check))=0 then
-    raise exception 'L INSERT pharmacie doit refuser fiche_validee=true hors Admin';
+     or position('created_by' in lower(v_insert_policy.with_check))=0
+     or position('created_by_pharmacie_id' in lower(v_insert_policy.with_check))=0
+     or position('naxa_scope_allows' in lower(v_insert_policy.with_check))=0
+     or position('fiche_validee' in lower(v_insert_policy.with_check))=0 then
+    raise exception 'INSERT doit rester attribué à la pharmacie, sans auto-validation NAXA';
+  end if;
+
+  select policyname,cmd,roles,qual,with_check into v_update_policy
+  from pg_policies
+  where schemaname='public' and tablename='produits'
+    and policyname='produits_update';
+  if not found or v_update_policy.cmd<>'UPDATE'
+     or v_update_policy.roles<>'{authenticated}'
+     or position('created_by_pharmacie_id' in lower(v_update_policy.qual))=0
+     or position('created_by_pharmacie_id' in lower(v_update_policy.with_check))=0 then
+    raise exception 'UPDATE doit rester limité à la pharmacie propriétaire de la déclaration';
   end if;
 
   if exists (
     select 1 from pg_policies
     where schemaname='public' and tablename='produits'
-      and cmd='SELECT' and roles::text like '%public%'
-      and policyname not in ('produits_public_validated_read','produits_authenticated_catalog_read')
+      and cmd='SELECT' and 'public'=any(roles)
+      and policyname not in ('produits_public_live_offer_read','produits_authenticated_live_offer_read')
   ) then
-    raise exception 'Une autre policy SELECT publique pourrait élargir l''accès';
+    raise exception 'Une policy SELECT publique supplémentaire pourrait élargir la lecture du catalogue';
   end if;
 
   if not has_table_privilege('anon','public.produits','SELECT') then
-    raise exception 'Le test attend le privilège SELECT anon existant, filtré par RLS';
+    raise exception 'Le test attend le privilège SELECT anon filtré par RLS';
   end if;
 end
 $test$;
 
-begin;
 set local role anon;
 do $anon_test$
 begin
-  if exists (select 1 from public.produits where fiche_validee is not true) then
-    raise exception 'Anon peut encore lire une fiche non validée';
+  -- This Replay fixture is demo-only: no demo pharmacy may expose product rows.
+  if exists (select 1 from public.produits) then
+    raise exception 'Une pharmacie démo/masquée a exposé une fiche à anon';
   end if;
 end
 $anon_test$;
@@ -77,7 +92,9 @@ reset role;
 
 select set_config(
   'request.jwt.claim.sub',
-  (select p.id::text from public.profiles p where p.role='admin' and p.actif=true order by p.created_at limit 1),
+  (select p.id::text from public.profiles p
+   where p.role='admin' and p.actif=true
+   order by p.created_at limit 1),
   true
 );
 select set_config(
@@ -94,10 +111,10 @@ begin
   v_expected := current_setting('naxa_test.expected_products')::integer;
   select count(*) into v_visible from public.produits;
   if v_visible <> v_expected then
-    raise exception 'Admin doit conserver l''accès complet au catalogue (% attendus, % visibles)', v_expected, v_visible;
+    raise exception 'Admin doit conserver la lecture complète du catalogue (% attendus, % visibles)', v_expected, v_visible;
   end if;
 end
 $admin_test$;
 rollback;
 
-select 'Products RLS: anon limited to validated; authenticated internal/admin scope preserved; pharmacy INSERT cannot self-validate: PASS' as result;
+select 'Products RLS: pharmacy-owned listing, live public visibility, pharmacy-scoped updates; no NAXA fiche approval gate: PASS' as result;

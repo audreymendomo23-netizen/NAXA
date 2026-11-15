@@ -1,7 +1,7 @@
 -- F07 / 284 — Replay-only end-to-end test for deferred cash POS sales.
--- Uses the seeded demo pharmacy/product below. Each transaction temporarily changes
--- est_demo to false so the Marketplace sellable-stock helper models a real published
--- pharmacy; the final ROLLBACK restores the demo fixture. A synthetic stocks_couts row
+-- Uses the seeded demo pharmacy/product below. Each transaction hides the pharmacy
+-- from public search while keeping it active and demo-only; the private POS stock helper
+-- must still allow internal cash operations. ROLLBACK restores the fixture. A synthetic stocks_couts row
 -- satisfies the mandatory POS cost snapshot. Both scenarios are wrapped in ROLLBACK:
 -- no Auth user, profile, register, session, device, sale, payment, stock or cost persists.
 -- Do NOT run this fixture against Production.
@@ -37,14 +37,13 @@ declare
   v_stock_conflict jsonb;
   v_result_sale uuid;
 begin
-  if not exists(select 1 from public.pharmacies where id=v_pharmacy and actif and visible_recherche and est_demo) then
+  if not exists(select 1 from public.pharmacies where id=v_pharmacy and actif and est_demo) then
     raise exception 'F07_284_FAIL: Replay demo pharmacy fixture unavailable';
   end if;
 
-  -- Simulate a genuine, public-listed pharmacy and validated catalogue fiche
-  -- only inside this transaction; final ROLLBACK restores both demo fixtures.
-  update public.pharmacies set est_demo=false where id=v_pharmacy;
-  update public.produits set fiche_validee=true where id=v_product;
+  -- POS must remain operational without publishing the demo pharmacy or validating
+  -- the product fiche. Only the visibility flag changes inside this transaction.
+  update public.pharmacies set visible_recherche=false where id=v_pharmacy;
   select prix,quantite into v_price,v_stock_before
   from public.stocks where pharmacie_id=v_pharmacy and produit_id=v_product
     and (date_peremption is null or date_peremption>=current_date)
@@ -186,14 +185,12 @@ declare
   session_status text;
   sale_rows integer;
 begin
-  if not exists(select 1 from public.pharmacies where id=p and actif and visible_recherche and est_demo) then
+  if not exists(select 1 from public.pharmacies where id=p and actif and est_demo) then
     raise exception 'F07_284_FAIL: Replay demo pharmacy fixture unavailable for closure';
   end if;
 
-  -- Simulate a genuine, public-listed pharmacy and validated catalogue fiche
-  -- only inside this transaction; final ROLLBACK restores both demo fixtures.
-  update public.pharmacies set est_demo=false where id=p;
-  update public.produits set fiche_validee=true where id=product;
+  -- The closing flow must work for an active pharmacy that is not publicly listed.
+  update public.pharmacies set visible_recherche=false where id=p;
   select prix,quantite into price,before_qty from public.stocks
   where pharmacie_id=p and produit_id=product and (date_peremption is null or date_peremption>=current_date)
   for update;
