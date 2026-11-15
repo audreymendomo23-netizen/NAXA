@@ -1,3 +1,16 @@
+## Revalidation finale Replay — POS, catalogue et Livreur — 15/11/2026
+
+**État global : PARTIEL.** Les blocages logiciels ciblés de la Caisse privée et du workflow Livreur sont levés sur Replay ; la certification matérielle/terrain, les secrets Storage E2E et la preuve CI sur le SHA final restent ouverts.
+
+- POS : migrations `pos_internal_sellable_stock_scope` et `pos_cashier_unpublished_settlement` appliquées sur Replay. Tests 205000/206000 PASS ; E2E 284 PASS deux fois, vente 4 700 FCFA, reçu 5 000, rendu 300, stock 52→51, clôture 14 700/14 700, écart nul. Fixture restauré et diagnostic temporaire retiré.
+- Catalogue : contrats 051420 (sans exception), 151900 PASS, 151910 PASS, 152000 PASS, 152010 PASS, 152020 PASS, 152030 PASS et 152040 PASS. Publication des fiches par la pharmacie propriétaire, sans approbation NAXA ; RLS et visibilité publique contrôlées.
+- Livreur : contrats 151400, 151600 et 151610 PASS (droits de remise/encaissement, chat/GPS, affectation/pharmacie active). Le code couvre affectation multi-pharmacies, invitation, préparation Stock avant dispatch, acceptation atomique, suivi Client, remise Client, rapport CSV et réaffectation contrôlée.
+- Le contrat Node `scripts/test-pos-internal-stock-scope.cjs` a été réaligné sur les deux migrations et sur la forme SQL du fixture ; les assertions statiques source correspondantes passent. Le test Node, `npm test`, TypeScript, ESLint et build complet ne sont pas déclarés exécutés.
+- GitHub ne renvoie aucun statut ni run Actions associé au HEAD final de cette passe. Le miroir GitLab `main` est encore au SHA `1b3ec14a481f129cc517ed167d246e9ba9a5a676`, pipeline #157 (`3068018070`) success du 14/11 : il ne valide pas le HEAD GitHub courant `b23eb9e40247ad88423260a16198df04ba75d867`.
+- Reste avant vert terrain : vrais comptes Auth Promoteur/Pharmacie/Livreur/Client, parcours invitation et acceptation, Android/GPS/push/SMS, pilote avec pharmacie volontaire, secrets Storage E2E masqués, HIBP (plan Supabase Free) et contrôle visuel Settings/API du schéma `private`.
+- Production Supabase et Vercel restent hors périmètre : aucune écriture Production et aucun déploiement.
+
+---
 ## Clôture ciblée POS privé et publication pharmacie — 15/11/2026
 
 **État : PARTIEL global ; blocage P1 POS corrigé et validé sur Supabase Replay.** La caisse d'une pharmacie active ne dépend plus de la visibilité publique Marketplace ; la publication des fiches reste maîtrisée par la pharmacie propriétaire, sans validation NAXA.

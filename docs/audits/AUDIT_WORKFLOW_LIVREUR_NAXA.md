@@ -84,3 +84,11 @@ Aucune migration Supabase Production et aucune modification de données Producti
 - La page attend maintenant la promesse `searchParams` avant de transmettre le paramètre `erreur` au catalogue.
 - Cette correction est isolée sur la branche QA. Le nouveau run GitHub Actions doit confirmer le build complet ; tant que son résultat n'est pas `success`, le build reste non certifié.
 - Aucun changement sur `main`, aucune migration Supabase Production et aucun déploiement Vercel.
+
+
+## Revalidation complémentaire Replay — 15 novembre 2026
+
+- Le socle logiciel Livreur décrit dans ce dossier est toujours présent dans main : affectation/invitation, préparation physique Stock avant mise à disposition, acceptation atomique, suivi Client, chat/GPS, remise finale Client, encaissement espèces et réaffectation contrôlée.
+- Les contrats SQL les plus récents ont été rejoués sur Supabase Replay : 20261115140000 PASS (remise et déclaration cash liées au Livreur affecté et à la pharmacie active), 20261115160000 PASS (chat/GPS liés à l'affectation active), 20261115161000 PASS (refus quand l'affectation ou pharmacie n'est plus active).
+- Cette revalidation ferme le blocage de conception/autorisation logiciel. Elle ne ferme pas la recette d'acceptation : vrais comptes Auth Promoteur/Pharmacie/Client/Livreur, invitation et acceptation réelles, navigateur/Android, GPS/push/SMS et pilote partenaire restent non prouvés.
+- Statut : **socle logiciel SQL PASS ; lancement terrain PARTIEL**. Aucun changement Supabase Production ni déploiement Vercel/Play Store.

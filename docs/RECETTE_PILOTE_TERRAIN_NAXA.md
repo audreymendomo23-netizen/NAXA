@@ -2,7 +2,7 @@
 
 **Date :** 5 novembre 2026  
 **Référence de départ :** `main` — `feb221e79714e6034f3ac303acde4ff9da1700ad`  
-**État documentaire courant :** `main` — correctif POS privé et contrats SQL validés sur Replay  
+**État documentaire courant :** `main` — HEAD code `b23eb9e40247ad88423260a16198df04ba75d867` ; POS et contrats Livreur validés sur Replay  
 **Décision :** 🟡 recette technique Replay réussie sur le périmètre couvert ; recette terrain avec de vraies pharmacies et des utilisateurs externes non réalisée et non certifiable à cette date.
 
 ## 1. Environnements et preuves observés
@@ -49,7 +49,7 @@ Le correctif ajoute le helper privé `private.naxa_pos_stock_vendable` et rebran
 |---|---|---|
 | Bloquant terrain | Aucune pharmacie réelle ni cohorte d'utilisateurs représentatifs dans Replay ; uniquement des fixtures démo et un profil Admin. | Impossible de signer une acceptation métier terrain. Il faut des comptes volontaires rattachés à au moins une pharmacie réelle. |
 | P1 — corrigé / PASS Replay | POS et finalisation espèces indépendants de la publication Marketplace. | Migrations `pos_internal_sellable_stock_scope` et `pos_cashier_unpublished_settlement` appliquées ; contrats POS 205000/206000 et E2E 284 PASS avec pharmacie active non publiée. La recette terrain réelle reste indépendante. |
-| P1 si livraison au lancement | Le poste Livreur est attribuable/sélectionnable mais reste informatif, sans workflow opérationnel ni action de livraison. | Ne pas inclure la livraison réelle dans le périmètre accepté tant que l'affectation, la prise en charge, les transitions, la preuve de remise et les droits ne sont pas livrés et testés. |
+| Socle Livreur — logiciel SQL PASS / terrain PARTIEL | Le workflow logiciel est implémenté : affectation/invitation, préparation Stock avant dispatch, acceptation atomique, suivi Client, chat/GPS, remise Client, espèces et réaffectation contrôlée. | Tests Replay 151400, 151600 et 151610 PASS. Reste : Auth réel à deux comptes, appareil Android, réception push/SMS et pilote en pharmacie ; ne pas certifier le lancement terrain avant ces preuves. |
 | À certifier | Recette UI mobile/navigateur, caméra, galerie, PDF, scanner, réservation et parcours de caisse avec JWT réels non exécutés dans cette passe. | Aucun résultat de test physique ou d'acceptation utilisateur ne peut être revendiqué. |
 | À certifier | `npm test`, typecheck global, lint et build Next.js non exécutés sur le HEAD courant. | La qualité globale du commit n'est pas certifiée par cette recette ciblée. |
 
