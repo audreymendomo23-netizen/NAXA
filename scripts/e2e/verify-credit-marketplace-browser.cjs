@@ -185,10 +185,12 @@ async function run(env = process.env) {
       method: "PATCH", admin: true, body: { visible_recherche: true },
       prefer: "return=representation", label: "Exposition temporaire de la pharmacie technique sur Replay",
     });
+    // Dès que PATCH répond avec succès, le bloc finally doit remasquer la pharmacie,
+    // y compris si la réponse ne contient pas la ligne attendue.
+    listingEnabled = true;
     if (!Array.isArray(changed) || changed.length !== 1 || changed[0].visible_recherche !== true) {
       throw new Error("La visibilité Marketplace temporaire n'a pas pu être activée sur Replay.");
     }
-    listingEnabled = true;
 
     const offers = await rpc("marketplace_offre_stock_disponible", clientToken, {
       p_pharmacie: PHARMACY_ID, p_produit: PRODUCT_ID,

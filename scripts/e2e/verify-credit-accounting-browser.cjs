@@ -166,7 +166,7 @@ async function run(env = process.env) {
       throw new Error("Pharmacie comptable technique non conforme au périmètre Replay masqué.");
     }
     const permission = await rpc("compta_plan_lire", promoterToken, { p_pharmacie: PHARMACY_ID });
-    if (!permission || permission.ecriture_autorizada === false) {
+    if (!permission || permission.ecriture_autorisee !== true) {
       throw new Error("Le Promoteur n'obtient pas le droit d'écriture comptable sur la pharmacie technique.");
     }
 
@@ -236,8 +236,11 @@ async function run(env = process.env) {
       await journalForm.locator("input").first().fill(journalCode);
       await journalForm.locator('input[type="date"]').first().fill(today);
       await journalForm.getByRole("button", { name: "Ajouter le journal", exact: true }).click();
+      const journalLabel = event === "credit_octroi"
+        ? "Octroi de crédit client"
+        : "Remboursement de crédit client";
       const article = journalSection.locator("article").filter({ hasText: journalCode })
-        .filter({ hasText: event }).last();
+        .filter({ hasText: journalLabel }).last();
       await article.waitFor({ state: "visible", timeout: 30000 });
       await article.getByRole("button", { name: "Valider", exact: true }).click();
       await article.getByText("Validé", { exact: true }).waitFor({ timeout: 30000 });

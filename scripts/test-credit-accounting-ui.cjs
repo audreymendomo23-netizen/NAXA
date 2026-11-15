@@ -21,3 +21,31 @@ test("les deux événements crédit sont inclus dans les choix de journaux et ma
   assert.match(source, /ACCOUNTING_EVENTS\.map/);
   assert.match(source, /MAPPING_EVENTS\.map/);
 });
+
+const marketplaceSource = fs.readFileSync(
+  path.join(__dirname, "e2e/verify-credit-marketplace-browser.cjs"),
+  "utf8",
+);
+const accountingBrowserSource = fs.readFileSync(
+  path.join(__dirname, "e2e/verify-credit-accounting-browser.cjs"),
+  "utf8",
+);
+
+test("la recette Marketplace utilise uniquement Replay et restaure le masquage", () => {
+  assert.match(marketplaceSource, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
+  assert.match(marketplaceSource, /visible_recherche: true/);
+  assert.match(marketplaceSource, /visible_recherche: false/);
+  assert.match(marketplaceSource, /naxa-age-status-v2/);
+  assert.match(marketplaceSource, /Soumettre la demande de crédit/);
+  assert.match(marketplaceSource, /Demande transmise/);
+  assert.match(marketplaceSource, /p_approuver: false/);
+});
+
+test("la recette de configuration comptable passe par le Promoteur et valide les quatre mappings", () => {
+  assert.match(accountingBrowserSource, /compta_plan_lister_pharmacies/);
+  assert.match(accountingBrowserSource, /compta_plan_valider_compte/);
+  assert.match(accountingBrowserSource, /credit_octroi/);
+  assert.match(accountingBrowserSource, /credit_remboursement/);
+  assert.match(accountingBrowserSource, /Valider mapping/);
+  assert.match(accountingBrowserSource, /cleanupCreatedRows/);
+});
