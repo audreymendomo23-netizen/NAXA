@@ -81,17 +81,17 @@ test("le Client ne peut calculer un devis qu'après vérification de sa couvertu
 });
 
 test("le test runtime utilise un Responsable réellement affecté et bloque les devis hors pharmacie", () => {
-  assert.match(runtimeImportTest, /private\\.naxa_business_function\\(p\\.id\\)='responsable'/);
-  assert.match(runtimeImportTest, /private\\.naxa_scope_allows\\(v_responsable,v_pharmacy,'PHARMACIE'\\)/);
-  assert.match(runtimeImportTest, /assurance_import_simuler_mode/);
-  assert.match(runtimeImportTest, /'complet'/);
-  assert.match(runtimeImportTest, /assurance_calculer_devis\\(v_other_reservation,v_coverage\\)/);
-  assert.match(runtimeImportTest, /other_pharmacy_blocked/);
-  assert.match(runtimeImportTest, /timestamp_advanced/);
+  assert.ok(runtimeImportTest.includes("private.naxa_business_function(p.id)='responsable'"));
+  assert.ok(runtimeImportTest.includes("private.naxa_scope_allows(v_responsable,v_pharmacy,'PHARMACIE')"));
+  assert.ok(runtimeImportTest.includes("assurance_import_simuler_mode"));
+  assert.ok(runtimeImportTest.includes("'complet'"));
+  assert.ok(runtimeImportTest.includes("assurance_calculer_devis(v_other_reservation,v_coverage)"));
+  assert.ok(runtimeImportTest.includes("other_pharmacy_blocked"));
+  assert.ok(runtimeImportTest.includes("timestamp_advanced"));
   assert.match(runtimeImportTest, /rollback/i);
   assert.ok(verificationMigration.includes("verification_le timestamptz not null default clock_timestamp()"));
-  assert.match(quoteCorrelationMigration, /v\\.couverture_id=c\\.id/);
-  assert.match(quoteCorrelationMigration, /v2\\.couverture_id=c\\.id/);
+  assert.ok(quoteCorrelationMigration.includes("v.couverture_id=c.id"));
+  assert.ok(quoteCorrelationMigration.includes("v2.couverture_id=c.id"));
 });
 
 test("les fichiers et les tests de contrat couvrent le contrôle des imports et du POS négocié", () => {
