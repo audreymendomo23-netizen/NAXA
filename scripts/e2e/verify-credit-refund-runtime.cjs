@@ -124,8 +124,6 @@ async function run(env = process.env) {
 
   async function cleanup() {
     const errors = [];
-    if (cashierSessionId && !sessionClosed) await closeSessionSafely();
-
     if (!operationId && clientId) {
       try {
         const matches = await adminRows(
@@ -135,30 +133,41 @@ async function run(env = process.env) {
       } catch (error) { errors.push(error.message); }
     }
 
+    let operationDeleted = !operationId;
     if (operationId) {
       try {
-        await call("/rest/v1/compta_evenement?source_type=eq.credit_operation&source_id=eq."
-          + encodeURIComponent(operationId) + "&evenement_type=eq.credit_remboursement",
-        { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage outbox crédit" });
-      } catch (error) { errors.push(error.message); }
-      try {
+        // Remove the temporary operation first. Keep its outbox if this fails,
+        // so a failed cleanup never leaves an orphan accounting event.
         await call("/rest/v1/client_credit_operations?id=eq." + encodeURIComponent(operationId),
           { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage opération crédit" });
+        operationDeleted = true;
       } catch (error) { errors.push(error.message); }
+      if (operationDeleted) {
+        try {
+          await call("/rest/v1/compta_evenement?source_type=eq.credit_operation&source_id=eq."
+            + encodeURIComponent(operationId) + "&evenement_type=eq.credit_remboursement",
+          { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage outbox crédit" });
+        } catch (error) { errors.push(error.message); }
+      }
     }
-    if (creditId) {
+    if (creditId && operationDeleted) {
       try {
         await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId),
           { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage compte crédit E2E" });
       } catch (error) { errors.push(error.message); }
     }
-    if (!clientFicheExisted) {
+    if (!clientFicheExisted && operationDeleted) {
       try {
         await call("/rest/v1/client_fiches?client_id=eq."
           + encodeURIComponent(clientId) + "&pharmacie_id=eq." + encodeURIComponent(pharmacyId),
         { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage fiche Client E2E" });
       } catch (error) { errors.push(error.message); }
     }
+    // Close only after removing the temporary transaction: the retained session
+    // audit then accurately records a zero-cash session. If deletion failed,
+    // closeSessionSafely reconciles any still-present refund operation.
+    if (cashierSessionId && !sessionClosed) await closeSessionSafely();
+
     for (const token of [...new Set(sessions)].reverse()) {
       try {
         await call("/auth/v1/logout?scope=local", { method: "POST", token, label: "Fermeture session E2E" });
