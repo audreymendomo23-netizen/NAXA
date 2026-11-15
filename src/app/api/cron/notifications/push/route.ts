@@ -45,6 +45,8 @@ function pushBody(item: OutboxItem): string {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function GET(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   const candidate = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
@@ -61,6 +63,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
+  const url = new URL(request.url);
+  const notificationId = url.searchParams.get("notification_id");
+  if (notificationId && !UUID_RE.test(notificationId)) {
+    return NextResponse.json({ error: "Identifiant de notification invalide" }, { status: 400 });
+  }
+
   const publicKey = process.env.NAXA_VAPID_PUBLIC_KEY;
   const privateKey = process.env.NAXA_VAPID_PRIVATE_KEY;
   const webPushReady = Boolean(publicKey && privateKey);
@@ -72,7 +80,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const { data, error } = await db.rpc("claim_notification_push_outbox", { p_limit: 50 });
+  const { data, error } = notificationId
+    ? await db.rpc("claim_notification_push_outbox_for_notification", { p_notification_id: notificationId })
+    : await db.rpc("claim_notification_push_outbox", { p_limit: 50 });
   if (error) return NextResponse.json({ error: "File de notifications indisponible" }, { status: 500 });
 
   const items = (data ?? []) as OutboxItem[];
@@ -162,6 +172,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true, claimed: items.length, sent, noDevice, retried, failed, webPushSent, fcmSent,
+    notificationId: notificationId ?? null,
     at: new Date().toISOString(),
   });
 }
