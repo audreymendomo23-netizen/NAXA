@@ -867,7 +867,7 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Le run GitHub Actions `43682840616` (commit `5f24e339b562704830b9d77043745f14eaa6888b`) a été consulté : les huit tests unitaires Admin passent, le provisionneur Promoteur passe, mais le provisionneur Admin échoue car la liste Auth REST ne renvoie pas exactement une fixture correspondante. La matrice Storage a été sautée après cet échec. **Aucun PASS E2E Admin HTTP n'est revendiqué.**
 - Le succès historique Promoteur/Storage (run `43618611055`, 14 PASS / 1 SKIP Admin) reste valable pour son commit précédent ; il ne prouve pas encore la nouvelle matrice Admin. Le workflow Storage historique séparé (`43682835966`) a passé ses 11 scénarios de base et le nettoyage, puis échoué sur l'ancienne connexion Admin avec HTTP 400.
 
-**Conclusion :** la cause du SKIP Admin est traitée au niveau du code et du workflow. La matrice est maintenant exigée au lieu d'être silencieusement facultative. Sa validation d'exécution reste en attente de lecture des logs du run déclenché par le push.
+**Conclusion :** la matrice Admin n'est plus facultative et son exécution HTTP est maintenant validée sur Replay ; voir §35.
 
 **Point exact de reprise :** diagnostiquer le contrat de pagination/énumération Auth Admin qui ne retrouve pas l'identité pourtant confirmée et présente en SQL ; ne pas créer de compte de remplacement. Puis faire passer la matrice Storage complète, en privilégiant le provisionneur secret-safe plutôt que l'ancien secret Admin statique.
 
@@ -959,13 +959,67 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 
 **Correctif ciblé du provisionneur Admin :**
 - La version précédente parcourait `GET /auth/v1/admin/users?page=1&per_page=1000` puis filtrait la liste ; elle ne retrouvait pas la fixture alors que SQL prouve l'existence d'un unique profil Admin actif et son identité Auth confirmée.
-- Le nouveau chemin interroge d'abord `profiles` par le nom d'utilisateur unique `e2e_admin_261104`, rôle Admin et profil actif, puis lit l'identité via `GET /auth/v1/admin/users/{id}`. Il conserve ensuite la validation stricte e-mail exact, liaison ID, email confirmé, marqueurs E2E, rôle admin et profil actif, avant de renouveler le mot de passe éphémère. Il re-vérifie le même Auth ID et le même profil après rotation.
+- Après diagnostic GoTrue, le provisionneur recherche le profil unique `e2e_admin_261104`, puis parcourt de manière bornée les pages `GET /auth/v1/admin/users?page=N&per_page=50`, avec rapprochement strict de l'ID et de l'e-mail. Il valide la confirmation, les marqueurs E2E, le rôle Admin et le profil actif avant de renouveler le mot de passe éphémère ; il revalide ensuite la même identité.
 - Aucun compte créé, supprimé, converti ou réactivé par ce changement ; seule la fixture explicitement désignée pourra voir son mot de passe de test renouvelé.
-- Commit : `0cc91e53f376a0436b45edf6b81114f32ac1120a`.
+- Le provisionneur secret-safe a ensuite été corrigé de façon incrémentale jusqu'au commit de recette `820f8cb92e5ea8a4e95e1ae49dcd6c04b22272a6` ; le diagnostic et la correction de données Auth Replay sont tracés au §35.
 
 **Nouveaux runs déclenchés par le push du 15/11 :**
-- [Run qualité 43683863943](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43683863943), commit `0cc91e53f376a0436b45edf6b81114f32ac1120a) : démarré ; résultat final non encore connu au moment de cette entrée.
-- [Run Promoteur/Admin/Storage 43683863952](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43683863952), même commit : tests unitaires de garde PASS ; préflight Replay PASS ; provisionnement Promoteur en cours ; provisionnement Admin et matrices Storage en attente.
+- Run qualité `43683863943` annulé après un push ultérieur ; la qualité finale est le run `43684131922` SUCCESS (§35).
+- Run `43683863952` remplacé après correction de la fixture ; la réussite définitive Admin + Promoteur est documentée au §35.
 - Ne pas convertir ces runs en PASS tant que leurs conclusions et logs finaux n'ont pas été consultés.
 
-**Point exact de reprise :** consulter les conclusions des runs 43683863943 et 43683863952. Vérifier la suite tests/TypeScript/lint/build, la lecture Auth par ID, la rotation du mot de passe Admin, les deux matrices Storage et tous les nettoyages. Si l'étape Admin réussit, cela lèvera le blocage Auth mais ne suffira pas à déclarer les parcours métier complets.
+**Point exact de reprise :** la qualité et les deux matrices Storage sont closes au §35. Poursuivre la préparation et la recette fonctionnelle complète du rôle Livreur ; aucune conclusion globale AU VERT ne doit être tirée de la seule matrice Storage.
+
+
+## 35. Clôture de la matrice Storage Admin + Promoteur et correction de la fixture Auth Replay (15/11/2026)
+
+**Résultat final :**
+- [Workflow Promoteur/Admin/Storage 43684131897](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43684131897), commit `820f8cb92e5ea8a4e95e1ae49dcd6c04b22272a6` : **SUCCESS**.
+- [Workflow qualité 43684131922](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43684131922), même commit : **SUCCESS**.
+- Tests du harnais Admin + Promoteur : **16 PASS / 0 FAIL / 0 SKIP** (8 assertions de la fixture Admin et 8 du provisionneur Promoteur).
+- Storage E2E Replay : **17 PASS / 0 FAIL / 0 SKIP**.
+- Workflow qualité : tests, TypeScript, ESLint, build Next.js et vérification actionlint : tous les jobs **SUCCESS**.
+
+**Matrice Storage exécutée réellement via HTTP :**
+- Base : upload PDF propriétaire, lecture propriétaire, isolation lecture et écriture inter-utilisateurs, refus anonyme du bucket privé, URL signée propriétaire et refus pour un tiers, rejet MIME interdit, refus d'accès client aux buckets réservés, lecture publique d'une vraie image.
+- Admin actif : dépôt et lecture d'un document privé ; remplacement et lecture publique d'une photo médicament ; refus de lecture des documents pharmacie par un non-Admin.
+- Promoteur actif : dépôt et remplacement dans sa pharmacie liée ; refus d'écriture dans une pharmacie hors réseau.
+- Nettoyage : objets temporaires des buckets `pharmacies-photos`, `medicaments`, `pharmacie-documents` supprimés ; sessions Admin et Promoteur fermées localement ; deux utilisateurs Auth techniques temporaires révoqués puis supprimés.
+- Conclusion terminale visible dans le job : `Storage E2E Replay : 17 PASS, 0 SKIP.`
+- Contrôle SQL post-run : `naxa_storage_e2e` utilisateurs temporaires = **0** ; objets Storage temporaires = **0**.
+- Les fichiers contenant les mots de passe temporaires sont supprimés par trap et par l'étape `always()`. Les valeurs ne sont pas présentes dans les logs.
+
+**Cause racine de la visibilité Auth de la fixture Admin :**
+1. La ligne `auth.users` Admin existait et était jointe au profil, mais `instance_id` était `NULL`. Les recherches GoTrue Admin filtrent sur l'instance standard `00000000-0000-0000-0000-000000000000` ; l'utilisateur restait donc invisible via les API Auth alors que SQL le voyait. GoTrue source confirme le filtrage par l'instance pour la recherche par ID/e-mail et la liste des utilisateurs.
+2. Après correction de `instance_id` sur cette seule fixture, l'API Auth a renvoyé HTTP 500 : son scan Go échouait car quatre champs texte étaient `NULL` : `confirmation_token`, `recovery_token`, `email_change_token_new` et `email_change`. Le Promoteur créé par Auth avait ces champs initialisés à chaîne vide.
+3. Le compte Admin Replay avait donc été inséré directement avec une structure incomplète pour GoTrue, ce qui expliquait simultanément les 404 « User not found » et le 500 de lecture de la liste.
+
+**Réparation strictement limitée à la fixture Replay existante :**
+- `auth.users.instance_id` de la seule fixture `naxa.e2e.20261104.admin@example.invalid` a été fixé à `00000000-0000-0000-0000-000000000000`.
+- Les quatre champs texte Auth précédemment NULL ont été normalisés à `''`.
+- Les deux transactions utilisaient un prédicat de garde strict : UUID exact, e-mail exact, marqueurs `NAXA-E2E-20261104/admin`, e-mail confirmé, compte non supprimé, profil lié `username=e2e_admin_261104`, `role=admin`, `actif=true`.
+- Contrôle post-réparation : instance standard ; e-mail confirmé ; aucun compte supprimé ; quatre champs non NULL ; hash du mot de passe présent et conservé ; profil toujours Admin actif. Aucun nouveau compte Auth ou profil créé.
+- `auth.identities` demeure à 0 ligne pour cette fixture ; la recette démontre que la connexion mot de passe et les opérations Storage Admin fonctionnent malgré cette absence d'identité fédérée. Ne pas présenter ceci comme une preuve de fournisseur OAuth/email identity row.
+- La nouvelle provisionneuse reste bornée au Replay, ne crée aucun compte Admin et ne renouvelle que le secret de cette fixture explicitement marquée.
+
+**Code et workflow :**
+- `scripts/e2e/provision-replay-admin-safe.cjs` : validation profil puis liste Auth paginée et bornée (20 pages maximum × 50 utilisateurs), rapprochement ID + e-mail ; contrôle des marqueurs et état avant/après rotation.
+- `scripts/test-replay-admin-safe.cjs` et `scripts/test-replay-promoteur-safe-v2.cjs` : 16 tests passés.
+- `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` : matrices obligatoires (`NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX=1)); fichiers secrets temporaires supprimés après le job.
+- Aucun changement Production, Vercel ou Play Store. Les ajustements `auth.users` ont été effectués sur Replay uniquement.
+
+**État de recette actualisé :**
+- Matrice Storage de base : **validée**.
+- Matrice Storage Admin : **validée**.
+- Matrice Storage Promoteur et isolation inter-pharmacies : **validée**.
+- Idempotence des privilèges Promoteur RESEAU : **corrigée et testée** (§29).
+- Qualité automatisée / TS / ESLint / build / actionlint : **PASS** au commit testé.
+- Recette fonctionnelle Livreur (Client → invitation → affectation → Stock → paiement → mission → livraison → confirmations) : **non exécutée**.
+- Matrice de privilèges `role_key='livreur'` : encore à auditer ; ne pas ajouter de droits génériques non validés.
+- Recette globale NAXA : **PARTIELLE**. Ne pas déclarer AU VERT.
+
+**Point exact de reprise :**
+1. Continuer l'audit des gardes RPC/UI et de la matrice de privilèges Livreur.
+2. Finaliser un harnais Livreur avec fermeture locale sûre de session ; exécuter ses tests unitaires sur CI.
+3. Construire une réservation Replay correctement contrôlée/nettoyable, puis prouver le flux Stock prêt → paiement réellement validé → mission disponible → acceptation Livreur → retrait → arrivée → confirmation Livreur + Client → clôture.
+4. Après cette recette, poursuivre les autres profils professionnels et les validations appareil réel.
