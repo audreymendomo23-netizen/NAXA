@@ -14,6 +14,7 @@ const activeClientMigration = fs.readFileSync(path.join(root, "supabase/migratio
 const refusalEventMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115103000_assurance_client_refusal_event_visibility.sql"), "utf8");
 const accountingIdempotenceMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115104000_assurance_accounting_event_idempotence_scope.sql"), "utf8");
 const refusalEventSqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115103000_assurance_client_refusal_event_visibility.sql"), "utf8");
+const accountingIdempotenceSqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115104000_assurance_accounting_event_idempotence_scope.sql"), "utf8");
 
 test("la proposition de montant est versionnée et séparée du snapshot initial", () => {
   assert.match(migration, /create table if not exists public\.assurance_montant_propositions/);
@@ -104,4 +105,5 @@ test("le refus reste lisible par le Client propriétaire et par le personnel de 
 test("la créance Assurance utilise la clé d'idempotence unique réellement définie en comptabilité", () => {
   assert.match(accountingIdempotenceMigration, /on conflict \(pharmacie_id,cle_idempotence\) do nothing/i);
   assert.doesNotMatch(accountingIdempotenceMigration, /on conflict \(cle_idempotence\) do nothing/i);
+  assert.match(accountingIdempotenceSqlTest, /compta_evenement_pharmacie_id_cle_idempotence_key/);
 });
