@@ -1,6 +1,8 @@
 -- Regression for the private marketplace stock offer implementation.
 -- The public endpoint remains callable but never reveals an unvalidated record.
 
+begin;
+
 do $test$
 declare
   v_public record;
@@ -44,7 +46,6 @@ begin
 end
 $test$;
 
-begin;
 set local role anon;
 do $anon_test$
 declare
