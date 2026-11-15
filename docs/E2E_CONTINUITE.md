@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§45)  
+**Dernière mise à jour :** 15 novembre 2026 (§46)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — publication autonome des fiches et stocks par les pharmacies sans validation NAXA, déclarations runtime Promoteur/Gestionnaire Stock et périmètre Promoteur validés sur Replay (§43/§44) ; rappels automatiques de péremption J-30/J-15/J-7/J-3/J0 et garde de date camerounaise intégrés sur Replay (§45), tests SQL transactionnels PASS, offre Marketplace démontrée à 50 unités valides puis 0 lorsque seul le lot périmé subsiste ; cron actif toutes les 10 minutes avec traitement par lots de 1 000 et déduplication. Les tests Node sont intégrés au workflow, mais leur run CI après cette modification reste à confirmer ; aucun rappel n'a été livré à une pharmacie réelle, car Replay ne contient aucune pharmacie publique non-démo et les tests ont annulé leurs fixtures. Aucune quantité, lot, notification, réservation ou mission de test n'a persisté. Stock réel et parcours réservation → préparation → Livreur → clôture toujours à tester. Production et Vercel inchangés.
+**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Production et Vercel inchangés.
 
 
 
@@ -1613,3 +1613,81 @@ Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la
 2. Exécuter une notification réelle sur une pharmacie non-démo de recette possédant un lot à J-30/J-15/J-7/J-3/J0 ; vérifier les comptes Promoteur, Responsable, Gestionnaire Stock.
 3. Vérifier dans un parcours navigateur que l'offre ne propose jamais la quantité d'un lot périmé, y compris lorsque des lots valides et périmés coexistent et lorsque le lot périmé est le seul restant.
 4. Reprendre ensuite la réception et le parcours réservation → préparation → Livreur → clôture sans introduire de stock fictif.
+
+
+## 46. Exécution runtime de la recette péremption sur les comptes et canaux Replay (15/11/2026)
+
+**Périmètre exclusif : NAXA Replay** (pwfftcsjyeibxxqhwysw). Cette recette n'a effectué aucune écriture Production ou Vercel. Il n'existe toujours aucune pharmacie publique non-démo sur Replay ; l'exercice a donc utilisé temporairement la pharmacie de démonstration Mvan et ses comptes E2E déjà existants. Ce n'est pas une preuve sur une pharmacie commerciale réelle.
+
+### Précontrôles
+
+- Pharmacie Mvan initialement active, visible et est_demo=true.
+- Un Promoteur actif et rattaché à Mvan ; un Gestionnaire Stock actif et affecté à Mvan ; un Caissier et un Livreur également actifs pour vérifier leur exclusion.
+- Les quatre profils avaient un compte Auth associé. Aucun compte ou rôle n'a été créé/modifié.
+- Produit de recette existant : Amlodipine NAXA Test, sans ligne Stock, sans lot et sans historique de mouvement préexistant dans Mvan. Aucun produit commercial ou fiche n'a été ajouté.
+
+### Exécution persistée puis observée
+
+Pour faire passer le filtre de distribution réservé aux pharmacies non-démo, est_demo a été mis temporairement à false uniquement sur Replay. La transaction de test a créé une ligne stock et deux lots :
+- Lot NAXA-LIVE-EXPIRY-20261115-TEST01-D3, 10 unités, date 18/11/2026 (J-3 depuis le 15/11/2026).
+- Lot NAXA-LIVE-EXPIRY-20261115-TEST01-OLD, 22 unités, date 14/11/2026 (déjà périmé).
+
+Le dispatcher privé a été appelé avec la date réelle Africa/Douala. Résultats vérifiés après commit :
+
+| Contrôle runtime | Résultat |
+|---|---:|
+| Notifications lot_expiry_reminder en base | **2** |
+| Notification au Promoteur | **1** |
+| Notification au Gestionnaire Stock | **1** |
+| Notification au Caissier ou Livreur | **0** |
+| File téléphone private.notification_push_outbox | **2 pending** |
+| File push NAXA public.naxa_notification_push_outbox | **2 pending** |
+| File email | **0** |
+
+Les deux notifications contenaient le nom de pharmacie, le produit, le lot, les 10 unités présentes au moment de l'alerte, la date 18/11/2026 et le seuil J-3.
+
+**Interprétation impérative :** la création des notifications in-app et leur enfilement dans les deux tables push sont prouvés. Les lignes push étaient encore en état pending au contrôle ; aucune preuve d'envoi par le fournisseur push ni de réception visible sur un téléphone n'a été obtenue. Le type de notification de péremption n'est pas dans la liste d'envoi email, ce qui explique le compte email à zéro et ne constitue pas un échec du canal in-app/push.
+
+### Exclusion Marketplace runtime
+
+1. Avec le lot J-3 à 10 unités et le lot périmé à 22 unités, la fonction d'offre a retourné **10 unités** et public.search_pharmacies a affiché l'établissement avec **10** ; les 22 unités expirées n'ont jamais été ajoutées.
+2. La quantité du lot valide a ensuite été ramenée à zéro, et la quantité agrégée Stock a été alignée sur 22 (lot expiré uniquement).
+3. L'offre a alors retourné **0** et la recherche publique a retourné **0 pharmacie** pour cette référence. Le lot périmé seul ne maintient donc ni disponibilité ni résultat pharmacie achetable.
+
+### Planificateur
+
+Le job naxa-pharmacy-lot-expiry-notifications est actif à */10 * * * *, sous le rôle propriétaire postgres. L'historique cron.job_run_details a fourni un passage réel :
+- jobid 12, runid 15848 ;
+- départ 15/11/2026 à 09:20:00 UTC ;
+- statut succeeded, retour 1 row.
+
+Ce passage démontre que le scheduler lance le job. Il précède la création du lot J-3 de recette ; il ne prouve donc pas que ce passage planifié a envoyé cette alerte précise. L'envoi de l'alerte de recette a été déclenché explicitement par l'appel du même dispatcher privé.
+
+### Nettoyage et restauration
+
+Une première tentative de nettoyage a été annulée intégralement parce que le trigger d'audit cherchait à écrire une ligne journal référençant le lot supprimé. Le second nettoyage a suspendu temporairement et exclusivement les deux triggers trg_journal_stock_manager_stocks et trg_journal_stock_manager_lots le temps de supprimer les fixtures, puis les a réactivés dans la même transaction.
+
+Vérification post-nettoyage :
+- pharmacie Mvan restaurée à est_demo=true ;
+- 0 ligne Stock pour le produit de recette ;
+- 0 lot marqué NAXA-LIVE-EXPIRY-20261115-TEST01 ;
+- 0 ligne dans le journal de mouvement pour ce produit/pharmacie ;
+- 0 notification de péremption associée à la recette ;
+- 0 dispatch lié aux lots temporaires ;
+- 0 pharmacie publique non-démo sur Replay.
+
+Aucune quantité, aucun lot, aucune notification ni aucun journal temporaire ne reste.
+
+### Tests applicatifs et limites
+
+- Les tests SQL Replay (§45) restent **PASS** ; le présent test runtime persistant confirme notifications Promoteur/Gestionnaire Stock, exclusion Caisse/Livreur et recherche publique au niveau base.
+- Les dix contrôles statiques source/UI de §45 sont PASS.
+- Le test Node scripts/test-pharmacy-lot-expiry-notifications.cjs n'a pas été exécuté dans cette session : Node 22 était disponible dans le conteneur mais le réseau ne pouvait pas résoudre github.com. Le connecteur GitHub disponible ne permettait pas de lister/déclencher les runs push du workflow ; il ne retourne que les runs déclenchés par PR et les statuts commit étaient vides. Ne pas présenter CI Node comme PASS.
+- La navigation navigateur avec les vrais comptes E2E et la réception push sur appareil Android enregistré restent non démontrées. Aucune pharmacie publique réelle non-démo ni appareil de recette configuré n'existe actuellement sur Replay.
+
+**État au §46 :** dispatcher exécuté et notifications in-app observées — **PASS Replay** ; Promoteur — **PASS (1)** ; Gestionnaire Stock — **PASS (1)** ; Caisse/Livreur exclus — **PASS (0)** ; deux files push — **ENQUEUE PASS (2 + 2), réception téléphone NON PROUVÉE** ; recherche Marketplace mixte — **10 unités valides seulement** ; lot périmé seul — **offre 0 / pharmacie absente de la recherche, PASS** ; cron — **exécution observée succeeded** ; nettoyage/restauration — **PASS** ; Node CI — **non exécuté/non confirmé** ; notification sur vraie pharmacie publique — **à faire** ; état global — **PARTIEL**, pas AU VERT. Production et Vercel inchangés.
+
+**Point exact de reprise :**
+1. Obtenir un appareil Android de recette avec le compte Promoteur ou Gestionnaire Stock Replay et un token push valide ; traiter la file, puis prouver sent_at / statut envoyé et la réception sur appareil.
+2. Consulter ou déclencher le run GitHub Actions du workflow Replay depuis l'interface GitHub pour exécuter node --test scripts/test-pharmacy-lot-expiry-notifications.cjs, puis relever le résultat complet.
+3. Répéter la recette avec une pharmacie non-démo de recette explicitement autorisée, un lot réel de recette et un utilisateur Responsable lorsqu'une telle fixture existera ; ne pas changer le statut démo d'une pharmacie commerciale réelle pour simuler cette preuve.
