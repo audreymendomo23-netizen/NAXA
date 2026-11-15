@@ -21,6 +21,8 @@ create table if not exists public.assurance_montant_propositions (
   proposee_le timestamptz not null default now(),
   decidee_par uuid references auth.users(id) on delete restrict,
   decidee_le timestamptz,
+  remplacee_par uuid references auth.users(id) on delete restrict,
+  remplacee_le timestamptz,
   constraint assurance_montant_propositions_split_check
     check (montant_total_fcfa = montant_assureur_fcfa + montant_client_fcfa),
   constraint assurance_montant_propositions_version_uq
@@ -135,9 +137,16 @@ begin
     raise exception 'Une non-conformité documentaire bloque la proposition';
   end if;
 
+  if v_d.montant_total is null or v_d.montant_prise_en_charge is null
+     or v_s.montant_brut_fcfa is null or v_s.montant_assureur_fcfa is null then
+    raise exception 'Montants du dossier ou du devis initial incomplets';
+  end if;
+
   v_total:=round(v_d.montant_total)::bigint;
 
-  if v_total<>v_s.montant_brut_fcfa then
+  if v_total<>v_s.montant_brut_fcfa
+     or v_d.montant_prise_en_charge<0
+     or round(v_d.montant_prise_en_charge)::bigint>v_s.montant_assureur_fcfa then
     raise exception 'Le montant brut du dossier ne correspond pas au devis initial';
   end if;
 
@@ -160,7 +169,7 @@ begin
   v_client:=v_total-p_montant_assureur_fcfa;
 
   update public.assurance_montant_propositions
-  set statut='remplacee',decidee_par=v_uid,decidee_le=now()
+  set statut='remplacee',remplacee_par=v_uid,remplacee_le=now()
   where dossier_id=v_d.id and statut='proposee';
 
   select coalesce(max(version),0)+1 into v_version
@@ -220,8 +229,12 @@ declare
   v_p public.assurance_montant_propositions%rowtype;
   v_s public.assurance_reservation_snapshots%rowtype;
 begin
-  if v_uid is null then
-    raise exception 'Connexion Client requise';
+  if v_uid is null or p_accepter is null
+     or not exists (
+       select 1 from public.profiles p
+       where p.id=v_uid and p.role='client' and p.actif=true
+     ) then
+    raise exception 'Compte Client actif et décision explicite requis';
   end if;
 
   select d.* into v_d
@@ -400,7 +413,7 @@ grant execute on function public.assurance_confirmer_prise_en_charge(uuid,text)
   to authenticated,service_role;
 
 comment on table public.assurance_montant_propositions is
-  'Historique append-only des propositions de partage Assurance ; le snapshot initial reste immuable.';
+  'Historique versionné des propositions de partage Assurance ; les états de cycle de vie sont conservés et le snapshot initial reste immuable.';
 comment on column public.assurance_montant_propositions.montant_assureur_fcfa is
   'Part assureur proposée ; elle ne peut jamais dépasser la part du devis initial.';
 comment on column public.assurance_reservation_snapshots.montant_modifie_le is
