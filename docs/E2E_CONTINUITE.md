@@ -2019,3 +2019,52 @@ La comptabilité Replay contient 0 plan, 0 mapping, 0 paramètre, 0 période, 0 
 5. Confirmer Node/TypeScript/lint/build sur le dernier commit.
 
 Production et Vercel restent inchangés.
+
+
+## 53. Test runtime import assureur multi-pharmacies et stabilisation qualité (15/11/2026)
+
+### Cause racine temporelle et correction
+
+Le test runtime initial a mis en évidence un cas de simultanéité : `now()` renvoie la même valeur transactionnelle pour plusieurs imports appliqués dans une transaction unique. Le choix de la dernière vérification pouvait donc être ambigu dans un traitement groupé. La colonne `assurance_couverture_verifications.verification_le` utilise désormais `clock_timestamp()`, et le trigger de déclaration utilise lui aussi l'horloge réelle pour invalider toute vérification après modification du numéro adhérent, de la police, de l'assureur ou des dates.
+
+- Migration de versionnement : `supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql`.
+- Migration multi-pharmacie mise à jour : `supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql`.
+- Application Replay : valeur par défaut `verification_le = clock_timestamp()` contrôlée et trigger de modification appliqué.
+- Test statique Node : `scripts/test-assurance-import-membership.cjs` contrôle désormais cette monotonie temporelle et inclut le test runtime SQL.
+
+### Test positif runtime Replay
+
+Fichier versionné : `supabase/tests/20261115123000_assurance_import_runtime_multipharmacy.sql`.
+
+Scénario exécuté dans une seule transaction puis annulé :
+1. utilise le Promoteur Replay déjà actif, deux pharmacies de son réseau, un Client existant et un assureur actif ;
+2. crée une couverture temporaire pour ce Client ;
+3. applique une liste delta active à la pharmacie A ;
+4. applique la même liste delta à la pharmacie B et vérifie que la même couverture possède deux validations indépendantes ;
+5. applique une liste complète suspendant le même adhérent sur A ;
+6. confirme que A est `suspendue`, que l'ancienne validation A est `remplacee`, tandis que B reste `verifiee`.
+
+**Résultat Replay :** `20261115123000_assurance_import_runtime_multipharmacy PASS`. Le rollback final retire les couvertures, imports, lignes et vérifications temporaires. Aucun compte, pharmacie, convention ou donnée métier persistante n'a été ajouté.
+
+### Contrôle qualité GitHub
+
+- Workflow `NAXA quality`, commit `86980a32992e5543fda1ddccc965dc7a5d75935f` : **SUCCESS**.
+- Node : **488 tests PASS, 0 FAIL**.
+- TypeScript, ESLint et build Next.js : **PASS**.
+- GitHub Actions `actionlint` : **PASS** après correction de la variable inutilisée `attempt` dans le contrôle de disponibilité Web Push du workflow Replay (boucle compteur `retries`).
+- Le dernier ajout du test runtime versionné et de son assertion Node est postérieur à ce succès ; le workflow qualité doit repasser sur le commit le plus récent avant d'en déduire une preuve CI finale de ces nouveaux fichiers.
+- Supabase Preview reste annulé pour la limite mensuelle d'événements Git push ; cela ne concerne pas les migrations appliquées directement sur Replay.
+
+### État Replay après rollback
+
+Les contrôles de persistance confirment 0 couverture, 0 import, 0 ligne import, 0 vérification, 0 convention, 0 snapshot, 0 proposition, 0 dossier, 0 événement et 0 règlement Assurance persistants. La comptabilité reste sans compte, mapping, période, événement ou écriture persistante.
+
+**État §53 : PARTIEL — PAS AU VERT.** L'import, la vérification stricte, les modes complet/delta, la suspension multi-pharmacie, la négociation versionnée et le POS sont implémentés ; le test runtime multi-pharmacies passe avec rollback. Restent un vrai fichier source assureur expurgé, les comptes professionnels et la pharmacie de recette non-démo, le parcours authentifié Client → Pharmacie → Caisse, et un rapprochement comptable réel. La preuve CI 488/488 précède l'ajout du nouveau test runtime versionné ; elle devra être confirmée sur le commit final.
+
+**Point exact de reprise :**
+1. Rejouer le workflow qualité sur la tête finale après intégration de ce test runtime SQL et de son test Node.
+2. Essayer l'import sur un export réel expurgé transmis par un assureur, sans produire de correspondances sur des données fictives.
+3. Obtenir une pharmacie de recette autorisée et ses vrais comptes Pharmacie, Caisse et Comptable ; effectuer l'E2E authentifié complet.
+4. Configurer le plan, mappings, journal et période comptable de la pharmacie de recette, puis rapprocher une vente et un remboursement réels.
+
+Production et Vercel inchangés.
