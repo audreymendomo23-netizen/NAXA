@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026  
+**Dernière mise à jour :** 15 novembre 2026 (§45)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — déclaration autonome des produits par Promoteur et Gestionnaire Stock, avec attribution et stock initial zéro, runtime PASS (§44) ; édition des fiches appartenant à la pharmacie intégrée à l’espace Stock, runtime édition propre PASS et tentative hors périmètre refusée (§45). Aucune approbation Admin/validation NAXA. Les tests Node sont raccordés au workflow, mais le run post-commit est à confirmer. Les pharmacies de recette n'ont encore aucun approvisionnement réel, lot vendable ni réservation. Production/Vercel inchangés.
+**État global :** 🟡 PARTIEL — publication autonome des fiches et stocks par les pharmacies sans validation NAXA, déclarations runtime Promoteur/Gestionnaire Stock et périmètre Promoteur validés sur Replay (§43/§44) ; rappels automatiques de péremption J-30/J-15/J-7/J-3/J0 et garde de date camerounaise intégrés sur Replay (§45), test SQL transactionnel PASS, offre Marketplace démontrée à 50 unités valides puis 0 lorsque seul le lot périmé subsiste ; cron actif à 07:00 Africa/Douala. Les tests Node sont intégrés au workflow, mais leur run CI après cette modification reste à confirmer ; aucun rappel n'a été livré à une pharmacie réelle, car Replay ne contient aucune pharmacie publique non-démo et les tests ont annulé leurs fixtures. Aucune quantité, lot, notification, réservation ou mission de test n'a persisté. Stock réel et parcours réservation → préparation → Livreur → clôture toujours à tester. Production et Vercel inchangés.
 
 
 
@@ -1517,3 +1517,93 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 3. Décider si une référence identique doit être dupliquée en fiche descriptive par pharmacie ou rester une identité commune, avant de modifier la contrainte catalogue et les agrégations de recherche.
 4. Exécuter une réception fournisseur réelle avec lot/péremption, puis la chaîne commande → préparation → Livreur → réception Client → encaissement Caisse.
 
+
+
+## 45. Rappels automatiques de péremption et exclusion stricte des lots expirés (15/11/2026)
+
+**Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Production et Vercel non touchés.
+
+### Règle opérationnelle
+
+- Un lot dont la date de péremption est antérieure à la date civile du Cameroun ne contribue plus au stock vendable Marketplace.
+- Un lot encore valide peut continuer à alimenter l'offre du même produit. Le Marketplace ne compte que les quantités des lots non bloqués et dont la péremption est au moins égale à la date locale `Africa/Douala`.
+- Si seuls des lots périmés, bloqués ou à quantité nulle restent, la quantité vendable est zéro : aucune offre achetable n'est affichée.
+- La date d'expiration est traitée comme valable jusqu'à la fin de cette date locale ; le lot est exclu à partir de 00:00 le lendemain, heure du Cameroun. Le rappel J0 informe le personnel du lot qui atteint sa date ce jour-là.
+- NAXA n'inspecte ni ne valide le produit ou la date déclarée. Les alertes rappellent les informations de stock saisies par la pharmacie et lui laissent la gestion du lot.
+
+### Rappels automatiques créés
+
+Un traitement quotidien planifié à **06:00 UTC / 07:00 Africa/Douala** détecte les lots à quantité positive avec échéance :
+- J-30 ;
+- J-15 ;
+- J-7 ;
+- J-3 ;
+- J0.
+
+Destinataires uniquement :
+- Promoteur actif rattaché à la pharmacie par `promoteur_pharmacies` ;
+- Responsable ayant une affectation professionnelle active et non expirée sur cette pharmacie ;
+- Gestionnaire Stock ayant une affectation professionnelle active et non expirée sur cette pharmacie.
+
+Aucun rappel n'est adressé aux Clients, Caissiers ou Livreurs. Chaque notification donne la pharmacie, le produit, le numéro de lot, la quantité restante, la date de péremption et le seuil d'alerte. Les enregistrements utilisent le type `lot_expiry_reminder` dans `public.notifications`, repris par les mécanismes de notification existants. Aucun SMS ou WhatsApp n'est ajouté.
+
+La déduplication est assurée par une clé unique `(lot_id,date_peremption,jours_avant,destinataire_id)` : un même lot, pour le même destinataire, ne produit pas deux fois le même seuil, même si le planificateur est relancé.
+
+### Cause racine et correction de date
+
+L'ancienne règle reposait sur `current_date`, alors que la base Replay est réglée en UTC et que la péremption est une date métier camerounaise. Entre 23:00 UTC et minuit UTC, le jour civil au Cameroun était déjà le lendemain : un lot périmé pouvait donc rester compté jusqu'au changement de date UTC.
+
+La migration ajoute `private.naxa_date_cameroun()`, calculée avec `(now() at time zone 'Africa/Douala')::date`, puis aligne les gardes de péremption des offres Marketplace, du POS, des réservations/crédits, des transferts et des réceptions fournisseur sur cette même date. L'écran « Lots & péremptions » utilise maintenant aussi le calendrier `Africa/Douala` et non le découpage UTC de `toISOString()`.
+
+### Sources et versionnement
+
+- Migration : `supabase/migrations/20261115100000_pharmacy_lot_expiry_reminders_and_cameroon_date_guard.sql`, intégrée sur `main` (source initiale commit [2ce5812bfd8cd9ab2e5a311312600b865d8691ef](https://github.com/audreymendomo23-netizen/NAXA/commit/2ce5812bfd8cd9ab2e5a311312600b865d8691ef), correction du nombre de gardes ciblées commit [a6059be94f9313bdec397b1233e603b796e7503a](https://github.com/audreymendomo23-netizen/NAXA/commit/a6059be94f9313bdec397b1233e603b796e7503a)).
+- Version Replay appliquée : `20261115090807`, `pharmacy_lot_expiry_reminders_and_cameroon_date_guard`.
+- Test transactionnel : `supabase/tests/20261115100000_pharmacy_lot_expiry_reminders_and_cameroon_date_guard.sql`, commit [83c2736d8514c17c42815ec7fc253d7e5d84a23c](https://github.com/audreymendomo23-netizen/NAXA/commit/83c2736d8514c17c42815ec7fc253d7e5d84a23c).
+- Test Node contractuel : `scripts/test-pharmacy-lot-expiry-notifications.cjs`, source initiale commit [83fb2fa99d3e5011d92e7fad0cb69d7c8154d4e7](https://github.com/audreymendomo23-netizen/NAXA/commit/83fb2fa99d3e5011d92e7fad0cb69d7c8154d4e7), assertion UI ajoutée commit [2e86dbb627233e9e472068e873201650ebf28a68](https://github.com/audreymendomo23-netizen/NAXA/commit/2e86dbb627233e9e472068e873201650ebf28a68), expressions d'assertion corrigées commit [d639f140d8dcf8833494c0edd27e3a47a03be052](https://github.com/audreymendomo23-netizen/NAXA/commit/d639f140d8dcf8833494c0edd27e3a47a03be052).
+- Écran Stock en date Cameroun : commit [00e07de65dad7dd625ec16e347e4b4f51c025e8a](https://github.com/audreymendomo23-netizen/NAXA/commit/00e07de65dad7dd625ec16e347e4b4f51c025e8a).
+- Workflow Replay ajoutant les trois fichiers et lançant le test Node : commit [42442e7905ff157900720230225644db122910cb](https://github.com/audreymendomo23-netizen/NAXA/commit/42442e7905ff157900720230225644db122910cb).
+
+### Preuves d'exécution sur Replay
+
+**Migration appliquée : PASS.** Version `20261115090807` présente dans `supabase_migrations.schema_migrations`.
+
+**Test SQL transactionnel : PASS.** Il crée dans une seule transaction six lots temporaires d'un même produit : cinq échéances (J-30, J-15, J-7, J-3, J0) avec 10 unités chacun, et un lot expiré la veille avec 999 unités. Résultats :
+1. Offre Marketplace = **50 unités**, pas 1 049 : les 999 unités périmées ne sont pas comptées.
+2. Cinq seuils déclenchent exactement un rappel par destinataire autorisé.
+3. Deuxième exécution immédiate = **0 notification supplémentaire**.
+4. Aucun rappel pour le lot déjà expiré J+1.
+5. Après mise à zéro des cinq lots encore valides, le lot périmé de 999 unités ne maintient plus l'offre : quantité Marketplace = **0**.
+6. Aucun rappel destiné à Caisse/Livreur.
+7. Les neuf fonctions de contrôle ciblées ne reposent plus sur `current_date` UTC pour les gardes de péremption.
+8. Le cron quotidien attendu est présent et actif.
+
+Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la table de dispatch, **0** notification `lot_expiry_reminder`, **0** lot de test, **0** ligne Stock conservée sur la pharmacie E2E utilisée.
+
+**Planificateur et ACL : PASS.**
+- Job `naxa-pharmacy-lot-expiry-notifications` : `0 6 * * *`, actif, propriétaire `postgres`.
+- Routine de dispatch `SECURITY DEFINER`, propriétaire `postgres`, EXECUTE refusé à `anon`, `authenticated` et `service_role` ; seul le scheduler propriétaire l'appelle.
+- Helper de date locale non exécutable par les rôles clients.
+- La table de dispatch est dans le schéma privé, RLS activée, aucun droit accordé aux rôles clients ; l'avertissement linter « RLS activée sans policy » sur cette table privée correspond à ce choix fermé et n'est pas une exposition publique.
+- Les autres avis Supabase préexistants restent ouverts ; ce contrôle ne constitue pas un audit de sécurité global.
+
+**Tests de code :**
+- Les six groupes d'assertions contractuelles source/UI ont été vérifiés sur les fichiers versionnés : PASS.
+- Le test Node est branché dans le workflow Replay et le workflow surveille la migration, le test SQL, le script et l'écran Stock.
+- **Run GitHub Actions après le dernier commit non confirmé** par les contrôles de session disponibles ; ne pas déclarer le test Node en CI PASS sur la seule présence du workflow.
+
+### Limites de recette et reprise
+
+- Replay contient **0 pharmacie active non-démo visible en recherche**. Le test a donc rendu temporairement une pharmacie démo non-démo uniquement dans sa transaction, puis a annulé cette modification avec le reste des fixtures.
+- Le cron est créé et actif, mais aucune notification destinée à une vraie pharmacie n'a été livrée pendant ce test : aucune pharmacie publique réelle avec un lot échéant n'existe sur Replay.
+- À la prochaine recette sur une pharmacie réelle de test non-démo, créer/réceptionner un lot réel avec date proche des seuils, vérifier l'arrivée de la notification Promoteur/Responsable/Gestionnaire Stock, la réception push/email selon les préférences et l'absence de notification pour les rôles exclus.
+- Vérifier en navigateur que le résultat de recherche et la fiche offre disparaissent lorsque le seul stock restant est un lot périmé ; le moteur SQL qui alimente ces offres est déjà testé.
+- Le parcours réservation → préparation → Livreur → livraison → encaissement reste séparément bloqué par l'absence d'approvisionnement traçable.
+
+**État au §45 :** rappels configurés / migration Replay appliquée — **PASS** ; seuils et déduplication — **SQL PASS** ; exclusion Marketplace du lot expiré — **SQL PASS** ; calendrier Cameroun dans les gardes et l'écran Stock — **PASS structurel + SQL** ; cron actif — **PASS** ; livraison réelle d'une notification à une pharmacie publique — **non démontrée, faute de pharmacie non-démo/lot échu sur Replay** ; CI Node — **en attente de confirmation de run** ; état global — **PARTIEL**, pas AU VERT. Production et Vercel inchangés.
+
+**Point exact de reprise :**
+1. Consulter le run GitHub Actions déclenché par l'ajout au workflow du test `test-pharmacy-lot-expiry-notifications.cjs` ; relever les tests Node, TypeScript, lint et build.
+2. Exécuter une notification réelle sur une pharmacie non-démo de recette possédant un lot à J-30/J-15/J-7/J-3/J0 ; vérifier les comptes Promoteur, Responsable, Gestionnaire Stock.
+3. Vérifier dans un parcours navigateur que l'offre ne propose jamais la quantité d'un lot périmé, y compris lorsque des lots valides et périmés coexistent et lorsque le lot périmé est le seul restant.
+4. Reprendre ensuite la réception et le parcours réservation → préparation → Livreur → clôture sans introduire de stock fictif.
