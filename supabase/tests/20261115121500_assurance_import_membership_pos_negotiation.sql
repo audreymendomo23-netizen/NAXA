@@ -48,9 +48,10 @@ begin
 
   if not has_function_privilege('authenticated','public.assurance_import_simuler_mode(uuid,uuid,text,text,text,jsonb,text)','EXECUTE')
      or has_function_privilege('anon','public.assurance_import_simuler_mode(uuid,uuid,text,text,text,jsonb,text)','EXECUTE')
+     or has_function_privilege('authenticated','public.assurance_import_simuler(uuid,uuid,text,text,text,jsonb)','EXECUTE')
      or not has_function_privilege('authenticated','public.assurance_import_appliquer(uuid)','EXECUTE')
      or has_function_privilege('anon','public.assurance_import_appliquer(uuid)','EXECUTE') then
-    raise exception 'RPC import authentifiées uniquement requises';
+    raise exception 'Seule la façade mode complet/delta doit être appelable par authenticated';
   end if;
 
   v_simulate:=pg_get_functiondef('public.assurance_import_simuler(uuid,uuid,text,text,text,jsonb)'::regprocedure);
