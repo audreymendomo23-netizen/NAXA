@@ -15,49 +15,53 @@ const promoterScope = fs.readFileSync(
   "utf8"
 ).toLowerCase();
 
-test("les fiches du catalogue viennent des déclarations pharmacie, sans validation NAXA", () => {
-  assert.match(publication, /new\.created_by := auth\.uid\(\)/);
+test("les nouvelles références sont déclarées par la pharmacie, sans validation NAXA", () => {
+  assert.match(promoterScope, /new\.created_by := auth\.uid\(\)/);
   assert.match(promoterScope, /new\.created_by_pharmacie_id := v_pharmacie/);
   assert.match(promoterScope, /new\.source_fiche := 'declaration_pharmacie'/);
   assert.match(promoterScope, /new\.fiche_validee := false/);
-  assert.doesNotMatch(publication, /new\.description := null/);
-  assert.doesNotMatch(publication, /new\.indications := null/);
-  assert.doesNotMatch(publication, /new\.synonymes := '\{\}'/);
+  assert.doesNotMatch(promoterScope, /new\.description := null/);
+  assert.doesNotMatch(promoterScope, /new\.indications := null/);
+  assert.doesNotMatch(promoterScope, /new\.synonymes := '\{\}'/);
 });
 
-test("les requêtes publiques affichent les fiches rattachées à une pharmacie réelle, même à stock nul", () => {
+test("le catalogue public retrouve une référence pharmacie même avec quantité zéro", () => {
   assert.match(publication, /create policy produits_public_live_offer_read[\s\S]*?to anon[\s\S]*?marketplace_produit_visible/);
-  assert.match(promoterScope, /create or replace function public\.marketplace_produit_visible/);
-  assert.match(promoterScope, /from public\.stocks s[\s\S]*?ph\.actif is true[\s\S]*?ph\.visible_recherche is true[\s\S]*?ph\.est_demo is false/);
-  assert.doesNotMatch(promoterScope.slice(promoterScope.indexOf("create or replace function public.marketplace_produit_visible"), promoterScope.indexOf("drop policy if exists produits_authenticated_live_offer_read")), /quantite\s*>\s*0/);
+  const visibility = promoterScope.slice(
+    promoterScope.indexOf("create or replace function public.marketplace_produit_visible"),
+    promoterScope.indexOf("drop policy if exists produits_authenticated_live_offer_read")
+  );
+  assert.match(visibility, /from public\.stocks s[\s\S]*?ph\.actif is true[\s\S]*?ph\.visible_recherche is true[\s\S]*?ph\.est_demo is false/);
+  assert.doesNotMatch(visibility, /quantite\s*>\s*0/);
 });
 
-test("le Promoteur peut déclarer un produit uniquement dans son réseau actif", () => {
+test("le Promoteur peut déclarer dans une pharmacie liée à son réseau, sans accès hors périmètre", () => {
   assert.match(promoterScope, /'promoteur'/);
-  assert.match(promoterScope, /private\.naxa_scope_allows\(v_user,p_pharmacie,'PHARMACIE'\)/);
+  assert.match(promoterScope, /private\.naxa_scope_allows\(v_user,p_pharmacie,'pharmacie'\)/);
   assert.match(promoterScope, /set_config\('naxa\.product_declaration_pharmacy',p_pharmacie::text,true\)/);
   assert.match(promoterScope, /new\.created_by_pharmacie_id := v_pharmacie/);
   assert.match(promoterScope, /naxa_promoteur_valide/);
 });
 
-test("le personnel pharmacie conserve l'édition sous contrôle du périmètre", () => {
+test("l'édition de fiche est limitée à la pharmacie déclarante", () => {
   assert.match(promoterScope, /create policy produits_write[\s\S]*?naxa_scope_allows/);
   assert.match(promoterScope, /create policy produits_update[\s\S]*?naxa_scope_allows/);
   assert.match(promoterScope, /fiche_validee is not true/);
-});
-
-test("l'offre Marketplace ignore le drapeau de validation mais garde ses contrôles de vente", () => {
-  assert.match(publication, /private\.marketplace_offre_stock_disponible_guarded/);
-  assert.match(publication, /private\.search_pharmacies\(/);
-  assert.match(publication, /private\.search_pharmacies_bulk\(/);
-  assert.match(publication, /interval '48 hours'/);
-  assert.match(publication, /public\.stocks_lots/);
-  assert.match(publication, /public\.reservation_items/);
   assert.doesNotMatch(promoterScope, /fiche_validee is true/);
 });
 
-test("la fonction technique de visibilité ne publie pas les pharmacies démo", () => {
+test("la recherche d'offres ne dépend plus d'une validation NAXA", () => {
+  assert.match(publication, /private\.marketplace_offre_stock_disponible_guarded/);
+  assert.match(publication, /private\.search_pharmacies\(/);
+  assert.match(publication, /private\.search_pharmacies_bulk\(/);
+  assert.match(publication, /position\('fiche_validee' in v_definition\)>0/);
+  assert.doesNotMatch(promoterScope, /fiche_validee is true/);
+});
+
+test("le partage public reste limité aux pharmacies actives, visibles et non démo", () => {
+  assert.match(promoterScope, /ph\.actif is true/);
+  assert.match(promoterScope, /ph\.visible_recherche is true/);
   assert.match(promoterScope, /ph\.est_demo is false/);
   assert.match(promoterScope, /ph\.archivee_le is null/);
-  assert.match(promoterScope, /grant execute on function public\.marketplace_produit_visible\(uuid\)/);
+  assert.match(publication, /grant execute on function public\.marketplace_produit_visible\(uuid\)/);
 });
