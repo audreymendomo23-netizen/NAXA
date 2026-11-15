@@ -743,3 +743,40 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 **Réserve fonctionnelle :** le contrôle confirme le build, le déploiement, les alias et l'absence d'erreurs runtime dans la fenêtre observée. Un parcours visuel avec session Admin authentifiée sur desktop et mobile n'a pas été exécuté dans cette passe ; l'expérience réelle d'ouverture/repli des six rubriques reste à valider manuellement.
 
 **État final : QUALITÉ AUTOMATISÉE PASS — PRODUCTION READY — 24/24 ROUTES FIXES PRÉSERVÉES.**
+
+## 28. Recette Promoteur E2E et Storage Replay — résultat et réserve (15/11/2026)
+
+**Périmètre exécuté : Replay uniquement** (projet pwfftcsjyeibxxqhwysw ; Production exclue).
+
+**Provisionnement de la fixture Promoteur :**
+- Identité technique fictive dédiée conservée sur Replay, explicitement marquée comme fixture E2E Promoteur.
+- Profil vérifié : rôle promoteur, actif, fonction_interne=promoteur, niveau_interne=1, niveau_hierarchique=1, architecture HYBRIDE.
+- naxa_architecture_for_profile() résout HYBRIDE et private.naxa_promoteur_valide() retourne vrai.
+- Deux pharmacies démo actives HYBRIDE sont rattachées au Promoteur ; une troisième pharmacie démo HYBRIDE, non rattachée, sert au contrôle négatif.
+- Les deux rattachements et les deux privilèges ASSIGN_USER_TO_PHARMACY sont vérifiés actifs.
+- Convention et abonnement de recette à 1 FCFA / 30 jours pour exercer le contrôle de validité ; aucun paiement ni règlement fictif créé.
+- L'identité Admin technique existante n'a pas été modifiée. Aucun compte Auth de Production, profil métier Production ou paramètre Vercel touché.
+
+**Corrections prouvées sur Replay :**
+1. Le premier échec de provisionnement venait du niveau hiérarchique incorrect du Promoteur. La fixture et le provisionneur ont été corrigés pour initialiser le Promoteur en racine HYBRIDE (niveau_interne=1, niveau_hierarchique=1, fonction_interne=promoteur).
+2. Le remplacement du logo échouait car le bucket pharmacies-photos avait les politiques INSERT/UPDATE/DELETE Promoteur, mais aucune politique SELECT pour l'upsert. Une policy SELECT a été ajoutée, limitée aux objets logos/ des pharmacies actives auxquelles le Promoteur actif est effectivement lié. DDL appliqué sur Replay et migration versionnée : supabase/migrations/20261114170000_promoteur_pharmacy_logo_select_policy.sql.
+3. Les anciens workflows de provisionnement concurrents ont été retirés ; le workflow actif secret-safe est .github/workflows/naxa-replay-promoteur-secret-safe-v2.yml. Le mot de passe éphémère est transmis dans un fichier privé temporaire, masqué avant usage puis supprimé par trap ; aucune valeur de secret n'est imprimée dans les logs.
+
+**Résultat E2E final :**
+- Workflow 43618611055, commit testé cce5c136c954653e7162549bacb13623847b07e4 : SUCCESS.
+- Storage E2E : 14 PASS / 0 FAIL / 1 SKIP.
+- Contrôles réussis : upload PDF propriétaire, lecture authentifiée, refus de lecture/écriture inter-utilisateurs, refus anonyme du bucket privé, URL signée propriétaire et refus pour un autre utilisateur, rejet MIME interdit, refus d'accès aux buckets réservés, lecture publique d'un vrai objet image, upload Promoteur sur pharmacie liée, remplacement du logo (upsert), refus d'écriture sur la troisième pharmacie non liée, suppression et nettoyage des fichiers/sessions/comptes temporaires.
+- Seul SKIP : matrice Storage Admin, car les identifiants Admin E2E ne sont pas configurés. Le test Promoteur est exécuté et passe.
+- Contrôle qualité du même commit : workflow 43618611165 SUCCESS ; job tests/TypeScript/ESLint/build Next.js PASS ; job actionlint PASS.
+
+**Réserve métier découverte par le contrôle SQL final :**
+- Le compte fixture comporte actuellement 292 privilèges actifs.
+- Les cinq privilèges réseau canoniques (VIEW_CA_BY_PHARMACY, VIEW_COMPARISON, VIEW_NETWORK_HEALTH, VIEW_NETWORK_PILOTAGE, VIEW_NETWORK_REPORT) présentent chacun 20 lignes actives pour le même profil avec pharmacie_id IS NULL et scope_type='RESEAU'.
+- Cause racine vérifiée dans public.naxa_provision_promoteur_pharmacie(uuid,uuid) : l'INSERT réseau utilise ON CONFLICT(profile_id,privilege_code,pharmacie_id,scope_type), mais la clé contient pharmacie_id=NULL et l'index unique PostgreSQL standard traite les NULL comme distincts. Chaque nouvel événement de provisionnement peut donc ajouter une nouvelle ligne réseau au lieu de réutiliser la ligne existante.
+- Les deux privilèges d'affectation par pharmacie restent présents ; cette duplication réseau n'a pas fait échouer la recette Storage, mais rend les données d'autorisation non canoniques et doit être corrigée avant de déclarer la recette des privilèges Promoteur verte.
+- Aucune migration de correction de cette duplication n'a encore été appliquée ni aucun doublon supprimé. Le correctif doit être additif, préserver une ligne active canonique et l'historique, puis être testé avec plusieurs réactivations/reprovisionnements du lien sans augmentation du nombre de lignes actives.
+- Pas de changement Production, pas de déploiement Vercel.
+
+**État : STORAGE PROMOTEUR E2E VALIDÉ SUR REPLAY ; QUALITÉ AUTOMATISÉE PASS ; RECETTE GLOBALE NON VERTE — correction idempotence des privilèges RESEAU encore ouverte.**
+
+**Point exact de reprise :** corriger l'idempotence des privilèges RESEAU sur Replay, normaliser uniquement les doublons de la fixture dans une transaction protégée, prouver qu'au moins trois cycles de reprovisionnement ne créent aucune ligne active supplémentaire, puis reprendre la matrice E2E des rôles Admin/Promoteur et des autres profils professionnels.
