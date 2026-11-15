@@ -57,7 +57,10 @@ test("les vérifications sont multi-pharmacies, versionnées et annulées par un
   assert.match(verificationMigration, /unique\(couverture_id,pharmacie_id,import_id\)/);
   assert.match(verificationMigration, /mode_import in \('complet','delta'\)/);
   assert.match(verificationMigration, /statut='remplacee'/);
-  assert.match(verificationMigration, /declaration_maj_at=v_c\.declaration_maj_at/);
+  assert.match(verificationMigration, /declaration_maj_at=c\.declaration_maj_at/);
+  assert.match(verificationMigration, /v\.couverture_id=c\.id/);
+  assert.match(verificationMigration, /v2\.couverture_id=c\.id/);
+  assert.doesNotMatch(verificationMigration, /v\.couverture_id=v_c\.id/);
   assert.match(verificationMigration, /assurance_stamp_couverture_declaration/);
 });
 
