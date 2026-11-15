@@ -27,10 +27,9 @@ test("les nouvelles références sont déclarées par la pharmacie, sans validat
 
 test("le catalogue public retrouve une référence pharmacie même avec quantité zéro", () => {
   assert.match(publication, /create policy produits_public_live_offer_read[\s\S]*?to anon[\s\S]*?marketplace_produit_visible/);
-  const visibility = promoterScope.slice(
-    promoterScope.indexOf("create or replace function public.marketplace_produit_visible"),
-    promoterScope.indexOf("drop policy if exists produits_authenticated_live_offer_read")
-  );
+  const visibilityStart = promoterScope.indexOf("create or replace function public.marketplace_produit_visible");
+  const visibilityEnd = promoterScope.indexOf("drop policy if exists produits_authenticated_live_offer_read", visibilityStart);
+  const visibility = promoterScope.slice(visibilityStart, visibilityEnd);
   assert.match(visibility, /from public\.stocks s[\s\S]*?ph\.actif is true[\s\S]*?ph\.visible_recherche is true[\s\S]*?ph\.est_demo is false/);
   assert.doesNotMatch(visibility, /quantite\s*>\s*0/);
 });
