@@ -1,13 +1,15 @@
 do $test$
 declare
   v_def text;
+  v_normal text;
   v_indexes text[];
 begin
   v_def:=pg_get_functiondef(
     'public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure
   );
 
-  if position('on conflict (pharmacie_id, cle_idempotence) do nothing' in lower(v_def))=0 then
+  v_normal:=regexp_replace(lower(v_def),'\\s+',' ','g');
+  if position('on conflict (pharmacie_id,cle_idempotence) do nothing' in replace(v_normal,' ',''))=0 then
     raise exception 'La confirmation doit cibler la clé unique pharmacie + idempotence';
   end if;
 
