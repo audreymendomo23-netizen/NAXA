@@ -230,11 +230,12 @@ declare
   v_s public.assurance_reservation_snapshots%rowtype;
 begin
   if v_uid is null or p_accepter is null
+     or private.naxa_business_function(v_uid)<>'client'
      or not exists (
        select 1 from public.profiles p
        where p.id=v_uid and p.role='client' and p.actif=true
      ) then
-    raise exception 'Compte Client actif et décision explicite requis';
+    raise exception 'Compte Client actif en rôle Client et décision explicite requis';
   end if;
 
   select d.* into v_d
