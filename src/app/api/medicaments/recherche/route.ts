@@ -463,7 +463,6 @@ export async function GET(request: NextRequest) {
       lowestPartnerPrice: stock?.lowestPrice ?? null,
       localProductId: localProduct?.id ?? null,
       localInformationSource: localProduct?.source_fiche ?? null,
-      localInformationSource: localProduct?.source_fiche ?? null,
       cameroonRegulatoryStatus: "a_verifier",
       cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php"
     };
@@ -519,7 +518,6 @@ export async function GET(request: NextRequest) {
       partnerPharmacyCount: null,
       lowestPartnerPrice: null,
       localProductId: null,
-      localInformationSource: item.source_nom,
       localInformationSource: item.source_nom,
       cameroonRegulatoryStatus: "a_verifier" as const,
       cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
