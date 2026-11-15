@@ -323,3 +323,52 @@ export async function marquerCommandePretePourLivraison(formData: FormData) {
   revalidatePath("/pharmacie/gestionnaire-stock/commandes");
   redirect("/pharmacie/gestionnaire-stock/commandes?ok=prete");
 }
+
+
+export async function declarerProduitEtInitialiserReferenceStock(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  const nom = String(formData.get("nom") ?? "").trim();
+  const dci = String(formData.get("dci") ?? "").trim();
+  const dosage = String(formData.get("dosage") ?? "").trim();
+  const forme = String(formData.get("forme") ?? "").trim();
+  const prixRaw = String(formData.get("prix") ?? "").trim();
+  const prix = Number(prixRaw);
+  const emplacement = String(formData.get("emplacement") ?? "").trim();
+  const codeBarre = String(formData.get("code_barre") ?? "").trim();
+  const surOrdonnance = formData.get("sur_ordonnance") === "on";
+
+  if (!safeUuid(pharmacie) || nom.length < 2 || nom.length > 180
+      || dci.length < 1 || dci.length > 180 || dosage.length < 1 || dosage.length > 80
+      || forme.length < 1 || forme.length > 100 || !prixRaw
+      || !Number.isSafeInteger(prix) || prix < 0 || prix > 100000000
+      || emplacement.length > 160
+      || (codeBarre && !/^\d{8,14}$/.test(codeBarre))) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=declaration_produit");
+  }
+
+  const { data: productId, error } = await sb.rpc("pharmacie_produit_declarer_et_reference_initialiser", {
+    p_pharmacie: pharmacie,
+    p_nom: nom,
+    p_dci: dci,
+    p_dosage: dosage,
+    p_forme: forme,
+    p_prix: prix,
+    p_emplacement: emplacement || null,
+    p_code_barre: codeBarre || null,
+    p_sur_ordonnance: surOrdonnance,
+  });
+
+  if (error || typeof productId !== "string" || !safeUuid(productId)) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=declaration_produit");
+  }
+
+  revalidatePath("/pharmacie/gestionnaire-stock");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/pharmacie/gestionnaire-stock/lots-peremptions");
+  revalidatePath("/api/medicaments/catalogue-hors-ligne");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=produit_declare");
+}
