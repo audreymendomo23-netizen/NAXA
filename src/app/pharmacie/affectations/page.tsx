@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { InvitationLivreurForm } from "@/components/pharmacie/InvitationLivreurForm";
 import { LivreursAssignmentsManager } from "@/components/pharmacie/LivreursAssignmentsManager";
 import { PharmacyDeliveryConfig } from "@/components/PharmacyDeliveryConfig";
-import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace } from "./actions";
+import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace, proposerAccreditationPharmacien } from "./actions";
 
 type Assignment = {
   id:string;
@@ -67,6 +67,11 @@ export default async function AffectationsPage({
   ]);
   const assignments=(rows??[]) as Assignment[];
   const pharmacyName=new Map((pharmacies??[]).map(p=>[p.id,p.nom]));
+  const {data:accreditations,error:accreditationsError}=isPromoteur
+    ?await sb.from("naxa_pharmacien_accreditations")
+      .select("id,profile_id,pharmacie_id,registration_number,issuing_authority,specialty,valid_until,status,created_at,review_note")
+      .eq("proposed_by",auth.user.id).order("created_at",{ascending:false}).limit(100)
+    :{data:[],error:null};
   const activeResponsableAssignments=assignments.filter(a=>
     a.fonction==="responsable"&&a.statut==="active"
     &&new Date(a.commence_at).getTime()<=Date.now()
@@ -102,6 +107,10 @@ export default async function AffectationsPage({
     creation_livreur_profil:"Le profil NAXA n’a pas pu être finalisé. L’affectation reste désactivée.",
     creation_livreur_affectation:"Le compte est créé mais son affectation n’a pas été activée. Contactez le Promoteur ou l’Administrateur.",
     creation_livreur_invite:"L’invitation Livreur a été créée.",
+    accreditation_acteur:"Seul un Promoteur actif peut proposer un Pharmacien.",
+    accreditation_validation:"Vérifiez le compte cible, le numéro professionnel, l’autorité, le motif et le justificatif PDF/JPEG/PNG (10 Mo maximum).",
+    accreditation_document:"Le justificatif n’a pas pu être stocké de manière sécurisée.",
+    accreditation_rpc:"La proposition d’agrément a été refusée par les contrôles métier. Vérifiez le rattachement Promoteur/pharmacie et l’existence d’une demande déjà ouverte.",
 
   };
   const now=Date.now();
@@ -122,6 +131,7 @@ export default async function AffectationsPage({
         filters.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
         filters.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
         filters.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
+        filters.ok==="accreditation_proposee"?"Proposition Pharmacien transmise. Le compte restera sans poste Pharmacien jusqu’à la décision de l’Administrateur.":
         "Affectation révoquée."
       }</p>}
       {filters.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[filters.erreur]??"Opération impossible."}</p>}
@@ -164,7 +174,7 @@ export default async function AffectationsPage({
           <label className="text-sm font-semibold">Fonction supplémentaire
             <select name="fonction" required className="mt-1 w-full rounded-lg border p-3" defaultValue="">
               <option value="" disabled>Choisir</option>
-              {Object.entries(labels).filter(([v])=>isPromoteur||v==="livreur").map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              {Object.entries(labels).filter(([v])=>(isPromoteur&&v!=="pharmacien")||v==="livreur").map(([v,l])=><option key={v} value={v}>{l}</option>)}
             </select>
           </label>
           <label className="text-sm font-semibold">Type d’affectation
@@ -185,6 +195,55 @@ export default async function AffectationsPage({
           <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Accorder l’affectation</button>
         </form>
       </section>
+
+      {isPromoteur&&<section className="rounded-2xl border border-emerald-200 bg-white p-5">
+        <h2 className="text-lg font-bold">Proposer un Pharmacien à l’agrément NAXA</h2>
+        <p className="mt-2 text-sm text-slate-600">Le Promoteur transmet l’identité, le numéro professionnel, l’autorité émettrice et le justificatif. Aucun poste n’est créé avant la vérification et l’approbation explicite de l’Administrateur.</p>
+        <form action={proposerAccreditationPharmacien} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-semibold">Pharmacie
+            <select name="pharmacie_id" required defaultValue="" className="mt-1 w-full rounded-lg border p-3">
+              <option value="" disabled>Choisir une pharmacie de votre réseau</option>
+              {(pharmacies??[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-semibold">Nom d’utilisateur NAXA du Pharmacien
+            <input name="username" required minLength={3} maxLength={30} pattern="[a-z0-9][a-z0-9._-]{2,29}" autoComplete="off" className="mt-1 w-full rounded-lg border p-3" placeholder="ex. pharmacien01"/>
+          </label>
+          <label className="text-sm font-semibold">Numéro d’inscription professionnelle
+            <input name="registration_number" required minLength={3} maxLength={100} className="mt-1 w-full rounded-lg border p-3"/>
+          </label>
+          <label className="text-sm font-semibold">Autorité émettrice
+            <input name="issuing_authority" required minLength={2} maxLength={180} className="mt-1 w-full rounded-lg border p-3" placeholder="Ordre / autorité compétente"/>
+          </label>
+          <label className="text-sm font-semibold">Spécialité (facultatif)
+            <input name="specialty" maxLength={120} className="mt-1 w-full rounded-lg border p-3"/>
+          </label>
+          <label className="text-sm font-semibold">Date d’expiration du justificatif (facultatif)
+            <input name="valid_until" type="date" className="mt-1 w-full rounded-lg border p-3"/>
+          </label>
+          <label className="text-sm font-semibold sm:col-span-2">Justificatif professionnel (PDF, JPEG ou PNG · 10 Mo maximum)
+            <input name="justificatif" required type="file" accept="application/pdf,image/jpeg,image/png" className="mt-1 w-full rounded-lg border p-3"/>
+          </label>
+          <label className="text-sm font-semibold sm:col-span-2">Motif de la proposition (5 à 500 caractères)
+            <textarea name="motif" required minLength={5} maxLength={500} rows={3} className="mt-1 w-full rounded-lg border p-3" placeholder="Pourquoi ce compte doit-il recevoir le poste Pharmacien dans cette pharmacie ?"/>
+          </label>
+          <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Transmettre à l’Administrateur pour validation</button>
+        </form>
+        <div className="mt-5 border-t pt-4">
+          <h3 className="font-bold">Suivi de vos propositions</h3>
+          {accreditationsError
+            ?<p role="alert" className="mt-2 rounded-xl bg-red-50 p-3 text-sm text-red-900">Impossible de charger les agréments proposés. Vérifiez les droits de lecture et la migration Pharmacien.</p>
+            :(accreditations??[]).length===0
+              ?<p className="mt-2 text-sm text-slate-600">Aucune proposition enregistrée.</p>
+              :<div className="mt-3 space-y-2">{(accreditations??[]).map(a=><article key={a.id} className="rounded-xl border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2"><b>{pharmacyName.get(a.pharmacie_id)??"Pharmacie"} · {a.registration_number}</b>
+                  <span className={"rounded-full px-3 py-1 text-xs font-bold "+(a.status==="approved"?"bg-emerald-100 text-emerald-900":a.status==="rejected"||a.status==="revoked"?"bg-red-100 text-red-900":"bg-amber-100 text-amber-900")}>{a.status==="approved"?"Agrément validé":a.status==="rejected"?"Refusé":a.status==="revoked"?"Retiré":"En attente Admin"}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">Compte {a.profile_id} · {a.issuing_authority}{a.specialty?" · "+a.specialty:""} · soumis le {date(a.created_at)}</p>
+                {a.review_note&&<p className="mt-2 text-sm">Décision Admin : {a.review_note}</p>}
+              </article>)}</div>}
+        </div>
+      </section>}
 
       <section className="rounded-2xl border bg-white p-5">
         <h2 className="text-lg font-bold">Droit d’approbation des crédits Marketplace</h2>
