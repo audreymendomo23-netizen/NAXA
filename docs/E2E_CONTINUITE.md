@@ -859,10 +859,12 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Les tests Admin utilisent seulement l'identité confirmée et déjà marquée comme fixture. Le profil Auth n'est jamais converti ni réactivé automatiquement.
 - Les sessions Admin et Promoteur ouvertes pour la recette sont fermées avec le scope local ; aucune révocation globale.
 
-**État d'exécution :**
+**État d'exécution et précontrôles SQL :**
 - Le push du workflow sur `main` est le déclencheur configuré pour lancer le nouveau job obligatoire.
 - Les fichiers et le workflow ont été relus après écriture ; le câblage des deux provisionneurs, les huit tests unitaires et le nettoyage des sessions sont présents.
-- L'outil GitHub disponible dans cette séquence ne fournit pas le listing des runs déclenchés par `push` ; le statut et les logs du job ne sont donc pas consultables depuis cette session. **Aucun PASS E2E Admin n'est revendiqué à ce stade.**
+- Contrôle SQL Replay : le bucket `pharmacie-documents` est privé avec les politiques Admin SELECT/INSERT/UPDATE/DELETE ; le bucket `medicaments` est public avec les politiques Admin INSERT/UPDATE/DELETE et SELECT public. Les limites et MIME sont conformes aux fichiers utilisés par le test.
+- Simulation transactionnelle des claims JWT de la fixture : `auth.uid()` résout le profil Admin attendu et `is_admin()` retourne `true` ; transaction annulée après le contrôle. Cela prouve le garde SQL, pas une opération HTTP Storage réelle.
+- L'outil GitHub disponible dans cette séquence ne fournit pas le listing des runs déclenchés par `push` ; le statut et les logs du job ne sont donc pas consultables depuis cette session. **Aucun PASS E2E Admin HTTP n'est revendiqué à ce stade.**
 - Le succès historique Promoteur/Storage (14 PASS / 1 SKIP Admin) reste valable pour son commit précédent ; il ne prouve pas encore la nouvelle matrice Admin.
 
 **Conclusion :** la cause du SKIP Admin est traitée au niveau du code et du workflow. La matrice est maintenant exigée au lieu d'être silencieusement facultative. Sa validation d'exécution reste en attente de lecture des logs du run déclenché par le push.
