@@ -14,6 +14,14 @@ const migration = fs.readFileSync(
   path.join(root, "supabase/migrations/20261115095450_responsable_quota_and_scoped_expiry_push.sql"),
   "utf8"
 );
+const middleware = fs.readFileSync(
+  path.join(root, "src/middleware.ts"),
+  "utf8"
+);
+const pushServiceWorker = fs.readFileSync(
+  path.join(root, "public/naxa-push-sw.js"),
+  "utf8"
+);
 
 test("le worker push accepte un identifiant UUID et conserve le mode batch historique", () => {
   assert.match(route, /const UUID_RE\s*=\s*\/\^\[0-9a-f\]/i);
@@ -35,4 +43,11 @@ test("le dispatcher réel de péremption ne peut être appelé qu'avec le JWT se
   assert.match(migration, /private\.dispatch_pharmacy_lot_expiry_alerts\(p_today,p_limit\)/);
   assert.match(migration, /grant execute on function public\.naxa_dispatch_pharmacy_lot_expiry_alerts_internal\(date,integer\)\s+to service_role/i);
   assert.match(migration, /revoke all on function public\.naxa_dispatch_pharmacy_lot_expiry_alerts_internal\(date,integer\)\s+from public,anon,authenticated/i);
+});
+
+test("le script Service Worker Push est servi sans redirection du middleware d'âge", () => {
+  assert.match(middleware, /naxa-push-sw\\\\\.js/);
+  assert.match(middleware, /matcher:\\s*\\[/);
+  assert.match(pushServiceWorker, /addEventListener\\(\\"push\\"/);
+  assert.match(pushServiceWorker, /showNotification/);
 });
