@@ -53,7 +53,6 @@ export default function OffrePage() {
         sb.from("produits")
           .select("id,nom,dci,dosage,forme,description,photo_url,fabricant,sur_ordonnance")
           .eq("id", produitId)
-          .eq("fiche_validee", true)
           .maybeSingle(),
         sb.from("pharmacies")
           .select("id,nom,quartier,adresse,garde_debut,garde_fin")
