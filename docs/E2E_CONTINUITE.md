@@ -1896,3 +1896,50 @@ Le workflow surveille les migrations et exécute les assertions Node contractuel
 2. Faire le test de recherche Marketplace publique avec deux pharmacies non-démo autorisées, chacune avec fiche distincte et offre réelle, pour confirmer les deux offres/prix par HTTP et navigateur.
 3. Reprendre seulement ensuite la réception traçable, les lots, la réservation Client et le parcours de livraison.
 4. Ne pas toucher Production ou Vercel sans autorisation expresse.
+
+
+## 51. Clôture du parcours Marketplace → Assurance → Caisse → Comptabilité (15/11/2026)
+
+### Audit et causes racines
+
+- La recherche Marketplace avait déjà le filtre Assurance dans `src/app/resultats/page.tsx` : elle consomme les projections `marketplace_assureurs` et `marketplace_assurance_conventions`. L'ancienne limite documentaire qui disait le contraire était périmée. La couverture HTTP/browser multi-pharmacies reste non testée.
+- La page Caisse lisait `couvertures_assurance`, dont la policy SELECT ne permet que le client propriétaire, et filtrai(t) les dossiers par `created_by = utilisateur connecté`, alors que le dossier est créé au nom du client. Cette combinaison masquait les dossiers Assurance dans la vue Caisse.
+- Le tableau `/pharmacie/assurance` exposait les conventions et KPI, mais aucune action UI pour contrôler les justificatifs, confirmer la prise en charge ni enregistrer les règlements, alors que les RPC sécurisées existaient déjà.
+- Le test de clôture Caisse a aussi montré que `vente_annulation_demander` contrôlait le périmètre pharmacie mais ne restreignait pas la demande à la vente créée par le demandeur.
+
+### Corrections effectuées sur `main`
+
+- Commit `8dc029c25617cb1c61f68455c732c34cde438d21` — la page Caisse consomme maintenant `assurance_reservation_snapshots` filtrés par pharmacie, et les dossiers de la pharmacie sans filtre `created_by`. Elle n'affiche pas les numéros d'adhérent/police du registre privé client.
+- Commit `368235024af9ffa1af6b5d1382e0d4e2e6ade3f0` — le tableau Assurance charge les snapshots et expose les actions : contrôle conforme/non conforme, confirmation séparée de la prise en charge, saisie du remboursement reçu (montant, date, référence). Les autorisations et contraintes de montant restent contrôlées par les RPC côté base.
+- Commit `131b3a125054a8c3a0c96d24399aedb901d53632` — migration additive `20261115100500_caisse_annulation_propre_vente_guard.sql`, appliquée sur Replay seulement (historique : `20261115093423 / caisse_annulation_propre_vente_guard`). La demande d'annulation est désormais restreinte à `ventes.created_by = auth.uid()` ; la décision reste dans le workflow de validation existant.
+- Les contrats SQL Assurance ont été actualisés pour refléter les fonctions déployées : taux issu de la règle de la pharmacie (le taux déclaratif client est fixé à 100 %), reconnaissance de la créance à la confirmation, et même clé d'idempotence au rattachement POS.
+
+### Preuves SQL Replay
+
+| Test | Résultat constaté |
+|---|---|
+| `202611120_assurance_comptabilite_contract.sql` | Exécuté sans exception ; transaction annulée |
+| `202611121_assurance_rule_precedence_calculation.sql` | **PASS** — priorité règles, calcul, exclusions/plafonds et frontière comptable |
+| `202611121_assurance_compta_worker_positive.sql` | **PASS** — prise en charge synthétique 10 000 FCFA, remboursements partiel 4 000 puis final 6 000, écritures équilibrées, idempotence ; rollback final |
+| `187_caisse_parcours_scope_assurances.sql` | **PASS** — RLS snapshots/dossiers, confidentialité des couvertures et garde demande d'annulation |
+| `20261114073630_marketplace_assurance_public_projection_acl.sql` | Exécuté sans exception ; ACL/projections conformes ; 0 convention active visible (aucune convention Replay) |
+| `049_assurances.sql` | **PASS** |
+
+La vérification post-tests confirme que les fixtures ne persistent pas : Replay contient toujours 5 assureurs et 0 couverture, 0 convention, 0 règle, 0 snapshot, 0 dossier, 0 événement Assurance, 0 règlement ; côté comptabilité, 0 période, 0 événement, 0 écriture et 0 ligne persistante.
+
+### Limites bloquantes
+
+1. **Import assureurs absent** : aucun pipeline de réception, simulation, dédoublonnage et rapprochement des listes d'assurés transmises par les assureurs n'est versionné. Le format de fichier, la provenance, la version/durée d'effet et la clé vérifiée adhérent/bénéficiaire ne sont pas définis ; ne pas rapprocher des personnes sur des identifiants approximatifs.
+2. **Négociation de droits absente** : la pharmacie ne peut pas proposer un autre montant au client puis recueillir un nouvel accord traçable. Le snapshot financier reste immuable ; une conception complémentaire est nécessaire sans réécrire un devis accepté.
+3. **E2E authentifié absent** : aucun compte Client/Pharmacien/Caisse/Comptable avec pharmacie/convention/règles n'a exécuté le vrai parcours Marketplace, vérification d'assuré, réservation, contrôle, POS fractionné, ticket et remboursement.
+4. **Comptabilité réelle absente** : aucun plan, mapping, paramètre ou période n'est configuré dans Replay. Le test worker est une simulation transactionnelle annulée, pas une écriture réelle.
+5. **Qualité applicative** : le workflow GitHub `NAXA quality` doit terminer avec Node, TypeScript, lint et build. Au moment de cette mise à jour, aucun run complet n'est encore retenu comme preuve.
+
+**État §51 : PARTIEL — PAS AU VERT.** Les contrats SQL Assurance, la protection de la vue Caisse et les interfaces d'action sont corrigés et les tests structurels Replay passent ; l'import des assurés, la négociation, l'E2E authentifié et le rapprochement comptable réel restent ouverts. Aucune modification Production et aucun déploiement Vercel.
+
+**Point exact de reprise :**
+1. Finaliser le contrat de données de l'assureur sur un fichier exemple expurgé, puis construire l'import sécurisé et le rapprochement des bénéficiaires.
+2. Concevoir et tester la nouvelle offre de prise en charge et la collecte du nouvel accord client, en préservant les snapshots immuables.
+3. Préparer les comptes métier et une pharmacie de recette, puis exécuter tout le chemin Marketplace → Caisse → comptabilité avec preuve de ticket et règlement.
+4. Obtenir le résultat final du workflow GitHub qualité Node/TypeScript/lint/build.
+5. Garder Production et Vercel inchangés sans autorisation expresse.
