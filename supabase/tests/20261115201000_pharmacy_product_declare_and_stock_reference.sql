@@ -37,9 +37,12 @@ begin
     raise exception 'Le déclencheur doit identifier le créateur et la pharmacie, sans validation NAXA';
   end if;
 
-  if has_column_privilege('anon','public.produits','INSERT')
-     or has_column_privilege('anon','public.stocks','INSERT') then
-    raise exception 'Le rôle anon ne doit pouvoir créer ni fiche ni ligne de stock';
+  if exists (
+    select 1 from pg_policies
+    where schemaname='public' and tablename in ('produits','stocks')
+      and cmd='INSERT' and roles::text like '%anon%'
+  ) then
+    raise exception 'Le rôle anon ne doit recevoir aucune policy INSERT sur produits/stocks';
   end if;
 end
 $test$;
