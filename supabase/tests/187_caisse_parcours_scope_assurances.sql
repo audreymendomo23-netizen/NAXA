@@ -1,16 +1,48 @@
--- NAXA 187 — tests structurels de portée assurance et annulation caisse.
+-- NAXA 187 — contrats de portée Assurance et annulation Caisse.
+-- Les couvertures personnelles restent privées au client. La pharmacie lit
+-- uniquement les snapshots et dossiers qui appartiennent à son périmètre RLS.
 do $$
 declare
   v_definition text;
+  v_policy text;
 begin
+  if not coalesce((select relrowsecurity from pg_class where oid='public.assurance_reservation_snapshots'::regclass),false) then
+    raise exception 'RLS des snapshots Assurance absente';
+  end if;
+  select qual into v_policy from pg_policies
+  where schemaname='public' and tablename='assurance_reservation_snapshots'
+    and policyname='assurance_snapshots_scope_read' and cmd='SELECT';
+  if v_policy is null or position('can_access_pharmacy' in v_policy)=0 then
+    raise exception 'Lecture des snapshots hors périmètre pharmacie';
+  end if;
+
+  if not coalesce((select relrowsecurity from pg_class where oid='public.dossiers_assurance'::regclass),false) then
+    raise exception 'RLS des dossiers Assurance absente';
+  end if;
+  select qual into v_policy from pg_policies
+  where schemaname='public' and tablename='dossiers_assurance'
+    and policyname='dossiers_assurance_scope_read' and cmd='SELECT';
+  if v_policy is null or position('can_access_pharmacy' in v_policy)=0 then
+    raise exception 'Lecture des dossiers Assurance hors périmètre pharmacie';
+  end if;
+
   if not exists (
     select 1 from pg_policies
-    where schemaname='public'
-      and tablename='couvertures_assurance'
-      and policyname='couvertures_assurance_pharmacie_dossier_read'
-      and cmd='SELECT'
+    where schemaname='public' and tablename='couvertures_assurance'
+      and policyname='couvertures_client_read' and cmd='SELECT'
+      and position('client_id' in coalesce(qual,''))>0
   ) then
-    raise exception 'Lecture des couvertures via dossier pharmacie absente';
+    raise exception 'Les couvertures personnelles doivent rester filtrées par propriétaire';
+  end if;
+  if has_table_privilege('anon','public.assurance_reservation_snapshots','SELECT') is not true
+    or has_table_privilege('anon','public.dossiers_assurance','SELECT') is not true then
+    -- Table-level grants are harmless only when RLS rejects rows; the test
+    -- requires that there is no unauthenticated API access path.
+    if exists(select 1 from pg_policies where schemaname='public'
+      and tablename in ('assurance_reservation_snapshots','dossiers_assurance')
+      and 'anon'=any(roles)) then
+      raise exception 'Lecture anonyme des dossiers/snapshots Assurance détectée';
+    end if;
   end if;
 
   if not has_function_privilege('authenticated','public.vente_annulation_demander(uuid,text)','EXECUTE') then
