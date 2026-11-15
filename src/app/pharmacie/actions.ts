@@ -77,15 +77,13 @@ export async function creerCaisse(formData: FormData) {
     redirect("/pharmacie/caisses?erreur=compte_non_eligible");
   }
 
-  const { error: assignmentError } = await sb.rpc("naxa_grant_professional_assignment", {
+  // Affectation et création du poste physique sont atomiques côté base.
+  // La RPC conserve les contrôles réseau, privilège CREATE_CAISSE et quota.
+  const { error: provisionError } = await sb.rpc("naxa_provision_caisse", {
     p_target: target.id,
     p_pharmacie: pharmacieId,
-    p_fonction: "caisse",
-    p_commence_at: new Date().toISOString(),
-    p_expire_at: null,
-    p_motif: "Attribution du poste Caisse depuis la gestion d’équipe NAXA.",
   });
-  if (assignmentError) redirect("/pharmacie/caisses?erreur=provisionnement");
+  if (provisionError) redirect("/pharmacie/caisses?erreur=provisionnement");
 
   redirect("/pharmacie/caisses?ok=creation");
 }
