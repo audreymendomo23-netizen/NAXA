@@ -17,6 +17,7 @@ declare
   v_first integer;
   v_second integer;
   v_marketplace_qty integer;
+  v_batch integer;
   v_stock_price integer:=900;
 begin
   if v_today is distinct from (now() at time zone 'Africa/Douala')::date then
@@ -112,14 +113,19 @@ begin
     raise exception 'Le Marketplace doit compter les cinq lots valides (50), jamais le lot périmé (999) ; obtenu %',v_marketplace_qty;
   end if;
 
-  v_first:=private.dispatch_pharmacy_lot_expiry_alerts(v_today,100);
+  -- Une seule fiche/lot est traitée par appel : les passages suivants doivent avancer
+  -- vers les lots suivants au lieu de retenter indéfiniment le premier lot déjà notifié.
+  v_first:=0;
+  for v_batch in 1..6 loop
+    v_first:=v_first+private.dispatch_pharmacy_lot_expiry_alerts(v_today,1);
+  end loop;
   if v_first<>5*v_recipient_count then
-    raise exception 'Nombre de rappels inattendu : % créés, % attendus',v_first,5*v_recipient_count;
+    raise exception 'Nombre de rappels inattendu après traitement par lots : % créés, % attendus',v_first,5*v_recipient_count;
   end if;
 
-  v_second:=private.dispatch_pharmacy_lot_expiry_alerts(v_today,100);
+  v_second:=private.dispatch_pharmacy_lot_expiry_alerts(v_today,1);
   if v_second<>0 then
-    raise exception 'Le second passage doit être idempotent ; % doublon(s) créé(s)',v_second;
+    raise exception 'Le passage suivant doit être idempotent ; % doublon(s) créé(s)',v_second;
   end if;
 
   select count(*)::integer into v_dispatches
@@ -189,7 +195,7 @@ begin
   if not exists(
     select 1 from cron.job
     where jobname='naxa-pharmacy-lot-expiry-notifications'
-      and schedule='0 6 * * *'
+      and schedule='*/10 * * * *'
       and active=true
   ) then
     raise exception 'Le job quotidien de rappels J-30/J-15/J-7/J-3/J0 est absent ou inactif';
