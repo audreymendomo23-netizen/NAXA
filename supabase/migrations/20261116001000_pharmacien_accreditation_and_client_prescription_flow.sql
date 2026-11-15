@@ -398,11 +398,13 @@ begin
 
   v_old := E'where a.profile_id=v_uid and a.role_code=p_role_code\n        and a.pharmacie_id=p_pharmacie_id and a.statut=''active''\n        and a.commence_at<=now()';
   v_new := v_old || E'\n        and (p_role_code<>''pharmacien'' or exists (\n          select 1 from public.naxa_pharmacien_accreditations accreditation\n          where accreditation.profile_id=v_uid\n            and accreditation.pharmacie_id=p_pharmacie_id\n            and accreditation.status=''approved''\n            and (accreditation.valid_until is null or accreditation.valid_until>=current_date)\n            and accreditation.assignment_id=a.id\n        ))';
-  if position(v_old in v_definition)=0 then
-    raise exception 'Contrat de sélection du rôle actif inattendu ; migration interrompue';
+  if position('p_role_code<>''pharmacien'' or exists' in v_definition)=0 then
+    if position(v_old in v_definition)=0 then
+      raise exception 'Contrat de sélection du rôle actif inattendu ; migration interrompue';
+    end if;
+    v_definition:=replace(v_definition,v_old,v_new);
+    execute v_definition;
   end if;
-  v_definition:=replace(v_definition,v_old,v_new);
-  execute v_definition;
 end
 $migration$;
 
@@ -419,11 +421,13 @@ begin
 
   v_old := 'if not exists(select 1 from public.naxa_roles r';
   v_new := 'if p_fonction=''pharmacien'' then raise exception ''Le poste Pharmacien exige une proposition et une validation administrative'' using errcode=''42501''; end if;' || chr(10) || '  ' || v_old;
-  if position(v_old in v_definition)=0 then
-    raise exception 'Contrat d''affectation professionnelle inattendu ; migration interrompue';
+  if position('Le poste Pharmacien exige une proposition et une validation administrative' in v_definition)=0 then
+    if position(v_old in v_definition)=0 then
+      raise exception 'Contrat d''affectation professionnelle inattendu ; migration interrompue';
+    end if;
+    v_definition:=replace(v_definition,v_old,v_new);
+    execute v_definition;
   end if;
-  v_definition:=replace(v_definition,v_old,v_new);
-  execute v_definition;
 end
 $migration$;
 
