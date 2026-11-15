@@ -85,8 +85,15 @@ test("le test runtime utilise un Responsable réellement affecté et bloque les 
   assert.ok(runtimeImportTest.includes("private.naxa_scope_allows(v_responsable,v_pharmacy,'PHARMACIE')"));
   assert.ok(runtimeImportTest.includes("assurance_import_simuler_mode"));
   assert.ok(runtimeImportTest.includes("'complet'"));
+  assert.ok(runtimeImportTest.includes("'delta'"));
+  assert.ok(runtimeImportTest.includes("'suspendu'"));
   assert.ok(runtimeImportTest.includes("assurance_calculer_devis(v_other_reservation,v_coverage)"));
+  assert.ok(runtimeImportTest.includes("reservation_suspended"));
   assert.ok(runtimeImportTest.includes("other_pharmacy_blocked"));
+  assert.ok(runtimeImportTest.includes("first_full_list_verification_preserved"));
+  assert.ok(runtimeImportTest.includes("other_membership_verifications_preserved"));
+  assert.ok(runtimeImportTest.includes("latest_status_after_suspension"));
+  assert.ok(runtimeImportTest.includes("Delta actif"));
   assert.ok(runtimeImportTest.includes("timestamp_advanced"));
   assert.match(runtimeImportTest, /rollback/i);
   assert.ok(verificationMigration.includes("verification_le timestamptz not null default clock_timestamp()"));
