@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — recette Storage Promoteur validée sur Replay (14 PASS, 1 SKIP Admin lors du run précédent) ; matrice Admin désormais câblée dans le workflow secret-safe, résultat du nouveau run à confirmer ; parcours des autres profils professionnels encore ouverts.
+**État global :** 🟡 PARTIEL — matrice Storage Admin + Promoteur validée sur Replay (17 PASS / 0 SKIP, §35) ; protections SQL Livreur testées (§37) ; correction du provisionnement Caisse appliquée et testée sur Replay (§39) ; fixtures Gestionnaire Stock/Caisse/Client acheteur intégrées au workflow, mais provisionnement GitHub Actions non encore démontré ; commande réelle bloquée par l'absence de fiche produit validée et de stock vendable.
 
 ## 1. Règles et périmètre sécurisé
 
@@ -1165,3 +1165,67 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 3. Obtenir ou importer une fiche médicament réelle et validée dans le catalogue Replay à partir de la source référentielle autorisée ; ne pas créer une fiche factice visible publiquement.
 4. Initialiser la référence, faire un mouvement de stock audité et enregistrer le lot correspondant avec quantité identique au stock agrégé, péremption valide et étiquetage explicite E2E. Le tout sur Replay seulement.
 5. Créer la réservation par le parcours Client, faire préparer physiquement par Stock, sélectionner le paiement espèces livraison, publier la mission, puis suivre la livraison et encaisser par la Caisse. Garder Production et Vercel intouchés.
+
+
+## 39. Correction du provisionnement physique Caisse et préparation des profils métier E2E (15/11/2026)
+
+**Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Aucun déploiement Vercel, aucune migration Production.
+
+### Audit → contradiction → cause racine
+
+- L'écran métier existant `/pharmacie/caisses` validait déjà le Promoteur/Responsable, le périmètre, `CREATE_CAISSE`, le compte NAXA cible, sa complétude et son statut Auth.
+- L'action serveur `creerCaisse` appelait seulement `naxa_grant_professional_assignment(...,'caisse',...)`. Elle attribuait le poste professionnel, mais n'inscrivait aucune ressource dans `public.caisses`.
+- L'écran `/pharmacie/caisse` cherchait une ressource `caisses` active et bloquait si aucune n'existait. La ressource physique manquante, et non l'affectation elle-même, était la cause racine de l'impossibilité de démarrer la Caisse.
+- La RPC historique `naxa_provision_caisse(uuid,uuid)` existait déjà, mais n'était qu'un wrapper invoker qui attribuait le poste ; elle ne provisionnait pas le registre physique.
+
+### Corrections appliquées sur Replay et versionnées sur main
+
+1. Migration `provision_pharmacy_cash_register_with_assignment`, version Replay `20261115070734`, source `supabase/migrations/20261115180000_provision_pharmacy_cash_register_with_assignment.sql`, commit `9dce588191cbf6dc31db6b83d597020c7061494d`.
+   - RPC `public.naxa_provision_caisse(uuid,uuid)` remplacée par une fonction `SECURITY DEFINER` avec `search_path='' `.
+   - Elle appelle le garde canonique `naxa_grant_professional_assignment`, puis sérialise la création par verrou transactionnel pharmacie et crée `Caisse principale` si aucune ressource n'existe.
+   - Si une ressource existe déjà et est active, aucune seconde Caisse physique n'est créée ; si elle existe mais est inactive, la RPC bloque explicitement au lieu de la réactiver silencieusement.
+   - ACL : `PUBLIC` et `anon` révoqués ; `authenticated` et `service_role` autorisés.
+2. Action serveur `src/app/pharmacie/actions.ts` modifiée pour appeler `naxa_provision_caisse` au lieu d'attribuer uniquement le rôle. Commit `b334aab696c91fc9339b6c18ec17db6481232896`.
+3. Migration de reprise idempotente `make_cash_register_provisioning_idempotent`, version Replay `20261115071250`, source `supabase/migrations/20261115182000_make_cash_register_provisioning_idempotent.sql`, commit `abe587f7f0ea541ba6df336092c3738632fb74a2`.
+   - Si l'affectation Caisse chevauche déjà la période, seule l'erreur exacte du garde d'affectation est tolérée, et uniquement après confirmation qu'il existe une affectation `caisse` active, non expirée, pour ce compte et cette pharmacie active.
+   - Les autres exceptions du garde sont relancées ; le contrôle Promoteur/réseau/privilège/quota n'est pas contourné.
+   - Le provisionnement de la ressource physique est ensuite rejoué de façon sûre, ce qui permet de réparer le cas « affectation présente / ressource absente ».
+4. Le provisionneur E2E appelle maintenant toujours la RPC idempotente pour la fixture Caisse, même si l'affectation existe déjà, afin de réparer une ressource manquante. Commit `f60a06c6b6f0a49cfad781a0abc71b061fb399bf`.
+
+### Tests et preuves
+
+- Le test SQL `supabase/tests/20261115180000_provision_pharmacy_cash_register_with_assignment.sql` a été exécuté sur Replay : **PASS**.
+- Le test SQL `supabase/tests/20261115182000_make_cash_register_provisioning_idempotent.sql` a été exécuté sur Replay : **PASS** — seuls le doublon exact d'affectation active et le cas de reprise conforme sont tolérés ; ACL `anon` refusée.
+- Contrôle direct Replay après application : migration version `20261115070734` et version `20261115071250` présentes ; `naxa_provision_caisse` est `SECURITY DEFINER`, `search_path='' `, `anon_exec=false`, `authenticated_exec=true`, `service_role_exec=true`.
+- La Server Action est raccordée à la nouvelle RPC et protégée par le flux existant de vérification du compte et de `CREATE_CAISSE`. Un test Node dédié `scripts/test-caisse-provisioning-action.cjs` a été ajouté (2 tests), mais son exécution CI n'est pas prouvée.
+- Un test Node statique du SQL `scripts/test-caisse-provisioning-sql.cjs` a été ajouté (4 tests) et est inclus dans le workflow. Il n'est pas déclaré PASS tant qu'un journal de run ne le confirme pas.
+- Supabase Advisors remonte l'avertissement `authenticated_security_definer_function_executable` pour cette RPC. C'est un avertissement attendu de son mode d'appel : la création physique contourne la RLS de la table via une fonction SECURITY DEFINER, mais la fonction exige `auth.uid()` et délègue l'autorisation à `naxa_grant_professional_assignment`, qui vérifie Promoteur/Responsable, périmètre, `CREATE_CAISSE`, compte actif, pharmacie et quota. Aucun accès `anon` ou `PUBLIC` n'est accordé. Ne pas supprimer le garde pour faire disparaître l'avertissement.
+
+### Préparation de la recette suivante
+
+- Harnais `scripts/e2e/provision-replay-pharmacy-staff-safe.cjs` et six tests unitaires `scripts/test-replay-pharmacy-staff-safe.cjs` ajoutés.
+- Il prépare trois identités techniques séparées, toutes avec profil racine Client :
+  - Gestionnaire Stock : `naxa.e2e.stock@example.invalid`.
+  - Caisse : `naxa.e2e.caisse@example.invalid`.
+  - Client acheteur : `naxa.e2e.client-acheteur@example.invalid`, distinct du Livreur déjà enrôlé.
+- Le script est limité à Replay ; il vérifie les marqueurs E2E, la majorité, le consentement, les rôles actifs exclusifs, l'accès Caisse via RLS, la lecture Stock via RLS, puis ferme les sessions locales. Il ne crée ni stock, ni lot, ni réservation, ni vente, ni mission, ni paiement, et n'ouvre aucune session de Caisse.
+- Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` inclut les tests Node, la préparation de ces trois profils et le nettoyage des secrets. Commits d'intégration : `c371c24f2e0c44a9a1271b669a2f115b30b99434` et `860eeea798cea7e47082fb704fe987a464084bfb`. Les derniers changements de provisionneur sont également dans `main` (`f60a06c6b6f0a49cfad781a0abc71b061fb399bf`).
+
+### Statut réel d'exécution et réserve
+
+- Le contrôle SQL post-push trouve encore **0** identité parmi les trois nouveaux comptes, **0** affectation Stock/Caisse pour ces profils et **0** Caisse physique active sur les pharmacies du Promoteur.
+- Les compteurs restent à **0** session Gestionnaire Stock ouverte, **0** session Caisse ouverte, **0** réservation et **0** mission : aucun effet métier artificiel n'a été créé.
+- Les statuts de commit consultables ne retournent aucun contexte de test ; l'action GitHub disponible pour les runs de commit ne liste que les exécutions de PR et ne fournit pas le run push utile ici. L'exécution du workflow de provisionnement n'est donc **pas prouvée**, et les six tests Node staff + tests Node Caisse ne sont pas revendiqués PASS.
+- Une tentative de clonage local pour exécuter Node n'a pas abouti (résolution DNS GitHub indisponible dans l'environnement). Cela ne vaut ni échec ni succès des tests.
+- La matrice Storage Admin + Promoteur demeure la preuve antérieure du §35 (17 PASS / 0 SKIP) ; elle n'est pas confondue avec cette nouvelle recette.
+- Catalogue Replay : 20 lignes `produits`, 0 fiche validée ; référentiel `medicaments_referentiel_sources` toujours vide. Les deux pharmacies E2E n'ont aucun stock positif ni lot disponible. La réservation réelle reste donc bloquée, même après préparation des profils.
+- Aucun changement Production ni déploiement Vercel n'a été effectué.
+
+**État :** correction Caisse physique — **appliquée et testée SQL sur Replay** ; reprise idempotente — **appliquée et testée SQL sur Replay** ; raccordement de l'action serveur — **source corrigée, test Node non exécuté** ; fixtures Stock/Caisse/Client acheteur — **workflow intégré, mais non provisionnées** ; recette réservation/Stock/Caisse/Livreur — **NON EXÉCUTÉE** ; NAXA reste **PARTIEL**, pas AU VERT.
+
+**Point exact de reprise :**
+1. Obtenir et consulter le run push GitHub Actions déclenché par les derniers commits `main`; confirmer les tests Node, le provisionnement Promoteur/Admin/Livreur/Stock/Caisse/Client acheteur et les nettoyages.
+2. Vérifier alors sur Replay les trois profils racine Client, les affectations Stock/Caisse, la Caisse physique unique, les rôles actifs exclusifs, la visibilité RLS et l'absence de sessions ouvertes.
+3. Importer seulement le référentiel BDPM dans `medicaments_referentiel_sources` si le flux source et les secrets Replay sont disponibles ; cette donnée française ne vaut pas autorisation Cameroun et ne doit pas être transformée en fiche `produits` validée sans contrôle pharmacien.
+4. Initialiser une référence vendable uniquement à partir d'un produit réellement autorisé/validé ; approvisionner le stock par les parcours métier audités, lot et péremption réels. Ne pas injecter de faux produit, quantité, lot, caisse initiale ou paiement.
+5. Seulement après ces prérequis : réservation par le Client acheteur, préparation physique confirmée par Stock, mission Livreur, arrivée, confirmation de réception, encaissement réellement rapproché par Caisse et clôture.
