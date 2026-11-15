@@ -224,7 +224,7 @@ create or replace function public.gestionnaire_stock_reference_initialiser(
   p_pharmacie uuid,
   p_produit uuid,
   p_prix integer,
-  p_emplacement text
+  p_emplacement text default null
 )
 returns boolean
 language plpgsql
