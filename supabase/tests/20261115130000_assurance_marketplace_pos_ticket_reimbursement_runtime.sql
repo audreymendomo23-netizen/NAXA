@@ -15,6 +15,7 @@ declare
   v_pharmacy uuid;
   v_register uuid;
   v_open_session uuid;
+  v_reservation uuid;
   v_product uuid;
   v_username text:='naxa_assurance_pos_'||substr(replace(gen_random_uuid()::text,'-',''),1,18);
   v_code text:='AS'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));
@@ -104,7 +105,9 @@ begin
   ) values(
     v_client,v_pharmacy,'confirmee',10000,now()+interval '2 hours',
     'reservation','a_verifier',v_code,false,false
-  ) returning id into v_open_session; -- replaced below by reservation setting
+  ) returning id into v_reservation;
+  insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
+  values(v_reservation,v_product,1,10000);
 
   perform set_config('naxa.test.assurance.pos.responsable',v_responsable::text,true);
   perform set_config('naxa.test.assurance.pos.cashier',v_cashier::text,true);
@@ -114,14 +117,8 @@ begin
   perform set_config('naxa.test.assurance.pos.register',v_register::text,true);
   perform set_config('naxa.test.assurance.pos.product',v_product::text,true);
   perform set_config('naxa.test.assurance.pos.code',v_code,true);
+  perform set_config('naxa.test.assurance.pos.reservation',v_reservation::text,true);
   if v_open_session is not null then
-    perform set_config('naxa.test.assurance.pos.reservation',v_open_session::text,true);
-  end if;
-  if exists(select 1 from public.caisses_sessions cs
-    where cs.caisse_id=v_register and cs.statut='ouverte' and cs.ouvert_par=v_cashier) then
-    select cs.id into v_open_session from public.caisses_sessions cs
-    where cs.caisse_id=v_register and cs.statut='ouverte' and cs.ouvert_par=v_cashier
-    order by cs.ouvert_at desc limit 1;
     perform set_config('naxa.test.assurance.pos.session',v_open_session::text,true);
   end if;
 end
