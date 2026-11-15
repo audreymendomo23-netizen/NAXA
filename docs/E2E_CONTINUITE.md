@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 14 novembre 2026  
+**Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **État global :** 🟡 PARTIEL — la recette Storage de base est validée sur Replay (11/11 PASS) ; matrices Admin/Promoteur et autres parcours E2E toujours ouverts.
 
@@ -809,3 +809,29 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 **Conclusion :** la réserve d'idempotence des privilèges RESEAU est **CORRIGÉE ET TESTÉE SUR REPLAY**. Cela ne valide pas encore la matrice complète des rôles : la matrice Storage Admin reste SKIP faute d'identifiants Admin E2E, et les parcours des autres profils professionnels restent à exécuter. La recette globale NAXA demeure PARTIELLE, sans déclaration AU VERT.
 
 **Point exact de reprise :** reprendre la matrice Admin/Promoteur et les profils professionnels sur Replay ; conserver la séparation explicite entre validations SQL ciblées, E2E Storage déjà passé et recette métier complète non encore exécutée.
+
+
+## 30. Reprise après correction RESEAU — préparation de la matrice Storage Admin (15/11/2026)
+
+**État hérité et confirmé :**
+- Le correctif RESEAU du §29 est appliqué à Replay et le test SQL de régression a été exécuté après ajout de l'assertion d'unicité. Résultat SQL sans erreur ; vérification post-test : 0 groupe de doublons RESEAU actifs, 5 lignes réseau actives canoniques et 95 anciennes lignes conservées révoquées.
+- Dernier commit documentaire : `cd9821163ff40b56e5c28da33fcb68df221d8b23`. Les trois fichiers migration/test/documentation sont présents sur `main`.
+
+**Contrôle d'identité Admin Replay effectué en lecture seule :**
+- Une seule identité Auth Admin de recette est présente : `naxa.e2e.20261104.admin@example.invalid`.
+- Identité Auth confirmée ; profil lié avec `role='admin'` et `actif=true`.
+- Marqueurs d'identité vérifiés : `naxa_e2e_fixture='NAXA-E2E-20261104'`, `naxa_e2e_persona='admin'`. Le compte est donc une fixture Admin dédiée, et non un compte utilisateur réel.
+- Aucun profil `naxa.home@gmail.com` trouvé sur Replay lors de ce contrôle ; aucun autre compte Admin créé.
+- Aucun mot de passe ni secret existant n'est récupéré ni exposé.
+
+**Cause du SKIP Admin :**
+- `scripts/storage-e2e.cjs` exécute sa matrice Admin uniquement si `NAXA_STORAGE_E2E_ADMIN_EMAIL` et `NAXA_STORAGE_E2E_ADMIN_PASSWORD` sont transmis.
+- Le workflow Promoteur secret-safe prépare un mot de passe éphémère Promoteur mais ne prépare pas celui de la fixture Admin. Le workflow de base ne possède pas non plus ces identifiants ; il marque donc explicitement la matrice Admin SKIP.
+
+**Décision technique de reprise :**
+- Ne pas créer, supprimer, renommer, convertir ou réattribuer de rôle à un compte Auth.
+- Ajouter un approvisionneur strictement épinglé à Replay qui vérifie l'e-mail exact, les deux marqueurs E2E, la confirmation Auth, le profil lié `admin/actif`, puis ne modifie que le mot de passe de cette fixture dédiée (aléatoire, propre au job, jamais journalisé).
+- Transmettre le mot de passe via un fichier temporaire privé runner (mode 0600), masquer la valeur dans GitHub Actions, puis supprimer le fichier au terme du job.
+- Exécuter ensuite Storage E2E avec matrices Admin et Promoteur obligatoires, sans toucher à Production ni Vercel.
+
+**Point exact de reprise :** implémenter les tests unitaires de validation de la fixture Admin, l'approvisionneur secret-safe et son intégration au workflow Replay Promoteur/Storage ; exécuter le workflow, vérifier les assertions Admin et confirmer le nettoyage Storage. Aucune mutation Admin n'a encore été faite dans cette étape de préparation.
