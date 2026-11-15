@@ -221,8 +221,8 @@ begin
     raise exception 'Un devis est déjà figé pour cette réservation ; créez une nouvelle réservation pour recalculer';
   end if;
   select c.* into v_c from public.couvertures_assurance c
-  where c.id=p_couverture and client_id=v_uid and actif
-    and date_debut<=current_date and (date_fin is null or date_fin>=current_date)
+  where c.id=p_couverture and c.client_id=v_uid and c.actif
+    and c.date_debut<=current_date and (c.date_fin is null or c.date_fin>=current_date)
     and exists (
       select 1
       from public.assurance_couverture_verifications v
@@ -235,7 +235,7 @@ begin
           limit 1
         )
         and v.statut='verifiee'
-        and v.declaration_maj_at=v_c.declaration_maj_at
+        and v.declaration_maj_at=c.declaration_maj_at
         and (v.date_debut is null or v.date_debut<=current_date)
         and (v.date_fin is null or v.date_fin>=current_date)
     );
