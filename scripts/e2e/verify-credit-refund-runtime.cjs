@@ -292,18 +292,18 @@ async function run(env = process.env) {
     }
     sessionClosed = true;
 
-    process.stdout.write("PASS — remboursement exécuté via JWT du compte Caisse Replay authentifié.\\n");
-    process.stdout.write("PASS — solde diminué exactement de 250 FCFA ; opération espèces reliée à la session personnelle.\\n");
-    process.stdout.write("PASS — outbox credit_remboursement émise une seule fois ; dépassement de solde refusé sans mutation.\\n");
-    process.stdout.write("PASS — rapprochement de la session Caisse : espèces théoriques 250 FCFA, écart 0 ; session clôturée.\\n");
-    process.stdout.write("INFO — le solde initial de 500 FCFA a été préchargé uniquement par le service Replay pour tester le RPC de remboursement ; ce test ne simule pas une vente ni une créance commerciale.\\n");
+    process.stdout.write("PASS — remboursement exécuté via JWT du compte Caisse Replay authentifié.\n");
+    process.stdout.write("PASS — solde diminué exactement de 250 FCFA ; opération espèces reliée à la session personnelle.\n");
+    process.stdout.write("PASS — outbox credit_remboursement émise une seule fois ; dépassement de solde refusé sans mutation.\n");
+    process.stdout.write("PASS — rapprochement de la session Caisse : espèces théoriques 250 FCFA, écart 0 ; session clôturée.\n");
+    process.stdout.write("INFO — le solde initial de 500 FCFA a été préchargé uniquement par le service Replay pour tester le RPC de remboursement ; ce test ne simule pas une vente ni une créance commerciale.\n");
   } catch (error) {
     mainError = error;
   } finally {
     const errors = await cleanup();
     if (errors.length) {
       const message = "NETTOYAGE E2E INCOMPLET — " + errors.join(" ; ");
-      if (mainError) process.stderr.write(message + "\\n");
+      if (mainError) process.stderr.write(message + "\n");
       else mainError = new Error(message);
     }
   }
@@ -314,7 +314,7 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().catch(error => {
-    process.stderr.write("CREDIT REFUND RUNTIME E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\\n");
+    process.stderr.write("CREDIT REFUND RUNTIME E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\n");
     process.exitCode = 1;
   });
 }
