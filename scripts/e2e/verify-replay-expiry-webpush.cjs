@@ -2,6 +2,8 @@
 "use strict";
 
 const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const webpush = require("web-push");
 const { chromium } = require("playwright");
 const {
@@ -118,7 +120,7 @@ async function run(env = process.env) {
   const notificationIds = [];
   const subscriptions = [];
   const contexts = [];
-  let browser = null;
+  const profileDirs = [];
   try {
     promoter = await login(
       env.NAXA_STORAGE_E2E_PROMOTEUR_EMAIL || "naxa.e2e.promoteur@example.invalid",
@@ -215,9 +217,17 @@ async function run(env = process.env) {
       throw new Error("Le dispatcher n'a pas ciblé le rôle actif : " + item.label + ".");
     }
 
-    browser = await chromium.launch({ headless: true, channel: "chromium", args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     for (const identity of identities) {
-      const context = await browser.newContext();
+      // A non-persistent browser.newContext() is off-the-record in Chromium.
+      // Push subscriptions are denied in that profile mode even when Notifications
+      // permission is granted. Give each test identity its own persistent temp profile.
+      const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-webpush-profile-"));
+      profileDirs.push(userDataDir);
+      const context = await chromium.launchPersistentContext(userDataDir, {
+        headless: true,
+        channel: "chromium",
+        args: ["--no-sandbox", "--disable-dev-shm-usage"],
+      });
       contexts.push(context);
       await context.grantPermissions(["notifications"], { origin: ORIGIN });
       const page = await context.newPage();
@@ -329,7 +339,9 @@ async function run(env = process.env) {
       }).catch(() => null);
     }
     for (const context of contexts) await context.close().catch(() => null);
-    if (browser) await browser.close().catch(() => null);
+    for (const profileDir of profileDirs) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
+    }
   }
 }
 
