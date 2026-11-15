@@ -18,6 +18,11 @@ declare
   v_open_session uuid;
   v_reservation uuid;
   v_product uuid;
+  v_period uuid:=gen_random_uuid();
+  v_receivable uuid:=gen_random_uuid();
+  v_revenue uuid:=gen_random_uuid();
+  v_bank uuid:=gen_random_uuid();
+  v_cash uuid:=gen_random_uuid();
   v_code text:='AS'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));
 begin
   select p.id,a.pharmacie_id,c.id
@@ -71,6 +76,55 @@ begin
   select p.id into v_admin from public.profiles p
   where p.role::text='admin' and p.actif=true order by p.created_at limit 1;
   if v_admin is null then raise exception 'Profil Admin d''audit absent'; end if;
+
+  -- Plan, mappings et période strictement transactionnels : le worker réel
+  -- traite les événements créés par la réservation POS plus bas, puis ROLLBACK.
+  if exists(select 1 from public.compta_periodes p
+    where p.pharmacie_id=v_pharmacy and p.statut='ouverte'
+      and current_date between p.date_debut and p.date_fin) then
+    raise exception 'Une période comptable est déjà ouverte sur la pharmacie de recette ; aucun paramètre réel ne sera modifié';
+  end if;
+  if exists(select 1 from public.compta_evenement e
+    where e.statut in ('a_traiter','en_cours')) then
+    raise exception 'La file comptable doit être vide hors de cette recette avant le worker runtime';
+  end if;
+
+  insert into public.compta_periodes(id,pharmacie_id,date_debut,date_fin,statut)
+  values(v_period,v_pharmacy,current_date-1,current_date+1,'ouverte');
+
+  insert into public.compta_plan_comptable(
+    id,pharmacie_id,code,libelle,classe,statut,source_validation,valide_par,valide_le
+  ) values
+    (v_receivable,v_pharmacy,'E2E-ASS-REC-'||substr(replace(v_receivable::text,'-',''),1,6),
+      'E2E — créance assureur',null,'valide','Fixture transactionnelle rollback',v_admin,now()),
+    (v_revenue,v_pharmacy,'E2E-ASS-REV-'||substr(replace(v_revenue::text,'-',''),1,6),
+      'E2E — produit Assurance/vente',null,'valide','Fixture transactionnelle rollback',v_admin,now()),
+    (v_bank,v_pharmacy,'E2E-ASS-BNK-'||substr(replace(v_bank::text,'-',''),1,6),
+      'E2E — banque remboursements',null,'valide','Fixture transactionnelle rollback',v_admin,now()),
+    (v_cash,v_pharmacy,'E2E-ASS-CASH-'||substr(replace(v_cash::text,'-',''),1,6),
+      'E2E — caisse espèces',null,'valide','Fixture transactionnelle rollback',v_admin,now());
+
+  insert into public.compta_mapping_compte(
+    pharmacie_id,evenement_type,sens,compte_id,statut,valide_du,valide_par,valide_le
+  ) values
+    (v_pharmacy,'assurance_prise_en_charge','debit',v_receivable,'valide',current_date,v_admin,now()),
+    (v_pharmacy,'assurance_prise_en_charge','credit',v_revenue,'valide',current_date,v_admin,now()),
+    (v_pharmacy,'assurance_remboursement_recu','debit',v_bank,'valide',current_date,v_admin,now()),
+    (v_pharmacy,'assurance_remboursement_recu','credit',v_receivable,'valide',current_date,v_admin,now()),
+    (v_pharmacy,'vente_encaissee','debit',v_cash,'valide',current_date,v_admin,now()),
+    (v_pharmacy,'vente_encaissee','credit',v_revenue,'valide',current_date,v_admin,now());
+
+  insert into public.compta_parametre(pharmacie_id,cle,valeur,statut,valide_du,valide_par)
+  values
+    (v_pharmacy,'journal_code.assurance_prise_en_charge',to_jsonb('AS'::text),'valide',current_date,v_admin),
+    (v_pharmacy,'journal_code.assurance_remboursement_recu',to_jsonb('TR'::text),'valide',current_date,v_admin),
+    (v_pharmacy,'journal_code.vente_encaissee',to_jsonb('VT'::text),'valide',current_date,v_admin);
+
+  perform set_config('naxa.test.assurance.pos.period',v_period::text,true);
+  perform set_config('naxa.test.assurance.pos.receivable',v_receivable::text,true);
+  perform set_config('naxa.test.assurance.pos.revenue',v_revenue::text,true);
+  perform set_config('naxa.test.assurance.pos.bank',v_bank::text,true);
+  perform set_config('naxa.test.assurance.pos.cash',v_cash::text,true);
 
   -- Affectation Responsable provisoire au compte Caisse existant dans la même
   -- pharmacie de démonstration visible ; aucune identité nouvelle n'est créée.
@@ -477,16 +531,146 @@ begin
 end
 $final_assertions$;
 
+-- Passage effectif des 4 événements générés par ce même parcours dans le worker.
+-- Les comptes/mappings/période sont synthétiques, ouverts uniquement dans cette
+-- transaction ; aucune écriture métier ne survit au ROLLBACK final.
+select set_config('request.jwt.claim.role','service_role',true);
+
+do $accounting_worker_runtime$
+declare
+  v_pharmacy uuid:=current_setting('naxa.test.assurance.pos.pharmacy')::uuid;
+  v_dossier uuid:=current_setting('naxa.test.assurance.pos.dossier')::uuid;
+  v_vente uuid:=current_setting('naxa.test.assurance.pos.vente')::uuid;
+  v_receivable uuid:=current_setting('naxa.test.assurance.pos.receivable')::uuid;
+  v_bank uuid:=current_setting('naxa.test.assurance.pos.bank')::uuid;
+  v_cash uuid:=current_setting('naxa.test.assurance.pos.cash')::uuid;
+  v_revenue uuid:=current_setting('naxa.test.assurance.pos.revenue')::uuid;
+  v_processed integer;
+  v_entry_count integer;
+  v_event_count integer;
+  v_debit bigint;
+  v_credit bigint;
+  v_sale_entry uuid;
+  v_insurer_entry uuid;
+  v_payment_entries uuid[];
+  v_entry uuid;
+begin
+  select count(*) into v_event_count from public.compta_evenement e
+  where e.statut in ('a_traiter','en_cours');
+  if v_event_count<>4 then
+    raise exception 'La file doit contenir exactement les 3 événements Assurance et la vente POS du parcours : %',v_event_count;
+  end if;
+
+  select coalesce((private.compta_worker_traiter_lot(100)->>'traite')::integer,0)
+    into v_processed;
+  if v_processed<>4 then
+    raise exception 'Le worker comptable n''a pas traité les 4 événements du parcours : %',v_processed;
+  end if;
+
+  select count(*) into v_entry_count from public.compta_ecriture e
+  where e.pharmacie_id=v_pharmacy and (
+    (e.source_type='dossier_assurance' and e.source_id=v_dossier::text)
+    or (e.source_type='reglement_assurance' and exists(
+      select 1 from public.assurance_reglements r
+      where r.dossier_id=v_dossier and r.id::text=e.source_id
+    ))
+    or (e.source_type='vente' and e.source_id=v_vente::text)
+  );
+  if v_entry_count<>4 then
+    raise exception 'Quatre écritures comptables attendues (prise en charge, 2 règlements, vente client) : %',v_entry_count;
+  end if;
+
+  select e.id into v_insurer_entry from public.compta_ecriture e
+  where e.pharmacie_id=v_pharmacy and e.source_type='dossier_assurance'
+    and e.source_id=v_dossier::text;
+  select e.id into v_sale_entry from public.compta_ecriture e
+  where e.pharmacie_id=v_pharmacy and e.source_type='vente'
+    and e.source_id=v_vente::text;
+  select array_agg(e.id) into v_payment_entries
+  from public.compta_ecriture e
+  join public.assurance_reglements r on r.id::text=e.source_id
+  where e.pharmacie_id=v_pharmacy and e.source_type='reglement_assurance'
+    and r.dossier_id=v_dossier;
+
+  if v_insurer_entry is null or v_sale_entry is null
+     or coalesce(array_length(v_payment_entries,1),0)<>2 then
+    raise exception 'Écritures des trois événements Assurance ou de la vente manquantes';
+  end if;
+
+  for v_entry in
+    select unnest(array_prepend(v_sale_entry,array_append(v_payment_entries,v_insurer_entry)))
+  loop
+    select count(*),coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
+      into v_entry_count,v_debit,v_credit
+    from public.compta_ligne l where l.ecriture_id=v_entry;
+    if v_entry_count<>2 or v_debit<>v_credit or v_debit<>v_credit then
+      raise exception 'Écriture comptable non équilibrée : % lignes %, débit %, crédit %',v_entry,v_entry_count,v_debit,v_credit;
+    end if;
+  end loop;
+
+  select coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
+    into v_debit,v_credit
+  from public.compta_ligne l
+  where l.pharmacie_id=v_pharmacy and l.compte_id=v_receivable
+    and l.ecriture_id in (v_insurer_entry) or
+       (l.pharmacie_id=v_pharmacy and l.compte_id=v_receivable and l.ecriture_id=any(v_payment_entries));
+  if v_debit<>5500 or v_credit<>5500 then
+    raise exception 'Créance assureur non soldée au grand livre : débit %, crédit %',v_debit,v_credit;
+  end if;
+
+  select coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
+    into v_debit,v_credit
+  from public.compta_ligne l
+  where l.pharmacie_id=v_pharmacy and l.compte_id=v_bank
+    and l.ecriture_id=any(v_payment_entries);
+  if v_debit<>5500 or v_credit<>0 then
+    raise exception 'Règlements reçus non reflétés en trésorerie : débit %, crédit %',v_debit,v_credit;
+  end if;
+
+  select coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
+    into v_debit,v_credit
+  from public.compta_ligne l
+  where l.pharmacie_id=v_pharmacy and l.compte_id=v_cash
+    and l.ecriture_id=v_sale_entry;
+  if v_debit<>4500 or v_credit<>0 then
+    raise exception 'La vente doit comptabiliser uniquement la part Client : débit espèces %, crédit %',v_debit,v_credit;
+  end if;
+
+  select coalesce(sum(l.debit_fcfa),0),coalesce(sum(l.credit_fcfa),0)
+    into v_debit,v_credit
+  from public.compta_ligne l
+  where l.pharmacie_id=v_pharmacy and l.compte_id=v_revenue
+    and l.ecriture_id in (v_insurer_entry,v_sale_entry);
+  if v_debit<>0 or v_credit<>10000 then
+    raise exception 'Le revenu comptable doit agréger les parts Client et Assurance : débit %, crédit %',v_debit,v_credit;
+  end if;
+
+  if exists(select 1 from public.compta_evenement e
+    where e.statut<>'traite' and (
+      (e.evenement_type='assurance_prise_en_charge' and e.source_id=v_dossier::text)
+      or (e.evenement_type='assurance_remboursement_recu' and e.donnees->>'dossier_id'=v_dossier::text)
+      or (e.evenement_type='vente_encaissee' and e.source_id=v_vente::text)
+    )) then
+    raise exception 'La file comptable conserve un événement non traité du parcours';
+  end if;
+
+  raise notice 'PASS — 4 événements traités, 4 écritures équilibrées ; créance 5 500 FCFA soldée ; espèces client 4 500 FCFA ; toutes fixtures rollbackées';
+end
+$accounting_worker_runtime$;
+
 rollback;
 
 select jsonb_build_object(
- 'result','assurance_marketplace_pos_ticket_reimbursement_runtime PASS',
- 'scope','Client → couverture vérifiée → devis → accord → proposition → accord client → prise en charge → Caisse POS → ticket → remboursements',
+ 'result','assurance_marketplace_pos_ticket_accounting_runtime PASS',
+ 'scope','Client → liste assurés → devis → négociation → accord → POS → ticket → remboursements → worker comptable',
  'gross_fcfa',10000,
  'insurer_fcfa',5500,
  'client_fcfa',4500,
  'cash_received_fcfa',5000,
  'cash_change_fcfa',500,
  'reimbursements_fcfa',array[2000,3500],
+ 'accounting_entries',4,
+ 'receivable_debit_fcfa',5500,
+ 'receivable_credit_fcfa',5500,
  'all_fixtures_rolled_back',true
 ) as resultat;
