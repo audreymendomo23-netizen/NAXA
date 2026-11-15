@@ -80,11 +80,11 @@ export default async function ResponsableCreditsMarketplacePage({
     :{data:[] as {id:string;nom:string;dosage:string|null}[]};
   const names=new Map((products??[]).map(p=>[p.id,p.nom+(p.dosage?" "+p.dosage:"")]));
   const pharmacyNames=new Map((pharmacies??[]).map(p=>[p.id,p.nom]));
-  const decisionChecks=await Promise.all(pharmacyIds.map(async pharmacieId=>{
-    const result=await sb.rpc("naxa_can_approve_marketplace_credit",{p_pharmacie:pharmacieId});
-    return [pharmacieId,!result.error&&result.data===true] as const;
+  const decisionChecks=await Promise.all(requests.filter(r=>r.statut==="en_attente").map(async request=>{
+    const result=await sb.rpc("naxa_can_approve_client_credit",{p_pharmacie:request.pharmacie_id,p_montant:request.montant});
+    return [request.id,!result.error&&result.data===true] as const;
   }));
-  const canApproveByPharmacy=new Map(decisionChecks);
+  const canApproveByRequest=new Map(decisionChecks);
 
   return <main className="mx-auto max-w-5xl space-y-4 px-4 py-6">
     <header className="rounded-2xl bg-[#0B3D26] p-5 text-white">
@@ -122,7 +122,7 @@ export default async function ResponsableCreditsMarketplacePage({
         ?<a className="font-bold underline" href={"/api/pharmacie/promoteur/credits/"+r.id+"/justificatif"}>Télécharger le justificatif sécurisé</a>
         :"Aucun justificatif référencé."}</p>
       {r.reservation_id&&<p className="text-sm">Commande de préparation : {ref(r.reservation_id)} · stock débité à l’approbation.</p>}
-      {r.statut==="en_attente"&&canApproveByPharmacy.get(r.pharmacie_id)===true
+      {r.statut==="en_attente"&&canApproveByRequest.get(r.id)===true
         ?<div className="flex flex-wrap gap-3 border-t pt-3">
           <form action={approuverDemandeCreditMarketplace}><input type="hidden" name="demande_id" value={r.id}/><button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white" type="submit">{r.origine==="caisse"?"Approuver le crédit comptoir":"Approuver et débiter le stock"}</button></form>
           <form action={refuserDemandeCreditMarketplace}><input type="hidden" name="demande_id" value={r.id}/><button className="rounded-xl border border-red-300 px-4 py-3 font-bold text-red-800" type="submit">Refuser</button></form>
