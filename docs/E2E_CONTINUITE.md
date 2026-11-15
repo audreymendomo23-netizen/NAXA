@@ -2408,7 +2408,7 @@ Aucune correction de logique applicative ou migration n'a été appliquée penda
 
 ## 59. Crédit Marketplace + crédit direct Caisse — correctifs intégrés et recette Replay (15/11/2026)
 
-**Tête applicative contrôlée avant cette mise à jour documentaire :** e67d06631046871abd159cf4ea787d070e7c6d18 sur main. **Replay uniquement :** pwfftcsjyeibxxqhwysw. Aucune migration Production, aucun déploiement Vercel, aucun déploiement Play Store.
+**Tête applicative contrôlée avant cette mise à jour documentaire :** 43b09e5559633fefdc4a8853afdab435035c9fa4 sur main. **Replay uniquement :** pwfftcsjyeibxxqhwysw. Aucune migration Production, aucun déploiement Vercel, aucun déploiement Play Store.
 
 ### Correctifs intégrés
 
@@ -2416,6 +2416,8 @@ Aucune correction de logique applicative ou migration n'a été appliquée penda
 2. **Configuration Promoteur :** l'espace Promoteur permet de créer/modifier le plafond d'un Client et de configurer le plafond maximal délégué à un Responsable, par pharmacie. Les RPC revérifient le Promoteur valide, le lien réseau, le compte Client/Responsable actif et l'affectation Responsable.
 3. **Décision Promoteur / Responsable :** les deux listes couvrent origine='marketplace' et origine='caisse'. Le moteur serveur refuse une approbation Responsable sans privilège actif ou au-delà du plafond délégué ; l'interface Responsable calcule le droit pour chaque demande et son montant.
 4. **Retrait Marketplace :** correction de la séquence POS : la vente est marquée stock_decremented_at_draft=true avant le passage à payee, après que le RPC de retrait a géré le débit ou réutilisé le débit d'approbation. Le trigger générique POS ne tente plus de débiter une seconde fois.
+- **Suivi Client :** `/achats/credit/suivi` expose désormais les comptes de crédit et leurs soldes/plafonds, toutes les demandes `marketplace` et `caisse`, le journal des opérations d'octroi et de remboursement, et les reçus. Commit `16398379e3b8fb06c2a38e34d26382ffb90ec8f9`.
+
 5. **Comptabilité :** une vente en mode credit n'est pas émise comme encaissement vente_encaissee. Les opérations nature='credit' créent un événement d'outbox credit_octroi idempotent. Le worker conserve ses types Assurance/annulation et accepte aussi credit_octroi et credit_remboursement. L'émetteur de remboursement déjà présent reste lié à l'outbox et au worker.
 
 ### Migrations Replay appliquées
@@ -2451,7 +2453,9 @@ Tous les scénarios E2E SQL ci-dessus sont annulés par ROLLBACK.
 ### GitHub Actions lancées
 
 - [NAXA quality — run 3321](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589972), commit e67d066 : **SUCCESS**. Node : **511/511 PASS, 0 FAIL** (tests rejoués aussi pendant le prebuild) ; TypeScript : PASS ; ESLint : PASS ; build Next.js/Serwist : PASS ; actionlint sur les workflows actifs : PASS. Le run 3319 précédent sur c277bff avait détecté le narrowing de panier_items dans les écrans Promoteur/Responsable ; les deux erreurs ont été corrigées avant ce run réussi.
-- [NAXA Replay Promoteur E2E — run 124](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589933), commit e67d066 : **en cours au contrôle**. Le run précédent 122 sur c277bff a échoué au build sur les mêmes erreurs TypeScript antérieures à la correction. Le run 124 est la reprise sur le commit corrigé ; il a déjà franchi le préflight Replay et les préparations Promoteur, Admin, Client/Livreur, Gestionnaire Stock, Caisse et Responsable, puis installait Chromium.
+- [NAXA quality — run 3325](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760955745), commit 43b09e5 : **en cours au contrôle**, après l'ajout du solde/journal au suivi Client. Le job actionlint a déjà PASS ; attendre tests/TypeScript/lint/build avant verdict sur cette tête.
+- [NAXA Replay Promoteur E2E — run 124](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589933), commit e67d066 : **SUCCESS**. Préparation des comptes et affectations Promoteur/Admin/Client/Livreur/Gestionnaire Stock/Caisse/Responsable : PASS. Web Push : **3 envois ciblés et 3 notifications constatées dans le Service Worker Chromium** (preuve navigateur, pas FCM Android physique). Storage E2E : **17 PASS, 0 SKIP**, y compris matrices Admin et Promoteur. Nettoyage : objets, sessions, comptes temporaires et fichiers secrets éphémères nettoyés avec `CLEANUP PASS`.
+- [NAXA Replay Promoteur E2E — run 125](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760955655), commit 43b09e5 : **en cours au contrôle** pour retester la tête qui contient aussi la nouvelle page Suivi Client. Préflight, profils et affectations jusqu'au Responsable : PASS ; Chromium en cours.
 - Le workflow Replay est désormais déclenché par les chemins du chantier crédit/prêt (écrans Caisse/Promoteur/Responsable, migrations et tests crédit) ainsi que par les changements du workflow lui-même.
 
 ### Réserves encore ouvertes — pas de feu vert global
