@@ -15,8 +15,8 @@ test("provisionnement d'équipe strictement épinglé à Replay", () => {
     assertReplayUrl("https://pwfftcsjyeibxxqhwysw.supabase.co"),
     "https://pwfftcsjyeibxxqhwysw.supabase.co"
   );
-  assert.throws(() => assertReplayUrl("https://eouwtuusnsuxaejsxknf.supabase.co"), /limité au projet Replay/);
-  assert.throws(() => assertReplayUrl("https://pwfftcsjyeibxxqhwysw.supabase.co.evil.invalid"), /limité au projet Replay/);
+  assert.throws(() => assertReplayUrl("https://eouwtuusnsuxaejsxknf.supabase.co"), /limitées au projet Replay/);
+  assert.throws(() => assertReplayUrl("https://pwfftcsjyeibxxqhwysw.supabase.co.evil.invalid"), /limitées au projet Replay/);
 });
 
 test("les trois identités métier sont distinctes et le profil racine reste Client", () => {
@@ -84,7 +84,7 @@ test("refuse une identité Auth ou un profil non conforme", () => {
     last_name: persona.lastName, phone: persona.phone, date_of_birth: "1990-01-01",
   };
   assert.throws(() => assertFixture(user, profile, { ...persona, email: "other@example.invalid" }), /Adresse Auth inattendue/);
-  assert.throws(() => assertFixture(user, { ...profile, role: "promoteur" }, persona), /rôle racine Client/);
+  assert.throws(() => assertFixture(user, { ...profile, role: "promoteur" }, persona), /Profil racine Client incomplet/);
   assert.throws(() => assertFixture(user, { ...profile, age_verified: false }, persona), /Profil racine Client incomplet/);
   assert.throws(() => assertFixture({ ...user, email_confirmed_at: null }, profile, persona), /Adresse non confirmée/);
 });
