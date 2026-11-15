@@ -202,7 +202,6 @@ export function Recherche({ langue, mode = "recherche" }: { langue: "fr" | "en";
                   partnerPharmacyCount: null,
                   lowestPartnerPrice: null,
                   localProductId: null,
-                  localInformationValidated: false,
                   localInformationSource: null,
                   cameroonRegulatoryStatus: "a_verifier",
                   cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php"
