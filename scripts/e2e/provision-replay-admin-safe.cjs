@@ -78,22 +78,21 @@ async function provision(env = process.env) {
     return data;
   }
 
-  // Locate, then validate both Auth and profile state before changing a credential.
-  const listed = await api("/auth/v1/admin/users?page=1&per_page=1000");
-  const users = Array.isArray(listed && listed.users) ? listed.users : [];
-  const matches = users.filter(x => String(x.email || "").trim().toLowerCase() === EMAIL);
-  if (matches.length !== 1) {
-    throw new Error("Une seule fixture Auth Admin exactement est requise ; aucune création automatique.");
-  }
-  const user = matches[0];
-
+  // Locate the unique, already-active fixture profile first, then fetch its
+  // Auth identity directly by ID. Avoid relying on paginated Auth user listing.
   const profiles = await api(
-    "/rest/v1/profiles?select=id,role,actif&id=eq." + encodeURIComponent(user.id) + "&limit=2"
+    "/rest/v1/profiles?select=id,username,role,actif"
+      + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2"
   );
-  if (!Array.isArray(profiles) || profiles.length !== 1) {
-    throw new Error("Le profil lié à la fixture Admin doit exister exactement une fois.");
+  if (!Array.isArray(profiles) || profiles.length !== 1 || !profiles[0].id) {
+    throw new Error("Le profil unique de la fixture Admin active est introuvable ; aucune création automatique.");
   }
-  assertAdminFixture(user, profiles[0]);
+  const profile = profiles[0];
+  const authResult = await api(
+    "/auth/v1/admin/users/" + encodeURIComponent(profile.id)
+  );
+  const user = authResult && authResult.user ? authResult.user : authResult;
+  assertAdminFixture(user, profile);
 
   const password = generateEphemeralPassword();
   const passwordFile = env.RUNNER_TEMP + "/naxa-e2e-admin-" + randomBytes(8).toString("hex") + ".secret";
@@ -108,18 +107,24 @@ async function provision(env = process.env) {
   // Update ONLY the password of the exact, already validated test fixture.
   await api("/auth/v1/admin/users/" + encodeURIComponent(user.id), "PUT", { password });
 
-  // Re-read authorization state to prove no role/profile mutation took place.
-  const verifiedUsers = await api("/auth/v1/admin/users?page=1&per_page=1000");
-  const verified = (verifiedUsers.users || []).filter(
-    x => String(x.email || "").trim().toLowerCase() === EMAIL
+  // Re-read the same Auth identity and profile after the password rotation.
+  const verifiedAuthResult = await api(
+    "/auth/v1/admin/users/" + encodeURIComponent(user.id)
   );
+  const verifiedUser = verifiedAuthResult && verifiedAuthResult.user
+    ? verifiedAuthResult.user
+    : verifiedAuthResult;
   const verifiedProfiles = await api(
-    "/rest/v1/profiles?select=id,role,actif&id=eq." + encodeURIComponent(user.id) + "&limit=2"
+    "/rest/v1/profiles?select=id,username,role,actif"
+      + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2"
   );
-  if (verified.length !== 1 || verifiedProfiles?.length !== 1) {
-    throw new Error("La fixture Admin n'est plus unique après la rotation du secret.");
+  if (
+    !Array.isArray(verifiedProfiles) || verifiedProfiles.length !== 1
+    || verifiedProfiles[0].id !== user.id
+  ) {
+    throw new Error("Le profil Admin n'est plus unique après la rotation du secret.");
   }
-  assertAdminFixture(verified[0], verifiedProfiles[0]);
+  assertAdminFixture(verifiedUser, verifiedProfiles[0]);
 
   process.stdout.write("PASS — fixture Admin E2E existante validée sur Replay ; seul son mot de passe de test est renouvelé.\n");
   process.stdout.write("PASS — profil Admin actif, confirmé et inchangé. Mot de passe éphémère conservé hors logs.\n");
