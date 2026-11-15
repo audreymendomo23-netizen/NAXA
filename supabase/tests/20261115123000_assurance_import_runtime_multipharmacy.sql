@@ -22,6 +22,8 @@ declare
   v_reservation_allowed uuid;
   v_reservation_other uuid;
   v_reservation_stale uuid;
+  v_reservation_suspended uuid;
+  v_reservation_reactivated uuid;
 begin
   select p.id into v_responsable
   from public.profiles p
@@ -126,16 +128,31 @@ begin
     v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false
   ) returning id into v_reservation_stale;
 
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,mode,paiement_statut,stock_decremented
+  ) values (
+    v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false
+  ) returning id into v_reservation_suspended;
 
-  if v_reservation_allowed is null or v_reservation_stale is null or v_reservation_other is null then
-    raise exception 'Les trois réservations de recette ne sont pas disponibles';
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,mode,paiement_statut,stock_decremented
+  ) values (
+    v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false
+  ) returning id into v_reservation_reactivated;
+
+  if v_reservation_allowed is null or v_reservation_stale is null
+     or v_reservation_other is null or v_reservation_suspended is null
+     or v_reservation_reactivated is null then
+    raise exception 'Les réservations de recette ne sont pas disponibles';
   end if;
 
   insert into public.reservation_items(reservation_id,produit_id,quantite,prix_unitaire)
   values
     (v_reservation_allowed,v_product,1,10000),
     (v_reservation_other,v_product,1,10000),
-    (v_reservation_stale,v_product,1,10000);
+    (v_reservation_stale,v_product,1,10000),
+    (v_reservation_suspended,v_product,1,10000),
+    (v_reservation_reactivated,v_product,1,10000);
 
   perform set_config('naxa.test.roster.responsable',v_responsable::text,true);
   perform set_config('naxa.test.roster.client',v_client::text,true);
@@ -145,6 +162,8 @@ begin
   perform set_config('naxa.test.roster.reservation_allowed',v_reservation_allowed::text,true);
   perform set_config('naxa.test.roster.reservation_other',v_reservation_other::text,true);
   perform set_config('naxa.test.roster.reservation_stale',v_reservation_stale::text,true);
+  perform set_config('naxa.test.roster.reservation_suspended',v_reservation_suspended::text,true);
+  perform set_config('naxa.test.roster.reservation_reactivated',v_reservation_reactivated::text,true);
 
   insert into pg_temp.naxa_assurance_import_runtime_results
   values (
@@ -153,7 +172,7 @@ begin
     jsonb_build_object(
       'responsable_scope',true,
       'pharmacy_noncommercial_hidden',true,
-      'reservations_created',3,
+      'reservations_created',5,
       'stock_decremented',false,
       'product_is_existing_test_fixture',true
     )
@@ -172,6 +191,7 @@ select set_config('request.jwt.claim.role','authenticated',true);
 do $client_declaration$
 declare
   v_coverage uuid;
+  v_coverage_second uuid;
   v_client uuid:=current_setting('naxa.test.roster.client')::uuid;
   v_insurer uuid:=current_setting('naxa.test.roster.insurer')::uuid;
 begin
@@ -179,6 +199,16 @@ begin
     v_insurer,
     'NAXA-E2E-ROSTER-RUNTIME',
     'NAXA-E2E-ROSTER-POLICY',
+    current_date,
+    current_date+30,
+    null,
+    100
+  );
+
+  v_coverage_second:=public.assurance_enregistrer_couverture(
+    v_insurer,
+    'NAXA-E2E-ROSTER-RUNTIME-B',
+    'NAXA-E2E-ROSTER-POLICY-B',
     current_date,
     current_date+30,
     null,
@@ -193,6 +223,7 @@ begin
   end if;
 
   perform set_config('naxa.test.roster.coverage',v_coverage::text,true);
+  perform set_config('naxa.test.roster.coverage_second',v_coverage_second::text,true);
   insert into pg_temp.naxa_assurance_import_runtime_results
   values (
     'Déclaration Client distincte de la vérification assureur',
@@ -304,6 +335,208 @@ begin
   );
 end
 $responsable_import$;
+
+-- Une liste Delta ne remplace pas les adhérents absents du fichier.
+do $responsable_delta$
+declare
+  v_pharmacy uuid:=current_setting('naxa.test.roster.pharmacy')::uuid;
+  v_insurer uuid:=current_setting('naxa.test.roster.insurer')::uuid;
+  v_coverage uuid:=current_setting('naxa.test.roster.coverage')::uuid;
+  v_second uuid:=current_setting('naxa.test.roster.coverage_second')::uuid;
+  v_full_import uuid:=current_setting('naxa.test.roster.import_id')::uuid;
+  v_sim jsonb; v_applied jsonb; v_delta_import uuid;
+  v_first_preserved integer; v_second_verified integer;
+  v_suspended_sim jsonb; v_suspended_applied jsonb; v_suspended_import uuid;
+  v_latest_status text;
+begin
+  v_sim:=public.assurance_import_simuler_mode(
+    v_pharmacy,v_insurer,'NAXA-E2E-ROSTER-DELTA-B',
+    'naxa-e2e-roster-delta-b.csv',
+    md5(gen_random_uuid()::text)||md5(gen_random_uuid()::text),
+    jsonb_build_array(jsonb_build_object(
+      'numero_adherent','NAXA-E2E-ROSTER-RUNTIME-B',
+      'numero_police','NAXA-E2E-ROSTER-POLICY-B',
+      'beneficiaire_nom',null,
+      'date_debut',current_date::text,
+      'date_fin',(current_date+30)::text,
+      'statut','actif'
+    )),
+    'delta'
+  );
+  v_delta_import:=(v_sim->>'import_id')::uuid;
+  if v_sim->>'mode_import'<>'delta'
+     or (v_sim->>'correspondances')::integer<>1
+     or (v_sim->>'invalides')::integer<>0
+     or (v_sim->>'ambiguite')::integer<>0
+     or (v_sim->>'doublons')::integer<>0 then
+    raise exception 'Simulation Delta du second adhérent incorrecte : %',v_sim;
+  end if;
+  v_applied:=public.assurance_import_appliquer(v_delta_import);
+  if v_applied->>'statut'<>'appliquee'
+     or (v_applied->>'couvertures_appliquees')::integer<>1 then
+    raise exception 'Application Delta du second adhérent incorrecte : %',v_applied;
+  end if;
+
+  select count(*) into v_first_preserved
+  from public.assurance_couverture_verifications v
+  where v.couverture_id=v_coverage
+    and v.pharmacie_id=v_pharmacy
+    and v.import_id=v_full_import
+    and v.statut='verifiee';
+
+  select count(*) into v_second_verified
+  from public.assurance_couverture_verifications v
+  where v.couverture_id=v_second
+    and v.pharmacie_id=v_pharmacy
+    and v.import_id=v_delta_import
+    and v.statut='verifiee';
+
+  if v_first_preserved<>1 or v_second_verified<>1 then
+    raise exception 'Le Delta a remplacé ou omis une autre couverture : initial %, second %',
+      v_first_preserved,v_second_verified;
+  end if;
+
+  v_suspended_sim:=public.assurance_import_simuler_mode(
+    v_pharmacy,v_insurer,'NAXA-E2E-ROSTER-DELTA-SUSPEND',
+    'naxa-e2e-roster-delta-suspend.csv',
+    md5(gen_random_uuid()::text)||md5(gen_random_uuid()::text),
+    jsonb_build_array(jsonb_build_object(
+      'numero_adherent','NAXA-E2E-ROSTER-RUNTIME',
+      'numero_police','NAXA-E2E-ROSTER-POLICY',
+      'beneficiaire_nom',null,
+      'date_debut',current_date::text,
+      'date_fin',(current_date+30)::text,
+      'statut','suspendu'
+    )),
+    'delta'
+  );
+  v_suspended_import:=(v_suspended_sim->>'import_id')::uuid;
+  v_suspended_applied:=public.assurance_import_appliquer(v_suspended_import);
+  if v_suspended_applied->>'statut'<>'appliquee'
+     or (v_suspended_applied->>'suspendues')::integer<>1 then
+    raise exception 'La suspension Delta n''a pas été appliquée : %',v_suspended_applied;
+  end if;
+
+  select v.statut into v_latest_status
+  from public.assurance_couverture_verifications v
+  where v.couverture_id=v_coverage and v.pharmacie_id=v_pharmacy
+  order by v.verification_le desc,v.id desc
+  limit 1;
+  if v_latest_status<>'suspendue' then
+    raise exception 'La dernière vérification doit être suspendue, statut reçu %',v_latest_status;
+  end if;
+
+  perform set_config('naxa.test.roster.delta_import',v_delta_import::text,true);
+  perform set_config('naxa.test.roster.suspended_import',v_suspended_import::text,true);
+  insert into pg_temp.naxa_assurance_import_runtime_results
+  values (
+    'Mode Delta : conservation des autres adhérents et suspension versionnée',
+    'PASS',
+    jsonb_build_object(
+      'mode','delta',
+      'first_full_list_verification_preserved',v_first_preserved,
+      'second_member_verified',v_second_verified,
+      'latest_status_after_suspension',v_latest_status,
+      'unmentioned_members_preserved',true
+    )
+  );
+end
+$responsable_delta$;
+
+-- Le Client ne doit plus obtenir de devis lorsque le dernier delta suspend son adhésion.
+select set_config('request.jwt.claims',
+  jsonb_build_object('role','authenticated','sub',current_setting('naxa.test.roster.client'))::text,true);
+select set_config('request.jwt.claim.sub',current_setting('naxa.test.roster.client'),true);
+select set_config('request.jwt.claim.role','authenticated',true);
+
+do $client_suspended_quote$
+declare
+  v_coverage uuid:=current_setting('naxa.test.roster.coverage')::uuid;
+  v_reservation uuid:=current_setting('naxa.test.roster.reservation_suspended')::uuid;
+  v_blocked boolean:=false;
+begin
+  begin
+    perform public.assurance_calculer_devis(v_reservation,v_coverage);
+  exception when others then
+    if position(
+      'Couverture non retrouvée dans une liste assureur importée pour cette pharmacie'
+      in sqlerrm
+    )>0 then
+      v_blocked:=true;
+    else
+      raise;
+    end if;
+  end;
+  if not v_blocked then
+    raise exception 'Une couverture suspendue par Delta a produit un devis';
+  end if;
+  insert into pg_temp.naxa_assurance_import_runtime_results
+  values (
+    'Client : un Delta de suspension bloque le devis',
+    'PASS',
+    jsonb_build_object('suspended_membership_blocked',v_blocked)
+  );
+end
+$client_suspended_quote$;
+
+-- Un Delta ultérieur actif rétablit uniquement l'adhésion nommée.
+select set_config('request.jwt.claims',
+  jsonb_build_object('role','authenticated','sub',current_setting('naxa.test.roster.responsable'))::text,true);
+select set_config('request.jwt.claim.sub',current_setting('naxa.test.roster.responsable'),true);
+select set_config('request.jwt.claim.role','authenticated',true);
+
+do $responsable_delta_reactivation$
+declare
+  v_pharmacy uuid:=current_setting('naxa.test.roster.pharmacy')::uuid;
+  v_insurer uuid:=current_setting('naxa.test.roster.insurer')::uuid;
+  v_coverage uuid:=current_setting('naxa.test.roster.coverage')::uuid;
+  v_second uuid:=current_setting('naxa.test.roster.coverage_second')::uuid;
+  v_sim jsonb; v_applied jsonb; v_import uuid;
+  v_latest text; v_second_still_verified integer;
+begin
+  v_sim:=public.assurance_import_simuler_mode(
+    v_pharmacy,v_insurer,'NAXA-E2E-ROSTER-DELTA-REACTIVATE',
+    'naxa-e2e-roster-delta-reactivate.csv',
+    md5(gen_random_uuid()::text)||md5(gen_random_uuid()::text),
+    jsonb_build_array(jsonb_build_object(
+      'numero_adherent','NAXA-E2E-ROSTER-RUNTIME',
+      'numero_police','NAXA-E2E-ROSTER-POLICY',
+      'beneficiaire_nom',null,
+      'date_debut',current_date::text,
+      'date_fin',(current_date+30)::text,
+      'statut','actif'
+    )),
+    'delta'
+  );
+  v_import:=(v_sim->>'import_id')::uuid;
+  v_applied:=public.assurance_import_appliquer(v_import);
+  if v_applied->>'statut'<>'appliquee'
+     or (v_applied->>'couvertures_appliquees')::integer<>1 then
+    raise exception 'Réactivation Delta non appliquée : %',v_applied;
+  end if;
+
+  select v.statut into v_latest
+  from public.assurance_couverture_verifications v
+  where v.couverture_id=v_coverage and v.pharmacie_id=v_pharmacy
+  order by v.verification_le desc,v.id desc
+  limit 1;
+  select count(*) into v_second_still_verified
+  from public.assurance_couverture_verifications v
+  where v.couverture_id=v_second and v.pharmacie_id=v_pharmacy
+    and v.statut='verifiee';
+
+  if v_latest<>'verifiee' or v_second_still_verified<1 then
+    raise exception 'Réactivation Delta ou préservation de l''autre adhérent incorrecte';
+  end if;
+
+  insert into pg_temp.naxa_assurance_import_runtime_results
+  values (
+    'Delta actif : réactivation de l''adhérent nommé sans remplacer les autres',
+    'PASS',
+    jsonb_build_object('latest_status',v_latest,'other_membership_verifications_preserved',v_second_still_verified)
+  );
+end
+$responsable_delta_reactivation$;
 
 -- Le Client calcule le devis uniquement dans la pharmacie dont la liste est vérifiée.
 select set_config('request.jwt.claims',
