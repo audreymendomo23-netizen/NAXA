@@ -23,13 +23,13 @@ begin
     raise exception 'FAIL: caisse_session_id sans clé étrangère';
   end if;
 
-  if to_regprocedure('public.client_credit_rembourser(uuid,integer,text,text)') is null then
+  if to_regprocedure('public.client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text)') is null then
     raise exception 'FAIL: RPC de remboursement absente';
   end if;
 
   if not exists (
     select 1 from pg_proc p
-    where p.oid='public.client_credit_rembourser(uuid,integer,text,text)'::regprocedure
+    where p.oid='public.client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text)'::regprocedure
       and pg_get_functiondef(p.oid) ilike '%Ouvrez votre session de caisse%'
       and pg_get_functiondef(p.oid) ilike '%caisse_session_id%'
       and pg_get_functiondef(p.oid) ilike '%s.ouvert_par=auth.uid()%'
