@@ -17,6 +17,8 @@ const ACCOUNTING_EVENTS = [
   { value: "vente_annulee", label: "Annulation de vente" },
   { value: "assurance_prise_en_charge", label: "Prise en charge Assurance" },
   { value: "assurance_remboursement_recu", label: "Remboursement Assurance reçu" },
+  { value: "credit_octroi", label: "Octroi de crédit client" },
+  { value: "credit_remboursement", label: "Remboursement de crédit client" },
 ] as const;
 const MAPPING_EVENTS = ACCOUNTING_EVENTS.filter(item => item.value !== "vente_annulee");
 

@@ -115,9 +115,36 @@ async function run(env = process.env) {
   }
 
   async function pageLogin(page, username, password, espace, retour) {
-    await page.goto(webBase + "/connexion?espace=" + espace + "&retour=" + encodeURIComponent(retour), {
+    // Le middleware protège aussi /connexion par la déclaration d’âge.
+    // Le compte est provisionné majeur ; on reproduit les deux marqueurs de cette déclaration
+    // dans ce contexte de navigateur isolé, sans désactiver les contrôles applicatifs.
+    await page.context().addCookies([{
+      name: "naxa-age-status-v2",
+      value: "adult",
+      url: webBase + "/",
+      sameSite: "Lax",
+    }]);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("naxa-age-declaration-v1", JSON.stringify({
+        confirmed: true,
+        at: Date.now(),
+      }));
+    });
+    const response = await page.goto(webBase + "/connexion?espace=" + espace + "&retour=" + encodeURIComponent(retour), {
       waitUntil: "domcontentloaded",
     });
+    try {
+      await page.locator("#username").waitFor({ state: "visible", timeout: 30000 });
+    } catch {
+      const diagnostic = await page.evaluate(() => ({
+        url: window.location.href,
+        title: document.title,
+        body: document.body?.innerText?.slice(0, 500) || "",
+      })).catch(() => ({ url: page.url(), title: "", body: "" }));
+      throw new Error("Formulaire de connexion absent après contrôle d’âge (HTTP "
+        + (response?.status() ?? "inconnu") + ", URL " + diagnostic.url
+        + ", titre " + diagnostic.title + ", contenu " + diagnostic.body + ").");
+    }
     await page.locator("#username").fill(username);
     await page.locator("#password").fill(password);
     await page.getByRole("button", { name: "Connexion", exact: true }).click();

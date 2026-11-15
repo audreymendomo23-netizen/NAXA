@@ -39,3 +39,9 @@ test("la pharmacie de recette reste active et masquée au catalogue public", () 
   assert.match(source, /archivee_le !== null/);
   assert.match(source, /aucun produit\/offre public n'est créé/i);
 });
+
+test("la recette navigateur respecte les deux preuves locales de déclaration d’âge", () => {
+  assert.match(source, /naxa-age-status-v2/);
+  assert.match(source, /naxa-age-declaration-v1/);
+  assert.match(source, /waitFor\(\{ state: "visible", timeout: 30000 \}\)/);
+});
