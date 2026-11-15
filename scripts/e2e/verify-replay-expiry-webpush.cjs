@@ -218,7 +218,7 @@ async function run(env = process.env) {
     }
 
     for (const identity of identities) {
-      // A non-persistent browser.newContext() is off-the-record in Chromium.
+      // A non-persistent off-the-record context is denied Push subscriptions by Chromium.
       // Push subscriptions are denied in that profile mode even when Notifications
       // permission is granted. Give each test identity its own persistent temp profile.
       const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-webpush-profile-"));
