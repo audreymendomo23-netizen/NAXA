@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§53)  
+**Dernière mise à jour :** 15 novembre 2026 (§57)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Constat ancien du §48 : aucune pharmacie de recette non-démo ni Responsable affecté n'était alors présent. Le contrôle actuel §53 utilise désormais une pharmacie de recette non commerciale active mais masquée et un Responsable déjà affecté ; aucune pharmacie non-démo n'est visible publiquement. Aucun état artificiel n'a été créé.  §49 : contrôle de reprise documentaire après §48. Le commit de tête antérieur 7afded8ab6c0e453c48f38ad82205e2ffb0fe2b9 ne change que la mise en forme d'une section catalogue ; §48 reste intact. À la date du §49, aucun essai CI, appareil push, Responsable ou pharmacie non-démo n'avait encore été utilisé ; le §53 actualise depuis les fixtures de recette backend, sans rendre la pharmacie publique ni ajouter d'appareil push. §50 : RLS des fiches propriétaires limitée au scope pharmacie ; fiche hors périmètre masquée, Admin en lecture et références historiques partagées conservées. SQL + runtime PASS, transaction annulée. §53 : devis Assurance désormais corrélé à la couverture et à la pharmacie vérifiées ; horodatages clock_timestamp() ; import complet de recette par Responsable, devis 10 000 FCFA (6 000/4 000), refus hors pharmacie et invalidation après correction — 5 groupes runtime PASS, rollback et zéro fixture persistante. Le CI sur la dernière tête reste non confirmé.
+**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. CI qualité Node/TypeScript/ESLint/build et actionlint : PASS sur `86ac0c92e2a0b61857059fb08dc9f16c0a1f43e3` (§57). Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Constat ancien du §48 : aucune pharmacie de recette non-démo ni Responsable affecté n'était alors présent. Le contrôle actuel §53 utilise désormais une pharmacie de recette non commerciale active mais masquée et un Responsable déjà affecté ; aucune pharmacie non-démo n'est visible publiquement. Aucun état artificiel n'a été créé.  §49 : contrôle de reprise documentaire après §48. Le commit de tête antérieur 7afded8ab6c0e453c48f38ad82205e2ffb0fe2b9 ne change que la mise en forme d'une section catalogue ; §48 reste intact. À la date du §49, aucun essai CI, appareil push, Responsable ou pharmacie non-démo n'avait encore été utilisé ; le §53 actualise depuis les fixtures de recette backend, sans rendre la pharmacie publique ni ajouter d'appareil push. §50 : RLS des fiches propriétaires limitée au scope pharmacie ; fiche hors périmètre masquée, Admin en lecture et références historiques partagées conservées. SQL + runtime PASS, transaction annulée. §53 : devis Assurance désormais corrélé à la couverture et à la pharmacie vérifiées ; horodatages clock_timestamp() ; import complet de recette par Responsable, devis 10 000 FCFA (6 000/4 000), refus hors pharmacie et invalidation après correction — 5 groupes runtime PASS, rollback et zéro fixture persistante. La CI qualité sur la tête contrôlée `86ac0c9` est confirmée PASS par le run `43725341495` (§57).
 Production et Vercel inchangés.
 
 
@@ -2261,3 +2261,43 @@ Restent hors de portée d'une fixture synthétique :
 4. workflow qualité GitHub sur le commit final de cette documentation (actionlint déjà PASS ; Node/TypeScript/lint/build en cours).
 
 **État §56 : PARTIEL — PAS AU VERT GLOBAL.** Les défauts de code du parcours Assurance et l'intégration du worker comptable sont corrigés et testés. Les preuves externes/commerce réel et la validation CI finale restent à obtenir. Production et Vercel inchangés.
+
+
+## 57. Secrets Replay stricts, Web Push Chromium et qualité applicative — PASS partiel (15/11/2026)
+
+### Cause de sécurité corrigée
+
+Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` pouvait auparavant se rabattre sur des secrets Supabase génériques si les secrets dédiés Replay n'étaient pas présents. Un contrôle d'URL Replay ne suffisait pas à démontrer que la clé Admin venait du même projet.
+
+**Corrections sur `main` :**
+- `ae38fb7aa54c62293081789ea2eafcc6d213b50e` : suppression des replis génériques ; URL, clé anonyme et clé Admin exigent exclusivement `NAXA_STORAGE_E2E_URL`, `NAXA_STORAGE_E2E_ANON_KEY` et `NAXA_STORAGE_E2E_ADMIN_KEY`. Le préflight vérifie les trois valeurs et refuse toute URL autre que `https://pwfftcsjyeibxxqhwysw.supabase.co`. Le serveur local mappe uniquement la clé Admin Replay vers `SUPABASE_SECRET_KEY` et la masque dans les logs.
+- `86ac0c92e2a0b61857059fb08dc9f16c0a1f43e3` : le test statique vérifie littéralement l'absence des références aux secrets génériques et protège le contrat de mapping Replay.
+
+Aucune valeur de secret n'est écrite dans Git ou dans ce document.
+
+### Qualité CI sur la tête contrôlée
+
+Run [NAXA quality — 43725341495](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43725341495), commit `86ac0c92e2a0b61857059fb08dc9f16c0a1f43e3` : **SUCCESS**.
+- Tests Node : **504 PASS, 0 FAIL, 0 SKIP** ; les tests ont également été rejoués pendant le `prebuild` avec le même résultat.
+- TypeScript : PASS ; ESLint : PASS ; build Next.js sous Node 22 : PASS.
+- `actionlint` sur tous les workflows actifs : PASS.
+
+Deux avertissements non bloquants restent visibles au build : le module ESM `serwist.config.js` n'a pas de type déclaré dans `package.json`, et Next.js 16 annonce la dépréciation future du support React 18. Ils ne bloquent ni la suite ni le build ; aucune migration React majeure n'est introduite dans cette clôture.
+
+### Recette E2E Replay complémentaire
+
+Run [NAXA Replay Promoteur E2E — 43724897870](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43724897870), commit `6bb4db0d4aa567a921838324aeb64469cce2ff08` : **SUCCESS**.
+- Dispatcher J-3 : Promoteur, Gestionnaire Stock et Responsable ; trois souscriptions authentifiées créées par Chromium.
+- Worker NAXA : **3 envois Web Push ciblés** et **3 notifications constatées dans le Service Worker Chromium**. Cela prouve une réception navigateur, pas une réception FCM sur un téléphone Android physique.
+- Storage E2E : **17 PASS, 0 SKIP**, matrices Admin et Promoteur incluses.
+- Nettoyage Storage : objets, sessions de test, comptes temporaires et fichiers de mots de passe éphémères nettoyés avec traces `CLEANUP PASS`.
+
+Le workflow relancé avec les secrets Replay strictement dédiés, run [43725341532](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43725341532) sur `86ac0c9`, est encore en cours au moment de cette mise à jour ; ne pas le compter PASS avant sa conclusion.
+
+### Verrous métier toujours ouverts
+
+1. **Assureur :** recevoir un export authentique expurgé pour confirmer ses en-têtes/alias propriétaires et son canal de provenance. Le SHA-256 prouve l'intégrité, pas l'identité de l'émetteur.
+2. **Recette commerciale :** parcourir les écrans Client → Assurance → Caisse/ticket avec les vrais comptes métier et une pharmacie non-démo explicitement autorisée. Les tests backend et les fixtures Replay ne remplacent pas cette validation.
+3. **Comptabilité réelle :** le Promoteur ou le Comptable de la pharmacie doit valider son plan, ses mappings, ses paramètres, ses journaux et sa période. Aucun paramétrage comptable réel n'est inventé.
+
+**Verdict : PARTIEL — PAS AU VERT GLOBAL.** Le parcours backend Assurance → Marketplace → Caisse → ticket → remboursements → worker comptable est PASS sur Replay (§56) ; la qualité applicative et la validation de tous les workflows sont PASS sur `86ac0c9`. Le workflow Replay strict est encore en cours et les trois validations métier externes restent ouvertes. Production et Vercel inchangés.
