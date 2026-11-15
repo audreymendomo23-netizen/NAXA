@@ -1023,3 +1023,54 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 2. Finaliser un harnais Livreur avec fermeture locale sûre de session ; exécuter ses tests unitaires sur CI.
 3. Construire une réservation Replay correctement contrôlée/nettoyable, puis prouver le flux Stock prêt → paiement réellement validé → mission disponible → acceptation Livreur → retrait → arrivée → confirmation Livreur + Client → clôture.
 4. Après cette recette, poursuivre les autres profils professionnels et les validations appareil réel.
+
+
+## 36. Suppression de toute commission NAXA sur la livraison — Replay (15/11/2026)
+
+**Contradiction métier et cause racine :**
+- L'audit de `private.naxa_delivery_finalize_if_confirmed(uuid)` a révélé une retenue fixe de 500 FCFA par livraison finalisée, enregistrée dans `naxa_delivery_commission_ledger`.
+- `naxa_delivery_monthly_due(date)` ajoutait les commissions non réglées au montant mensuel de l'abonnement ; un trigger sur `abonnement_paiements` marquait ces commissions comme réglées lors des paiements d'abonnement.
+- Les écrans Admin et Promoteur affichaient ces commissions, alors que la règle économique NAXA applicable est **zéro commission marketplace et zéro commission de livraison**. Le document du 07/11 avait une règle historique à 500 FCFA ; elle est explicitement supersédée en §7 de `docs/DECISION_TARIFICATION_LIVRAISON_2026-11-07.md`.
+- Contrôle avant migration Replay : le registre contenait **0 ligne et 0 FCFA**. Aucune donnée financière historique n'a donc été réécrite ; la migration échoue volontairement si des lignes non nulles sont présentes dans un environnement futur.
+
+**Décision fonctionnelle retenue :**
+- Le devis Client, le barème progressif et les suppléments géographiques restent inchangés.
+- La totalité des frais acquittés par le Client est affectée au service de livraison : `commission_naxa=0` et `solde_livraison=frais_livraison_client`.
+- Aucun montant de livraison n'est ajouté à l'abonnement mensuel de la pharmacie ; seul l'abonnement de base demeure dû.
+- La clôture métier reste bloquée tant que le paiement n'est pas confirmé et que les deux confirmations Client + Livreur ne sont pas présentes.
+- Les écrans Admin/Promoteur présentent désormais les frais Clients et le montant intégral affecté au service ; aucune commission n'est affichée.
+
+**Migrations Replay appliquées :**
+- `delivery_no_naxa_commission_policy`, version Replay `20261115061637` — migration source `supabase/migrations/20261115130000_delivery_no_naxa_commission_policy.sql`, commit `b5a9bc7aee3ee02d7c48772fc59a2699fc39bf4f`.
+- `delivery_fees_report_qualified_pharmacy_alias`, version Replay `20261115062204` — corrige le nom de colonne ambigu `ville` dans le rapport Admin/Promoteur ; migration source `supabase/migrations/20261115133000_delivery_fees_report_qualified_pharmacy_alias.sql`, commit `306963b9a0b132e59bf2a2a80c1dc826554735a3`.
+- La première exécution du nouveau rapport a révélé l'ambiguïté entre `l.ville` du registre et `ph.ville` ; le CTE du rapport utilise maintenant des alias explicites pour la pharmacie, tout en gardant les clés JSON `nom` et `ville` attendues par l'interface.
+
+**Correctifs versionnés sur main :**
+- `src/lib/delivery-pricing.ts` : `COMMISSION_NAXA_LIVRAISON=0` et répartition `commissionNaxa=0), `soldeLivraison=fraisClient` — commit `f84b3675b6ed5b6a236f9cadeb0b29d1e0b5b4cf`.
+- `scripts/test-delivery-pricing.cjs) : tests sur 1 500, 1 750, 3 500, 5 200, 13 200 et 20 000 FCFA ; 100 % affectés au service, 0 retenue — commit `1ed35d52b34ba0b37c089f4e9863341400d3096f`.
+- `src/components/DeliveryCommissionReport.tsx` exporte maintenant `DeliveryFeesReport` et utilise `naxa_delivery_fees_report) ; le rapport mensuel affiche uniquement les abonnements de base — commit `e84012f37729e495c8de8d1b1c6fdbc4e3dbf058`.
+- Pages Admin et Promoteur raccordées au nouveau composant : commits `f3b77895ba88e4eae3a0102ac7c2fcaf5d28b214`, `185f4decdf98905aa4980eae40eb04c5795fc2f8), puis imports corrigés vers le fichier de composant conservé : `80227a7b4cb0560c8ac4245f54b28775370b6315), `8bb28b26d052ee1539c66cbd3c2d7babb8d43c8a`.
+- `scripts/test-delivery-commercial-flow.cjs) : contrats commerciaux révisés (devis, rapport et mensualités sans commission) — commit `0bd07af27db3a5804b754ff6299752725db5bd11`.
+- `docs/DECISION_TARIFICATION_LIVRAISON_2026-11-07.md) : §7 rend explicitement caduque la règle historique des 500 FCFA — commit `98c0c420855483d43c0713718ea65b53ac99b799`.
+- Test SQL `supabase/tests/20261115130000_delivery_no_naxa_commission_policy.sql) : contraintes, fonction de clôture, ACL, suppression du trigger d'abonnement, rapport Admin réel sous claims simulés et mensualité égale à l'abonnement de base ; dernière version commit `c01849ea861b2ef13f205a9bca3d954f98db0f5a`.
+
+**Preuves Replay après correction :**
+- Test SQL exécuté avec succès : sortie `NAXA delivery commission: 0; full client fee allocated to delivery service: PASS`.
+- Rapport frais Admin : exécution réussie sous le JWT Admin Replay simulé ; `retenue_naxa=0). Le rapport a aussi confirmé un registre vide cohérent.
+- Décompte mensuel Admin : test SQL confirme `commissions_livraison=0), `total_a_payer=abonnements), et pour chaque pharmacie `commission_a_payer=0), `total_mensuel_du=abonnement_mensuel`.
+- Intégrité du registre : 0 ligne, 0 frais cumulés, 0 retenue NAXA, 0 montant affecté enregistré (aucune mission financière n'a été créée).
+- ACL du nouveau rapport : `anon` interdit, `authenticated` autorisé.
+- Trigger `trg_naxa_delivery_commission_monthly_settlement) absent ; fonction `private.naxa_delivery_sync_subscription_commission_settlement()) absente.
+- Aucune Production, Vercel, ni donnée Auth/mission/paiement modifiée.
+
+**État qualité :**
+- Run qualité du commit de code précédent `43684986683) a été lancé puis remplacé par les mises à jour du rapport et des assertions ; aucun résultat PASS n'est revendiqué sur ce run intermédiaire.
+- Dernier run qualité déclenché par le commit test `07be29f79479b302f99f5f240deb6bfce11f3e65) : `43685140386), en cours au moment de cette entrée. Actionlint et tests/TS/lint/build doivent encore être consultés dans les logs finaux.
+
+**Conclusion :** la règle zéro commission et l'absence de cumul sur abonnement sont implémentées et vérifiées par SQL sur Replay. L'E2E HTTP complet Client → Stock → Caisse → Livreur → confirmations reste non exécuté ; la recette NAXA demeure **PARTIELLE**, sans statut global AU VERT.
+
+**Point exact de reprise :**
+1. Vérifier la conclusion du run qualité `43685140386) et corriger chaque échec éventuel sans relâcher les contrats métier.
+2. Effectuer une revue finale des gardes du rôle Livreur et de son harnais, puis préparer une réservation de recette annulable sur Replay.
+3. Exécuter le cycle Stock prêt → paiement réel de test contrôlé → mission → acceptation Livreur → retrait → arrivée → double confirmation → clôture, en vérifiant qu'aucune commission ni retenue ne réapparaît.
+4. Ne pas migrer Production ni déployer avant une autorisation spécifique et une validation métier complète.
