@@ -175,23 +175,23 @@ export default function CaissePage() {
     if (!pid) { setCreditAccounts([]); return; }
     let active = true;
     void (async () => {
-      const { data: credits, error } = await sb.from("client_credits")
-        .select("client_id,solde,plafond")
-        .eq("pharmacie_id", pid).eq("actif", true).order("updated_at", { ascending: false });
+      const { data, error } = await sb.rpc("caisse_credit_clients_lister", { p_pharmacie: pid });
       if (!active) return;
       if (error) { setCreditAccounts([]); return; }
-      const rows = (credits ?? []) as { client_id: string; solde: number; plafond: number }[];
-      const ids = [...new Set(rows.map((row) => row.client_id))];
-      const { data: profiles } = ids.length
-        ? await sb.from("profiles").select("id,first_name,last_name,phone,username").in("id", ids)
-        : { data: [] as { id: string; first_name: string | null; last_name: string | null; phone: string | null; username: string | null }[] };
-      if (!active) return;
-      const names = new Map((profiles ?? []).map((profile) => [profile.id,
-        [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || profile.phone || ("Client " + profile.id.slice(0, 8))]));
+      const rows = (data ?? []) as {
+        client_id: string;
+        solde: number;
+        plafond: number;
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+        username: string | null;
+      }[];
       setCreditAccounts(rows.map((row) => ({
         clientId: row.client_id,
-        label: names.get(row.client_id) ?? ("Client " + row.client_id.slice(0, 8)),
-        solde: Number(row.solde), plafond: Number(row.plafond),
+        label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
+        solde: Number(row.solde),
+        plafond: Number(row.plafond),
       })));
     })();
     return () => { active = false; };
