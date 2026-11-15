@@ -2349,3 +2349,59 @@ Le script se termine par `ROLLBACK`. Le contrôle post-test confirme zéro rési
 **Reprise recommandée :** traiter d'abord la machine d'état d'agrément Pharmacien (proposé par Promoteur, vérifié/accepté par Admin, puis activable pour une pharmacie), sans réutiliser comme source d'autorité le module Suivi connecté ; ensuite brancher le dépôt Client d'ordonnance sur la table et les RPC canoniques, puis réaliser une recette navigateur avec deux pharmacies et des comptes métier dédiés.
 
 Aucun code produit n'a été modifié dans cet audit. Aucun changement persistant n'a été effectué dans Replay ; Production et Vercel restent inchangés.
+
+
+
+## 58. Audit Crédit / prêt Marketplace, comptoir et profils pharmacie — PARTIEL / NO-GO (15/11/2026)
+
+**Périmètre contrôlé :** commit source e660ca84e2cca4505e02ca84fdf9f3dfb50f0357, branche main ; base naxa-ci-replay-2 (pwfftcsjyeibxxqhwysw) uniquement. Audit en lecture et tests transactionnels annulés. Aucune écriture métier persistante, migration Production, modification de Production ou déploiement Vercel.
+
+### Parcours présent et raccordements prouvés dans le code
+
+- **Client → Marketplace :** DemandeCreditMarketplaceForm transmet le panier, la pharmacie, le téléphone, l'échéance et un justificatif PDF/JPG/PNG/WebP de 10 Mo maximum à client_credit_marketplace_soumettre. Le serveur vérifie le profil Client actif, la pharmacie, le fichier propriétaire et son MIME, les quantités, l'offre/stock disponible, le compte crédit actif et l'absence d'un autre crédit ou d'une demande non consommée en cours.
+- **Décision Promoteur / Responsable :** le Promoteur consulte les demandes origine=marketplace. Le Responsable ne voit que ses pharmacies affectées et ne reçoit les boutons de décision que si naxa_can_approve_marketplace_credit confirme son privilège APPROVE_MARKETPLACE_CREDIT sur la pharmacie concernée. La RPC de décision revérifie les droits côté serveur.
+- **Approbation → Stock :** l'approbation crée une réservation, contrôle les lots FEFO, écarte les lots bloqués/périmés, débite le stock et marque la réservation stock_decremented=true. Le Gestionnaire Stock retrouve les réservations à préparer dans son espace et peut faire avancer leur préparation.
+- **Retrait Marketplace à la pharmacie :** le vrai poste /pharmacie/caisse importe CaisseRetraitsMarketplace. Pour une réservation liée à un crédit approuvé, le caissier doit avoir une session ouverte, retrouver le code/QR, puis appeler vente_reservation_credit_finaliser. Le parcours distingue ce retrait sans encaissement comptant du paiement classique et permet ensuite de confirmer la remise des produits.
+- **Remboursement :** l'écran Caisse « Clients & crédits » liste les encours et appelle la signature structurée client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text). Le serveur limite actuellement ce remboursement aux espèces, contrôle le montant et exige une session de caisse ouverte, active, de la même pharmacie et ouverte par l'utilisateur courant.
+- **Sécurité :** RLS est activé sur client_credits, client_credit_requests et client_credit_operations. Les lectures sont limitées au Client propriétaire, à l'Admin ou aux comptes pouvant accéder à la pharmacie ; les écritures métier passent par les RPC SECURITY DEFINER. Les anciennes signatures de remboursement sont neutralisées.
+
+### Contradictions et défauts bloquants
+
+1. **Crédit direct au comptoir absent de l'interface opérationnelle.** Le vrai écran /pharmacie/caisse n'offre qu'un encaissement espèces (vente_encaisser_finaliser). Il ne propose ni sélection d'un Client pour l'achat à crédit, ni choix du mode crédit, ni appel à client_credit_demander / client_credit_enregistrer_vente. L'écran /pharmacie/caisse/clients consulte les encours et encaisse les remboursements ; il ne crée pas un crédit. Les boutons « Crédit client » de caisse/parcours-ui appartiennent à une maquette : leurs actions appellent demoAction et ne modifient aucune donnée métier.
+2. **La file de décision ne couvre pas le crédit issu de la Caisse.** Les pages Promoteur et Responsable filtrent explicitement origine=marketplace. Or la RPC client_credit_demander peut créer des demandes origine=caisse quand un achat dépasse le plafond. Ces demandes ne sont donc pas présentées dans les écrans de décision actuels. client_credit_configurer existe côté base, mais aucune interface opérationnelle identifiée ne permet au Promoteur de créer/configurer un compte et son plafond pour un Client.
+3. **Retrait Marketplace : double débit physique reproduit.** vente_reservation_credit_finaliser crée la vente POS sans positionner ventes.stock_decremented_at_draft=true, alors que le stock avait déjà été diminué à l'approbation. Lors du passage de la vente à payee, le trigger naxa_pos_debit_before_sale_paid rappelle private.naxa_pos_debit_stock et tente de débiter une seconde fois. Le test transactionnel supabase/tests/259_credit_withdrawal_inverse_order_e2e.sql échoue réellement sur Replay avec « Stock physique insuffisant à la validation de caisse ». Le retrait à crédit Marketplace n'est donc pas AU VERT.
+4. **Intégration comptable du crédit incomplète sur Replay.** La fonction active compta_emettre_evenement_metier ne filtre pas explicitement les ventes mode_paiement=credit. L'émetteur compta_emettre_octroi_credit() et son trigger nature=credit sont absents. L'émetteur de remboursement existe, mais le worker actif compta_traiter_evenement n'accepte pas credit_octroi / credit_remboursement. Les tests 249_credit_repayment_accounting.sql et 253_marketplace_credit_accounting.sql échouent sur ces contrats. La migration historique migration_253_marketplace_credit_accounting.sql qui contient une partie de ce raccordement n'apparaît pas dans les migrations appliquées au Replay ; elle ne doit pas être réappliquée telle quelle, car elle remplacerait le worker comptable plus récent et risquerait de retirer les prises en charge Assurance et annulation de vente. Il faut une migration cumulative qui conserve tous les types d'événements actuels et ajoute le crédit.
+5. **Comptabilité non paramétrée pour le crédit sur Replay.** Le contrôle des données de configuration retourne zéro mapping credit_octroi, zéro mapping credit_remboursement, zéro journal pour ces deux événements et zéro période comptable. Même après correction du worker, aucun posting réel ne peut être qualifié de validé tant que le Promoteur/Comptable n'a pas configuré et validé les comptes, journaux, mappings et périodes de la pharmacie.
+
+### Résultats des contrôles Replay
+
+**Contrats PASS :**
+- 051_client_credit.sql
+- 247_credit_marketplace_stock_contract.sql
+- 250_caisse_credit_repayment_reconciliation.sql
+- 251_credit_hold_no_physical_decrement.sql
+- 252_marketplace_credit_withdrawal.sql
+- 254_credit_repayment_payment_mode.sql
+- 255_credit_repayment_legacy_guard.sql
+- 256_credit_withdrawal_reserved_lots.sql
+
+**Échecs à ne pas interpréter comme défauts métier confirmés :**
+- 248_credit_repayment_cash_session.sql appelle l'ancienne signature à quatre arguments, désormais interdite. La signature structurée à cinq arguments est celle utilisée par l'interface actuelle et elle vérifie la session personnelle ; le test 248 doit être actualisé.
+- 257_credit_withdrawal_five_scenarios.sql vérifie encore des fragments SQL littéraux de l'ancien code (dont current_date) alors que le contrat courant s'appuie notamment sur private.naxa_date_cameroun(). Le test statique doit être réaligné ; son échec isolé ne prouve pas une absence de contrôle de péremption.
+- 264_credit_marketplace_debit_on_approval_e2e.sql s'arrête pendant la création des produits de fixture : le JWT est encore celui d'un Responsable sans privilège lorsque le trigger propriétaire de fiche contrôle l'insertion. Le harnais doit repasser sous l'acteur Admin pour préparer les produits ; ce résultat ne valide ni n'invalide encore les assertions E2E de décision et de retrait.
+
+**État des données Replay au contrôle :** aucune demande, aucun compte crédit et aucune opération de crédit persistants. Aucun mapping/journal/période comptable de crédit. Les tests exécutés sont des contrats SQL ou des transactions annulées ; aucune navigation navigateur Client → Promoteur/Responsable → Stock → Caisse → remboursement n'a été validée dans une session métier réelle.
+
+### Verdict et reprise exacte
+
+**VERDICT : PARTIEL — NO-GO / PAS AU VERT.** Le crédit Marketplace dispose d'un parcours Client, d'une validation Promoteur/Responsable déléguée, d'une préparation Stock, d'un retrait Caisse et d'un remboursement. Mais le double débit au retrait est reproduit, l'intégration du worker comptable est incomplète, et le crédit direct au comptoir n'est pas implémenté dans l'interface opérationnelle ni sa file de décision. Il serait incorrect de certifier cette fonctionnalité de bout en bout.
+
+**Correctifs à traiter dans cet ordre :**
+1. Corriger le drapeau de stock de la vente créée par vente_reservation_credit_finaliser uniquement lorsque la réservation a déjà été physiquement débitée, puis rejouer les tests 259 et 264.
+2. Ajouter une migration comptable cumulative : exclure le crédit des encaissements ventes, émettre l'octroi, conserver l'émission remboursement et étendre le worker sans régression Assurance/annulation ; tester l'outbox et le worker.
+3. Brancher le vrai parcours Caisse direct : sélection/identification Client, configuration Promoteur du plafond, choix crédit, validation sous plafond ou demande au-delà du plafond, file de décision Promoteur et mise à jour de l'encours/ticket/session.
+4. Mettre à jour les tests 248, 257 et 264 pour vérifier les contrats courants, puis exécuter les scénarios E2E complets avec les profils autorisés et une pharmacie Replay contrôlée.
+5. Faire valider les mappings et journaux réels par le Promoteur/Comptable avant toute certification comptable commerciale.
+
+Aucune correction de logique applicative ou migration n'a été appliquée pendant cet audit ; seule cette preuve de reprise est ajoutée. **Production, Vercel et Play Store restent inchangés.**
+
