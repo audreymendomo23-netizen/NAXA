@@ -133,13 +133,15 @@ set local role authenticated;
 do $client_declaration$
 declare
   v_coverage uuid;
+  v_member text:='NAXA-POS-RUNTIME-'||substr(replace(gen_random_uuid()::text,'-',''),1,8);
+  v_policy text:='NAXA-POS-POLICY-'||substr(replace(gen_random_uuid()::text,'-',''),1,8);
 begin
   v_coverage:=public.assurance_enregistrer_couverture(
     current_setting('naxa.test.assurance.pos.insurer')::uuid,
-    'NAXA-POS-RUNTIME-'||substr(replace(gen_random_uuid()::text,'-',''),1,8),
-    'NAXA-POS-POLICY-'||substr(replace(gen_random_uuid()::text,'-',''),1,8),
-    current_date,current_date+30,null,100
+    v_member,v_policy,current_date,current_date+30,null,100
   );
+  perform set_config('naxa.test.assurance.pos.member',v_member,true);
+  perform set_config('naxa.test.assurance.pos.policy',v_policy,true);
   if not exists(select 1 from public.couvertures_assurance c
     where c.id=v_coverage and c.client_id=auth.uid()
       and c.verification_statut='non_verifiee') then
@@ -182,8 +184,8 @@ begin
     v_pharmacy,v_insurer,'NAXA-POS-RUNTIME-SOURCE',
     'naxa-pos-runtime.csv',v_sha,
     jsonb_build_array(jsonb_build_object(
-      'numero_adherent',(select c.numero_adherent from public.couvertures_assurance c where c.id=v_coverage),
-      'numero_police',(select c.numero_police from public.couvertures_assurance c where c.id=v_coverage),
+      'numero_adherent',current_setting('naxa.test.assurance.pos.member'),
+      'numero_police',current_setting('naxa.test.assurance.pos.policy'),
       'beneficiaire_nom',null,
       'date_debut',current_date::text,
       'date_fin',(current_date+30)::text,
