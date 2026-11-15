@@ -1837,7 +1837,7 @@ Cette reprise documentaire n'ajoute aucune preuve d'exécution. Aucun workflow n
 
 ### Cause racine complémentaire
 
-La section §47 avait limité le choix des fiches dans l'interface Stock et protégé les écritures ; toutefois, la policy SELECT \`produits_authenticated_live_offer_read\` conservait une ancienne branche qui autorisait tout compte professionnel ayant une pharmacie active à lire toutes les fiches propriétaires, même celles d'une pharmacie hors de son périmètre. Le masquage dans l'interface ne suffisait donc pas à garantir l'isolation via l'API Supabase directe.
+La section §47 avait limité le choix des fiches dans l'interface Stock et protégé les écritures ; toutefois, la policy SELECT `produits_authenticated_live_offer_read` conservait une ancienne branche qui autorisait tout compte professionnel ayant une pharmacie active à lire toutes les fiches propriétaires, même celles d'une pharmacie hors de son périmètre. Le masquage dans l'interface ne suffisait donc pas à garantir l'isolation via l'API Supabase directe.
 
 ### Correction appliquée
 
@@ -1845,18 +1845,18 @@ La policy SELECT authentifiée est maintenant composée de quatre chemins distin
 
 1. Une offre réellement visible sur le Marketplace reste consultable dans le périmètre public prévu.
 2. L'Administrateur conserve la lecture technique de toutes les fiches, sans droit de création, de modification ou d'initialisation de stock.
-3. Une fiche avec \`created_by_pharmacie_id IS NOT NULL\` n'est lisible par un compte professionnel que si \`private.naxa_scope_allows(auth.uid(),created_by_pharmacie_id,'PHARMACIE')\` confirme son périmètre actif. Les Promoteurs gardent ainsi la visibilité sur leur propre réseau, tandis qu'un Gestionnaire Stock ne lit que la pharmacie de son affectation active.
+3. Une fiche avec `created_by_pharmacie_id IS NOT NULL` n'est lisible par un compte professionnel que si `private.naxa_scope_allows(auth.uid(),created_by_pharmacie_id,'PHARMACIE')` confirme son périmètre actif. Les Promoteurs gardent ainsi la visibilité sur leur propre réseau, tandis qu'un Gestionnaire Stock ne lit que la pharmacie de son affectation active.
 4. Les anciennes fiches historiques avec propriétaire NULL conservent la règle de lecture partagée déjà en place pour les Promoteurs validés et le personnel professionnel avec pharmacie active.
 
 Aucune restriction réglementaire ou validation NAXA n'est ajoutée : la règle porte uniquement sur l'isolation des données entre pharmacies.
 
 ### Sources et déploiement Replay
 
-- Migration : \`supabase/migrations/20261115112000_scope_private_product_fiche_reads.sql\`, commit [400a7ce43619da0722c8dd0312c331b7e44899b6](https://github.com/audreymendomo23-netizen/NAXA/commit/400a7ce43619da0722c8dd0312c331b7e44899b6).
-- Version Replay appliquée : \`20261115093145\`, nom \`scope_private_product_fiche_reads\`.
-- Test SQL : \`supabase/tests/20261115112000_scope_private_product_fiche_reads.sql\`, commit [43bafd8a9e034e148eea470ef3018892bfb5bddf](https://github.com/audreymendomo23-netizen/NAXA/commit/43bafd8a9e034e148eea470ef3018892bfb5bddf), exécution SQL Replay **PASS**.
+- Migration : `supabase/migrations/20261115112000_scope_private_product_fiche_reads.sql`, commit [400a7ce43619da0722c8dd0312c331b7e44899b6](https://github.com/audreymendomo23-netizen/NAXA/commit/400a7ce43619da0722c8dd0312c331b7e44899b6).
+- Version Replay appliquée : `20261115093145`, nom `scope_private_product_fiche_reads`.
+- Test SQL : `supabase/tests/20261115112000_scope_private_product_fiche_reads.sql`, commit [43bafd8a9e034e148eea470ef3018892bfb5bddf](https://github.com/audreymendomo23-netizen/NAXA/commit/43bafd8a9e034e148eea470ef3018892bfb5bddf), exécution SQL Replay **PASS**.
 - Workflow Replay surveillant les deux nouveaux fichiers : commit [e3e5288855bc9727dcf63223fdacc93b799bd1ef](https://github.com/audreymendomo23-netizen/NAXA/commit/e3e5288855bc9727dcf63223fdacc93b799bd1ef).
-- Test Node \`scripts/test-pharmacy-led-product-publication.cjs\` étendu pour contrôler la policy SELECT et le test SQL : commit [b6570c2acb61337e13a5ded5bc063abe391652ef](https://github.com/audreymendomo23-netizen/NAXA/commit/b6570c2acb61337e13a5ded5bc063abe391652ef). Le même script est déjà inclus dans la commande \`node --test\` du workflow.
+- Test Node `scripts/test-pharmacy-led-product-publication.cjs` étendu pour contrôler la policy SELECT et le test SQL : commit [b6570c2acb61337e13a5ded5bc063abe391652ef](https://github.com/audreymendomo23-netizen/NAXA/commit/b6570c2acb61337e13a5ded5bc063abe391652ef). Le même script est déjà inclus dans la commande `node --test` du workflow.
 
 ### Test runtime sous JWT — preuve d'isolation réelle
 
@@ -1864,8 +1864,8 @@ Dans une transaction Replay annulée :
 
 - Le Promoteur crée une fiche identique pour Mvan et Essos, chacune avec son propre ID produit.
 - La session authentifiée est ensuite basculée vers le compte E2E Gestionnaire Stock, dont l'affectation et le scope sont actifs sur Mvan uniquement.
-- \`private.naxa_scope_allows\` retourne Mvan = **true**, Essos = **false**.
-- Lecture directe de \`public.produits\` sous RLS avec les deux IDs : fiche Mvan visible = **1**, fiche Essos visible = **0**.
+- `private.naxa_scope_allows` retourne Mvan = **true**, Essos = **false**.
+- Lecture directe de `public.produits` sous RLS avec les deux IDs : fiche Mvan visible = **1**, fiche Essos visible = **0**.
 - Les anciennes fiches historiques partagées sans propriétaire restent visibles = **20**.
 
 **Résultat : PASS.** Le test démontre l'isolation RLS, pas seulement le filtrage de l'interface.
@@ -1881,7 +1881,7 @@ L'écran `src/app/admin/produits/page.tsx` reste une **consultation technique en
 
 ### Nettoyage et limites
 
-Le test runtime s'est terminé par \`ROLLBACK\`. Vérification post-test Replay :
+Le test runtime s'est terminé par `ROLLBACK`. Vérification post-test Replay :
 - fiche temporaire du test précédent = **0** ;
 - fiche temporaire du test de lecture = **0** ;
 - lignes Stock temporaires = **0** ;
