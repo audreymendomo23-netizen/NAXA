@@ -155,6 +155,9 @@ begin
   perform public.naxa_grant_privilege(
     v_responsable,'APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE'
   );
+  perform public.naxa_responsable_credit_limit_configurer(
+    v_responsable,v_pharmacie_affectee,10000
+  );
 
   -- Périmètre multi-pharmacie et délégation explicite.
   perform set_config('request.jwt.claim.sub',v_responsable::text,true);
@@ -166,6 +169,12 @@ begin
   if public.naxa_can_approve_marketplace_credit(v_pharmacie_affectee) is not true then
     raise exception 'Le Responsable avec privilège explicite ne peut pas approuver';
   end if;
+  if public.naxa_can_approve_client_credit(v_pharmacie_affectee,10001) is not false then
+    raise exception 'Le Responsable peut dépasser son plafond délégué par le Promoteur';
+  end if;
+  if public.naxa_can_approve_client_credit(v_pharmacie_affectee,6000) is not true then
+    raise exception 'Le Responsable ne peut pas approuver dans son plafond délégué';
+  end if;
 
   -- Second Responsable affecté, mais sans droit de validation.
   perform set_config('request.jwt.claim.sub',v_responsable_sans_droit::text,true);
@@ -175,7 +184,11 @@ begin
     raise exception 'Un Responsable sans délégation a reçu le droit d’approbation';
   end if;
 
-  -- Stocks, lots, coûts et caisse du scénario.
+  -- Stocks, lots, coûts et caisse du scénario. Les fiches produits sont préparées sous Admin,
+  -- puis les actions de décision sont rejouées sous les vrais acteurs métier.
+  perform set_config('request.jwt.claim.sub',v_admin::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
+
   insert into public.produits(id,nom) values
     (v_produit_ab,'Produit E2E 264 A/B'),
     (v_produit_restore,'Produit E2E 264 restitution'),
@@ -392,6 +405,9 @@ begin
 
   perform public.naxa_grant_privilege(
     v_responsable_sans_droit,'APPROVE_MARKETPLACE_CREDIT',v_pharmacie_affectee,'PHARMACIE'
+  );
+  perform public.naxa_responsable_credit_limit_configurer(
+    v_responsable_sans_droit,v_pharmacie_affectee,1000
   );
 
   perform set_config('request.jwt.claim.sub',v_responsable_sans_droit::text,true);
