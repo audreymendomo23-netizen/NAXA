@@ -2405,3 +2405,61 @@ Aucun code produit n'a été modifié dans cet audit. Aucun changement persistan
 
 Aucune correction de logique applicative ou migration n'a été appliquée pendant cet audit ; seule cette preuve de reprise est ajoutée. **Production, Vercel et Play Store restent inchangés.**
 
+
+## 59. Crédit Marketplace + crédit direct Caisse — correctifs intégrés et recette Replay (15/11/2026)
+
+**Tête applicative contrôlée avant cette mise à jour documentaire :** e67d06631046871abd159cf4ea787d070e7c6d18 sur main. **Replay uniquement :** pwfftcsjyeibxxqhwysw. Aucune migration Production, aucun déploiement Vercel, aucun déploiement Play Store.
+
+### Correctifs intégrés
+
+1. **Vente à crédit au comptoir :** /pharmacie/caisse charge les comptes de crédit actifs de la pharmacie, permet de choisir le Client avant la création du panier, associe ce Client à la vente POS et expose la finalisation à crédit. vente_credit_finaliser(uuid,text) vérifie la session personnelle, le compte actif, le solde/plafond et l'état du panier. Sous plafond, la vente est finalisée et le débit POS reste dans le déclencheur de vente ; au-delà, une demande origine='caisse' est créée sans paiement ni mouvement de stock, puis le même brouillon peut être repris après approbation.
+2. **Configuration Promoteur :** l'espace Promoteur permet de créer/modifier le plafond d'un Client et de configurer le plafond maximal délégué à un Responsable, par pharmacie. Les RPC revérifient le Promoteur valide, le lien réseau, le compte Client/Responsable actif et l'affectation Responsable.
+3. **Décision Promoteur / Responsable :** les deux listes couvrent origine='marketplace' et origine='caisse'. Le moteur serveur refuse une approbation Responsable sans privilège actif ou au-delà du plafond délégué ; l'interface Responsable calcule le droit pour chaque demande et son montant.
+4. **Retrait Marketplace :** correction de la séquence POS : la vente est marquée stock_decremented_at_draft=true avant le passage à payee, après que le RPC de retrait a géré le débit ou réutilisé le débit d'approbation. Le trigger générique POS ne tente plus de débiter une seconde fois.
+5. **Comptabilité :** une vente en mode credit n'est pas émise comme encaissement vente_encaissee. Les opérations nature='credit' créent un événement d'outbox credit_octroi idempotent. Le worker conserve ses types Assurance/annulation et accepte aussi credit_octroi et credit_remboursement. L'émetteur de remboursement déjà présent reste lié à l'outbox et au worker.
+
+### Migrations Replay appliquées
+
+- supabase/migrations/20261115220000_credit_marketplace_pos_accounting_integration.sql — commit 228f7f01b17e22928a8c8bfae2f7a303d359d247.
+- supabase/migrations/20261115223000_credit_pos_double_debit_and_responsible_assignment_fix.sql — commit f261592877e8e61b3bcf14009d997b68ade78df0.
+
+Les deux migrations ont passé leur dry-run transactionnel avant application ; l'historique Replay confirme leur présence. Les fonctions/RPC, trigger d'octroi et worker ont été relus après application.
+
+### Recette SQL exécutée sur Replay
+
+**PASS :**
+- 051_client_credit.sql
+- 247_credit_marketplace_stock_contract.sql
+- 248_credit_repayment_cash_session.sql (contrat et session personnelle ; aucune erreur, sortie SQL vide)
+- 249_credit_repayment_accounting.sql
+- 250_caisse_credit_repayment_reconciliation.sql
+- 251_credit_hold_no_physical_decrement.sql
+- 252_marketplace_credit_withdrawal.sql
+- 253_marketplace_credit_accounting.sql
+- 254_credit_repayment_payment_mode.sql
+- 255_credit_repayment_legacy_guard.sql
+- 256_credit_withdrawal_reserved_lots.sql
+- 257_credit_withdrawal_five_scenarios.sql
+- 259_credit_withdrawal_inverse_order_e2e.sql — **PASS transactionnel**, deux retraits dans l'ordre inverse, sans double débit.
+- 264_credit_marketplace_debit_on_approval_e2e.sql — **PASS transactionnel**, Responsable affecté, privilège, plafond, refus hors plafond, approbation, allocation/restauration FEFO, retraits POS sans double débit.
+- 20261115220000_credit_marketplace_pos_end_to_end.sql — **PASS transactionnel**, demande caisse au-delà du plafond sans débit, approbation, reprise du même draft, vente à crédit et mise à jour du solde ; crédit sous plafond finalisé directement ; émission credit_octroi sans vente_encaissee.
+
+Tous les scénarios E2E SQL ci-dessus sont annulés par ROLLBACK.
+
+**Contrôle de propreté post-recette Replay :** 0 demande crédit, 0 compte crédit, 0 opération crédit, 0 plafond Responsable, 0 événement comptable crédit et 0 vente E2E-CREDIT-POS persistants. Les fixtures n'ont donc pas été laissées dans le projet.
+
+### GitHub Actions lancées
+
+- [NAXA quality — run 3321](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589972), commit e67d066 : **en cours au contrôle**. Le run précédent 3319 sur c277bff a exécuté **511/511 tests Node PASS** et actionlint PASS, mais TypeScript a échoué sur le narrowing de panier_items dans les écrans Promoteur/Responsable. Ces deux erreurs ont été corrigées sur main avant le run 3321 ; ne pas compter le build TypeScript/Next PASS avant la conclusion du run 3321.
+- [NAXA Replay Promoteur E2E — run 124](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589933), commit e67d066 : **en cours au contrôle**. Le run précédent 122 sur c277bff a échoué au build sur les mêmes erreurs TypeScript antérieures à la correction. Le run 124 est la reprise sur le commit corrigé ; il a déjà franchi le préflight Replay et les préparations Promoteur, Admin, Client/Livreur, Gestionnaire Stock, Caisse et Responsable, puis installait Chromium.
+- Le workflow Replay est désormais déclenché par les chemins du chantier crédit/prêt (écrans Caisse/Promoteur/Responsable, migrations et tests crédit) ainsi que par les changements du workflow lui-même.
+
+### Réserves encore ouvertes — pas de feu vert global
+
+1. **Remboursement runtime complet :** l'interface appelle le RPC structuré avec mode espèces, montant borné au solde et session personnelle ; les contrats 248/249/250/254/255 passent. Toutefois, le test transactionnel qui ajoutait un appel réel à client_credit_rembourser a été bloqué par le contrôle de sécurité de l'outil SQL ; le remboursement complet n'est donc pas déclaré PASS runtime dans cette passe.
+2. **Comptabilité commerciale :** l'octroi et le remboursement sont maintenant émis et pris en charge par le worker, mais Replay n'a aucun mapping credit_octroi, aucun mapping credit_remboursement, aucun journal pour ces événements et aucune période comptable. Aucun posting au grand livre ne peut être déclaré PASS avant validation du plan, des mappings, journaux et périodes par le Promoteur/Comptable de la pharmacie.
+3. **Recette navigateur crédit :** le test direct comptoir couvre les RPC et transactions sous fixtures Admin/Client avec rollback ; le test 264 couvre l'approbation Responsable. Aucune navigation réelle complète dans le navigateur avec une vraie session Caisse, un Promoteur/Responsable connecté et le Client correspondant n'est encore attestée par cette recette.
+4. **Actions :** les runs 3321 et 124 étaient encore en cours au moment de cette entrée. Leur conclusion finale doit être ajoutée avant de déclarer la qualité ou l'E2E global PASS.
+
+**VERDICT : CODE ET BACKEND CRÉDIT CORRIGÉS ; RECETTE SQL CIBLÉE PASS ; PARTIEL / PAS AU VERT GLOBAL.** Les défauts de crédit au comptoir, de file de décision caisse, de plafond Responsable, de double débit Marketplace et d'émission comptable du crédit sont corrigés et testés sur Replay. Les preuves navigateur, remboursement runtime et paramétrage comptable réel restent nécessaires. Production et Vercel inchangés.
+
