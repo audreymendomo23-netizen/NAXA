@@ -2159,8 +2159,8 @@ Replay confirme :
 
 ### Cause des échecs CI précédents
 
-Les échecs de la suite Node sur les commits antérieurs au \`ab23cdd7ee7ccbe0f5ef11bd1b42d6d9a8e16ea3\` concernaient les contrats de test, pas les RPC métier :
-- le contrat du runtime POS exigeait encore un Responsable et une Caisse pré-affectés à la même pharmacie non-démo, alors que le scénario validé utilise un compte Caisse existant, une affectation Responsable temporaire dans la transaction et la bascule officielle \`naxa_select_active_role\` ;
+Les échecs de la suite Node sur les commits antérieurs au `ab23cdd7ee7ccbe0f5ef11bd1b42d6d9a8e16ea3` concernaient les contrats de test, pas les RPC métier :
+- le contrat du runtime POS exigeait encore un Responsable et une Caisse pré-affectés à la même pharmacie non-démo, alors que le scénario validé utilise un compte Caisse existant, une affectation Responsable temporaire dans la transaction et la bascule officielle `naxa_select_active_role` ;
 - le test d'import séparait mal les lignes CSV et contrôlait le lien du modèle avec un regex trop échappé ;
 - le test split POS contenait un regex invalide pour les apostrophes des appels de sélection de rôle.
 
@@ -2168,22 +2168,22 @@ Les assertions ont été réalignées sur le scénario effectivement exécuté. 
 
 ### Résultat CI final
 
-- Tête \`main\` contrôlée : \`ab23cdd7ee7ccbe0f5ef11bd1b42d6d9a8e16ea3\`.
+- Tête `main` contrôlée : `ab23cdd7ee7ccbe0f5ef11bd1b42d6d9a8e16ea3`.
 - Workflow GitHub Actions : [NAXA quality — run 43722220545](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43722220545) — **SUCCESS**.
 - Node : **502 tests / 502 PASS / 0 FAIL**.
 - TypeScript : **PASS**.
-- ESLint : **PASS sans erreur bloquante** ; 106 avertissements non bloquants ont été relevés dans l'ensemble du dépôt (navigation interne via \`window.location\`, hooks, images et compatibilité React 18 avec Next 16).
+- ESLint : **PASS sans erreur bloquante** ; 106 avertissements non bloquants ont été relevés dans l'ensemble du dépôt (navigation interne via `window.location`, hooks, images et compatibilité React 18 avec Next 16).
 - Build Next.js 16.4.6 + Serwist : **PASS**, compilation, génération des routes et worker service terminées.
-- Validation \`actionlint\` de tous les workflows actifs : **PASS**.
+- Validation `actionlint` de tous les workflows actifs : **PASS**.
 - Check Supabase Preview : **CANCELLED** par la limite mensuelle du connecteur Supabase GitHub Preview (1 000 push events atteints). Ce check ne remet pas en cause les migrations Replay appliquées directement via le projet Replay.
-- Le build a signalé que Next.js a réécrit les valeurs recommandées de \`tsconfig.json\` dans le workspace CI ; ce changement local au runner n'est pas un commit source.
+- Le build a signalé que Next.js a réécrit les valeurs recommandées de `tsconfig.json` dans le workspace CI ; ce changement local au runner n'est pas un commit source.
 
 ### Séparation des preuves Replay
 
 - Le runtime Assurance Marketplace → POS → ticket → remboursements de §54 a PASS avec JWT Auth et rollback.
 - État base après vérification : 0 import, ligne d'import, couverture, vérification, convention, règle, snapshot, dossier, proposition, événement ou règlement Assurance.
 - Comptabilité : 0 compte, mapping, paramètre, période, événement, écriture ou ligne comptable persistante.
-- Un workflow Replay Promoteur E2E distinct, lancé sur l'ancien commit \`e48f68d46b013a87a8a28b38eecbf6cbc1af608c\`, a préparé des comptes et affectations puis échoué à sa construction avant les étapes Web Push/Storage. Il est antérieur à la correction des tests sur \`ab23cdd\` ; il ne constitue donc pas une preuve Web Push/Storage réussie.
+- Un workflow Replay Promoteur E2E distinct, lancé sur l'ancien commit `e48f68d46b013a87a8a28b38eecbf6cbc1af608c`, a préparé des comptes et affectations puis échoué à sa construction avant les étapes Web Push/Storage. Il est antérieur à la correction des tests sur `ab23cdd` ; il ne constitue donc pas une preuve Web Push/Storage réussie.
 - Ce workflow E2E distinct a conservé ses propres fixtures de référence : pharmacie technique masquée/non commerciale, compte Responsable et Gestionnaire Stock ; un stock et six lots sont présents sur cette pharmacie. Les profils Caisse/Stock/Livreur de Mvan restent affectés dans leur périmètre. Ces lignes ne sont pas issues du runtime Assurance rollbacké.
 - Aucun déploiement Vercel et aucune migration Production.
 
@@ -2502,26 +2502,26 @@ Restent non validés : remboursement runtime de bout en bout (le test RPC direct
 
 ## 61. Reprise crédit après contrôles GitHub — état des recettes (15/11/2026)
 
-**Tête \`main\` au démarrage de cette reprise :** \`11477b90d2e2d7f170e987f3e3731dcdc3fcdc8b\`. Les sections §59 et §60 restent le dossier des correctifs applicatifs, migrations Replay et tests SQL du crédit. Cette section ne déclare pas de nouveau correctif code : elle met à jour les preuves Actions et fixe le plan d'achèvement.
+**Tête `main` au démarrage de cette reprise :** `11477b90d2e2d7f170e987f3e3731dcdc3fcdc8b`. Les sections §59 et §60 restent le dossier des correctifs applicatifs, migrations Replay et tests SQL du crédit. Cette section ne déclare pas de nouveau correctif code : elle met à jour les preuves Actions et fixe le plan d'achèvement.
 
 ### Actions Replay E2E — résultat actualisé
 
 - [Run 128 — 43761405941](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43761405941) : **FAIL** à l'étape de réception Web Push via Chromium pour le Responsable. Préflight, comptes/affectations, installation Chromium et build du worker sont PASS ; Storage a été ignoré à cause de l'échec ; nettoyage des fichiers secrets terminé.
 - [Run 129 — 43761646776](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43761646776) : **SUCCESS**. Le même ensemble de préparation passe ; dispatcher péremption J-3 : Promoteur, Gestionnaire Stock et Responsable ; worker : **3 envois Web Push ciblés / 3 notifications reçues dans le Service Worker Chromium**. La mention du log confirme explicitement qu'il ne s'agit pas d'une preuve de réception Android FCM physique.
-- Storage lancé ensuite dans le même run : **17 PASS, 0 SKIP**, comprenant les scénarios Admin et Promoteur multi-pharmacies. Objets, sessions métiers, sessions temporaires, comptes temporaires et fichiers secrets ont tous été nettoyés avec \`CLEANUP PASS\`.
+- Storage lancé ensuite dans le même run : **17 PASS, 0 SKIP**, comprenant les scénarios Admin et Promoteur multi-pharmacies. Objets, sessions métiers, sessions temporaires, comptes temporaires et fichiers secrets ont tous été nettoyés avec `CLEANUP PASS`.
 
 **Interprétation :** l'échec Web Push du run 128 n'est pas reproduit au run 129. La réception Web Push Chromium du scénario de péremption est donc PASS sur ce run. La cause racine du run 128 n'est pas déterminée ; ne pas le réécrire rétroactivement en succès. Aucune preuve FCM sur appareil Android physique n'est ajoutée.
 
 ### Actions qualité — état vérifié
 
 - [Run 3332 — 43761646622](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43761646622) : **CANCELLED** pour le job « Tests, TypeScript et lint » ; le job actionlint est PASS. Il ne constitue pas une qualité générale PASS.
-- Le statut combiné GitHub du commit documentaire \`11477b90d2e2d7f170e987f3e3731dcdc3fcdc8b\` n'expose aucun status context dans l'API consultée. Aucun identifiant de run qualité plus récent ni conclusion terminale n'a pu être confirmé dans ce contrôle. La qualité post-dernier code UI reste donc **NON CONFIRMÉE**, pas PASS et pas nécessairement FAIL.
+- Le statut combiné GitHub du commit documentaire `11477b90d2e2d7f170e987f3e3731dcdc3fcdc8b` n'expose aucun status context dans l'API consultée. Aucun identifiant de run qualité plus récent ni conclusion terminale n'a pu être confirmé dans ce contrôle. La qualité post-dernier code UI reste donc **NON CONFIRMÉE**, pas PASS et pas nécessairement FAIL.
 - Le run qualité 3321 (511/511 Node, TypeScript, ESLint, build Next.js/Serwist et actionlint PASS) précède les ajustements ultérieurs Caisse/identité Client et ne suffit pas à valider la tête actuelle.
 
 ### Manquements restants à fermer
 
 1. **Remboursement runtime.** Les tests 248/249/250/254/255 valident les signatures, contraintes de session et contrats comptables ; la tentative d'appel runtime depuis le canal SQL a été bloquée par le garde-fou. Il faut faire exécuter le vrai RPC par un compte Caisse authentifié en Replay, sur un compte crédit et une session de caisse contrôlés, via le harnais E2E (ou un test SQL transactionnel si l'appel peut être effectué sans contournement du garde-fou). Vérifier solde avant/après, opération remboursement, mode/caisse_session_id, reçu, événement outbox, et nettoyage final.
-2. **Posting comptable.** L'outbox \`credit_octroi\` / \`credit_remboursement\` et la prise en charge worker sont câblées (§59), mais aucune preuve n'établit encore un posting réel sur un journal et une période valides. Distinguer deux preuves : (a) un test transactionnel avec comptes/journaux/mapping/période purement temporaires pour vérifier débit/crédit et équilibre, entièrement annulé ; (b) la configuration réelle par le Promoteur/Comptable de chaque pharmacie. Ne jamais fabriquer ou préconfigurer des comptes commerciaux à sa place. Tant que la configuration réelle n'existe pas, le critère comptabilité commerciale reste conditionnel et le go-live global est bloqué.
+2. **Posting comptable.** L'outbox `credit_octroi` / `credit_remboursement` et la prise en charge worker sont câblées (§59), mais aucune preuve n'établit encore un posting réel sur un journal et une période valides. Distinguer deux preuves : (a) un test transactionnel avec comptes/journaux/mapping/période purement temporaires pour vérifier débit/crédit et équilibre, entièrement annulé ; (b) la configuration réelle par le Promoteur/Comptable de chaque pharmacie. Ne jamais fabriquer ou préconfigurer des comptes commerciaux à sa place. Tant que la configuration réelle n'existe pas, le critère comptabilité commerciale reste conditionnel et le go-live global est bloqué.
 3. **Parcours navigateur crédit.** Les Actions 124/129 prouvent les rôles, Web Push et Storage, pas le chemin Crédit. Ajouter une recette navigateur dédiée sur Replay : Client (demande Marketplace), décision Promoteur/Responsable avec plafond, préparation Stock, retrait Caisse, demande Caisse au-dessus du plafond et reprise du même brouillon, vente sous plafond, consultation du suivi/reçu et remboursement par une Caisse authentifiée. Les assertions doivent vérifier l'absence de mouvement avant approbation, le débit stock unique, le solde crédit et la session personnelle.
 4. **Qualité du code à la tête.** Obtenir un run qualité terminal PASS sur le SHA actuel incluant Node, TypeScript, ESLint, build Next.js/Serwist et actionlint. L'annulation 3332 et un succès antérieur ne peuvent pas être combinés pour annoncer AU VERT.
 5. **Web Push / FCM.** Run 129 résout le résultat navigateur Chromium (3/3). La réception Android FCM physique demeure hors de cette preuve et n'est pas un critère du parcours crédit web.
@@ -2538,46 +2538,46 @@ Restent non validés : remboursement runtime de bout en bout (le test RPC direct
 
 ## 62. Configuration comptable du crédit et préparation du remboursement runtime (15/11/2026)
 
-**Tête \`main\` au début du chantier :** \`88463ff4ba85f800879e249f85993fa94ee7a015\`. Les changements de cette section sont versionnés directement sur \`main\`. Toutes les applications de migration et recettes DB décrites ci-dessous ciblent Replay \`pwfftcsjyeibxxqhwysw\`.
+**Tête `main` au début du chantier :** `88463ff4ba85f800879e249f85993fa94ee7a015`. Les changements de cette section sont versionnés directement sur `main`. Toutes les applications de migration et recettes DB décrites ci-dessous ciblent Replay `pwfftcsjyeibxxqhwysw`.
 
 ### Correction du raccordement de configuration comptable
 
-**Cause racine supplémentaire :** le worker \`compta_traiter_evenement\` acceptait déjà \`credit_octroi\` et \`credit_remboursement\` (§59), mais les fonctions métier de configuration refusaient encore ces deux événements :
-- \`compta_config_enregistrer_journal\` autorisait uniquement les types Vente, Dépense, Annulation et Assurance ;
-- \`compta_plan_enregistrer_mapping\` autorisait uniquement Vente, Dépense et Assurance.
+**Cause racine supplémentaire :** le worker `compta_traiter_evenement` acceptait déjà `credit_octroi` et `credit_remboursement` (§59), mais les fonctions métier de configuration refusaient encore ces deux événements :
+- `compta_config_enregistrer_journal` autorisait uniquement les types Vente, Dépense, Annulation et Assurance ;
+- `compta_plan_enregistrer_mapping` autorisait uniquement Vente, Dépense et Assurance.
 
 Le Promoteur/Comptable ne pouvait donc pas créer les journaux et mappings des types de crédit au moyen des RPC officielles, même si le worker les prenait en charge.
 
 **Correction intégrée :**
-- Migration \`supabase/migrations/20261115230000_credit_accounting_configuration_options.sql\` — commit [\`e7fc4952\`](https://github.com/audreymendomo23-netizen/NAXA/commit/e7fc4952ac4f736fc6966dfa0b67575b81d1f6dc).
-- Test de contrat \`supabase/tests/20261115230000_credit_accounting_configuration_contract.sql\` — commit [\`de2625a3\`](https://github.com/audreymendomo23-netizen/NAXA/commit/de2625a3f0b1503d1d6fe88d3a0e807db595ef56).
-- Migration appliquée à Replay et répertoriée version \`20261115212217\`, nom \`20261115230000_credit_accounting_configuration_options\`.
-- Dry-run transactionnel PASS avant application ; contrat après application **PASS** : les deux RPC acceptent désormais les deux types de crédit et conservent \`compta_ecriture_autorisee\`.
+- Migration `supabase/migrations/20261115230000_credit_accounting_configuration_options.sql` — commit [`e7fc4952`](https://github.com/audreymendomo23-netizen/NAXA/commit/e7fc4952ac4f736fc6966dfa0b67575b81d1f6dc).
+- Test de contrat `supabase/tests/20261115230000_credit_accounting_configuration_contract.sql` — commit [`de2625a3`](https://github.com/audreymendomo23-netizen/NAXA/commit/de2625a3f0b1503d1d6fe88d3a0e807db595ef56).
+- Migration appliquée à Replay et répertoriée version `20261115212217`, nom `20261115230000_credit_accounting_configuration_options`.
+- Dry-run transactionnel PASS avant application ; contrat après application **PASS** : les deux RPC acceptent désormais les deux types de crédit et conservent `compta_ecriture_autorisee`.
 - Aucun plan comptable, mapping commercial, journal ou période commerciale n'a été créé par la migration.
 
 ### Exécution runtime du worker comptable — PASS
 
-Test versionné : \`supabase/tests/20261115230500_credit_accounting_worker_runtime.sql\`, commit [\`8d80a6a0\`](https://github.com/audreymendomo23-netizen/NAXA/commit/8d80a6a0d810892f58b9f406218e1644b6a1d15d).
+Test versionné : `supabase/tests/20261115230500_credit_accounting_worker_runtime.sql`, commit [`8d80a6a0`](https://github.com/audreymendomo23-netizen/NAXA/commit/8d80a6a0d810892f58b9f406218e1644b6a1d15d).
 
 Exécution sur Replay avec une pharmacie technique active mais masquée, un plan et un journal synthétiques, tous insérés dans une transaction annulée :
-- Événement \`credit_octroi\` : worker retourne \`traite\`.
-- Événement \`credit_remboursement\` : worker retourne \`traite\`.
+- Événement `credit_octroi` : worker retourne `traite`.
+- Événement `credit_remboursement` : worker retourne `traite`.
 - Deux écritures produites, quatre lignes au total : débits cumulés **500 FCFA**, crédits cumulés **500 FCFA**.
-- Les deux événements sont marqués \`traite\` avant rollback.
-- \`ROLLBACK\` exécuté après les assertions.
+- Les deux événements sont marqués `traite` avant rollback.
+- `ROLLBACK` exécuté après les assertions.
 
-**Contrôle de propreté post-test :** sur la pharmacie technique Replay, zéro compte de plan \`E2E-CR-%\`, zéro mapping crédit, zéro journal \`journal_code.credit_*\`, zéro période technique du jour, zéro événement \`E2E-WORKER-%\`, zéro écriture \`E2E-WORKER-%\`. Le contrôle ne laisse donc aucun compte, période, événement ou écriture fictive persistante.
+**Contrôle de propreté post-test :** sur la pharmacie technique Replay, zéro compte de plan `E2E-CR-%`, zéro mapping crédit, zéro journal `journal_code.credit_*`, zéro période technique du jour, zéro événement `E2E-WORKER-%`, zéro écriture `E2E-WORKER-%`. Le contrôle ne laisse donc aucun compte, période, événement ou écriture fictive persistante.
 
 Cette preuve valide le traitement technique et la partie double du worker ; elle ne remplace pas les comptes, journaux, périodes et mappings réels à valider pour chaque pharmacie par son Promoteur/Comptable.
 
 ### Nouveau contrôle runtime du remboursement — intégré, exécution CI à confirmer
 
 Fichiers ajoutés :
-- \`scripts/e2e/verify-credit-refund-runtime.cjs\` — commit initial [\`2ca9b4f9\`](https://github.com/audreymendomo23-netizen/NAXA/commit/2ca9b4f9de9527005c362355280b8decb5c8d665), ajustements secrets et nettoyage dans commits ultérieurs.
-- \`scripts/test-credit-refund-runtime.cjs\` — garde-fous du périmètre Replay, commit [\`77d92331\`](https://github.com/audreymendomo23-netizen/NAXA/commit/77d923313603f5078bc1a1c06ceef94f6cb60da4).
-- Le workflow \`.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml\` provisionne désormais des fichiers temporaires de mots de passe Caisse et Client avec permissions \`0600\`, exécute le script remboursement avec le jeton réel du compte Caisse, puis supprime ces fichiers en étape \`always()\`.
+- `scripts/e2e/verify-credit-refund-runtime.cjs` — commit initial [`2ca9b4f9`](https://github.com/audreymendomo23-netizen/NAXA/commit/2ca9b4f9de9527005c362355280b8decb5c8d665), ajustements secrets et nettoyage dans commits ultérieurs.
+- `scripts/test-credit-refund-runtime.cjs` — garde-fous du périmètre Replay, commit [`77d92331`](https://github.com/audreymendomo23-netizen/NAXA/commit/77d923313603f5078bc1a1c06ceef94f6cb60da4).
+- Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` provisionne désormais des fichiers temporaires de mots de passe Caisse et Client avec permissions `0600`, exécute le script remboursement avec le jeton réel du compte Caisse, puis supprime ces fichiers en étape `always()`.
 - Le chemin est limité au projet Replay par comparaison stricte de l'URL ; aucune variable de secret ni aucun mot de passe n'est écrit dans les logs ou le dépôt.
-- Scénario prévu : configuration du compte Client par le Promoteur ; solde technique initial 500 FCFA préparé via service_role (ce scénario ne prétend pas simuler une vente) ; ouverture d'une session personnelle par le compte Caisse authentifié ; remboursement réel de 250 FCFA par le RPC structuré ; vérification du solde, de la nature, du mode espèces, du créateur, de la session et de l'événement \`credit_remboursement\` ; refus d'un second remboursement supérieur au solde ; nettoyage des lignes de test puis clôture d'une session vide avec rapprochement 0.
+- Scénario prévu : configuration du compte Client par le Promoteur ; solde technique initial 500 FCFA préparé via service_role (ce scénario ne prétend pas simuler une vente) ; ouverture d'une session personnelle par le compte Caisse authentifié ; remboursement réel de 250 FCFA par le RPC structuré ; vérification du solde, de la nature, du mode espèces, du créateur, de la session et de l'événement `credit_remboursement` ; refus d'un second remboursement supérieur au solde ; nettoyage des lignes de test puis clôture d'une session vide avec rapprochement 0.
 - La session Caisse clôturée est conservée dans l'audit de session ; les comptes, opérations et événements financiers de fixture doivent être supprimés. En cas d'échec de nettoyage, le job doit échouer et signaler le résidu, plutôt que de déclarer PASS.
 - Le test a été branché après le provisioning des rôles et après la vérification Web Push dans le workflow Replay. Les Actions déclenchées par les derniers commits n'ont pas encore de conclusion terminale confirmée ici : ce scénario est donc **INTÉGRÉ / EXÉCUTION NON CONFIRMÉE**, pas PASS.
 
@@ -2596,21 +2596,21 @@ Fichiers ajoutés :
 
 ### Test comptable versionné rejoué
 
-Le fichier \`supabase/tests/20261115230500_credit_accounting_worker_runtime.sql\` — commit [\`8d80a6a0\`](https://github.com/audreymendomo23-netizen/NAXA/commit/8d80a6a0d810892f58b9f406218e1644b6a1d15d) — a été relu depuis \`main\` puis exécuté intégralement sur Replay après sa création : **PASS**.
-- \`credit_octroi\` et \`credit_remboursement\` traités par \`compta_traiter_evenement\`.
+Le fichier `supabase/tests/20261115230500_credit_accounting_worker_runtime.sql` — commit [`8d80a6a0`](https://github.com/audreymendomo23-netizen/NAXA/commit/8d80a6a0d810892f58b9f406218e1644b6a1d15d) — a été relu depuis `main` puis exécuté intégralement sur Replay après sa création : **PASS**.
+- `credit_octroi` et `credit_remboursement` traités par `compta_traiter_evenement`.
 - Deux écritures comptables et quatre lignes ; débit cumulé = crédit cumulé = **500 FCFA**.
-- Les événements passent à \`traite\` avant la fin du test.
+- Les événements passent à `traite` avant la fin du test.
 - La transaction est annulée intégralement.
 - Contrôle post-run : zéro compte/mapping/journal/période/événement/écriture technique résiduel sur la pharmacie cachée.
 
 ### Durcissement du test remboursement Auth
 
-- Le script \`scripts/e2e/verify-credit-refund-runtime.cjs\` supporte les clés Supabase de type \`sb_secret_\` sans les placer comme Bearer JWT ; seuls les véritables jetons de session Promoteur/Caisse/Client sont utilisés pour les RPC sous rôle utilisateur.
-- Les mots de passe Caisse et Client sont écrits comme fichiers temporaires 0600 dans le runner, les chemins sont transférés via \`GITHUB_ENV\`, puis les fichiers sont supprimés dans l'étape \`always()\`.
+- Le script `scripts/e2e/verify-credit-refund-runtime.cjs` supporte les clés Supabase de type `sb_secret_` sans les placer comme Bearer JWT ; seuls les véritables jetons de session Promoteur/Caisse/Client sont utilisés pour les RPC sous rôle utilisateur.
+- Les mots de passe Caisse et Client sont écrits comme fichiers temporaires 0600 dans le runner, les chemins sont transférés via `GITHUB_ENV`, puis les fichiers sont supprimés dans l'étape `always()`.
 - Le script vérifie que le payload d'outbox porte le bon montant et la référence source ; il refuse aussi un remboursement supérieur au solde restant.
 - Nettoyage ordonné : suppression de l'opération temporaire, retrait de son événement outbox, suppression du compte crédit et de la fiche Client créée par la fixture ; enfin, clôture de la session Caisse **après** suppression des opérations de test, avec total espèces nul. La session fermée est conservée comme trace d'audit et relue pour confirmer statut clôturé, total théorique 0, total compté 0 et écart 0.
 - Le script échoue si une opération, un événement, un compte ou une session ouverte subsiste. Le script ne prétend pas simuler une vente : le solde initial de 500 FCFA est préchargé par le service Replay uniquement pour tester le RPC de remboursement.
-- Derniers commits de durcissement : [\`f7997dac\`](https://github.com/audreymendomo23-netizen/NAXA/commit/f7997dac985d7b1c3942d03b3fde52119d59d168), [\`f52a0759\`](https://github.com/audreymendomo23-netizen/NAXA/commit/f52a07590c9b90532beb24049bdcbea51ce376e2), [\`b2c28b01\`](https://github.com/audreymendomo23-netizen/NAXA/commit/b2c28b018e13b40c23cf9c2b40fdcba989885680).
+- Derniers commits de durcissement : [`f7997dac`](https://github.com/audreymendomo23-netizen/NAXA/commit/f7997dac985d7b1c3942d03b3fde52119d59d168), [`f52a0759`](https://github.com/audreymendomo23-netizen/NAXA/commit/f52a07590c9b90532beb24049bdcbea51ce376e2), [`b2c28b01`](https://github.com/audreymendomo23-netizen/NAXA/commit/b2c28b018e13b40c23cf9c2b40fdcba989885680).
 - Le chemin reste intégré au workflow Replay ; le statut combiné des commits consultés ne fournit aucun contexte de statut exploitable et les identifiants de runs récents ne sont pas exposés par les outils disponibles dans cette reprise. La recette remboursement runtime reste donc **INTÉGRÉE / EXÉCUTION CI NON CONFIRMÉE**.
 
 **Verdict §63 :** la comptabilité technique crédit est maintenant prouvée sur Replay par le worker, avec rollback et zéro résidu. Le remboursement authentifié bénéficie d'un harnais plus sûr et d'un nettoyage contrôlé, mais n'est pas déclaré PASS avant une conclusion SUCCESS visible du workflow Replay. Le parcours navigateur complet et les paramètres comptables commerciaux légitimes restent ouverts. Production, Vercel et Play Store inchangés.
@@ -2620,31 +2620,31 @@ Le fichier \`supabase/tests/20261115230500_credit_accounting_worker_runtime.sql\
 
 ### Contradiction constatée et correction
 
-Le véritable écran \`/pharmacie/caisse\` refusait l'accès quand \`pharmacies.visible_recherche=false\`, alors que cette colonne décrit la publication Marketplace, pas l'accès interne ERP. Une pharmacie active et non archivée doit pouvoir utiliser sa propre Caisse même si elle n'a pas d'offre publique ; la suspension reste bloquante par \`actif=false\`.
+Le véritable écran `/pharmacie/caisse` refusait l'accès quand `pharmacies.visible_recherche=false`, alors que cette colonne décrit la publication Marketplace, pas l'accès interne ERP. Une pharmacie active et non archivée doit pouvoir utiliser sa propre Caisse même si elle n'a pas d'offre publique ; la suspension reste bloquante par `actif=false`.
 
-- Correction \`src/app/pharmacie/caisse/page.tsx\` : lecture \`id,nom,actif,archivee_le\`, contrôle uniquement actif/non archivé ; aucune ouverture Caisse ne dépend désormais de \`visible_recherche\`.
-- Contrat \`scripts/test-caisse-unpublished-pharmacy-access.cjs\` : vérifie l'accès ERP interne pour une pharmacie masquée, tout en conservant le blocage inactive/archivée, l'authentification, le rôle Caisse et le périmètre actif.
-- Commits : [\`56274f44\`](https://github.com/audreymendomo23-netizen/NAXA/commit/56274f4472f8e248cbe5e44cb0c519df60e9b23c), [\`59a2098c\`](https://github.com/audreymendomo23-netizen/NAXA/commit/59a2098c7133474a685933478e52b98d98f4ec01), [\`6edbb3e3\`](https://github.com/audreymendomo23-netizen/NAXA/commit/6edbb3e3aa2ee62f5faf4cc53c630b997bcc3fc5).
+- Correction `src/app/pharmacie/caisse/page.tsx` : lecture `id,nom,actif,archivee_le`, contrôle uniquement actif/non archivé ; aucune ouverture Caisse ne dépend désormais de `visible_recherche`.
+- Contrat `scripts/test-caisse-unpublished-pharmacy-access.cjs` : vérifie l'accès ERP interne pour une pharmacie masquée, tout en conservant le blocage inactive/archivée, l'authentification, le rôle Caisse et le périmètre actif.
+- Commits : [`56274f44`](https://github.com/audreymendomo23-netizen/NAXA/commit/56274f4472f8e248cbe5e44cb0c519df60e9b23c), [`59a2098c`](https://github.com/audreymendomo23-netizen/NAXA/commit/59a2098c7133474a685933478e52b98d98f4ec01), [`6edbb3e3`](https://github.com/audreymendomo23-netizen/NAXA/commit/6edbb3e3aa2ee62f5faf4cc53c630b997bcc3fc5).
 
 ### Fixture technique privée sur Replay
 
-Une pharmacie HYBRIDE technique existante est utilisée : \`1a4f1ce5-cccf-477e-9a5b-474c8c9fc713\`, active, non archivée, \`est_demo=false\`, \`visible_recherche=false\`. Le Promoteur est relié à cette pharmacie et dispose du privilège de création Caisse ; le profil Gestionnaire Stock a déjà son affectation.
+Une pharmacie HYBRIDE technique existante est utilisée : `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`, active, non archivée, `est_demo=false`, `visible_recherche=false`. Le Promoteur est relié à cette pharmacie et dispose du privilège de création Caisse ; le profil Gestionnaire Stock a déjà son affectation.
 
-- \`scripts/e2e/provision-replay-credit-pharmacy-safe.cjs\` s'authentifie avec les secrets Replay, puis appelle les RPC officielles Promoteur/Stock : \`naxa_provision_caisse\`, \`naxa_select_active_role\`, \`pharmacie_produit_declarer_et_reference_initialiser\`, \`gestionnaire_stock_quantite_ajuster\`.
-- Le même profil peut recevoir plusieurs fonctions, mais un seul rôle actif à la fois : le harnais passe du Gestionnaire Stock à la Caisse puis vérifie explicitement \`naxa_business_function='caisse'\` et la pharmacie active.
-- La fiche produit technique \`NAXA E2E — Produit crédit comptoir\` est déclarée comme fiche propriétaire de cette seule pharmacie masquée ; son stock interne est réglé à **4 unités à 1 000 FCFA**, sans lot. Aucun enregistrement d'offre publique, aucune visibilité publique ou validation centrale n'est ajouté.
+- `scripts/e2e/provision-replay-credit-pharmacy-safe.cjs` s'authentifie avec les secrets Replay, puis appelle les RPC officielles Promoteur/Stock : `naxa_provision_caisse`, `naxa_select_active_role`, `pharmacie_produit_declarer_et_reference_initialiser`, `gestionnaire_stock_quantite_ajuster`.
+- Le même profil peut recevoir plusieurs fonctions, mais un seul rôle actif à la fois : le harnais passe du Gestionnaire Stock à la Caisse puis vérifie explicitement `naxa_business_function='caisse'` et la pharmacie active.
+- La fiche produit technique `NAXA E2E — Produit crédit comptoir` est déclarée comme fiche propriétaire de cette seule pharmacie masquée ; son stock interne est réglé à **4 unités à 1 000 FCFA**, sans lot. Aucun enregistrement d'offre publique, aucune visibilité publique ou validation centrale n'est ajouté.
 - Le produit est conservé uniquement dans cette pharmacie non commerciale ; la provisionneuse remet la quantité à 4 avant chaque nouvelle tentative.
-- Fichiers : \`scripts/e2e/provision-replay-credit-pharmacy-safe.cjs\`, \`scripts/test-credit-pharmacy-provisioner.cjs\`. Commits : [\`c31ba6f6\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c31ba6f6ae1687aa35ce5a03d92fe03de384ad5a), [\`a8859041\`](https://github.com/audreymendomo23-netizen/NAXA/commit/a8859041733c5144bea81e244f9c8715f92e6f18), [\`637e5d64\`](https://github.com/audreymendomo23-netizen/NAXA/commit/637e5d645b92b383fa9386e442a9b29543e6f7cc), [\`a4dee238\`](https://github.com/audreymendomo23-netizen/NAXA/commit/a4dee2388ccdce23f085397ba04a7e09cdb12cea).
+- Fichiers : `scripts/e2e/provision-replay-credit-pharmacy-safe.cjs`, `scripts/test-credit-pharmacy-provisioner.cjs`. Commits : [`c31ba6f6`](https://github.com/audreymendomo23-netizen/NAXA/commit/c31ba6f6ae1687aa35ce5a03d92fe03de384ad5a), [`a8859041`](https://github.com/audreymendomo23-netizen/NAXA/commit/a8859041733c5144bea81e244f9c8715f92e6f18), [`637e5d64`](https://github.com/audreymendomo23-netizen/NAXA/commit/637e5d645b92b383fa9386e442a9b29543e6f7cc), [`a4dee238`](https://github.com/audreymendomo23-netizen/NAXA/commit/a4dee2388ccdce23f085397ba04a7e09cdb12cea).
 
 ### Scénario Playwright crédit comptoir branché
 
-\`scripts/e2e/verify-credit-pos-browser.cjs\` couvre le chemin suivant sur Replay, avec les comptes Client, Promoteur et Gestionnaire Stock/Caisse authentifiés :
+`scripts/e2e/verify-credit-pos-browser.cjs` couvre le chemin suivant sur Replay, avec les comptes Client, Promoteur et Gestionnaire Stock/Caisse authentifiés :
 1. Le Promoteur active un plafond Client à **500 FCFA** sur la pharmacie masquée.
 2. Le compte Caisse ouvre sa session, associe le Client au panier et ajoute une unité à **1 000 FCFA**.
-3. La finalisation crée une demande \`origine='caisse'\` au-dessus du plafond ; le harnais vérifie avant décision : quantité physique toujours à 4, aucun paiement POS.
-4. Le Promoteur approuve cette demande via la vraie page \`/pharmacie/promoteur/credits\`.
-5. Le même brouillon est repris depuis \`/pharmacie/caisse\` ; le test vérifie la vente \`payee / credit\`, la ligne \`vente_paiements\`, l'opération de crédit rattachée à la session et le stock diminué **une seule fois** (4 → 3).
-6. Le Client consulte \`/achats/credit/suivi\`. Le RPC \`client_credit_rembourser\` est ensuite appelé avec le JWT réel du compte Caisse, montant 1 000 FCFA, espèces ; le harnais vérifie solde nul, lien session, opération et événement \`credit_remboursement\`.
+3. La finalisation crée une demande `origine='caisse'` au-dessus du plafond ; le harnais vérifie avant décision : quantité physique toujours à 4, aucun paiement POS.
+4. Le Promoteur approuve cette demande via la vraie page `/pharmacie/promoteur/credits`.
+5. Le même brouillon est repris depuis `/pharmacie/caisse` ; le test vérifie la vente `payee / credit`, la ligne `vente_paiements`, l'opération de crédit rattachée à la session et le stock diminué **une seule fois** (4 → 3).
+6. Le Client consulte `/achats/credit/suivi`. Le RPC `client_credit_rembourser` est ensuite appelé avec le JWT réel du compte Caisse, montant 1 000 FCFA, espèces ; le harnais vérifie solde nul, lien session, opération et événement `credit_remboursement`.
 7. La session Caisse est clôturée et doit présenter montant théorique 1 000 FCFA, montant compté 1 000 FCFA, écart 0.
 
 **Récupération en cas d'interruption :** s'il existe un panier avec demande encore en attente, le Promoteur technique la refuse puis le Caisse abandonne le brouillon. Si la demande a déjà été approuvée, le harnais reprend et finalise le même brouillon avant de rembourser le solde ; il ne transforme pas une approbation en refus fictif. Toute session laissée ouverte est rapprochée avant la prochaine tentative. Une demande technique résiduelle non résolue bloque le nouveau scénario plutôt que d'être ignorée.
@@ -2652,13 +2652,13 @@ Une pharmacie HYBRIDE technique existante est utilisée : \`1a4f1ce5-cccf-477e-9
 Le scénario garde les ventes, demandes consommées, opérations de crédit/remboursement, événements outbox et sessions clôturées dans la pharmacie masquée pour laisser une trace technique cohérente. Aucun de ces produits/offres n'est public. Les événements d'outbox de cette pharmacie non commerciale ne prouvent pas le posting comptable commercial ; celui-ci reste conditionné à une configuration légitime du Promoteur/Comptable.
 
 **Fichiers et Actions :**
-- \`scripts/e2e/verify-credit-pos-browser.cjs\` — [commit \`c34cef57\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c34cef5732924ba5b049603c45e6519b23bc6a60), corrigé dans [\`427e8149\`](https://github.com/audreymendomo23-netizen/NAXA/commit/427e8149c230d8f09bc609df806b365414d36fdc) et durci dans [\`22af25ca\`](https://github.com/audreymendomo23-netizen/NAXA/commit/22af25ca1b14343867dd1abe4a2560ff090d9fff).
-- \`scripts/test-credit-pos-browser.cjs\` — [commit \`c70f85b8\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c70f85b8a13196f535014bf63c19810eecaecf39), ajustements pour ne pas dépendre de l'installation tardive de Playwright et aligner les assertions : [\`cc06f923\`](https://github.com/audreymendomo23-netizen/NAXA/commit/cc06f92314fcbe8e76d629498aacfa88f9e7f61b), [\`9af01924\`](https://github.com/audreymendomo23-netizen/NAXA/commit/9af019248fcdee489892a3ed79c33446b47b9eb5), [\`c2a2bec5\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c2a2bec53be687f3c2fb685673959ae3026c2060).
-- \`.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml\` provisionne la caisse/stock privés, installe Chromium, exécute le remboursement runtime JWT Caisse, puis le parcours navigateur crédit et enfin Storage. Les secrets demeurent dans des fichiers runner temporaires 0600 et sont supprimés dans l'étape \`always()\`. Commit du branchement navigateur : [\`5ff7b078\`](https://github.com/audreymendomo23-netizen/NAXA/commit/5ff7b0787cfaf69d2a4e90c5688e60c5cf07946f).
+- `scripts/e2e/verify-credit-pos-browser.cjs` — [commit `c34cef57`](https://github.com/audreymendomo23-netizen/NAXA/commit/c34cef5732924ba5b049603c45e6519b23bc6a60), corrigé dans [`427e8149`](https://github.com/audreymendomo23-netizen/NAXA/commit/427e8149c230d8f09bc609df806b365414d36fdc) et durci dans [`22af25ca`](https://github.com/audreymendomo23-netizen/NAXA/commit/22af25ca1b14343867dd1abe4a2560ff090d9fff).
+- `scripts/test-credit-pos-browser.cjs` — [commit `c70f85b8`](https://github.com/audreymendomo23-netizen/NAXA/commit/c70f85b8a13196f535014bf63c19810eecaecf39), ajustements pour ne pas dépendre de l'installation tardive de Playwright et aligner les assertions : [`cc06f923`](https://github.com/audreymendomo23-netizen/NAXA/commit/cc06f92314fcbe8e76d629498aacfa88f9e7f61b), [`9af01924`](https://github.com/audreymendomo23-netizen/NAXA/commit/9af019248fcdee489892a3ed79c33446b47b9eb5), [`c2a2bec5`](https://github.com/audreymendomo23-netizen/NAXA/commit/c2a2bec53be687f3c2fb685673959ae3026c2060).
+- `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` provisionne la caisse/stock privés, installe Chromium, exécute le remboursement runtime JWT Caisse, puis le parcours navigateur crédit et enfin Storage. Les secrets demeurent dans des fichiers runner temporaires 0600 et sont supprimés dans l'étape `always()`. Commit du branchement navigateur : [`5ff7b078`](https://github.com/audreymendomo23-netizen/NAXA/commit/5ff7b0787cfaf69d2a4e90c5688e60c5cf07946f).
 
 ### État de preuve au §64
 
-- **Code et contrats statiques : INTÉGRÉS** sur \`main\`.
+- **Code et contrats statiques : INTÉGRÉS** sur `main`.
 - **Provisionnement runtime et parcours Playwright : À EXÉCUTER / NON CONFIRMÉS**. Les commits poussent le workflow par filtres de chemins, mais aucun run terminal associé à cette dernière tête n'est observable via les statuts consultés ici. Aucun PASS navigateur ne doit être déclaré avant le log de succès et le nettoyage.
 - **Parcours Marketplace navigateur complet : NON PROUVÉ**. Les scénarios SQL Marketplace 259/264 restent les preuves backend ; le nouveau navigateur couvre le crédit direct Caisse.
 - **Qualité générale dernier SHA : NON CONFIRMÉE**. Le run 3332 antérieur avait été annulé ; le run 3321 est antérieur aux corrections de cette séquence.
@@ -2669,19 +2669,19 @@ Le scénario garde les ventes, demandes consommées, opérations de crédit/remb
 
 ## 65. Alignement final des contrats E2E et état vérifiable des Actions (15/11/2026)
 
-**Tête \`main\` contrôlée :** \`43d55e53aed354bcf9b235fc54db21ccc7ec275a\`.
+**Tête `main` contrôlée :** `43d55e53aed354bcf9b235fc54db21ccc7ec275a`.
 
 ### Durcissements intégrés après §64
 
-- Le provisionneur vérifie maintenant explicitement que la RPC active le rôle Gestionnaire Stock et confirme l'affectation Stock avant de déclarer le produit et d'ajuster la quantité : commit [\`a4dee238\`](https://github.com/audreymendomo23-netizen/NAXA/commit/a4dee2388ccdce23f085397ba04a7e09cdb12cea).
-- Le scénario navigateur vérifie que les sélections de rôle Promoteur et Caisse retournent \`true\`, que \`naxa_business_function\` retourne \`caisse\` et que \`naxa_active_role_pharmacy\` retourne précisément la pharmacie masquée : commit [\`085a4044\`](https://github.com/audreymendomo23-netizen/NAXA/commit/085a4044131982149c9615f526f707680ce04526).
-- En récupération d'une exécution interrompue, un brouillon avec demande encore approuvée est finalisé sur le même panier avant régularisation du solde ; les demandes en attente sont refusées avant abandon. Un résidu non résolu bloque la tentative suivante : commit [\`22af25ca\`](https://github.com/audreymendomo23-netizen/NAXA/commit/22af25ca1b14343867dd1abe4a2560ff090d9fff).
-- Le test contractuel Playwright reste indépendant de l'installation tardive de la dépendance Playwright ; l'assertion vérifie la structure du parcours, sans lancer de navigateur pendant la phase pré-build : commits [\`cc06f923\`](https://github.com/audreymendomo23-netizen/NAXA/commit/cc06f92314fcbe8e76e987f3e3731dcdc3fcdc8b) et [\`c2a2bec5\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c2a2bec53be687f3c2fb685673959ae3026c2060).
-- Les filtres de chemins du workflow Replay ont été dédupliqués : commit [\`43d55e53\`](https://github.com/audreymendomo23-netizen/NAXA/commit/43d55e53aed354bcf9b235fc54db21ccc7ec275a).
+- Le provisionneur vérifie maintenant explicitement que la RPC active le rôle Gestionnaire Stock et confirme l'affectation Stock avant de déclarer le produit et d'ajuster la quantité : commit [`a4dee238`](https://github.com/audreymendomo23-netizen/NAXA/commit/a4dee2388ccdce23f085397ba04a7e09cdb12cea).
+- Le scénario navigateur vérifie que les sélections de rôle Promoteur et Caisse retournent `true`, que `naxa_business_function` retourne `caisse` et que `naxa_active_role_pharmacy` retourne précisément la pharmacie masquée : commit [`085a4044`](https://github.com/audreymendomo23-netizen/NAXA/commit/085a4044131982149c9615f526f707680ce04526).
+- En récupération d'une exécution interrompue, un brouillon avec demande encore approuvée est finalisé sur le même panier avant régularisation du solde ; les demandes en attente sont refusées avant abandon. Un résidu non résolu bloque la tentative suivante : commit [`22af25ca`](https://github.com/audreymendomo23-netizen/NAXA/commit/22af25ca1b14343867dd1abe4a2560ff090d9fff).
+- Le test contractuel Playwright reste indépendant de l'installation tardive de la dépendance Playwright ; l'assertion vérifie la structure du parcours, sans lancer de navigateur pendant la phase pré-build : commits [`cc06f923`](https://github.com/audreymendomo23-netizen/NAXA/commit/cc06f92314fcbe8e76e987f3e3731dcdc3fcdc8b) et [`c2a2bec5`](https://github.com/audreymendomo23-netizen/NAXA/commit/c2a2bec53be687f3c2fb685673959ae3026c2060).
+- Les filtres de chemins du workflow Replay ont été dédupliqués : commit [`43d55e53`](https://github.com/audreymendomo23-netizen/NAXA/commit/43d55e53aed354bcf9b235fc54db21ccc7ec275a).
 
 ### Workflow Replay au SHA contrôlé
 
-Le workflow \`.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml\` inclut maintenant, dans le même job Replay :
+Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` inclut maintenant, dans le même job Replay :
 1. tests Node/contrats sans dépendance navigateur ;
 2. provisionnement des profils et affectations, Promoteur, Admin, Client, Stock/Responsable ;
 3. provisionnement de la Caisse et du produit dans la pharmacie technique non publique ;
@@ -2694,9 +2694,9 @@ Les pushes touchant ces scripts, pages ou workflow satisfont les filtres de déc
 
 ### Contrôle des statuts disponibles
 
-- Recherche des commits : tête \`43d55e53\` bien présente sur \`main\`.
+- Recherche des commits : tête `43d55e53` bien présente sur `main`.
 - Statut combiné demandé pour cette tête : aucune entrée retournée.
-- L'action de récupération des runs commit ne retourne que les exécutions associées aux Pull Requests ; elle ne fournit pas la liste des exécutions déclenchées par push sur \`main\`.
+- L'action de récupération des runs commit ne retourne que les exécutions associées aux Pull Requests ; elle ne fournit pas la liste des exécutions déclenchées par push sur `main`.
 - Aucun ID de run récent ni résultat de job terminal n'est donc vérifiable ici pour le nouveau provisionnement crédit, le remboursement authentifié ou Playwright. Ces étapes restent **INTÉGRÉES / EXÉCUTION NON CONFIRMÉE**. Ne pas interpréter l'absence de status retourné comme un succès ou un échec.
 
 **Verdict §65 : PARTIEL / NO-GO GLOBAL.** Le correctif de disponibilité ERP sur pharmacie masquée, le provisionnement et le parcours crédit comptoir navigateur sont versionnés et les Action paths sont branchés, mais leur premier résultat E2E doit encore être lu. Le parcours Marketplace navigateur complet et la configuration comptable commerciale par pharmacie restent ouverts. Les preuves SQL du worker comptable (§62–§63) ne sont pas substituées à ces validations. Production, Vercel et Play Store restent inchangés.
