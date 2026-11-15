@@ -46,7 +46,7 @@ create table if not exists public.assurance_couverture_verifications (
   date_debut date,
   date_fin date,
   declaration_maj_at timestamptz not null,
-  verification_le timestamptz not null default now(),
+  verification_le timestamptz not null default clock_timestamp(),
   verification_par uuid not null references auth.users(id) on delete restrict,
   constraint assurance_couverture_verifications_line_uq unique(import_ligne_id),
   constraint assurance_couverture_verifications_import_coverage_uq unique(couverture_id,pharmacie_id,import_id),
