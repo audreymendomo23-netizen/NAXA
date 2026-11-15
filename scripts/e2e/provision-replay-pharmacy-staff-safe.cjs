@@ -1,0 +1,371 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("node:fs");
+const { randomBytes } = require("node:crypto");
+
+const PROJECT_REF = "pwfftcsjyeibxxqhwysw";
+const FIXTURE_MARKER = "NAXA-E2E-PHARMACY-STAFF-20261115";
+const PHARMACY = process.env.NAXA_STORAGE_E2E_PROMOTEUR_PHARMACY_ID || "";
+const PROMOTER_EMAIL = "naxa.e2e.promoteur@example.invalid";
+const PERSONAS = [
+  {
+    key: "stock",
+    email: "naxa.e2e.stock@example.invalid",
+    username: "naxa_e2e_stock",
+    phone: "+237600000096",
+    firstName: "Compte",
+    lastName: "Gestionnaire Stock E2E",
+    role: "gestionnaire_stock",
+  },
+  {
+    key: "caisse",
+    email: "naxa.e2e.caisse@example.invalid",
+    username: "naxa_e2e_caisse",
+    phone: "+237600000095",
+    firstName: "Compte",
+    lastName: "Caisse E2E",
+    role: "caisse",
+  },
+  {
+    key: "client",
+    email: "naxa.e2e.client-acheteur@example.invalid",
+    username: "naxa_e2e_acheteur",
+    phone: "+237600000094",
+    firstName: "Compte",
+    lastName: "Client Acheteur E2E",
+    role: "client",
+  },
+];
+
+function assertReplayUrl(value) {
+  let url;
+  try { url = new URL(value); } catch { throw new Error("URL Supabase invalide."); }
+  if (url.protocol !== "https:" || url.hostname !== PROJECT_REF + ".supabase.co" || !["", "/"].includes(url.pathname)) {
+    throw new Error("Sécurité : les fixtures du personnel sont limitées au projet Replay " + PROJECT_REF + ".");
+  }
+  return url.origin;
+}
+
+function buildMetadata(persona) {
+  return {
+    username: persona.username,
+    first_name: persona.firstName,
+    last_name: persona.lastName,
+    phone: persona.phone,
+    phone_country: "CM",
+    date_of_birth: "1990-01-01",
+    consent_accepted: true,
+    naxa_signup_completed: true,
+    naxa_signup_pending: false,
+    naxa_e2e_fixture: FIXTURE_MARKER,
+    naxa_e2e_persona: persona.key,
+  };
+}
+
+function assertFixture(user, profile, persona) {
+  if (!user || !profile) throw new Error("Compte Auth/profil absent pour " + persona.key + ".");
+  if (String(user.email || "").trim().toLowerCase() !== persona.email) {
+    throw new Error("Adresse Auth inattendue pour " + persona.key + ".");
+  }
+  if (!user.id || profile.id !== user.id) throw new Error("Profil non lié à l'identité Auth pour " + persona.key + ".");
+  if (!user.email_confirmed_at) throw new Error("Adresse non confirmée pour " + persona.key + ".");
+  const metadata = user.user_metadata || user.raw_user_meta_data || {};
+  if (metadata.naxa_e2e_fixture !== FIXTURE_MARKER
+    || metadata.naxa_e2e_persona !== persona.key
+    || metadata.username !== persona.username
+    || metadata.naxa_signup_completed !== true) {
+    throw new Error("Marqueurs E2E incompatibles pour " + persona.key + " ; aucune conversion de compte.");
+  }
+  if (profile.role !== "client" || profile.actif !== true || profile.age_verified !== true
+    || !profile.consent_accepted_at || profile.username !== persona.username
+    || profile.first_name !== persona.firstName || profile.last_name !== persona.lastName
+    || profile.phone !== persona.phone || !profile.date_of_birth) {
+    throw new Error("Profil racine Client incomplet, inactif ou non conforme pour " + persona.key + ".");
+  }
+  return true;
+}
+
+function generateEphemeralPassword() {
+  return randomBytes(32).toString("base64url") + "Aa!9";
+}
+
+async function provision(env = process.env) {
+  const baseUrl = assertReplayUrl(env.SUPABASE_URL || env.NAXA_STORAGE_E2E_URL || "");
+  const adminKey = String(env.SUPABASE_SERVICE_ROLE_KEY || env.NAXA_STORAGE_E2E_ADMIN_KEY || "").trim();
+  const anonKey = String(env.NAXA_STORAGE_E2E_ANON_KEY || "").trim();
+  const promoterEmail = String(env.NAXA_STORAGE_E2E_PROMOTEUR_EMAIL || PROMOTER_EMAIL).trim();
+  const promoterPasswordFile = String(env.NAXA_STORAGE_E2E_PROMOTEUR_PASSWORD_FILE || "").trim();
+  const pharmacyId = String(env.NAXA_STORAGE_E2E_PROMOTEUR_PHARMACY_ID || PHARMACY).trim();
+  if (!adminKey || !anonKey || !promoterPasswordFile || !pharmacyId) {
+    throw new Error("Secrets Replay, fichier secret Promoteur et pharmacie E2E requis.");
+  }
+  if (!fs.existsSync(promoterPasswordFile)) throw new Error("Fichier secret Promoteur absent.");
+  const promoterPassword = fs.readFileSync(promoterPasswordFile, "utf8");
+  if (!promoterPassword) throw new Error("Fichier secret Promoteur vide.");
+
+  const roleSessions = [];
+  let failed = false;
+
+  async function request(path, options = {}) {
+    const apiKey = options.apiKey || anonKey;
+    const headers = { apikey: apiKey, "Content-Type": "application/json" };
+    if (options.accessToken) headers.Authorization = "Bearer " + options.accessToken;
+    else if (!apiKey.startsWith("sb_secret_") && !apiKey.startsWith("sb_publishable_")) {
+      headers.Authorization = "Bearer " + apiKey;
+    }
+    const response = await fetch(baseUrl + path, {
+      method: options.method || "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+    const raw = await response.text();
+    let data = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch { /* ne jamais journaliser les corps Auth */ }
+    return { ok: response.ok, status: response.status, data };
+  }
+
+  async function adminRequest(path, method = "GET", body) {
+    const result = await request(path, { method, apiKey: adminKey, body });
+    if (!result.ok) {
+      const code = result.data && typeof result.data.code === "string" ? " (" + result.data.code + ")" : "";
+      throw new Error("Supabase a refusé une opération de fixture Replay (HTTP " + result.status + code + ").");
+    }
+    return result.data;
+  }
+
+  async function restAdmin(path) {
+    return adminRequest("/rest/v1/" + path);
+  }
+
+  async function rpc(path, accessToken, args) {
+    return request("/rest/v1/rpc/" + path, { method: "POST", accessToken, body: args || {} });
+  }
+
+  async function login(email, password, label) {
+    const result = await request("/auth/v1/token?grant_type=password", {
+      method: "POST",
+      body: { email, password },
+    });
+    if (!result.ok || !result.data?.access_token || !result.data?.user?.id) {
+      throw new Error("Connexion du compte " + label + " impossible (HTTP " + result.status + ").");
+    }
+    roleSessions.push(result.data.access_token);
+    return { id: result.data.user.id, token: result.data.access_token };
+  }
+
+  async function logout(accessToken) {
+    const result = await request("/auth/v1/logout?scope=local", { method: "POST", accessToken });
+    if (!result.ok && result.status !== 401 && result.status !== 404) {
+      throw new Error("Fermeture locale d'une session E2E impossible (HTTP " + result.status + ").");
+    }
+  }
+
+  async function findAuthFixture(persona) {
+    const matches = [];
+    for (let page = 1; page <= 20; page += 1) {
+      const listed = await adminRequest("/auth/v1/admin/users?page=" + page + "&per_page=50");
+      const users = Array.isArray(listed?.users) ? listed.users
+        : Array.isArray(listed?.data?.users) ? listed.data.users
+          : Array.isArray(listed) ? listed : [];
+      matches.push(...users.filter(x => String(x.email || "").trim().toLowerCase() === persona.email));
+      if (users.length < 50) break;
+    }
+    if (matches.length > 1) throw new Error("Identité Auth dupliquée pour " + persona.key + ".");
+    return matches[0] || null;
+  }
+
+  async function provisionIdentity(persona) {
+    const usernameRows = await restAdmin(
+      "profiles?select=id,username&username=eq." + encodeURIComponent(persona.username) + "&limit=2"
+    );
+    const phoneRows = await restAdmin(
+      "profiles?select=id,phone&phone=eq." + encodeURIComponent(persona.phone) + "&limit=2"
+    );
+    if (!Array.isArray(usernameRows) || !Array.isArray(phoneRows)) {
+      throw new Error("Contrôle d'unicité incomplet pour " + persona.key + ".");
+    }
+    let user = await findAuthFixture(persona);
+    const password = generateEphemeralPassword();
+
+    if (user) {
+      const profiles = await restAdmin(
+        "profiles?select=id,role,actif,age_verified,consent_accepted_at,username,first_name,last_name,phone,date_of_birth&id=eq."
+          + encodeURIComponent(user.id) + "&limit=2"
+      );
+      if (!Array.isArray(profiles) || profiles.length !== 1) {
+        throw new Error("Profil attendu absent pour " + persona.key + ".");
+      }
+      assertFixture(user, profiles[0], persona);
+      if (usernameRows.some(row => row.id !== user.id) || phoneRows.some(row => row.id !== user.id)) {
+        throw new Error("Nom d'utilisateur ou téléphone déjà utilisé par un autre profil.");
+      }
+      await adminRequest("/auth/v1/admin/users/" + encodeURIComponent(user.id), "PUT", { password });
+    } else {
+      if (usernameRows.length || phoneRows.length) {
+        throw new Error("Identifiant technique ou téléphone déjà utilisé ; création de " + persona.key + " refusée.");
+      }
+      const created = await adminRequest("/auth/v1/admin/users", "POST", {
+        email: persona.email,
+        password,
+        email_confirm: true,
+        user_metadata: buildMetadata(persona),
+      });
+      user = created?.user || created;
+      if (!user?.id) throw new Error("Supabase Auth n'a pas retourné l'identité " + persona.key + ".");
+    }
+
+    const verified = await findAuthFixture(persona);
+    if (!verified || verified.id !== user.id) throw new Error("Identité Auth non unique après provisionnement.");
+    const profiles = await restAdmin(
+      "profiles?select=id,role,actif,age_verified,consent_accepted_at,username,first_name,last_name,phone,date_of_birth&id=eq."
+        + encodeURIComponent(user.id) + "&limit=2"
+    );
+    if (!Array.isArray(profiles) || profiles.length !== 1) throw new Error("Profil non créé pour " + persona.key + ".");
+    assertFixture(verified, profiles[0], persona);
+    return { id: user.id, password };
+  }
+
+  try {
+    const promoter = await login(promoterEmail, promoterPassword, "Promoteur E2E");
+    const pharmacy = await restAdmin(
+      "pharmacies?select=id,actif,archivee_le& id=eq." + encodeURIComponent(pharmacyId) + "&limit=1"
+    );
+    if (!Array.isArray(pharmacy) || pharmacy.length !== 1
+      || pharmacy[0].actif !== true || pharmacy[0].archivee_le !== null) {
+      throw new Error("Pharmacie E2E inactive, archivée ou introuvable.");
+    }
+
+    const fixtures = {};
+    for (const persona of PERSONAS) {
+      fixtures[persona.key] = await provisionIdentity(persona);
+    }
+
+    for (const persona of PERSONAS.filter(item => item.role !== "client")) {
+      const rows = await restAdmin(
+        "naxa_professional_assignments?select=id,pharmacie_id,role_code,statut,commence_at,expire_at"
+          + "&profile_id=eq." + encodeURIComponent(fixtures[persona.key].id)
+          + "&statut=eq.active&commence_at=lte." + encodeURIComponent(new Date().toISOString())
+          + "&limit=20"
+      );
+      if (!Array.isArray(rows)) throw new Error("Lecture des affectations impossible pour " + persona.key + ".");
+      const active = rows.filter(row => !row.expire_at || new Date(row.expire_at).getTime() > Date.now());
+      if (active.some(row => row.role_code !== persona.role || row.pharmacie_id !== pharmacyId)) {
+        throw new Error("Un autre poste ou une autre pharmacie est déjà actif sur la fixture " + persona.key + ".");
+      }
+      const existing = active.find(row => row.role_code === persona.role && row.pharmacie_id === pharmacyId);
+      if (!existing) {
+        const provisioned = persona.role === "caisse"
+          ? await rpc("naxa_provision_caisse", promoter.token, {
+              p_target: fixtures[persona.key].id,
+              p_pharmacie: pharmacyId,
+            })
+          : await rpc("naxa_grant_professional_assignment", promoter.token, {
+              p_target: fixtures[persona.key].id,
+              p_pharmacie: pharmacyId,
+              p_fonction: persona.role,
+              p_commence_at: new Date().toISOString(),
+              p_expire_at: null,
+              p_motif: "Affectation professionnelle E2E Replay du " + persona.role + ".",
+            });
+        if (!provisioned.ok) {
+          throw new Error("Affectation " + persona.role + " refusée (HTTP " + provisioned.status + ").");
+        }
+      }
+    }
+
+    const cashRegisters = await restAdmin(
+      "caisses?select=id,nom,pharmacie_id,actif&pharmacie_id=eq."
+        + encodeURIComponent(pharmacyId) + "&actif=eq.true&limit=10"
+    );
+    if (!Array.isArray(cashRegisters) || cashRegisters.length !== 1) {
+      throw new Error("Le provisionnement Caisse devait créer exactement une ressource physique active.");
+    }
+
+    const results = [];
+    for (const persona of PERSONAS) {
+      const session = await login(persona.email, fixtures[persona.key].password, persona.key);
+      if (session.id !== fixtures[persona.key].id) throw new Error("Identité Auth incohérente pour " + persona.key + ".");
+      if (persona.role !== "client") {
+        const selected = await rpc("naxa_select_active_role", session.token, {
+          p_role_code: persona.role,
+          p_pharmacie_id: pharmacyId,
+        });
+        if (!selected.ok || selected.data !== true) {
+          throw new Error("Sélection du poste " + persona.role + " refusée (HTTP " + selected.status + ").");
+        }
+      }
+      const role = await rpc("naxa_business_function", session.token, {});
+      const activePharmacy = await rpc("naxa_active_role_pharmacy", session.token, {});
+      if (!role.ok || role.data !== persona.role
+        || (persona.role === "client" ? activePharmacy.data !== null : activePharmacy.data !== pharmacyId)) {
+        throw new Error("Contexte actif invalide pour " + persona.key + ".");
+      }
+      if (persona.role === "caisse") {
+        const visible = await request(
+          "/rest/v1/caisses?select=id,nom,pharmacie_id&pharmacie_id=eq."
+            + encodeURIComponent(pharmacyId) + "&actif=eq.true",
+          { accessToken: session.token }
+        );
+        if (!visible.ok || !Array.isArray(visible.data) || visible.data.length !== 1) {
+          throw new Error("Le compte Caisse ne voit pas sa ressource physique via RLS (HTTP " + visible.status + ").");
+        }
+      }
+      if (persona.role === "gestionnaire_stock") {
+        const visible = await request(
+          "/rest/v1/stocks?select=pharmacie_id,produit_id,quantite&pharmacie_id=eq."
+            + encodeURIComponent(pharmacyId) + "&limit=1",
+          { accessToken: session.token }
+        );
+        if (!visible.ok) {
+          throw new Error("Le Gestionnaire Stock ne peut pas lire le stock autorisé via RLS (HTTP " + visible.status + ").");
+        }
+      }
+      results.push({ persona: persona.key, role: persona.role, profileId: session.id });
+    }
+
+    const serviceRows = await restAdmin(
+      "gestionnaire_stock_sessions?select=id,ended_at&user_id=eq." + encodeURIComponent(fixtures.stock.id) + "&limit=10"
+    );
+    const cashSessions = await restAdmin(
+      "caisses_sessions?select=id,statut,cloture_at&ouvert_par=eq." + encodeURIComponent(fixtures.caisse.id) + "&limit=10"
+    );
+    if (!Array.isArray(serviceRows) || serviceRows.some(row => row.ended_at === null)) {
+      throw new Error("Une session Stock de test reste ouverte ; contrôle de nettoyage requis.");
+    }
+    if (!Array.isArray(cashSessions) || cashSessions.some(row => row.statut === "ouverte")) {
+      throw new Error("Une session Caisse de test reste ouverte ; aucune caisse ne devait être ouverte.");
+    }
+
+    process.stdout.write("PASS — 3 identités Replay vérifiées : Gestionnaire Stock, Caisse et Client acheteur distinct du Livreur.\n");
+    process.stdout.write("PASS — affectations Stock/Caisse actives, comptes racine Client et postes exclusifs.\n");
+    process.stdout.write("PASS — une Caisse physique active créée et visible par son compte via RLS.\n");
+    process.stdout.write("PASS — lecture RLS du stock par le Gestionnaire Stock ; aucune quantité, réservation, vente ou mission modifiée.\n");
+    process.stdout.write("PASS — aucune session Stock ou Caisse ouverte par ce harnais.\n");
+    process.stdout.write("INFO — comptes E2E conservés sur Replay ; aucun mot de passe n'est écrit dans les journaux.\n");
+    process.stdout.write("RESULT=" + JSON.stringify(results.map(row => ({ persona: row.persona, role: row.role })) ) + "\n");
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    const cleanupErrors = [];
+    for (const token of [...new Set(roleSessions)].reverse()) {
+      try { await logout(token); }
+      catch (error) { cleanupErrors.push(error?.message || "erreur inconnue"); }
+    }
+    if (cleanupErrors.length) {
+      const message = "CLEANUP sessions Promoteur/équipe E2E : " + cleanupErrors.join(" ; ");
+      if (failed) process.stderr.write(message + "\n");
+      else throw new Error(message);
+    }
+  }
+}
+
+if (require.main === module) {
+  provision().catch(error => {
+    process.stderr.write("PROVISIONNEMENT ÉQUIPE PHARMACIE E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\n");
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { assertReplayUrl, buildMetadata, assertFixture, generateEphemeralPassword, PERSONAS };
