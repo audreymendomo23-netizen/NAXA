@@ -2198,3 +2198,66 @@ Les assertions ont été réalignées sur le scénario effectivement exécuté. 
 **État §55 : CODE ET CONTRATS TECHNIQUES VALIDÉS ; PARCOURS BACKEND ASSURANCE/POS PASS SUR REPLAY ; PAS AU VERT GLOBAL.** La CI applicative est verte sur la tête contrôlée, mais l'import réel, le plan comptable validé par la pharmacie, la recette UI commerciale et Web Push/Storage restent à prouver. Production et Vercel inchangés.
 
 **Point exact de reprise :** recevoir un exemple assureur expurgé et la validation du plan/mappings comptables de la pharmacie ; exécuter ensuite le parcours UI avec les comptes professionnels autorisés. Garder Production et Vercel inchangés sans autorisation expresse.
+
+
+## 56. Import Assurance, négociation et worker comptable intégré — Replay PASS (15/11/2026)
+
+### Clôture des défauts d'implémentation
+
+Les migrations et pages déjà versionnées dans `main` fournissent maintenant :
+- import CSV/XLS/XLSX, simulation avant application, SHA-256 et référence de transmission, contrôles des doublons/ambiguïtés/invalides, modes complet/delta ;
+- historique de vérification indépendant par pharmacie, basé sur la dernière liste assureur et la version de déclaration client ;
+- propositions financières immuables et versionnées, réponse explicite du Client propriétaire, rejet des réponses par les autres rôles, blocage de la confirmation si une proposition attend ;
+- POS fractionné qui reprend le dernier partage accepté, ticket Client qui distingue montant dû et argent effectivement reçu ;
+- événements comptables idempotents pour la créance et les remboursements, et vente encaissée limitée à la part Client.
+
+Le modèle CSV d'exemple est fictif et disponible dans `public/modeles/assureur-liste-assures-exemple.csv`. Aucune donnée personnelle réelle n'est incorporée au dépôt.
+
+### Tests Replay de vérification et de runtime
+
+- `supabase/tests/20261115121500_assurance_import_membership_negotiation.sql` — **PASS**.
+- `supabase/tests/20261115123000_assurance_import_runtime_multipharmacy.sql` — **8/8 PASS** : import complet/delta, suspension, réactivation, invalidation après correction de déclaration, vérification spécifique à la pharmacie et blocage du devis hors pharmacie.
+- `supabase/tests/20261115101000_assurance_amount_proposal_workflow.sql` — **PASS**.
+- `supabase/tests/20261115103000_assurance_client_refusal_event_visibility.sql` — **PASS**.
+- `supabase/tests/20261115104000_assurance_accounting_event_idempotence_scope.sql` — **PASS**.
+- `supabase/tests/20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql` — **PASS**, seconde exécution après extension au worker comptable.
+
+### Runtime intégré — résultat exact
+
+Le test réutilise un Client Replay et un compte Caisse Replay existants ; une affectation Responsable temporaire est créée dans la transaction et le rôle est activé par la RPC officielle. Le flux sous JWT passe par déclaration de couverture, import synthétique, convention, devis, accord Client, contrôle documentaire, proposition de montant, nouvel accord Client, confirmation de prise en charge, encaissement POS, ticket et deux remboursements.
+
+| Contrôle | Résultat |
+|---|---:|
+| Total Marketplace brut | 10 000 FCFA |
+| Part assureur initiale / part Client initiale | 6 000 / 4 000 FCFA |
+| Part assureur acceptée / part Client finale | 5 500 / 4 500 FCFA |
+| Espèces remises / monnaie rendue | 5 000 / 500 FCFA |
+| Remboursements assureur | 2 000 + 3 500 FCFA |
+| Événements passés au worker | 4 |
+| Écritures comptables | 4, toutes équilibrées |
+| Compte créance assureur | débit 5 500 / crédit 5 500 FCFA |
+| Compte espèces Client | débit 4 500 FCFA |
+| Compte revenu combiné | crédit 10 000 FCFA |
+
+Le test crée temporairement une période, quatre comptes, six mappings et trois journaux ; il traite réellement les événements d'outbox créés par le parcours et vérifie les quatre écritures du grand livre. Le tout se termine par `ROLLBACK`.
+
+### Nettoyage post-test
+
+Le contrôle Replay après test donne :
+- 0 import, ligne d'import, vérification, couverture, convention, snapshot, dossier, proposition ou règlement ;
+- 0 réservation et vente de recette ; 0 événement comptable en attente ;
+- 0 période, compte, mapping, paramètre, événement comptable, écriture ou ligne ;
+- 0 stock/coût/lots de test persistants ;
+- rôle Caisse rétabli, affectation Responsable temporaire retirée.
+
+### État des derniers verrous
+
+<badge color="success">Backend métier + worker comptable : PASS Replay</badge>
+
+Restent hors de portée d'une fixture synthétique :
+1. réception d'un export réel (expurgé) transmis par un assureur pour confirmer ses en-têtes/alias propriétaires et son canal de provenance ;
+2. test navigateur réel Client → Assurance → Caisse/ticket sur une pharmacie non-démo explicitement autorisée et avec comptes métier réels ;
+3. plan, mappings, paramètres, journaux et période comptables réellement validés par le Promoteur/Comptable de la pharmacie ;
+4. workflow qualité GitHub sur le commit final de cette documentation (actionlint déjà PASS ; Node/TypeScript/lint/build en cours).
+
+**État §56 : PARTIEL — PAS AU VERT GLOBAL.** Les défauts de code du parcours Assurance et l'intégration du worker comptable sont corrigés et testés. Les preuves externes/commerce réel et la validation CI finale restent à obtenir. Production et Vercel inchangés.
