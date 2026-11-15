@@ -36,6 +36,9 @@ test("le worker push accepte un identifiant UUID et conserve le mode batch histo
   assert.match(route, /notificationId\s*\?\s*await db\.rpc\("claim_notification_push_outbox_for_notification"/);
   assert.match(route, /: await db\.rpc\("claim_notification_push_outbox",\s*\{\s*p_limit:\s*50\s*\}\)/);
   assert.match(route, /notificationId:\s*notificationId \?\? null/);
+  assert.match(route, /webPushFailures/);
+  assert.match(route, /webPushErrorCodes/);
+  assert.match(route, /network_error/);
 });
 
 test("le claim push ciblé est réservé au service_role et verrouille une seule notification", () => {
