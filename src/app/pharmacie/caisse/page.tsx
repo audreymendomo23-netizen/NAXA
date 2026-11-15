@@ -280,12 +280,15 @@ export default function CaissePage() {
         return;
       }
       const { data: pharmacy, error: pharmacyError } = await sb.from("pharmacies")
-        .select("id,nom,actif,visible_recherche")
+        .select("id,nom,actif,archivee_le")
         .eq("id", activePharmacyId)
         .maybeSingle();
-      if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.visible_recherche !== true) {
+      // Marketplace visibility and internal ERP availability are separate:
+      // an active, non-archived pharmacy keeps its own Caisse even when hidden
+      // from public search. Suspension is enforced by the operational guards.
+      if (pharmacyError || !pharmacy || pharmacy.actif !== true || pharmacy.archivee_le !== null) {
         if (!cancelled) {
-          setMsg("La pharmacie est inactive ou non publiée. L’encaissement reste fermé.");
+          setMsg("La pharmacie est inactive ou archivée. L’accès Caisse reste fermé.");
           setLoading(false);
         }
         return;
