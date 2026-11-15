@@ -18,6 +18,9 @@ type CreditRequest = {
   justificatif_path:string|null;
   panier_items:{produit_id:string;quantite:number}[]|null;
   reservation_id:string|null;
+  origine:string;
+  vente_id:string|null;
+  motif:string|null;
 };
 
 const fcfa=(v:number)=>Number(v||0).toLocaleString("fr-FR")+" FCFA";
@@ -66,8 +69,8 @@ export default async function ResponsableCreditsMarketplacePage({
   const [{data:pharmacies,error:pharmacyError},{data,error}] = await Promise.all([
     sb.from("pharmacies").select("id,nom").in("id",pharmacyIds),
     sb.from("client_credit_requests")
-      .select("id,pharmacie_id,client_id,montant,statut,created_at,telephone_demande,date_remboursement,justificatif_path,panier_items,reservation_id")
-      .eq("origine","marketplace").in("pharmacie_id",pharmacyIds)
+      .select("id,pharmacie_id,client_id,montant,statut,created_at,telephone_demande,date_remboursement,justificatif_path,panier_items,reservation_id,origine,vente_id,motif")
+      .in("origine",["marketplace","caisse"]).in("pharmacie_id",pharmacyIds)
       .order("created_at",{ascending:false}).limit(100),
   ]);
   const requests=(data??[]) as CreditRequest[];
@@ -86,39 +89,42 @@ export default async function ResponsableCreditsMarketplacePage({
   return <main className="mx-auto max-w-5xl space-y-4 px-4 py-6">
     <header className="rounded-2xl bg-[#0B3D26] p-5 text-white">
       <p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Espace Responsable</p>
-      <h1 className="mt-2 text-2xl font-black">Demandes de crédit Marketplace</h1>
-      <p className="mt-2 text-sm">Vous ne voyez que les pharmacies qui vous sont explicitement affectées. L’approbation débite immédiatement le stock physique et les lots FEFO.</p>
+      <h1 className="mt-2 text-2xl font-black">Demandes de crédit clients</h1>
+      <p className="mt-2 text-sm">Vous ne voyez que les pharmacies qui vous sont explicitement affectées. Les demandes Marketplace et les achats à crédit au comptoir utilisent le même droit délégué ; seul le Marketplace débite le stock dès l’approbation.</p>
     </header>
     <nav className="flex flex-wrap gap-3 text-sm font-semibold">
       <Link href="/pharmacie/pilotage" className="underline">← Pilotage Responsable</Link>
       <Link href="/pharmacie/gestionnaire-stock/reservations" className="underline">Commandes à préparer</Link>
     </nav>
-    {params.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{params.ok==="approuvee"?"Crédit approuvé, stock débité et commande transmise à la préparation.":"Demande refusée ; aucun stock n’a été débité."}</p>}
+    {params.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{params.ok==="approuvee"?"Décision enregistrée. La Caisse peut reprendre la vente si elle provient du comptoir.":"Demande refusée ; aucun stock n’a été débité."}</p>}
     {params.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Décision non enregistrée. Vérifiez votre affectation, le privilège délégué, le statut et le stock.</p>}
     {(error||pharmacyError)&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Les demandes ou les pharmacies affectées n’ont pas pu être chargées. Aucune décision n’a été prise.</p>}
-    {!error&&!requests.length&&<p className="rounded-xl border bg-white p-4">Aucune demande Marketplace enregistrée pour vos pharmacies affectées.</p>}
+    {!error&&!requests.length&&<p className="rounded-xl border bg-white p-4">Aucune demande de crédit enregistrée pour vos pharmacies affectées.</p>}
     {requests.map(r=><article key={r.id} className="space-y-3 rounded-2xl border bg-white p-4">
       <div className="flex flex-wrap justify-between gap-3">
         <div>
           <h2 className="font-black">Demande #{ref(r.id)}</h2>
           <p className="text-sm">{pharmacyNames.get(r.pharmacie_id)??"Pharmacie affectée"}</p>
-          <p className="text-sm">Client #{ref(r.client_id)} · {r.telephone_demande??"Téléphone absent"}</p>
-          <p className="text-sm">Échéance : {r.date_remboursement??"Non renseignée"}</p>
+          <p className="text-sm">Source : {r.origine==="caisse"?"Achat au comptoir":"Marketplace"} · Client #{ref(r.client_id)}</p>
+          {r.telephone_demande&&<p className="text-sm">Téléphone : {r.telephone_demande}</p>}
+          {r.date_remboursement&&<p className="text-sm">Échéance : {r.date_remboursement}</p>}
+          {r.vente_id&&<p className="break-all text-sm">Vente POS liée : {r.vente_id}</p>}
+          {r.motif&&<p className="text-sm">Motif : {r.motif}</p>}
           <p className="text-xs text-slate-500">Soumise le {new Date(r.created_at).toLocaleString("fr-FR")}</p>
         </div>
         <div className="text-right"><p className="text-xl font-black">{fcfa(r.montant)}</p><p className="text-sm font-bold">{r.statut}</p></div>
       </div>
-      <div className="rounded-xl bg-slate-50 p-3">
+      {r.panier_items?.length>0&&<div className="rounded-xl bg-slate-50 p-3">
         <p className="text-sm font-bold">Médicaments demandés</p>
-        <ul className="mt-2 space-y-1 text-sm">{(r.panier_items??[]).map(i=><li key={i.produit_id}>{i.quantite} × {names.get(i.produit_id)??"Produit"}</li>)}</ul>
-      </div>
+        <ul className="mt-2 space-y-1 text-sm">{r.panier_items.map(i=><li key={i.produit_id}>{i.quantite} × {names.get(i.produit_id)??"Produit"}</li>)}</ul>
+      </div>}
       <p className="text-sm">{r.justificatif_path
         ?<a className="font-bold underline" href={"/api/pharmacie/promoteur/credits/"+r.id+"/justificatif"}>Télécharger le justificatif sécurisé</a>
         :"Aucun justificatif référencé."}</p>
       {r.reservation_id&&<p className="text-sm">Commande de préparation : {ref(r.reservation_id)} · stock débité à l’approbation.</p>}
       {r.statut==="en_attente"&&canApproveByPharmacy.get(r.pharmacie_id)===true
         ?<div className="flex flex-wrap gap-3 border-t pt-3">
-          <form action={approuverDemandeCreditMarketplace}><input type="hidden" name="demande_id" value={r.id}/><button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white" type="submit">Approuver et débiter le stock</button></form>
+          <form action={approuverDemandeCreditMarketplace}><input type="hidden" name="demande_id" value={r.id}/><button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white" type="submit">{r.origine==="caisse"?"Approuver le crédit comptoir":"Approuver et débiter le stock"}</button></form>
           <form action={refuserDemandeCreditMarketplace}><input type="hidden" name="demande_id" value={r.id}/><button className="rounded-xl border border-red-300 px-4 py-3 font-bold text-red-800" type="submit">Refuser</button></form>
         </div>
         :r.statut==="en_attente"
