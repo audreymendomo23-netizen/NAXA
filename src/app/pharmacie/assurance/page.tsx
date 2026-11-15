@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Dossier = { id:string; pharmacie_id:string; reservation_id:string|null; couverture_id:string; statut:string; montant_total:number; montant_prise_en_charge:number; montant_client:number; montant_rembourse:number; statut_remboursement:string; created_at:string };
+type Snapshot = { id:string; reservation_id:string; valide_client:boolean; controle_documents_statut:string };
 type Evenement = { id:string; pharmacie_id:string; reservation_id:string|null; dossier_id:string|null; assureur_id:string|null; type:string; montant_fcfa:number|null; reference:string|null; created_at:string };
 type Assureur = { id:string; nom:string };
 type Convention = {id:string;pharmacie_id:string;assureur_id:string;statut:string;reference_convention:string|null;date_debut:string;date_fin:string|null};
@@ -17,6 +18,9 @@ const labels:Record<string,string>={devis_calcule:"Devis calculé",reservation_a
 export default function AssuranceDashboardPage(){
  const [loading,setLoading]=useState(true),[error,setError]=useState(""),[role,setRole]=useState(""),[pharmacies,setPharmacies]=useState<string[]>([]),[dossiers,setDossiers]=useState<Dossier[]>([]),[events,setEvents]=useState<Evenement[]>([]),[assureurs,setAssureurs]=useState<Record<string,string>>({}),[newInsurer,setNewInsurer]=useState(""),[newCode,setNewCode]=useState(""),[savingInsurer,setSavingInsurer]=useState(false),[notice,setNotice]=useState(""),[pharmacyOptions,setPharmacyOptions]=useState<PharmacyOption[]>([]),[assureurOptions,setAssureurOptions]=useState<Assureur[]>([]),[selectedPharmacy,setSelectedPharmacy]=useState(""),[selectedInsurer,setSelectedInsurer]=useState(""),[ruleRate,setRuleRate]=useState(""),[ruleCap,setRuleCap]=useState(""),[ruleFranchise,setRuleFranchise]=useState("0"),[savingConvention,setSavingConvention]=useState(false);
  const [conventions,setConventions]=useState<Convention[]>([]),[conventionRules,setConventionRules]=useState<ConventionRule[]>([]),[products,setProducts]=useState<ProductOption[]>([]),[selectedConventionId,setSelectedConventionId]=useState("");
+ const [snapshots,setSnapshots]=useState<Snapshot[]>([]),[busyDossier,setBusyDossier]=useState("");
+ const [insurerRefs,setInsurerRefs]=useState<Record<string,string>>({}),[repaymentAmounts,setRepaymentAmounts]=useState<Record<string,string>>({}),[repaymentDates,setRepaymentDates]=useState<Record<string,string>>({}),[repaymentRefs,setRepaymentRefs]=useState<Record<string,string>>({});
+ const todayLocal=()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10)};
  const [conventionReference,setConventionReference]=useState(""),[conventionStart,setConventionStart]=useState(new Date().toISOString().slice(0,10)),[conventionEnd,setConventionEnd]=useState("");
  const [ruleScope,setRuleScope]=useState("categorie"),[ruleCategory,setRuleCategory]=useState(""),[ruleProduct,setRuleProduct]=useState(""),[ruleExclusions,setRuleExclusions]=useState(""),[ruleDocuments,setRuleDocuments]=useState(""),[ruleStart,setRuleStart]=useState(new Date().toISOString().slice(0,10)),[ruleEnd,setRuleEnd]=useState(""),[savingRule,setSavingRule]=useState(false);
  const load=useCallback(async()=>{
@@ -36,16 +40,17 @@ export default function AssuranceDashboardPage(){
   const {data:pharmacyRows}=await sb.from("pharmacies").select("id,nom").in("id",ids);
   setPharmacyOptions((pharmacyRows??[]) as PharmacyOption[]);
   setSelectedPharmacy(old=>ids.includes(old)?old:(ids[0]??""));
-  const [{data:ds,error:de},{data:ev,error:ee},{data:ins,error:ie},{data:conv,error:ce},{data:ruleRows,error:re},{data:productRows,error:pe}]=await Promise.all([
+  const [{data:ds,error:de},{data:ev,error:ee},{data:ins,error:ie},{data:conv,error:ce},{data:ruleRows,error:re},{data:productRows,error:pe},{data:sn,error:sne}]=await Promise.all([
    sb.from("dossiers_assurance").select("id,pharmacie_id,reservation_id,couverture_id,statut,montant_total,montant_prise_en_charge,montant_client,montant_rembourse,statut_remboursement,created_at").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(1000),
    sb.from("assurance_evenements").select("id,pharmacie_id,reservation_id,dossier_id,assureur_id,type,montant_fcfa,reference,created_at").in("pharmacie_id",ids).order("created_at",{ascending:false}).limit(1000),
    sb.from("assureurs").select("id,nom").eq("actif",true),
    sb.from("assurance_conventions").select("id,pharmacie_id,assureur_id,statut,reference_convention,date_debut,date_fin").in("pharmacie_id",ids).order("date_debut",{ascending:false}),
    sb.from("assurance_regles_convention").select("id,convention_id,portee,categorie,produit_id,taux,plafond_fcfa,franchise_fcfa,exclusions,justificatifs_requis,valide_du,valide_jusquau,version,actif").order("version",{ascending:false}),
-   sb.from("produits").select("id,nom,categorie").eq("fiche_validee",true).order("nom").limit(500)
+   sb.from("produits").select("id,nom,categorie").eq("fiche_validee",true).order("nom").limit(500),
+   sb.from("assurance_reservation_snapshots").select("id,reservation_id,valide_client,controle_documents_statut").in("pharmacie_id",ids).limit(1000)
   ]);
-  if(de||ee||ie||ce||re||pe){setError("Certaines données Assurance n’ont pas pu être chargées. Aucun total partiel n’est présenté comme complet.");setDossiers([]);setEvents([]);setConventions([]);setConventionRules([]);setProducts([]);setLoading(false);return;}
-  setDossiers((ds??[]) as Dossier[]);setEvents((ev??[]) as Evenement[]);
+  if(de||ee||ie||ce||re||pe||sne){setError("Certaines données Assurance n’ont pas pu être chargées. Aucun total partiel n’est présenté comme complet.");setDossiers([]);setSnapshots([]);setEvents([]);setConventions([]);setConventionRules([]);setProducts([]);setLoading(false);return;}
+  setDossiers((ds??[]) as Dossier[]);setSnapshots((sn??[]) as Snapshot[]);setEvents((ev??[]) as Evenement[]);
   setAssureurs(Object.fromEntries(((ins??[]) as Assureur[]).map(x=>[x.id,x.nom])));setAssureurOptions((ins??[]) as Assureur[]);
   const conventionRows=(conv??[]) as Convention[];const ruleData=(ruleRows??[]) as ConventionRule[];
   setConventions(conventionRows);setConventionRules(ruleData.filter(x=>conventionRows.some(c=>c.id===x.convention_id)));
@@ -89,6 +94,32 @@ export default function AssuranceDashboardPage(){
   else {setNotice("Nouvelle version de règle enregistrée. La version précédente de même portée est désactivée, sans modifier les devis déjà figés.");setRuleRate("");setRuleCap("");setRuleFranchise("0");setRuleExclusions("");setRuleDocuments("");setRuleEnd("");}
   setSavingRule(false);void load();
  };
+  const controlDocuments=async(d:Dossier,conforme:boolean)=>{
+   const snapshot=snapshots.find(x=>x.reservation_id===d.reservation_id);
+   if(!snapshot||!d.reservation_id||!snapshot.valide_client||busyDossier)return;
+   setBusyDossier(d.id);setError("");setNotice("");
+   const {error:e}=await supabaseBrowser().rpc("assurance_controler_documents",{p_snapshot:snapshot.id,p_conforme:conforme,p_details:{source:"tableau_assurance",decision:conforme?"conforme":"non_conforme"}});
+   if(e){setError("Le contrôle des justificatifs n’a pas été enregistré. Vérifiez les droits du poste et réessayez.");}
+   else {setNotice(conforme?"Justificatifs marqués conformes. La prise en charge doit encore être confirmée séparément.":"Justificatifs marqués non conformes. Le dossier reste bloqué pour la caisse.");}
+   setBusyDossier("");await load();
+  };
+  const confirmCoverage=async(d:Dossier)=>{
+   if(busyDossier||d.statut!=="soumis")return;
+   setBusyDossier(d.id);setError("");setNotice("");
+   const {error:e}=await supabaseBrowser().rpc("assurance_confirmer_prise_en_charge",{p_dossier:d.id,p_reference:insurerRefs[d.id]?.trim()||null});
+   if(e)setError("La prise en charge n’a pas été confirmée. Vérifiez l’accord client, les justificatifs et le périmètre pharmacie.");
+   else {setNotice("Prise en charge confirmée : la part assureur est enregistrée comme créance, pas comme encaissement.");setInsurerRefs(current=>({...current,[d.id]:""}));}
+   setBusyDossier("");await load();
+  };
+  const recordRepayment=async(d:Dossier)=>{
+   const amount=Number(repaymentAmounts[d.id]),date=repaymentDates[d.id]||todayLocal(),reference=(repaymentRefs[d.id]||"").trim();
+   if(busyDossier||!Number.isSafeInteger(amount)||amount<=0||!date||reference.length<3)return;
+   setBusyDossier(d.id);setError("");setNotice("");
+   const {error:e}=await supabaseBrowser().rpc("assurance_enregistrer_remboursement",{p_dossier:d.id,p_montant_fcfa:amount,p_date:date,p_reference:reference,p_preuve_path:null});
+   if(e)setError("Le remboursement n’a pas été enregistré. Vérifiez le montant restant, la date et la référence reçue.");
+   else {setNotice("Règlement assureur enregistré. La créance restante est recalculée par le serveur.");setRepaymentAmounts(current=>({...current,[d.id]:""}));setRepaymentRefs(current=>({...current,[d.id]:""}));}
+   setBusyDossier("");await load();
+  };
  const selectedConvention=conventions.find(x=>x.id===selectedConventionId);
  const activeRules=conventionRules.filter(x=>x.convention_id===selectedConventionId).sort((a,b)=>Number(b.actif)-Number(a.actif)||b.version-a.version);
 
@@ -141,7 +172,28 @@ export default function AssuranceDashboardPage(){
    </section>
    <section className="overflow-hidden rounded-2xl bg-white">
     <div className="border-b p-4"><h2 className="font-extrabold">Achats adossés aux assurances</h2><p className="text-xs text-slate-500">La prise en charge confirmée est une créance, pas un encaissement.</p></div>
-    {dossiers.length?<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50"><tr><th className="p-3">Référence</th><th className="p-3">État</th><th className="p-3">Montant brut</th><th className="p-3">Assureur dû</th><th className="p-3">Reçu</th><th className="p-3">Solde</th></tr></thead><tbody>{dossiers.map(d=><tr className="border-t" key={d.id}><td className="p-3 font-semibold">{(d.reservation_id||d.id).slice(0,8).toUpperCase()}</td><td className="p-3">{d.statut==="accepte"?"Prise en charge confirmée":d.statut==="soumis"?"En attente":d.statut==="refuse"?"Refusée":d.statut}</td><td className="p-3">{money(Number(d.montant_total))}</td><td className="p-3">{money(Number(d.montant_prise_en_charge))}</td><td className="p-3">{money(Number(d.montant_rembourse||0))}</td><td className="p-3 font-bold">{money(Math.max(0,Number(d.montant_prise_en_charge)-Number(d.montant_rembourse||0)))}</td></tr>)}</tbody></table></div>:<p className="p-4 text-sm text-slate-500">Aucun dossier d’assurance enregistré.</p>}
+    {dossiers.length?<div className="space-y-3 p-3">{dossiers.map(d=>{
+      const snapshot=snapshots.find(x=>x.reservation_id===d.reservation_id);
+      const remaining=Math.max(0,Number(d.montant_prise_en_charge)-Number(d.montant_rembourse||0));
+      const canReview=["promoteur","pharmacien","responsable","caisse"].includes(role);
+      const canRecordPayment=["promoteur","comptable","responsable","caisse"].includes(role);
+      return <article className="rounded-xl border p-3" key={d.id}>
+       <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-bold">{(d.reservation_id||d.id).slice(0,8).toUpperCase()} · {d.statut==="accepte"?"Prise en charge confirmée":d.statut==="soumis"?"En attente de décision":d.statut==="refuse"?"Refusée":d.statut}</p><p className="text-xs text-slate-500">{new Date(d.created_at).toLocaleString("fr-FR")}</p></div><p className="text-sm font-bold">Solde assureur : {money(remaining)}</p></div>
+       <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4"><p>Brut<br/><strong>{money(Number(d.montant_total))}</strong></p><p>Part assureur<br/><strong>{money(Number(d.montant_prise_en_charge))}</strong></p><p>Part client<br/><strong>{money(Number(d.montant_client))}</strong></p><p>Reçu<br/><strong>{money(Number(d.montant_rembourse||0))}</strong></p></div>
+       {d.statut==="soumis"&&snapshot&&snapshot.valide_client&&canReview&&<div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3">
+        <p className="text-sm font-bold">Contrôle des justificatifs · accord client acquis</p>
+        <div className="flex flex-wrap gap-2"><button type="button" disabled={!!busyDossier} onClick={()=>void controlDocuments(d,true)} className="btn btn-vert">{busyDossier===d.id?"Enregistrement…":"Justificatifs conformes"}</button><button type="button" disabled={!!busyDossier} onClick={()=>void controlDocuments(d,false)} className="btn btn-clair">Non conformes — bloquer la prise en charge</button></div>
+        {snapshot.controle_documents_statut==="conforme"&&<><label className="block text-xs font-semibold">Référence de prise en charge (facultatif)<input className="mt-1 w-full rounded-xl border p-2 font-normal" value={insurerRefs[d.id]||""} onChange={e=>setInsurerRefs(v=>({...v,[d.id]:e.target.value}))}/></label><button type="button" disabled={!!busyDossier} onClick={()=>void confirmCoverage(d)} className="btn btn-vert w-full">Confirmer la prise en charge</button></>}
+        {snapshot.controle_documents_statut==="non_conforme"&&<p className="text-xs text-amber-800">Les paiements sont bloqués tant que les justificatifs ne sont pas contrôlés conformes.</p>}
+       </div>}
+       {d.statut==="accepte"&&remaining>0&&canRecordPayment&&<div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-3">
+        <label className="text-xs font-semibold">Montant réellement reçu (FCFA)<input className="mt-1 w-full rounded-xl border p-2" type="number" min="1" max={remaining} step="1" value={repaymentAmounts[d.id]||""} onChange={e=>setRepaymentAmounts(v=>({...v,[d.id]:e.target.value}))}/></label>
+        <label className="text-xs font-semibold">Date de réception<input className="mt-1 w-full rounded-xl border p-2" type="date" max={todayLocal()} value={repaymentDates[d.id]||todayLocal()} onChange={e=>setRepaymentDates(v=>({...v,[d.id]:e.target.value}))}/></label>
+        <label className="text-xs font-semibold">Référence de reçu / transaction<input className="mt-1 w-full rounded-xl border p-2" value={repaymentRefs[d.id]||""} onChange={e=>setRepaymentRefs(v=>({...v,[d.id]:e.target.value}))}/></label>
+        <button type="button" disabled={!!busyDossier||!Number.isSafeInteger(Number(repaymentAmounts[d.id]))||Number(repaymentAmounts[d.id])<=0||Number(repaymentAmounts[d.id])>remaining||(repaymentRefs[d.id]||"").trim().length<3} onClick={()=>void recordRepayment(d)} className="btn btn-vert sm:col-span-3">{busyDossier===d.id?"Enregistrement…":"Enregistrer un remboursement réellement reçu"}</button>
+       </div>}
+      </article>;
+    })}</div>:<p className="p-4 text-sm text-slate-500">Aucun dossier d’assurance enregistré.</p>}
    </section>
    <section className="overflow-hidden rounded-2xl bg-white">
     <div className="border-b p-4"><h2 className="font-extrabold">Journal des événements</h2><p className="text-xs text-slate-500">Historique horodaté des devis, contrôles, décisions et remboursements.</p></div>
