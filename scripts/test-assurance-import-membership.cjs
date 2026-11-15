@@ -8,6 +8,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const importMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115120000_assurance_import_membership_pos_negotiation.sql"), "utf8");
 const verificationMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql"), "utf8");
+const quoteCorrelationMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115123000_fix_assurance_quote_roster_verification_correlation.sql"), "utf8");
 const importContract = fs.readFileSync(path.join(root, "supabase/tests/20261115121500_assurance_import_membership_pos_negotiation.sql"), "utf8");
 const runtimeImportTest = fs.readFileSync(path.join(root, "supabase/tests/20261115123000_assurance_import_runtime_multipharmacy.sql"), "utf8");
 const declarationStampMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql"), "utf8");
@@ -79,12 +80,18 @@ test("le Client ne peut calculer un devis qu'après vérification de sa couvertu
   assert.match(clientPage, /n’a pas encore été rapprochée avec une liste de cet assureur/);
 });
 
-test("le test runtime vérifie import delta/complet multi-pharmacies et rollbacke toutes ses fixtures", () => {
-  assert.match(runtimeImportTest, /20261115123000_assurance_import_runtime_multipharmacy PASS/);
+test("le test runtime utilise un Responsable réellement affecté et bloque les devis hors pharmacie", () => {
+  assert.match(runtimeImportTest, /private\\.naxa_business_function\\(p\\.id\\)='responsable'/);
+  assert.match(runtimeImportTest, /private\\.naxa_scope_allows\\(v_responsable,v_pharmacy,'PHARMACIE'\\)/);
+  assert.match(runtimeImportTest, /assurance_import_simuler_mode/);
+  assert.match(runtimeImportTest, /'complet'/);
+  assert.match(runtimeImportTest, /assurance_calculer_devis\\(v_other_reservation,v_coverage\\)/);
+  assert.match(runtimeImportTest, /other_pharmacy_blocked/);
+  assert.match(runtimeImportTest, /timestamp_advanced/);
   assert.match(runtimeImportTest, /rollback/i);
-  assert.match(runtimeImportTest, /v_verification_a<>'suspendue'/);
-  assert.match(runtimeImportTest, /v_verification_b<>'verifiee'/);
   assert.ok(verificationMigration.includes("verification_le timestamptz not null default clock_timestamp()"));
+  assert.match(quoteCorrelationMigration, /v\\.couverture_id=c\\.id/);
+  assert.match(quoteCorrelationMigration, /v2\\.couverture_id=c\\.id/);
 });
 
 test("les fichiers et les tests de contrat couvrent le contrôle des imports et du POS négocié", () => {
