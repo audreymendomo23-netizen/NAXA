@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§50)  
+**Dernière mise à jour :** 15 novembre 2026 (§53)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Contrôle Replay : zéro abonnement push/appareil actif, zéro profil ou affectation Responsable et zéro pharmacie non-démo ; les preuves téléphone et pharmacie/Responsable restent bloquées par l'absence de fixtures réelles. Aucun état artificiel n'a été créé.  §49 : contrôle de reprise documentaire après §48. Le commit de tête antérieur 7afded8ab6c0e453c48f38ad82205e2ffb0fe2b9 ne change que la mise en forme d'une section catalogue ; §48 reste intact. Aucun nouvel essai CI, appareil push, compte Responsable ou fixture non-démo n'a été exécuté/ajouté ; les statuts demeurent inchangés. §50 : RLS SELECT des fiches propriétaires maintenant limitée au scope pharmacie ; Marketplace visible, Admin en lecture, écran Admin produits explicitement lecture seule et 20 fiches historiques partagées conservés. Runtime Gestionnaire Stock Mvan : sa fiche visible (1), fiche Essos masquée (0), historique partagé accessible (20). Transaction annulée, zéro fixture persistante. SQL PASS ; CI non confirmée.
+**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Constat ancien du §48 : aucune pharmacie de recette non-démo ni Responsable affecté n'était alors présent. Le contrôle actuel §53 utilise désormais une pharmacie de recette non commerciale active mais masquée et un Responsable déjà affecté ; aucune pharmacie non-démo n'est visible publiquement. Aucun état artificiel n'a été créé.  §49 : contrôle de reprise documentaire après §48. Le commit de tête antérieur 7afded8ab6c0e453c48f38ad82205e2ffb0fe2b9 ne change que la mise en forme d'une section catalogue ; §48 reste intact. Aucun nouvel essai CI, appareil push, compte Responsable ou fixture non-démo n'a été exécuté/ajouté ; les statuts demeurent inchangés. §50 : RLS des fiches propriétaires limitée au scope pharmacie ; fiche hors périmètre masquée, Admin en lecture et références historiques partagées conservées. SQL + runtime PASS, transaction annulée. §53 : devis Assurance désormais corrélé à la couverture et à la pharmacie vérifiées ; horodatages clock_timestamp() ; import complet de recette par Responsable, devis 10 000 FCFA (6 000/4 000), refus hors pharmacie et invalidation après correction — 5 groupes runtime PASS, rollback et zéro fixture persistante. Le CI sur la dernière tête reste non confirmé.
 Production et Vercel inchangés.
 
 
@@ -2021,50 +2021,66 @@ La comptabilité Replay contient 0 plan, 0 mapping, 0 paramètre, 0 période, 0 
 Production et Vercel restent inchangés.
 
 
-## 53. Test runtime import assureur multi-pharmacies et stabilisation qualité (15/11/2026)
+## 53. Raccord du rapprochement assureur au devis Client — correction et runtime responsable (15/11/2026)
 
-### Cause racine temporelle et correction
+### Cause racine et corrections
 
-Le test runtime initial a mis en évidence un cas de simultanéité : `now()` renvoie la même valeur transactionnelle pour plusieurs imports appliqués dans une transaction unique. Le choix de la dernière vérification pouvait donc être ambigu dans un traitement groupé. La colonne `assurance_couverture_verifications.verification_le` utilise désormais `clock_timestamp()`, et le trigger de déclaration utilise lui aussi l'horloge réelle pour invalider toute vérification après modification du numéro adhérent, de la police, de l'assureur ou des dates.
+**Défaut 1 — corrélation de la couverture.** La fonction public.assurance_calculer_devis recherchait la preuve de vérification avec v_c.id dans la même requête qui devait justement remplir le record v_c. Le record n'était pas encore assigné : l'existence de la validation de l'assureur ne pouvait pas être corrélée correctement. La requête utilise maintenant l'alias SQL de la ligne sélectionnée, c.id, pour la couverture et pour les sous-requêtes de vérification.
 
-- Migration de versionnement : `supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql`.
-- Migration multi-pharmacie mise à jour : `supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql`.
-- Application Replay : valeur par défaut `verification_le = clock_timestamp()` contrôlée et trigger de modification appliqué.
-- Test statique Node : `scripts/test-assurance-import-membership.cjs` contrôle désormais cette monotonie temporelle et inclut le test runtime SQL.
+**Défaut 2 — version de déclaration non monotone dans une transaction.** now() est constant au sein d'une transaction PostgreSQL. Deux modifications successives d'une déclaration pouvaient donc partager le même horodatage transactionnel, alors que la seconde devait invalider la vérification précédente. Le déclencheur private.assurance_stamp_couverture_declaration() utilise désormais clock_timestamp() ; la colonne assurance_couverture_verifications.verification_le utilise également l'horloge réelle. Une correction du numéro d'adhérent, de police, de l'assureur ou des dates rend donc obsolète la vérification antérieure, même dans une transaction unique.
 
-### Test positif runtime Replay
+**Garde métier conservée.** Le Promoteur de recette présent dans Replay ne satisfait plus le contrôle de validité abonnement/convention naxa_promoteur_valide. Aucune désactivation de garde, élévation ni affectation artificielle n'a été réalisée. Le test runtime a utilisé le Responsable déjà actif et affecté à une pharmacie de recette non commerciale, avec private.naxa_scope_allows(...,'PHARMACIE')=true.
 
-Fichier versionné : `supabase/tests/20261115123000_assurance_import_runtime_multipharmacy.sql`.
+### Sources versionnées et Replay
 
-Scénario exécuté dans une seule transaction puis annulé :
-1. utilise le Promoteur Replay déjà actif, deux pharmacies de son réseau, un Client existant et un assureur actif ;
-2. crée une couverture temporaire pour ce Client ;
-3. applique une liste delta active à la pharmacie A ;
-4. applique la même liste delta à la pharmacie B et vérifie que la même couverture possède deux validations indépendantes ;
-5. applique une liste complète suspendant le même adhérent sur A ;
-6. confirme que A est `suspendue`, que l'ancienne validation A est `remplacee`, tandis que B reste `verifiee`.
+- Source de vérification multi-pharmacie corrigée : supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql, commit [0d738790494f84652a42da37e0d4494c14a3e6d2](https://github.com/audreymendomo23-netizen/NAXA/commit/0d738790494f84652a42da37e0d4494c14a3e6d2). La fonction de devis corrèle les preuves sur c.id et la version déclarative sélectionnée.
+- Migration corrective de corrélation appliquée sur Replay : supabase/migrations/20261115123000_fix_assurance_quote_roster_verification_correlation.sql.
+- Trigger de déclaration versionné avec clock_timestamp() : modification source commit [9d62a9520458621a9b9d7ba42f08b4cbad3f0ce8](https://github.com/audreymendomo23-netizen/NAXA/commit/9d62a9520458621a9b9d7ba42f08b4cbad3f0ce8), migration corrective supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql, commit [9090c949828dadba01ea5fc15545cea1cdd45cbc](https://github.com/audreymendomo23-netizen/NAXA/commit/9090c949828dadba01ea5fc15545cea1cdd45cbc).
+- L'horodatage du journal de vérification utilise aussi l'horloge réelle, commit [ce6e75c99b1b87d10d2ac24553bd3aa3f07a7441](https://github.com/audreymendomo23-netizen/NAXA/commit/ce6e75c99b1b87d10d2ac24553bd3aa3f07a7441).
+- Contrat SQL import/vérification/POS/négociation : supabase/tests/20261115121500_assurance_import_membership_pos_negotiation.sql, commit [76107720dce48ea6af306c6ad075c18c247cf31c](https://github.com/audreymendomo23-netizen/NAXA/commit/76107720dce48ea6af306c6ad075c18c247cf31c), exécution Replay PASS.
+- Test runtime versionné : supabase/tests/20261115123000_assurance_import_runtime_multipharmacy.sql, source corrigée et adaptée au Responsable affecté : commits [a3b84e9e710bc2e58dc106d49fa3df12102e4785](https://github.com/audreymendomo23-netizen/NAXA/commit/a3b84e9e710bc2e58dc106d49fa3df12102e4785) et [53a8bffc11097ec17141125e6d87b527e6cef81e](https://github.com/audreymendomo23-netizen/NAXA/commit/53a8bffc11097ec17141125e6d87b527e6cef81e).
+- Contrat Node scripts/test-assurance-import-membership.cjs : commit [8834def316809cdc4b167f9c9421dade53d838b2](https://github.com/audreymendomo23-netizen/NAXA/commit/8834def316809cdc4b167f9c9421dade53d838b2), puis assertions alignées avec la fixture Responsable et le devis hors pharmacie.
+- Workflow Replay mis à jour pour surveiller le script, le test runtime SQL et les deux migrations correctives, et pour inclure le Node test dans node --test : commit [c17869ab26e3c2853efcb7a209aacb7829b874f9](https://github.com/audreymendomo23-netizen/NAXA/commit/c17869ab26e3c2853efcb7a209aacb7829b874f9).
 
-**Résultat Replay :** `20261115123000_assurance_import_runtime_multipharmacy PASS`. Le rollback final retire les couvertures, imports, lignes et vérifications temporaires. Aucun compte, pharmacie, convention ou donnée métier persistante n'a été ajouté.
+### Exécution runtime exacte sur Replay
 
-### Contrôle qualité GitHub
+Le fichier 20261115123000_assurance_import_runtime_multipharmacy.sql a été exécuté directement sur Replay et s'est terminé par ROLLBACK.
 
-- Workflow `NAXA quality`, commit `86980a32992e5543fda1ddccc965dc7a5d75935f` : **SUCCESS**.
-- Node : **488 tests PASS, 0 FAIL**.
-- TypeScript, ESLint et build Next.js : **PASS**.
-- GitHub Actions `actionlint` : **PASS** après correction de la variable inutilisée `attempt` dans le contrôle de disponibilité Web Push du workflow Replay (boucle compteur `retries`).
-- Le dernier ajout du test runtime versionné et de son assertion Node est postérieur à ce succès ; le workflow qualité doit repasser sur le commit le plus récent avant d'en déduire une preuve CI finale de ces nouveaux fichiers.
-- Supabase Preview reste annulé pour la limite mensuelle d'événements Git push ; cela ne concerne pas les migrations appliquées directement sur Replay.
+| Contrôle runtime | Résultat |
+|---|---|
+| Responsable existant, actif et affecté à la pharmacie non commerciale masquée | PASS |
+| Couverture déclarée par le Client, état initial non_verifiee | PASS |
+| Convention de pharmacie, simulation de liste complète avec 1 correspondance exacte, 0 invalide, 0 ambiguë, 0 doublon | PASS |
+| Application de l'import, preuve liée à la pharmacie et statut verifiee | PASS |
+| Devis Client dans la pharmacie vérifiée : 10 000 FCFA brut, 6 000 FCFA assureur, 4 000 FCFA Client | PASS |
+| Même couverture refusée dans une autre pharmacie sans preuve de vérification locale | PASS |
+| Correction du numéro de police : horodatage avancé et ancienne vérification refusée pour un nouveau devis | PASS |
 
-### État Replay après rollback
+**Résultat : 5 groupes runtime PASS.** L'import est une ligne synthétique représentative transmise à la fonction de simulation SQL ; il ne s'agit pas d'un véritable fichier reçu d'un assureur, ni d'une preuve d'authenticité de l'émetteur. Le test valide le rapprochement exact et les gardes backend. Il n'exerce pas le téléversement navigateur d'un vrai XLS/XLSX/CSV.
 
-Les contrôles de persistance confirment 0 couverture, 0 import, 0 ligne import, 0 vérification, 0 convention, 0 snapshot, 0 proposition, 0 dossier, 0 événement et 0 règlement Assurance persistants. La comptabilité reste sans compte, mapping, période, événement ou écriture persistante.
+### Nettoyage et état durable après rollback
 
-**État §53 : PARTIEL — PAS AU VERT.** L'import, la vérification stricte, les modes complet/delta, la suspension multi-pharmacie, la négociation versionnée et le POS sont implémentés ; le test runtime multi-pharmacies passe avec rollback. Restent un vrai fichier source assureur expurgé, les comptes professionnels et la pharmacie de recette non-démo, le parcours authentifié Client → Pharmacie → Caisse, et un rapprochement comptable réel. La preuve CI 488/488 précède l'ajout du nouveau test runtime versionné ; elle devra être confirmée sur le commit final.
+Lecture post-test Replay :
+- couvertures, conventions, imports, lignes d'import et vérifications de la fixture : 0 ;
+- réservations, snapshots et dossiers de la fixture : 0 ;
+- événements Assurance et écritures comptables de la fixture : 0 ;
+- réservations ayant décrémenté le stock pendant ce test : 0 ;
+- le produit était une référence de test préexistante ; aucune fiche, quantité, lot ou paiement n'a été créé ;
+- la pharmacie de recette reste active, non commerciale et invisible dans la recherche publique ; son statut démo, sa visibilité et ses affectations n'ont pas été modifiés.
+
+### Qualité, limites et suite
+
+- Le workflow Replay surveille maintenant les fichiers et inclut scripts/test-assurance-import-membership.cjs dans sa commande node --test. Le test Node est versionné, mais le statut GitHub du dernier push consulté est vide (statuses: []) ; l'exécution CI de ce dernier commit reste NON CONFIRMÉE.
+- Un run qualité antérieur, commit 86980a32992e5543fda1ddccc965dc7a5d75935f, est documenté avec 488 tests PASS, TypeScript, ESLint et build PASS. Il précède cependant l'ajout et l'adaptation du nouveau test runtime versionné ; il ne remplace pas la preuve CI sur la tête actuelle.
+- Seul le mode Liste complète a été exécuté en runtime. Le mode Delta est présent et contrôlé par le contrat SQL/Node, mais son application réelle avec un fichier source distinct reste à exécuter.
+- Aucun vrai fichier assureur expurgé n'a été remis ; le SHA-256 prouve l'intégrité du contenu traité, pas la signature ou l'authenticité de l'assureur. L'origine du fichier doit être attestée par l'opérateur.
+- Aucun POS authentifié, ticket de caisse, remboursement ni rapprochement avec un plan comptable réel n'est prouvé par ce test. Le parcours de proposition/acceptation et la création idempotente d'une créance synthétique sont couverts séparément au §52 avec transaction annulée.
+- La pharmacie utilisée est non commerciale, masquée de la recherche publique. Il reste à répéter avec un vrai fichier expurgé, une pharmacie de recette expressément autorisée et les rôles Client/Responsable/Pharmacien/Caisse/Comptable pertinents.
+
+**État §53 : PARTIEL — PAS AU VERT.** La corrélation de couverture, l'invalidation temporelle, l'import complet synthétique et le contrôle de devis par pharmacie sont SQL PASS + runtime PASS ; nettoyage PASS. Le vrai fichier assureur, le mode delta runtime, le POS/ticket/remboursement/comptabilité réelle et la CI sur la dernière tête restent ouverts. Production et Vercel inchangés.
 
 **Point exact de reprise :**
-1. Rejouer le workflow qualité sur la tête finale après intégration de ce test runtime SQL et de son test Node.
-2. Essayer l'import sur un export réel expurgé transmis par un assureur, sans produire de correspondances sur des données fictives.
-3. Obtenir une pharmacie de recette autorisée et ses vrais comptes Pharmacie, Caisse et Comptable ; effectuer l'E2E authentifié complet.
-4. Configurer le plan, mappings, journal et période comptable de la pharmacie de recette, puis rapprocher une vente et un remboursement réels.
-
-Production et Vercel inchangés.
+1. Obtenir un export assureur expurgé et authentifié par l'opérateur ; exécuter le téléversement navigateur, la simulation, puis l'application du mode complet et du mode delta.
+2. Faire confirmer le workflow qualité Node 22, TypeScript, ESLint, build et actionlint sur le commit final (le run 488/488 est antérieur au test runtime révisé).
+3. Sur la pharmacie non commerciale autorisée, exécuter Client → réservation → couverture vérifiée → contrôle justificatifs → confirmation de prise en charge → POS/ticket → remboursement → événement comptable, avec comptes métier valides.
+4. Garder la pharmacie hors recherche publique tant qu'une recette publique n'est pas expressément autorisée ; conserver Production et Vercel inchangés.
