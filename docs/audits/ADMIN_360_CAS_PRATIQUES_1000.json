@@ -161,14 +161,14 @@
       },
       {
         "id": "ADM-14",
-        "name": "Fiches produits",
+        "name": "Catalogue produits (lecture seule)",
         "route": "/admin/produits",
         "source": [
           "src/app/admin/produits/page.tsx",
-          "src/app/admin/produits/actions.ts"
+          "scripts/test-admin-produits-actions.cjs"
         ],
-        "operation": "edition_relecture_et_brouillon_IA",
-        "trace": "produits; retour de ligne vérifié avant succès",
+        "operation": "consultation_lecture_seule",
+        "trace": "produits; aucune approbation ou mutation de fiche par NAXA",
         "test": "scripts/test-admin-produits-actions.cjs"
       },
       {
@@ -17798,13 +17798,13 @@
     {
       "case_id": "ADM-14-A1-S01",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17815,23 +17815,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "L’Admin actif accède uniquement à la fonction de la route et reçoit un résultat observable.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Comparer le résultat affiché aux données/RPC/événements sources",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S02",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17842,23 +17842,23 @@
       "detection_criteria": "État vide distinct d’une erreur",
       "diagnosis_criteria": "Afficher un état vide explicite; ne pas inventer de données ni confondre vide et erreur.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Comparer le résultat affiché aux données/RPC/événements sources",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S03",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17869,23 +17869,23 @@
       "detection_criteria": "État d’erreur distinct d’une liste vide ou d’un compteur à zéro",
       "diagnosis_criteria": "Afficher une erreur ou indisponibilité; ne pas présenter des compteurs partiels comme exhaustifs ni comme zéro.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Comparer le résultat affiché aux données/RPC/événements sources",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S04",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17896,23 +17896,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Rejeter côté serveur/API avant mutation et conserver une erreur compréhensible.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Comparer le résultat affiché aux données/RPC/événements sources",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S05",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17923,23 +17923,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Répondre 401 ou rediriger vers la connexion; aucune action avec l’identité expirée.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S06",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17950,23 +17950,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Refuser l’accès par le garde Admin actif, les API et les RPC/RLS.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S07",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -17977,23 +17977,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Empêcher une double mutation ou s’appuyer sur une contrainte/idempotence vérifiée; la lecture seule ne crée aucune mutation.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "Protection répétition/concurrence ou vérification de la ligne retournée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier l’unicité/idempotence et l’absence de double effet",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S08",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -18004,23 +18004,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Ne pas annoncer de succès si l’opération ne touche aucune ligne; relire l’état ou renvoyer une erreur de conflit.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "Protection répétition/concurrence ou vérification de la ligne retournée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier une ligne retournée, un état relu ou un conflit explicite",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S09",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -18031,23 +18031,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Respecter les limites et paginer de façon stable; afficher le périmètre réel de la liste.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Comparer le résultat affiché aux données/RPC/événements sources",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A1-S10",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur actif",
       "actor_role": "admin",
       "profile_active": true,
@@ -18058,23 +18058,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Refuser ou exclure les champs privés; minimiser les données sélectionnées et retournées.",
       "data_access_criteria": "Périmètre Admin minimal; exclure les données client/pharmacie non nécessaires",
-      "action_criteria": "edition_relecture_et_brouillon_IA",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Comparer le résultat affiché aux données/RPC/événements sources",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI + recette dans l’application"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S01",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18085,23 +18085,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "L’Admin actif accède uniquement à la fonction de la route et reçoit un résultat observable.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S02",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18112,23 +18112,23 @@
       "detection_criteria": "État vide distinct d’une erreur",
       "diagnosis_criteria": "Afficher un état vide explicite; ne pas inventer de données ni confondre vide et erreur.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S03",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18139,23 +18139,23 @@
       "detection_criteria": "État d’erreur distinct d’une liste vide ou d’un compteur à zéro",
       "diagnosis_criteria": "Afficher une erreur ou indisponibilité; ne pas présenter des compteurs partiels comme exhaustifs ni comme zéro.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S04",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18166,23 +18166,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Rejeter côté serveur/API avant mutation et conserver une erreur compréhensible.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S05",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18193,23 +18193,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Répondre 401 ou rediriger vers la connexion; aucune action avec l’identité expirée.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S06",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18220,23 +18220,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Refuser l’accès par le garde Admin actif, les API et les RPC/RLS.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S07",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18247,23 +18247,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Empêcher une double mutation ou s’appuyer sur une contrainte/idempotence vérifiée; la lecture seule ne crée aucune mutation.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier l’unicité/idempotence et l’absence de double effet",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S08",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18274,23 +18274,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Ne pas annoncer de succès si l’opération ne touche aucune ligne; relire l’état ou renvoyer une erreur de conflit.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier une ligne retournée, un état relu ou un conflit explicite",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S09",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18301,23 +18301,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Respecter les limites et paginer de façon stable; afficher le périmètre réel de la liste.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A2-S10",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Administrateur inactif",
       "actor_role": "admin",
       "profile_active": false,
@@ -18328,23 +18328,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Refuser ou exclure les champs privés; minimiser les données sélectionnées et retournées.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S01",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18355,23 +18355,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "L’Admin actif accède uniquement à la fonction de la route et reçoit un résultat observable.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S02",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18382,23 +18382,23 @@
       "detection_criteria": "État vide distinct d’une erreur",
       "diagnosis_criteria": "Afficher un état vide explicite; ne pas inventer de données ni confondre vide et erreur.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S03",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18409,23 +18409,23 @@
       "detection_criteria": "État d’erreur distinct d’une liste vide ou d’un compteur à zéro",
       "diagnosis_criteria": "Afficher une erreur ou indisponibilité; ne pas présenter des compteurs partiels comme exhaustifs ni comme zéro.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S04",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18436,23 +18436,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Rejeter côté serveur/API avant mutation et conserver une erreur compréhensible.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S05",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18463,23 +18463,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Répondre 401 ou rediriger vers la connexion; aucune action avec l’identité expirée.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S06",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18490,23 +18490,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Refuser l’accès par le garde Admin actif, les API et les RPC/RLS.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S07",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18517,23 +18517,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Empêcher une double mutation ou s’appuyer sur une contrainte/idempotence vérifiée; la lecture seule ne crée aucune mutation.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier l’unicité/idempotence et l’absence de double effet",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S08",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18544,23 +18544,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Ne pas annoncer de succès si l’opération ne touche aucune ligne; relire l’état ou renvoyer une erreur de conflit.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier une ligne retournée, un état relu ou un conflit explicite",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S09",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18571,23 +18571,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Respecter les limites et paginer de façon stable; afficher le périmètre réel de la liste.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A3-S10",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Client",
       "actor_role": "client",
       "profile_active": true,
@@ -18598,23 +18598,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Refuser ou exclure les champs privés; minimiser les données sélectionnées et retournées.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S01",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18625,23 +18625,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "L’Admin actif accède uniquement à la fonction de la route et reçoit un résultat observable.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S02",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18652,23 +18652,23 @@
       "detection_criteria": "État vide distinct d’une erreur",
       "diagnosis_criteria": "Afficher un état vide explicite; ne pas inventer de données ni confondre vide et erreur.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S03",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18679,23 +18679,23 @@
       "detection_criteria": "État d’erreur distinct d’une liste vide ou d’un compteur à zéro",
       "diagnosis_criteria": "Afficher une erreur ou indisponibilité; ne pas présenter des compteurs partiels comme exhaustifs ni comme zéro.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S04",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18706,23 +18706,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Rejeter côté serveur/API avant mutation et conserver une erreur compréhensible.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S05",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18733,23 +18733,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Répondre 401 ou rediriger vers la connexion; aucune action avec l’identité expirée.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S06",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18760,23 +18760,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Refuser l’accès par le garde Admin actif, les API et les RPC/RLS.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S07",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18787,23 +18787,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Empêcher une double mutation ou s’appuyer sur une contrainte/idempotence vérifiée; la lecture seule ne crée aucune mutation.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier l’unicité/idempotence et l’absence de double effet",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S08",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18814,23 +18814,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Ne pas annoncer de succès si l’opération ne touche aucune ligne; relire l’état ou renvoyer une erreur de conflit.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier une ligne retournée, un état relu ou un conflit explicite",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S09",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18841,23 +18841,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Respecter les limites et paginer de façon stable; afficher le périmètre réel de la liste.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A4-S10",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Membre partenaire/Promoteur",
       "actor_role": "partenaire_ou_promoteur",
       "profile_active": true,
@@ -18868,23 +18868,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Refuser ou exclure les champs privés; minimiser les données sélectionnées et retournées.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S01",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -18895,23 +18895,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "L’Admin actif accède uniquement à la fonction de la route et reçoit un résultat observable.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S02",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -18922,23 +18922,23 @@
       "detection_criteria": "État vide distinct d’une erreur",
       "diagnosis_criteria": "Afficher un état vide explicite; ne pas inventer de données ni confondre vide et erreur.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S03",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -18949,23 +18949,23 @@
       "detection_criteria": "État d’erreur distinct d’une liste vide ou d’un compteur à zéro",
       "diagnosis_criteria": "Afficher une erreur ou indisponibilité; ne pas présenter des compteurs partiels comme exhaustifs ni comme zéro.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S04",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -18976,23 +18976,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Rejeter côté serveur/API avant mutation et conserver une erreur compréhensible.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S05",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -19003,23 +19003,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Répondre 401 ou rediriger vers la connexion; aucune action avec l’identité expirée.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S06",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -19030,23 +19030,23 @@
       "detection_criteria": "Refus explicite et absence d’action",
       "diagnosis_criteria": "Refuser l’accès par le garde Admin actif, les API et les RPC/RLS.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S07",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -19057,23 +19057,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Empêcher une double mutation ou s’appuyer sur une contrainte/idempotence vérifiée; la lecture seule ne crée aucune mutation.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier l’unicité/idempotence et l’absence de double effet",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S08",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -19084,23 +19084,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Ne pas annoncer de succès si l’opération ne touche aucune ligne; relire l’état ou renvoyer une erreur de conflit.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier une ligne retournée, un état relu ou un conflit explicite",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S09",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -19111,23 +19111,23 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Respecter les limites et paginer de façon stable; afficher le périmètre réel de la liste.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-14-A5-S10",
       "capability_id": "ADM-14",
-      "capability": "Fiches produits",
+      "capability": "Catalogue produits (lecture seule)",
       "route": "/admin/produits",
       "source_files": [
         "src/app/admin/produits/page.tsx",
-        "src/app/admin/produits/actions.ts"
+        "scripts/test-admin-produits-actions.cjs"
       ],
-      "operation": "edition_relecture_et_brouillon_IA",
+      "operation": "consultation_lecture_seule",
       "actor": "Personnel pharmacie (Responsable/Caisse/Pharmacien/Stock)",
       "actor_role": "pharmacie_fonction_interne",
       "profile_active": true,
@@ -19138,12 +19138,12 @@
       "detection_criteria": "Signal UI/API permettant d’identifier le résultat",
       "diagnosis_criteria": "Refuser ou exclure les champs privés; minimiser les données sélectionnées et retournées.",
       "data_access_criteria": "Aucune donnée Admin ni champ privé accessible",
-      "action_criteria": "Aucune action métier n’est exécutée",
+      "action_criteria": "L’Admin consulte les références et leur origine déclarative ; aucune création, correction, approbation ou publication ne lui est proposée.",
       "resolution_verification": "Vérifier refus 401/403/redirect et absence d’écriture",
-      "traceability": "produits; retour de ligne vérifié avant succès",
+      "traceability": "produits en lecture seule ; origine de déclaration pharmacie ; aucune mutation Admin",
       "source_or_test_evidence": "scripts/test-admin-produits-actions.cjs",
       "execution_status": "SCENARIO_SIMULE — NON EXECUTE EN CI/APP",
-      "runtime_gate": "CI/API ou test d’application pour confirmer le refus réel"
+      "runtime_gate": "Test CI de consultation en lecture seule ; aucune mutation produit ne doit être exécutée."
     },
     {
       "case_id": "ADM-15-A1-S01",
