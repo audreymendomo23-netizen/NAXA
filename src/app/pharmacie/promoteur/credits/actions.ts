@@ -46,3 +46,25 @@ export async function approuverDemandeCreditMarketplace(formData:FormData){
 export async function refuserDemandeCreditMarketplace(formData:FormData){
   return decide(formData,false);
 }
+
+
+export async function configurerCreditClient(formData:FormData){
+  const sb=supabaseServer();
+  const {data:auth}=await sb.auth.getUser();
+  if(!auth.user)redirect("/connexion?retour=/pharmacie/promoteur/credits");
+  const {data:profile}=await sb.from("profiles").select("role,actif,niveau_interne").eq("id",auth.user.id).maybeSingle();
+  if(!profile||profile.role!=="promoteur"||profile.actif!==true||profile.niveau_interne!==1)redirect("/");
+  const clientId=String(formData.get("client_id")??"");
+  const pharmacieId=String(formData.get("pharmacie_id")??"");
+  const plafond=Number(formData.get("plafond")??NaN);
+  if(!valid(clientId)||!valid(pharmacieId)||!Number.isSafeInteger(plafond)||plafond<0||plafond>2147483647){
+    redirect("/pharmacie/promoteur/credits?erreur=configuration");
+  }
+  const {error}=await sb.rpc("client_credit_configurer",{
+    p_client:clientId,p_pharmacie:pharmacieId,p_plafond:plafond,
+  });
+  if(error)redirect("/pharmacie/promoteur/credits?erreur=configuration");
+  revalidatePath("/pharmacie/promoteur/credits");
+  revalidatePath("/pharmacie/caisse");
+  redirect("/pharmacie/promoteur/credits?ok=configuration");
+}
