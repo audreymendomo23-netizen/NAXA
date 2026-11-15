@@ -30,6 +30,7 @@ type Caisse = { id: string; nom: string };
 type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string; ouvert_par: string };
 type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
 type PaiementTicket = { montant_percu: number | null; monnaie_rendue: number | null; montant: number; mode: string };
+type CreditAccountOption = { clientId: string; label: string; solde: number; plafond: number };
 type AssuranceTicket = { assureur: string; montant_total: number; montant_prise_en_charge: number; montant_client: number; montant_rembourse: number; statut: string };
 type TicketLigne = {
   vente_id: string;
@@ -85,6 +86,8 @@ export default function CaissePage() {
   const [historique, setHistorique] = useState<VenteHistorique[]>([]);
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
   const [assuranceTicket, setAssuranceTicket] = useState<AssuranceTicket | null>(null);
+  const [creditAccounts, setCreditAccounts] = useState<CreditAccountOption[]>([]);
+  const [creditClientId, setCreditClientId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -106,7 +109,7 @@ export default function CaissePage() {
 
   const chargerVenteBrouillon = useCallback(async (sessionId: string, userId: string): Promise<boolean> => {
     const { data: draft, error } = await sb.from("ventes")
-      .select("id")
+      .select("id,client_id")
       .eq("caisse_session_id", sessionId)
       .eq("created_by", userId)
       .eq("statut", "brouillon")
@@ -162,10 +165,37 @@ export default function CaissePage() {
       }
     }
     setVente(draft.id);
+    setCreditClientId(draft.client_id ?? "");
     setLignes([...groups.values()]);
     setMsg("Panier en cours repris. Le stock physique sera débité uniquement à la validation de l’encaissement.");
     return true;
   }, [sb]);
+
+  useEffect(() => {
+    if (!pid) { setCreditAccounts([]); return; }
+    let active = true;
+    void (async () => {
+      const { data: credits, error } = await sb.from("client_credits")
+        .select("client_id,solde,plafond")
+        .eq("pharmacie_id", pid).eq("actif", true).order("updated_at", { ascending: false });
+      if (!active) return;
+      if (error) { setCreditAccounts([]); return; }
+      const rows = (credits ?? []) as { client_id: string; solde: number; plafond: number }[];
+      const ids = [...new Set(rows.map((row) => row.client_id))];
+      const { data: profiles } = ids.length
+        ? await sb.from("profiles").select("id,first_name,last_name,phone,username").in("id", ids)
+        : { data: [] as { id: string; first_name: string | null; last_name: string | null; phone: string | null; username: string | null }[] };
+      if (!active) return;
+      const names = new Map((profiles ?? []).map((profile) => [profile.id,
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.username || profile.phone || ("Client " + profile.id.slice(0, 8))]));
+      setCreditAccounts(rows.map((row) => ({
+        clientId: row.client_id,
+        label: names.get(row.client_id) ?? ("Client " + row.client_id.slice(0, 8)),
+        solde: Number(row.solde), plafond: Number(row.plafond),
+      })));
+    })();
+    return () => { active = false; };
+  }, [pid, sb]);
 
   const chargerSession = useCallback(async (id: string, userId: string) => {
     setSession(null);
@@ -398,7 +428,7 @@ export default function CaissePage() {
     if (vente) return setMsg("Un panier est déjà ouvert. Finalisez-le ou abandonnez-le avant d’en créer un autre.");
     setBusy(true);
     try {
-      const { data, error } = await sb.rpc("vente_creer", { p_session: session.id });
+      const { data, error } = await sb.rpc("vente_creer", { p_session: session.id, p_client: creditClientId || null });
       if (error || !data) return setMsg(error?.message ?? "Impossible de créer la vente.");
       setVente(data as string);
       setDraftCheckErreur(false);
@@ -523,6 +553,7 @@ export default function CaissePage() {
       setDraftCheckErreur(false);
       setLignes([]);
       setPercu("");
+      setCreditClientId("");
       setMsg("Panier abandonné ; aucun nouveau débit physique n’a été effectué.");
     } catch {
       if (session && uid) await chargerSession(session.id, uid);
@@ -566,6 +597,38 @@ export default function CaissePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function payerCredit() {
+    if (!vente || !creditClientId || total <= 0 || busy) return setMsg("Sélectionnez un Client avec un crédit actif et ajoutez des produits avant de valider.");
+    setBusy(true);
+    setMsg("");
+    try {
+      const { data, error } = await sb.rpc("vente_credit_finaliser", {
+        p_vente: vente,
+        p_reference: "CAISSE-" + vente.slice(0, 8).toUpperCase(),
+      });
+      if (error) throw error;
+      const result = Array.isArray(data) ? data[0] : data;
+      if (result?.resultat === "decision_requise") {
+        setMsg("Dépassement du plafond : la demande a été transmise au Promoteur / Responsable. Aucun stock n’a été débité. Après approbation, relancez « Finaliser à crédit » sur ce même panier.");
+        return;
+      }
+      if (result?.resultat !== "finalisee") throw new Error("La vente à crédit n’a pas retourné un statut final fiable.");
+      const saleId = vente;
+      setVente(null); setLignes([]); setPercu(""); setResultats([]); setCreditClientId(""); setDraftCheckErreur(false);
+      const { data: receipt, error: receiptError } = await sb.rpc("vente_ticket", { p_vente: saleId });
+      setPaiementTicket({ mode: "credit", montant: Number(result.total ?? total), montant_percu: null, monnaie_rendue: 0 });
+      if (receiptError || !receipt?.length) {
+        setMsg("Vente à crédit finalisée et encours mis à jour. Le ticket est indisponible ; retrouvez la vente dans l’historique.");
+        return;
+      }
+      setTicket((receipt ?? []) as TicketLigne[]);
+      setMsg("Vente à crédit finalisée. L’encours Client, l’opération de crédit, la session de caisse et le ticket sont mis à jour. Aucun encaissement espèces n’a été déclaré.");
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : "Vente à crédit non confirmée. Vérifiez le panier et le statut avant de réessayer.");
+      if (session && uid) await chargerSession(session.id, uid);
+    } finally { setBusy(false); }
   }
 
   async function cloturerSession() {
@@ -677,9 +740,16 @@ export default function CaissePage() {
             {session && draftCheckErreur && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">Vérification du panier incomplète : aucune nouvelle vente ne peut être créée et la session ne peut pas être clôturée tant que le contrôle n’a pas réussi.</p>}
             {session && (
               <>
-                <div id="caisse-encaissement" className="mb-4 flex flex-wrap gap-2">
+                <div id="caisse-encaissement" className="mb-4 flex flex-wrap items-end gap-2">
                   <button className={onglet === "caisse" ? "btn btn-vert" : "btn btn-clair"} onClick={() => setOnglet("caisse")}>Encaissement</button>
                   <button className={onglet === "recherche" ? "btn btn-vert" : "btn btn-clair"} onClick={() => setOnglet("recherche")}>Recherche prix</button>
+                  {!vente && creditAccounts.length > 0 && <label className="min-w-[240px] flex-1 text-sm font-semibold">Client (facultatif pour une vente comptant)
+                    <select className="champ mt-1 w-full" value={creditClientId} onChange={(e) => setCreditClientId(e.target.value)} disabled={busy}>
+                      <option value="">Vente comptant sans crédit Client</option>
+                      {creditAccounts.map((account) => <option key={account.clientId} value={account.clientId}>{account.label} · encours {fcfa(account.solde)} / plafond {fcfa(account.plafond)}</option>)}
+                    </select>
+                  </label>}
+                  {vente && creditClientId && <span className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900">Client crédit : {creditAccounts.find((account) => account.clientId === creditClientId)?.label ?? creditClientId.slice(0, 8)}</span>}
                   {!vente && <button className="btn btn-canari" disabled={busy || draftCheckErreur} onClick={() => void nouvelleVente()}>Nouvelle vente</button>}
                 </div>
                 <div className="grid gap-4 lg:grid-cols-3">
@@ -699,6 +769,7 @@ export default function CaissePage() {
                     <p className="rounded-xl bg-gray-50 p-3 font-bold">Monnaie à rendre : {fcfa(rendu)}</p>
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><b>Paiements électroniques indisponibles</b><p className="mt-1">Orange Money et MTN MoMo ne peuvent pas être déclarés payés sur la seule base d’une référence saisie. Le canal marchand officiel doit être intégré et confirmer la transaction avant l’activation.</p></div>
                     <button disabled={busy || !vente || total <= 0} className="btn btn-vert w-full" onClick={() => void payer()}>{busy ? "Traitement…" : "Encaisser en espèces et préparer le ticket"}</button>
+                    {creditClientId && <button disabled={busy || !vente || total <= 0} className="btn btn-clair w-full" onClick={() => void payerCredit()}>{busy ? "Traitement…" : "Finaliser la vente à crédit"}</button>}
                   </aside>
                 </div>
                 <section id="caisse-cloture" className="carte mt-4 space-y-3">
