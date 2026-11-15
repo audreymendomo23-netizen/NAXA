@@ -71,7 +71,6 @@ type LocalProduct = {
   indications: string | null;
   precautions: string | null;
   source_fiche: string | null;
-  fiche_validee: boolean | null;
 };
 
 type StockPair = { produit_id: string; pharmacie_id: string };
@@ -91,11 +90,11 @@ async function localProductsFor(term: string): Promise<LocalProduct[]> {
     // Ne sélectionner que les colonnes réellement présentes dans public.produits.
     // Les métadonnées de licence/chemin photo ne sont pas encore dans ce schéma :
     // les photos restent donc masquées jusqu'à une migration dédiée et vérifiée.
-    const fields = "id,nom,dci,code_barre,forme,synonymes,photo_url,description,indications,precautions,source_fiche,fiche_validee";
+    const fields = "id,nom,dci,code_barre,forme,synonymes,photo_url,description,indications,precautions,source_fiche";
     const [byName, byDci, bySynonym] = await Promise.all([
-      sb.from("produits").select(fields).eq("fiche_validee", true).ilike("nom", "%" + needle + "%").limit(12),
-      sb.from("produits").select(fields).eq("fiche_validee", true).ilike("dci", "%" + needle + "%").limit(12),
-      sb.from("produits").select(fields).eq("fiche_validee", true).contains("synonymes", [needle]).limit(12)
+      sb.from("produits").select(fields).ilike("nom", "%" + needle + "%").limit(12),
+      sb.from("produits").select(fields).ilike("dci", "%" + needle + "%").limit(12),
+      sb.from("produits").select(fields).contains("synonymes", [needle]).limit(12)
     ]);
     if (byName.error && byDci.error && bySynonym.error) return [];
     const unique = new Map<string, LocalProduct>();
@@ -440,7 +439,7 @@ export async function GET(request: NextRequest) {
         ...(candidate.rxcui ? [{ name: "RxNorm", role: "normalisation du nom", url: "https://rxnav.nlm.nih.gov/REST/rxcui/" + candidate.rxcui + "/allProperties.json" }] : []),
         ...(preferredFda ? [{ name: "openFDA", role: "notice et rubriques de sécurité", url: "https://open.fda.gov/apis/drug/label/", updatedAt: typeof preferredFda.effective_time === "string" ? preferredFda.effective_time : null }] : []),
         ...(matchedDaily && typeof matchedDaily.setid === "string" ? [{ name: "DailyMed", role: "notice structurée SPL", url: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=" + matchedDaily.setid }] : []),
-        ...(localProduct?.source_fiche ? [{ name: localProduct.source_fiche.toLowerCase().includes("bdpm") ? "BDPM / catalogue local" : "Catalogue local NAXA", role: localProduct.fiche_validee ? "fiche locale validée" : "fiche locale non validée", url: "https://base-donnees-publique.medicaments.gouv.fr/telechargement" }] : []),
+        ...(localProduct?.source_fiche ? [{ name: localProduct.source_fiche.toLowerCase().includes("bdpm") ? "BDPM / catalogue local" : "Catalogue local NAXA", role: "informations du catalogue partenaire; NAXA ne certifie ni ne valide cette fiche", url: "https://dpml.cm/repertoireDesAmm/index.php" }] : []),
         { name: "DPML Cameroun", role: "référence à consulter pour vérifier l’autorisation locale", url: "https://dpml.cm/repertoireDesAmm/index.php" }
       ],
       imageUrl: storagePhotoUrl,
@@ -463,7 +462,7 @@ export async function GET(request: NextRequest) {
       partnerPharmacyCount: localProduct && localStocks.verified ? (stock?.pharmacies ?? 0) : null,
       lowestPartnerPrice: stock?.lowestPrice ?? null,
       localProductId: localProduct?.id ?? null,
-      localInformationValidated: localProduct?.fiche_validee === true,
+      localInformationSource: localProduct?.source_fiche ?? null,
       localInformationSource: localProduct?.source_fiche ?? null,
       cameroonRegulatoryStatus: "a_verifier",
       cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php"
@@ -520,7 +519,7 @@ export async function GET(request: NextRequest) {
       partnerPharmacyCount: null,
       lowestPartnerPrice: null,
       localProductId: null,
-      localInformationValidated: false,
+      localInformationSource: item.source_nom,
       localInformationSource: item.source_nom,
       cameroonRegulatoryStatus: "a_verifier" as const,
       cameroonRegulatoryReference: "https://dpml.cm/repertoireDesAmm/index.php",
