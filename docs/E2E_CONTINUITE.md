@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — matrice Storage Admin + Promoteur validée sur Replay (17 PASS / 0 SKIP, §35) ; protections SQL Livreur testées (§37) ; correction du provisionnement Caisse appliquée et testée sur Replay (§39) ; fixtures Gestionnaire Stock/Caisse/Client acheteur intégrées au workflow, mais provisionnement GitHub Actions non encore démontré ; commande réelle bloquée par l'absence de fiche produit validée et de stock vendable.
+**État global :** 🟡 PARTIEL — matrice Storage Admin + Promoteur validée sur Replay (17 PASS / 0 SKIP, §35) ; protections SQL Livreur testées (§37) ; provisionnement Caisse corrigé (SQL PASS, §39) ; lecture RLS Stock corrigée (SQL PASS, §40) ; exposition publique des fiches non validées fermée et insertion auto-validante interdite (SQL PASS, §41). Les profils E2E Stock/Caisse/Client acheteur ne sont pas encore provisionnés ; aucun produit n'est validé, aucune référence DPML n'est importée et les deux pharmacies E2E n'ont aucun stock ni lot vendable. La réservation réelle reste bloquée.
 
 ## 1. Règles et périmètre sécurisé
 
@@ -1263,3 +1263,57 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 2. Sur Replay, confirmer que le Gestionnaire Stock reçoit bien le rôle actif, que la RPC d'affectation retourne `true`, et que son GET `stocks` retourne HTTP 200 ; confirmer aussi que le rôle Caisse voit une seule ressource physique via RLS.
 3. Faire ouvrir puis fermer un service Stock de recette avec note E2E explicite, sans ouvrir de session Caisse ni fonds fictifs.
 4. Résoudre séparément le catalogue vendable validé et le stock/lot conforme avant de créer la première réservation Client.
+
+
+## 41. Protection du catalogue public et diagnostic réel du blocage stock (15/11/2026)
+
+**Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Aucun changement Production/Vercel.
+
+### Audit → contradiction → cause racine
+
+- `public.produits` avait RLS activée, mais la policy `produits_read` était `FOR SELECT TO public USING (true)`. Le rôle PostgreSQL `anon` possédait aussi le privilège SELECT sur la table : un client REST direct pouvait donc lire des fiches non validées, même si l'API de recherche Next.js filtre déjà `fiche_validee=true`.
+- La policy d'insertion `produits_write` permettait à un profil ayant un contexte pharmacie d'insérer une fiche sans exiger `fiche_validee=false`. Le garde UPDATE était déjà réservé à Admin, mais INSERT laissait une voie d'auto-publication.
+- La cause n'était pas un manque de filtre de recherche uniquement : la règle RLS de la table autorisait explicitement toute lecture et l'INSERT n'imposait pas l'état brouillon.
+
+### Correction appliquée sur Replay et versionnée sur main
+
+- Migration source : `supabase/migrations/20261115190000_secure_public_read_of_unvalidated_products.sql`, commit [`4edcdfb1a1d8662542d13bc4fec4d816845a6e32`](https://github.com/audreymendomo23-netizen/NAXA/commit/4edcdfb1a1d8662542d13bc4fec4d816845a6e32).
+- Version enregistrée sur Replay : `20261115073655`, nom `secure_public_read_of_unvalidated_products`.
+- La policy large `produits_read` est supprimée et remplacée par deux policies :
+  1. `anon` ne lit que les lignes où `fiche_validee IS TRUE`.
+  2. `authenticated` ne lit que les fiches validées, ou les fiches internes via Admin et les fonctions pharmacie actives explicitement listées (`pharmacie`, `caisse`, `responsable`, `comptable`, `pharmacien`, `gestionnaire_stock`, `magasinier`) avec contexte pharmacie actif. Le rôle `livreur` est exclu de la lecture des brouillons.
+- La policy INSERT `produits_write` ne vise plus que `authenticated`. Admin conserve l'insertion ; les fonctions internes pharmacie autorisées ne peuvent insérer qu'une fiche dont `fiche_validee IS NOT TRUE`. La validation publique ne peut donc pas être auto-déclarée à l'insertion par une pharmacie.
+- La policy UPDATE existante (Admin uniquement) n'a pas été élargie. Aucune policy de stock, de lot ou de paiement, aucun grant table, aucune ligne produit/stock et aucun statut de validation n'ont été modifiés par cette migration.
+
+### Test et preuve
+
+- Test SQL versionné : `supabase/tests/20261115190000_secure_public_read_of_unvalidated_products.sql`, commit [`00b1e742e0465bfeb902e4544d31b8dc670ca543`](https://github.com/audreymendomo23-netizen/NAXA/commit/00b1e742e0465bfeb902e4544d31b8dc670ca543).
+- Exécution SQL sur Replay : **PASS**. RLS reste activée ; les rôles/predicats des deux policies SELECT et de la policy INSERT sont contrôlés ; sous `SET ROLE anon`, aucune fiche non validée n'est visible ; sous `authenticated` avec l'identité Admin Replay, l'accès complet au catalogue est conservé. Le test est transactionnel et terminé par `ROLLBACK` ; il n'a créé aucune fiche.
+- Test statique Node `scripts/test-products-public-rls.cjs` ajouté (4 assertions), commit [`235cefc5597f1f13fdb2a23df684bd45f1e36c0d`](https://github.com/audreymendomo23-netizen/NAXA/commit/235cefc5597f1f13fdb2a23df684bd45f1e36c0d).
+- Workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` mis à jour pour inclure cette migration, le test SQL et le test Node dans les chemins/commandes CI ; commit [`f68e6fbd9f6df62b8c0dbc9e97f3b35109adf3df`](https://github.com/audreymendomo23-netizen/NAXA/commit/f68e6fbd9f6df62b8c0dbc9e97f3b35109adf3df).
+- Les contrôles GitHub consultables ne retournent pas de statut/check sur ce commit ; le connecteur de runs disponible ne retourne que les runs associés aux PR. L'exécution du nouveau test Node dans GitHub Actions reste donc **non démontrée**. Ne pas la revendiquer PASS.
+- Supabase Security Advisors relève toujours des alertes globales préexistantes : 70 tables RLS sans policy (niveau INFO), 227 fonctions SECURITY DEFINER exécutables par `authenticated` (WARN) et 1 alerte de protection HIBP des mots de passe (WARN). Cette migration n'ajoute pas de fonction SECURITY DEFINER ; le contrôle ciblé RLS catalogue est PASS, mais l'audit sécurité global reste non vert.
+
+### Inventaire Replay corrigé — périmètre global et périmètre E2E distingués
+
+- Globalement : **20 produits**, tous `fiche_validee=false` et tous identifiés comme test par leur nom ou `source_fiche` ; **100 lignes de stock positives**, quantité agrégée **3 300**, réparties sur 5 pharmacies, toutes rattachées à ces produits non validés ; **0 lot** ; **0 ligne** dans `medicaments_referentiel_sources`.
+- Sur les **2 pharmacies actives liées au Promoteur E2E** : **0 ligne de stock**, **0 quantité positive** et **0 lot**. Cela corrige l'ambiguïté du précédent contrôle global : les quantités présentes ailleurs dans Replay ne constituent pas une offre vendable pour les pharmacies de la recette.
+- Les trois identités E2E Stock/Caisse/Client acheteur sont toujours absentes de `auth.users` et `profiles` ; aucune affectation n'est présente pour ces trois identités et aucune Caisse physique active n'est provisionnée sur les deux pharmacies du Promoteur E2E.
+- Il n'existe donc aucun produit validé, stock/lot conforme ni fixture Client acheteur permettant de démarrer une réservation réelle. Le correctif RLS empêche désormais la fuite de fiches non validées, mais il ne rend pas les produits de test vendables.
+
+### Source réglementaire et blocage restant
+
+- Le référentiel actuellement vide `medicaments_referentiel_sources` est destiné à des références BDPM françaises. Ce flux n'a pas été importé et ne doit pas être utilisé comme preuve d'AMM camerounaise.
+- Source locale pertinente : [Répertoire DPML des médicaments homologués](https://dpml.cm/repertoireDesAmm/), qui présente le registre des produits ayant obtenu une AMM au Cameroun ; [présentation DPML du répertoire AMM](https://dpml.cm/index.php/fr/catalogue/produits-pharmaceutiques-amm). La [Liste nationale des médicaments essentiels (édition 2022)](https://dpml.cm/fr/catalogue/liste-nationale-des-medicaments-essentiels) est une source complémentaire de sélection, mais ne remplace pas la preuve d'AMM d'une spécialité donnée.
+- La consultation web du répertoire et de sa page de téléchargements a répondu HTTP 403 dans cette session ; aucun export officiel exploitable, fichier structuré ou API documentée n'a pu être vérifié. Aucun médicament n'a donc été importé ou marqué validé sur une supposition.
+- **Cause métier du blocage restant :** absence d'une source officielle DPML exploitable avec numéro AMM, statut/validité, titulaire, dénomination, DCI, dosage, forme et présentation, puis absence de validation pharmaceutique et d'approvisionnement réel avec lot/péremption pour les pharmacies E2E.
+
+**État :** exposition anon des fiches non validées — **CORRIGÉE / SQL PASS sur Replay** ; auto-validation à l'insertion pharmacie — **BLOQUÉE par policy / SQL PASS** ; CI Node — **à confirmer** ; catalogue camerounais validé — **BLOQUÉ** ; stock et lots réels sur les pharmacies E2E — **ABSENTS** ; réservation Client → Stock → Livreur → Caisse — **NON EXÉCUTABLE** ; recette globale — **PARTIELLE**, non AU VERT.
+
+**Point exact de reprise :**
+1. Obtenir un export DPML officiel des AMM camerounaises (ou une API officiellement autorisée/documentée) avec la preuve de statut et de validité ; ne pas substituer la BDPM française ni la LNME à cette preuve.
+2. Importer ces références dans un référentiel séparé, les rapprocher des fiches NAXA puis exiger une validation pharmacien/Admin documentée avant `fiche_validee=true`.
+3. Pour au moins un produit réellement homologué et disponible, faire enregistrer par la pharmacie une pièce d'approvisionnement réelle, le lot et la date de péremption via les parcours métier audités ; ne pas injecter quantité ou lot inventés.
+4. Relancer/consulter le workflow Replay, prouver le provisionnement Client acheteur/Stock/Caisse et l'accès réel sous JWT ; ouvrir/fermer le service Stock sans fonds Caisse fictifs.
+5. Seulement après ces prérequis, exécuter la réservation Client, préparation Stock, affectation Livreur, suivi, livraison et encaissement réel par la Caisse.
+
