@@ -2,9 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§49)  
+**Dernière mise à jour :** 15 novembre 2026 (§50)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Contrôle Replay : zéro abonnement push/appareil actif, zéro profil ou affectation Responsable et zéro pharmacie non-démo ; les preuves téléphone et pharmacie/Responsable restent bloquées par l'absence de fixtures réelles. Aucun état artificiel n'a été créé.  §49 : contrôle de reprise documentaire après §48. Le commit de tête antérieur 7afded8ab6c0e453c48f38ad82205e2ffb0fe2b9 ne change que la mise en forme d'une section catalogue ; §48 reste intact. Aucun nouvel essai CI, appareil push, compte Responsable ou fixture non-démo n'a été exécuté/ajouté ; les statuts demeurent inchangés.Production et Vercel inchangés.
+**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Contrôle Replay : zéro abonnement push/appareil actif, zéro profil ou affectation Responsable et zéro pharmacie non-démo ; les preuves téléphone et pharmacie/Responsable restent bloquées par l'absence de fixtures réelles. Aucun état artificiel n'a été créé.  §49 : contrôle de reprise documentaire après §48. Le commit de tête antérieur 7afded8ab6c0e453c48f38ad82205e2ffb0fe2b9 ne change que la mise en forme d'une section catalogue ; §48 reste intact. Aucun nouvel essai CI, appareil push, compte Responsable ou fixture non-démo n'a été exécuté/ajouté ; les statuts demeurent inchangés. §50 : RLS SELECT des fiches propriétaires maintenant limitée au scope pharmacie ; Marketplace visible, Admin en lecture et 20 fiches historiques partagées conservés. Runtime Gestionnaire Stock Mvan : sa fiche visible (1), fiche Essos masquée (0), historique partagé accessible (20). Transaction annulée, zéro fixture persistante. SQL PASS ; CI non confirmée.
+Production et Vercel inchangés.
 
 
 
@@ -1830,3 +1831,59 @@ Relecture de `docs/E2E_CONTINUITE.md` sur `main` après le commit `7afded8ab6c0e
 Cette reprise documentaire n'ajoute aucune preuve d'exécution. Aucun workflow n'a été déclenché, aucune file push n'a été traitée, aucun appareil/compte professionnel/pharmacie de recette n'a été créé, et aucune donnée SQL n'a été modifiée. Les points bloqués au §48 restent donc bloqués ; le résultat global demeure **PARTIEL — pas AU VERT**. Production et Vercel restent inchangés.
 
 **Point exact de reprise :** poursuivre uniquement à partir des preuves manquantes énumérées au §48 : run GitHub Actions, appareil Android enregistré et consentant, puis pharmacie non-démo dédiée avec compte Auth Responsable affecté par le parcours professionnel normal.
+
+
+## 50. Isolation RLS de lecture des fiches descriptives privées par pharmacie (15/11/2026)
+
+### Cause racine complémentaire
+
+La section §47 avait limité le choix des fiches dans l'interface Stock et protégé les écritures ; toutefois, la policy SELECT \`produits_authenticated_live_offer_read\` conservait une ancienne branche qui autorisait tout compte professionnel ayant une pharmacie active à lire toutes les fiches propriétaires, même celles d'une pharmacie hors de son périmètre. Le masquage dans l'interface ne suffisait donc pas à garantir l'isolation via l'API Supabase directe.
+
+### Correction appliquée
+
+La policy SELECT authentifiée est maintenant composée de quatre chemins distincts :
+
+1. Une offre réellement visible sur le Marketplace reste consultable dans le périmètre public prévu.
+2. L'Administrateur conserve la lecture technique de toutes les fiches, sans droit de création, de modification ou d'initialisation de stock.
+3. Une fiche avec \`created_by_pharmacie_id IS NOT NULL\` n'est lisible par un compte professionnel que si \`private.naxa_scope_allows(auth.uid(),created_by_pharmacie_id,'PHARMACIE')\` confirme son périmètre actif. Les Promoteurs gardent ainsi la visibilité sur leur propre réseau, tandis qu'un Gestionnaire Stock ne lit que la pharmacie de son affectation active.
+4. Les anciennes fiches historiques avec propriétaire NULL conservent la règle de lecture partagée déjà en place pour les Promoteurs validés et le personnel professionnel avec pharmacie active.
+
+Aucune restriction réglementaire ou validation NAXA n'est ajoutée : la règle porte uniquement sur l'isolation des données entre pharmacies.
+
+### Sources et déploiement Replay
+
+- Migration : \`supabase/migrations/20261115112000_scope_private_product_fiche_reads.sql\`, commit [400a7ce43619da0722c8dd0312c331b7e44899b6](https://github.com/audreymendomo23-netizen/NAXA/commit/400a7ce43619da0722c8dd0312c331b7e44899b6).
+- Version Replay appliquée : \`20261115093145\`, nom \`scope_private_product_fiche_reads\`.
+- Test SQL : \`supabase/tests/20261115112000_scope_private_product_fiche_reads.sql\`, commit [43bafd8a9e034e148eea470ef3018892bfb5bddf](https://github.com/audreymendomo23-netizen/NAXA/commit/43bafd8a9e034e148eea470ef3018892bfb5bddf), exécution SQL Replay **PASS**.
+- Workflow Replay surveillant les deux nouveaux fichiers : commit [e3e5288855bc9727dcf63223fdacc93b799bd1ef](https://github.com/audreymendomo23-netizen/NAXA/commit/e3e5288855bc9727dcf63223fdacc93b799bd1ef).
+- Test Node \`scripts/test-pharmacy-led-product-publication.cjs\` étendu pour contrôler la policy SELECT et le test SQL : commit [b6570c2acb61337e13a5ded5bc063abe391652ef](https://github.com/audreymendomo23-netizen/NAXA/commit/b6570c2acb61337e13a5ded5bc063abe391652ef). Le même script est déjà inclus dans la commande \`node --test\` du workflow.
+
+### Test runtime sous JWT — preuve d'isolation réelle
+
+Dans une transaction Replay annulée :
+
+- Le Promoteur crée une fiche identique pour Mvan et Essos, chacune avec son propre ID produit.
+- La session authentifiée est ensuite basculée vers le compte E2E Gestionnaire Stock, dont l'affectation et le scope sont actifs sur Mvan uniquement.
+- \`private.naxa_scope_allows\` retourne Mvan = **true**, Essos = **false**.
+- Lecture directe de \`public.produits\` sous RLS avec les deux IDs : fiche Mvan visible = **1**, fiche Essos visible = **0**.
+- Les anciennes fiches historiques partagées sans propriétaire restent visibles = **20**.
+
+**Résultat : PASS.** Le test démontre l'isolation RLS, pas seulement le filtrage de l'interface.
+
+### Nettoyage et limites
+
+Le test runtime s'est terminé par \`ROLLBACK\`. Vérification post-test Replay :
+- fiche temporaire du test précédent = **0** ;
+- fiche temporaire du test de lecture = **0** ;
+- lignes Stock temporaires = **0** ;
+- fiches propriétaires persistées dans Replay = **0**.
+
+Le workflow surveille les migrations et exécute les assertions Node contractuelles, mais son run déclenché par push n'est pas exposé par le connecteur GitHub de cette session. **Node CI, TypeScript, lint et build restent NON CONFIRMÉS.** Le test des offres Marketplace publiques via HTTP avec deux pharmacies non-démo reste également à faire ; les fixtures utilisées ici sont des pharmacies de démonstration. Aucun stock réel, lot, réservation ou vente n'a été créé.
+
+**État au §50 :** identité propriétaire distincte — **SQL PASS + runtime JWT PASS (§47)** ; lecture RLS du propriétaire uniquement — **SQL PASS + runtime JWT PASS** ; fiche étrangère invisible — **PASS** ; 20 fiches historiques partagées préservées — **PASS** ; Marketplace visible — **policy conservée** ; Admin lecture seule — **PASS (§47)** ; nettoyage — **PASS** ; CI Node/TypeScript/lint/build — **NON CONFIRMÉS** ; recherche publique HTTP multi-pharmacies — **À FAIRE** ; état global — **PARTIEL**, pas AU VERT. Production et Vercel inchangés.
+
+**Point exact de reprise :**
+1. Déclencher le workflow NAXA Replay depuis l'interface GitHub Actions et vérifier Node, TypeScript, lint et build.
+2. Faire le test de recherche Marketplace publique avec deux pharmacies non-démo autorisées, chacune avec fiche distincte et offre réelle, pour confirmer les deux offres/prix par HTTP et navigateur.
+3. Reprendre seulement ensuite la réception traçable, les lots, la réservation Client et le parcours de livraison.
+4. Ne pas toucher Production ou Vercel sans autorisation expresse.
