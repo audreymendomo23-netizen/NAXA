@@ -62,7 +62,7 @@ async function provision(env = process.env) {
     "Content-Type": "application/json",
   };
 
-  async function api(path, method = "GET", body) {
+  async function api(path, method = "GET", body, operation = "lecture Supabase") {
     const response = await fetch(baseUrl + path, {
       method,
       headers,
@@ -73,7 +73,7 @@ async function provision(env = process.env) {
     try { data = raw ? JSON.parse(raw) : null; } catch { /* ne pas journaliser les corps Auth */ }
     if (!response.ok) {
       const code = data && typeof data.code === "string" ? " (" + data.code + ")" : "";
-      throw new Error("Supabase a refusé le contrôle Admin E2E (HTTP " + response.status + code + ").");
+      throw new Error("Supabase a refusé " + operation + " (HTTP " + response.status + code + ").");
     }
     return data;
   }
@@ -82,14 +82,16 @@ async function provision(env = process.env) {
   // Auth identity directly by ID. Avoid relying on paginated Auth user listing.
   const profiles = await api(
     "/rest/v1/profiles?select=id,username,role,actif"
-      + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2"
+      + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2",
+    "GET", undefined, "lecture REST du profil Admin"
   );
   if (!Array.isArray(profiles) || profiles.length !== 1 || !profiles[0].id) {
     throw new Error("Le profil unique de la fixture Admin active est introuvable ; aucune création automatique.");
   }
   const profile = profiles[0];
   const authResult = await api(
-    "/auth/v1/admin/users/" + encodeURIComponent(profile.id)
+    "/auth/v1/admin/users/" + encodeURIComponent(profile.id),
+    "GET", undefined, "lecture Auth Admin par ID"
   );
   const user = authResult && authResult.user ? authResult.user : authResult;
   assertAdminFixture(user, profile);
@@ -105,18 +107,23 @@ async function provision(env = process.env) {
   );
 
   // Update ONLY the password of the exact, already validated test fixture.
-  await api("/auth/v1/admin/users/" + encodeURIComponent(user.id), "PUT", { password });
+  await api(
+    "/auth/v1/admin/users/" + encodeURIComponent(user.id),
+    "PUT", { password }, "rotation du mot de passe de la fixture Admin"
+  );
 
   // Re-read the same Auth identity and profile after the password rotation.
   const verifiedAuthResult = await api(
-    "/auth/v1/admin/users/" + encodeURIComponent(user.id)
+    "/auth/v1/admin/users/" + encodeURIComponent(user.id),
+    "GET", undefined, "relecture Auth Admin après rotation"
   );
   const verifiedUser = verifiedAuthResult && verifiedAuthResult.user
     ? verifiedAuthResult.user
     : verifiedAuthResult;
   const verifiedProfiles = await api(
     "/rest/v1/profiles?select=id,username,role,actif"
-      + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2"
+      + "&username=eq.e2e_admin_261104&role=eq.admin&actif=eq.true&limit=2",
+    "GET", undefined, "relecture REST du profil Admin après rotation"
   );
   if (
     !Array.isArray(verifiedProfiles) || verifiedProfiles.length !== 1
