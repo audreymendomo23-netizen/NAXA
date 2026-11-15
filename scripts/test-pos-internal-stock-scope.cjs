@@ -14,6 +14,14 @@ const sqlContract = fs.readFileSync(
   path.join(root, "supabase/tests/20261115205000_pos_internal_stock_scope.sql"),
   "utf8"
 );
+const settlementMigration = fs.readFileSync(
+  path.join(root, "supabase/migrations/20261115206000_pos_cashier_unpublished_settlement.sql"),
+  "utf8"
+);
+const settlementContract = fs.readFileSync(
+  path.join(root, "supabase/tests/20261115206000_pos_cashier_unpublished_settlement.sql"),
+  "utf8"
+);
 
 function functionBody(source, marker, endMarker) {
   const start = source.indexOf(marker);
@@ -60,7 +68,9 @@ test("le rôle Caisse conserve le scope métier sans exiger la publication Marke
   assert.ok(migration.includes("'public.naxa_caisse_actor_for_pharmacy(uuid)'::regprocedure"));
   assert.ok(migration.includes("'and ph.actif=true and ph.visible_recherche=true'"));
   assert.ok(migration.includes("'and ph.actif=true and ph.archivee_le is null'"));
-  assert.ok(migration.includes("Le garde Caisse contient une condition de visibilité attendue absente"));
+  assert.ok(migration.includes("Le garde Caisse est dans un état inattendu"));
+  assert.ok(migration.includes("'and ph.actif=true and ph.visible_recherche=true'"));
+  assert.ok(migration.includes("'and ph.actif=true and ph.archivee_le is null'"));
   assert.ok(sqlContract.includes("v_definition ilike '%visible_recherche%'"));
   assert.ok(sqlContract.includes("v_definition not ilike '%private.naxa_scope_allows%'"));
   assert.ok(sqlContract.includes("v_definition not ilike '%can_operate_pharmacy%'"));
@@ -72,4 +82,13 @@ test("le contrat Replay prouve le POS vendable sur une pharmacie active mais cac
   assert.ok(sqlContract.includes("private.naxa_pos_stock_vendable"));
   assert.ok(sqlContract.includes("v_quantity <= 0"));
   assert.ok(sqlContract.includes("rollback;"));
+});
+
+test("la finalisation espèces garde ses contrôles sans imposer la visibilité Marketplace", () => {
+  assert.ok(settlementMigration.includes("'public.vente_encaisser_finaliser(uuid,integer)'::regprocedure"));
+  assert.ok(settlementMigration.includes("'and ph.visible_recherche=true'"));
+  assert.ok(settlementMigration.includes("'and ph.archivee_le is null'"));
+  assert.ok(settlementContract.includes("public.vente_encaisser_finaliser(uuid,integer)"));
+  assert.ok(settlementContract.includes("v_settlement ilike '%visible_recherche%'"));
+  assert.ok(settlementContract.includes("v_settlement not ilike '%can_operate_pharmacy%'"));
 });
