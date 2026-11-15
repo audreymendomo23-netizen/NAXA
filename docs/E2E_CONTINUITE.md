@@ -1943,3 +1943,79 @@ La vérification post-tests confirme que les fixtures ne persistent pas : Replay
 3. Préparer les comptes métier et une pharmacie de recette, puis exécuter tout le chemin Marketplace → Caisse → comptabilité avec preuve de ticket et règlement.
 4. Obtenir le résultat final du workflow GitHub qualité Node/TypeScript/lint/build.
 5. Garder Production et Vercel inchangés sans autorisation expresse.
+
+
+## 52. Import des assurés, négociation de droits et raccord POS (15/11/2026)
+
+### Audit → contradiction → cause racine
+
+- La couverture saisie par le Client était traitée comme éligible à un devis alors qu'aucun rapprochement machine avec une liste assureur n'existait. Une saisie de numéro d'adhérent ne prouve pas à elle seule les droits.
+- La vérification enregistrée sur la couverture client ne pouvait pas être portée par plusieurs pharmacies indépendamment ; une vérification dans une pharmacie risquait d'écraser celle d'une autre.
+- Les propositions versionnées de montant étaient déjà présentes dans le dépôt, mais le POS et le déclencheur de créance continuaient à utiliser les montants du snapshot initial. Le raccord à la dernière proposition acceptée manquait.
+- Les contrats comptables et de négociation comportaient une assertion d'idempotence héritée de l'ancienne clé simple ; la fonction active utilise la clé composite `pharmacie_id + cle_idempotence`.
+
+### Corrections versionnées sur `main`
+
+- `7dc701cf65a89e12bfc49cb09cd0c27b7be85686` — tables d'import, simulation et rapprochement exact, vérification obligatoire avant calcul de devis, POS et ticket raccordés aux montants négociés.
+- `32c30ec89d1962498e6b8e91d788905efc5b3d7b` — une ligne au statut source invalide est enregistrée comme invalide au lieu de faire échouer toute la simulation.
+- `823a20ae168c33bb820711022c8745de29b547e6` — vérifications d'adhésion indépendantes par pharmacie, versions de déclaration, mode import complet/delta, nouvelle liste complète qui remplace les vérifications antérieures de cette pharmacie seulement.
+- `6774e199e60e9bce9977b45ae8539f3cd2fc491a` — interface d'import CSV/XLS/XLSX, simulation avant application, SHA-256, limite 10 Mo/5 000 lignes, aperçu des correspondances, anomalies et doublons.
+- `48b911a9197cd0d369e88a9c22d6f9d8e1ab6754` — sélection explicite entre liste complète et mise à jour delta.
+- `416232615f96020a0b63bea3df59d775e0a5c055` — le reçu Client consulte la vérification effective de sa couverture pour la pharmacie de la réservation et désactive le devis si elle manque, est périmée ou a été invalidée par une correction de la déclaration.
+- `15e4fbf3a50c3b9049042fdb439103d0732cd98e` — contrat SQL import/vérification multi-pharmacie/POS négocié.
+- `d90bf16801564b0ec8ad6b7185b6da35c78bc9d6` — tests Node du pipeline import et du parcours Client/Pharmacie.
+- `67cc8947529a83f05e86d83ea823a688d7e12966` — assertion comptable alignée sur la clé d'idempotence composite réellement utilisée.
+
+### Contrat d'import implémenté
+
+Le fichier doit comporter un numéro adhérent, une date de début et un statut. Les champs numéro de police, nom du bénéficiaire et date de fin sont facultatifs. Les alias d'en-têtes usuels sont normalisés. Le moteur fait un rapprochement exact du numéro d'adhérent et de police ; le nom du bénéficiaire est comparé lorsqu'il est fourni. Une correspondance multiple, répétée, absente ou invalide reste bloquée. Aucun profil Client n'est créé automatiquement.
+
+Le mode **Liste complète** remplace les anciennes vérifications de l'assureur pour cette pharmacie. Le mode **Delta** n'affecte que les lignes du fichier. La vérification est liée au SHA-256 du fichier, à sa référence de transmission, à l'assureur et à la pharmacie. Cette empreinte prouve l'intégrité du fichier traité ; elle ne constitue pas une signature de l'assureur. L'authenticité de la source est attestée par l'opérateur qui reçoit et importe le document.
+
+Une même couverture peut ainsi être vérifiée dans plusieurs pharmacies. Toute correction du numéro d'adhérent, de police ou des dates dans le compte Client rend la vérification précédente caduque.
+
+### Raccord de la négociation
+
+- La pharmacie présente une proposition versionnée avec motif et nouvelle part assureur/client.
+- Seul le Client propriétaire accepte ou refuse.
+- Le snapshot initial est immuable ; la confirmation de prise en charge et le POS sont bloqués tant qu'une proposition est en attente.
+- Le ticket client, le règlement POS et l'événement de créance comptable prennent le dernier partage explicitement accepté.
+
+### Tests SQL exécutés sur Replay
+
+| Test | Résultat |
+|---|---|
+| `20261115101000_assurance_amount_proposal_workflow.sql` | **PASS** — RLS, ACL, consentement explicite, snapshot immuable |
+| `20261115121500_assurance_import_membership_pos_negotiation.sql` | **PASS** — import, vérification par pharmacie, idempotence POS et ticket |
+| `202611121_assurance_rule_precedence_calculation.sql` | **PASS** — priorité/calcul et frontière comptable ; assertion idempotence alignée sur la clé composite |
+| `202611121_assurance_compta_worker_positive.sql` | **PASS** — fixtures transactionnelles 10 000 FCFA + remboursements 4 000/6 000 FCFA, rollback final |
+| `187_caisse_parcours_scope_assurances.sql` | **PASS** — portée RLS et demande d'annulation sur vente propre |
+| `202611120_assurance_comptabilite_contract.sql` | Exécuté sans exception |
+| `20261114073630_marketplace_assurance_public_projection_acl.sql` | Exécuté sans exception ; 0 convention publique active dans Replay |
+| `049_assurances.sql` | **PASS** |
+
+Le test Node `scripts/test-assurance-import-membership.cjs` est versionné et inclus dans le glob `npm test`. Le job Node/TypeScript/lint/build du workflow qualité courant doit encore fournir son résultat final.
+
+### Contrôle de persistance après exécution
+
+Replay contient toujours 5 assureurs, 4 profils Client, 1 profil Promoteur, 1 Admin et 9 pharmacies toutes démo. Il contient 0 couverture, 0 convention, 0 règle, 0 import, 0 ligne import, 0 vérification multi-pharmacie, 0 snapshot, 0 proposition, 0 dossier, 0 événement Assurance et 0 règlement.
+
+La comptabilité Replay contient 0 plan, 0 mapping, 0 paramètre, 0 période, 0 événement, 0 écriture et 0 ligne persistante. Le test positif du worker est rollbacké : il ne constitue pas un rapprochement réel d'une pharmacie.
+
+### Blocages restants — décision de clôture
+
+1. **Fichier source réel** : l'importeur est livré, mais aucun exemple de fichier assureur expurgé n'a été fourni et aucun import métier n'a été réalisé. Les alias et colonnes attendus doivent encore être confirmés sur un fichier réel de l'assureur.
+2. **E2E Assurance authentifié** : Replay dispose de 4 profils Client et 1 Promoteur, mais aucun profil Pharmacien, Responsable, Caisse ou Comptable identifié dans le contrôle. Les 9 pharmacies sont toutes démo. Aucun achat Marketplace Assurance complet, validation d'adhésion, vérification de justificatifs, POS/ticket et remboursement n'a donc été prouvé avec les rôles métier requis.
+3. **Comptabilité réelle** : aucun plan, mapping, journal, paramètre ou période n'est configuré ; aucune écriture réelle n'a été postée. Ne pas créer des comptes ou périodes fictifs pour obtenir un vert.
+4. **Qualité applicative** : le workflow `NAXA quality` associé au commit `67cc8947529a83f05e86d83ea823a688d7e12966` est encore en attente au dernier contrôle ; Node, TypeScript, lint et build ne sont donc pas encore certifiés sur l'ensemble des changements.
+
+**État §52 : PARTIEL — PAS AU VERT.** L'importeur, le rapprochement strict multi-pharmacie, la négociation versionnée et le raccord POS sont implémentés et leurs contrats SQL passent. Restent le fichier assureur réel, les rôles professionnels et la pharmacie de recette autorisée, l'E2E Assurance réel, la configuration comptable réelle et le résultat du workflow qualité.
+
+**Point exact de reprise :**
+1. Tester l'import avec un fichier assureur expurgé conforme à son export réel, puis contrôler les lignes valides, ambiguës, suspendues et expirées.
+2. Autoriser/créer par les parcours professionnels normaux les profils Pharmacien, Caisse et Comptable ainsi qu'une pharmacie de recette non-démo.
+3. Exécuter Client → Marketplace → vérification adhésion → accord initial → contrôle justificatifs → négociation si nécessaire → accord client → POS → ticket → remboursement.
+4. Configurer le vrai plan, les mappings, le journal et la période comptable de la pharmacie de recette, puis rapprocher la vente et la créance.
+5. Confirmer Node/TypeScript/lint/build sur le dernier commit.
+
+Production et Vercel restent inchangés.
