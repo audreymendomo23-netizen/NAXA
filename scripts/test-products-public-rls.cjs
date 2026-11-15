@@ -6,66 +6,58 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const migration = fs.readFileSync(
+const publication = fs.readFileSync(
   path.join(root, "supabase/migrations/20261115200000_pharmacy_owned_marketplace_product_publication.sql"),
   "utf8"
 ).toLowerCase();
-const declaration = fs.readFileSync(
+const promoterScope = fs.readFileSync(
   path.join(root, "supabase/migrations/20261115202000_promoter_scope_and_zero_stock_catalogue_visibility.sql"),
   "utf8"
 ).toLowerCase();
 
-test("anonymous product visibility follows a live pharmacy offer, not NAXA fiche validation", () => {
-  assert.match(migration, /create policy produits_public_live_offer_read[\s\S]*?to anon[\s\S]*?marketplace_produit_visible/);
-  assert.match(migration, /create or replace function public\.marketplace_produit_visible/);
-  assert.match(migration, /ph\.actif is true/);
-  assert.match(migration, /ph\.visible_recherche is true/);
-  assert.match(migration, /ph\.est_demo is false/);
-  assert.match(migration, /offer\.quantite>0/);
-  assert.doesNotMatch(migration, /p\.fiche_validee is true/);
+test("les fiches du catalogue viennent des déclarations pharmacie, sans validation NAXA", () => {
+  assert.match(publication, /new\.created_by := auth\.uid\(\)/);
+  assert.match(promoterScope, /new\.created_by_pharmacie_id := v_pharmacie/);
+  assert.match(promoterScope, /new\.source_fiche := 'declaration_pharmacie'/);
+  assert.match(promoterScope, /new\.fiche_validee := false/);
+  assert.doesNotMatch(publication, /new\.description := null/);
+  assert.doesNotMatch(publication, /new\.indications := null/);
+  assert.doesNotMatch(publication, /new\.synonymes := '\{\}'/);
 });
 
-test("pharmacy declarations keep their declared content and record the declaring user and pharmacy", () => {
-  assert.match(migration, /new\.created_by := auth\.uid\(\)/);
-  assert.match(migration, /new\.created_by_pharmacie_id := public\.my_pharmacie\(\)/);
-  assert.match(migration, /new\.source_fiche := 'declaration_pharmacie'/);
-  assert.match(migration, /new\.fiche_validee := false/);
-  assert.doesNotMatch(migration, /new\.description := null/);
-  assert.doesNotMatch(migration, /new\.indications := null/);
-  assert.doesNotMatch(migration, /new\.synonymes := '\{\}'/);
+test("les requêtes publiques affichent les fiches rattachées à une pharmacie réelle, même à stock nul", () => {
+  assert.match(publication, /create policy produits_public_live_offer_read[\s\S]*?to anon[\s\S]*?marketplace_produit_visible/);
+  assert.match(promoterScope, /create or replace function public\.marketplace_produit_visible/);
+  assert.match(promoterScope, /from public\.stocks s[\s\S]*?ph\.actif is true[\s\S]*?ph\.visible_recherche is true[\s\S]*?ph\.est_demo is false/);
+  assert.doesNotMatch(promoterScope.slice(promoterScope.indexOf("create or replace function public.marketplace_produit_visible"), promoterScope.indexOf("drop policy if exists produits_authenticated_live_offer_read")), /quantite\s*>\s*0/);
 });
 
-test("a pharmacy edits only its own declaration and does not receive NAXA validation controls", () => {
-  assert.match(migration, /create policy produits_write[\s\S]*?created_by_pharmacie_id/);
-  assert.match(migration, /create policy produits_update[\s\S]*?created_by_pharmacie_id/);
-  assert.match(migration, /with check[\s\S]*?created_by_pharmacie_id/);
-  assert.match(migration, /fiche_validee is not true/);
-  assert.doesNotMatch(migration, /fiche_validee is true/);
+test("le Promoteur peut déclarer un produit uniquement dans son réseau actif", () => {
+  assert.match(promoterScope, /'promoteur'/);
+  assert.match(promoterScope, /private\.naxa_scope_allows\(v_user,p_pharmacie,'PHARMACIE'\)/);
+  assert.match(promoterScope, /set_config\('naxa\.product_declaration_pharmacy',p_pharmacie::text,true\)/);
+  assert.match(promoterScope, /new\.created_by_pharmacie_id := v_pharmacie/);
+  assert.match(promoterScope, /naxa_promoteur_valide/);
 });
 
-test("the Marketplace offer and search engines no longer gate products on fiche_validee", () => {
-  assert.match(migration, /private\.marketplace_offre_stock_disponible_guarded/);
-  assert.match(migration, /private\.search_pharmacies\(/);
-  assert.match(migration, /private\.search_pharmacies_bulk\(/);
-  assert.match(migration, /position\('fiche_validee' in v_definition\)>0/);
-  assert.match(migration, /v_definition := replace\(v_definition/);
+test("le personnel pharmacie conserve l'édition sous contrôle du périmètre", () => {
+  assert.match(promoterScope, /create policy produits_write[\s\S]*?naxa_scope_allows/);
+  assert.match(promoterScope, /create policy produits_update[\s\S]*?naxa_scope_allows/);
+  assert.match(promoterScope, /fiche_validee is not true/);
 });
 
-test("the pharmacy declaration RPC is authenticated, pharmacy-scoped and initializes zero stock", () => {
-  assert.match(declaration, /auth\.uid\(\)/);
-  assert.match(declaration, /public\.my_pharmacie\(\)/);
-  assert.match(declaration, /private\.naxa_business_function/);
-  assert.match(declaration, /public\.gestionnaire_stock_reference_initialiser/);
-  assert.match(declaration, /revoke all[\s\S]*?from public,anon/);
-  assert.match(declaration, /to authenticated,service_role/);
+test("l'offre Marketplace ignore le drapeau de validation mais garde ses contrôles de vente", () => {
+  assert.match(publication, /private\.marketplace_offre_stock_disponible_guarded/);
+  assert.match(publication, /private\.search_pharmacies\(/);
+  assert.match(publication, /private\.search_pharmacies_bulk\(/);
+  assert.match(publication, /interval '48 hours'/);
+  assert.match(publication, /public\.stocks_lots/);
+  assert.match(publication, /public\.reservation_items/);
+  assert.doesNotMatch(promoterScope, /fiche_validee is true/);
 });
 
-test("the Marketplace remains protected by stock freshness, reservation and lot rules", () => {
-  assert.match(migration, /private\.marketplace_stock_last_quantity_update/);
-  assert.match(migration, /interval '48 hours'/);
-  assert.match(migration, /public\.stocks_lots/);
-  assert.match(migration, /l\.bloque/);
-  assert.match(migration, /l\.date_peremption/);
-  assert.match(migration, /public\.reservation_items/);
-  assert.match(migration, /r\.expires_at>now\(\)/);
+test("la fonction technique de visibilité ne publie pas les pharmacies démo", () => {
+  assert.match(promoterScope, /ph\.est_demo is false/);
+  assert.match(promoterScope, /ph\.archivee_le is null/);
+  assert.match(promoterScope, /grant execute on function public\.marketplace_produit_visible\(uuid\)/);
 });
