@@ -3,7 +3,7 @@ import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { isDemoPharmacy } from "@/lib/admin/is-demo-pharmacy";
 import { PharmacyDeliveryConfig } from "@/components/PharmacyDeliveryConfig";
 import { DeliveryTariffZoneConfig, type DeliveryTariffZone } from "@/components/DeliveryTariffZoneConfig";
-import { DeliveryCommissionReport } from "@/components/DeliveryCommissionReport";
+import { DeliveryFeesReport } from "@/components/DeliveryFeesReport";
 
 export const dynamic="force-dynamic";
 
@@ -22,7 +22,7 @@ export default async function AdminLivraisonsPage() {
   const zones=(zonesData??[]) as DeliveryTariffZone[];
   return <main className="mx-auto max-w-6xl space-y-5 px-4 pb-16 pt-5">
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0B3D26] p-5 text-white">
-      <div><p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Administration</p><h1 className="mt-1 text-2xl font-black">Livraisons & commissions</h1><p className="mt-1 text-sm text-emerald-100">Réseau national, barème progressif, zones géographiques et suivi des commissions.</p></div>
+      <div><p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Administration</p><h1 className="mt-1 text-2xl font-black">Suivi des frais de livraison</h1><p className="mt-1 text-sm text-emerald-100">Réseau national, barème progressif, zones géographiques et affectation intégrale des frais au service.</p></div>
       <Link href="/admin" className="font-bold underline">Retour Administration</Link>
     </header>
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">La configuration des pharmacies est partielle : la lecture de la base a échoué.</p>}
@@ -33,6 +33,6 @@ export default async function AdminLivraisonsPage() {
       lat:typeof p.lat==="number"?p.lat:null,lng:typeof p.lng==="number"?p.lng:null,
     }))}/>
     <DeliveryTariffZoneConfig zones={zones}/>
-    <DeliveryCommissionReport/>
+    <DeliveryFeesReport/>
   </main>;
 }
