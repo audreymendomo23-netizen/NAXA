@@ -47,9 +47,12 @@ begin
     or position('ASSURANCE:%' in pg_get_functiondef('public.compta_emettre_evenement_metier()'::regprocedure))=0 then
     raise exception 'ASSURANCE_POS_SPLIT_CONTRACT_MISSING';
   end if;
-  if position('compta_evenement' in pg_get_functiondef('private.assurance_lier_vente_reservation()'::regprocedure))=0
-    or position('compta_evenement' in pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure))>0 then
-    raise exception 'ASSURANCE_RECEIVABLE_RECOGNITION_TIMING_INVALID';
+  if position('insert into public.compta_evenement' in pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure))=0
+    or position('assurance_prise_en_charge' in pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure))=0
+    or position('assurance-prise-en-charge:' in pg_get_functiondef('public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure))=0
+    or position('assurance-prise-en-charge:' in pg_get_functiondef('private.assurance_lier_vente_reservation()'::regprocedure))=0
+    or position('insert into public.compta_evenement' in pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure))>0 then
+    raise exception 'ASSURANCE_RECEIVABLE_RECOGNITION_TIMING_OR_IDEMPOTENCE_INVALID';
   end if;
   if not has_function_privilege('authenticated','public.assurance_configurer_convention(uuid,uuid,text,date,date,numeric,bigint,bigint)','EXECUTE')
     or position('v_rate:=v_rule.taux' in pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure))=0
