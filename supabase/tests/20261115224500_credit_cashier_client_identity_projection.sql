@@ -25,7 +25,7 @@ begin
     or position('p.role::text=''client''' in v_definition)=0
     or position('c.actif=true' in lower(regexp_replace(v_definition,'[[:space:]]+','','g')))=0
     or position('p.actif=true' in lower(regexp_replace(v_definition,'[[:space:]]+','','g')))=0 then
-    raise exception 'La projection n'est pas bornée à la pharmacie, aux Clients et aux crédits actifs';
+    raise exception 'La projection n''est pas bornée à la pharmacie, aux Clients et aux crédits actifs';
   end if;
   if has_function_privilege('anon','public.caisse_credit_clients_lister(uuid)'::regprocedure,'EXECUTE') then
     raise exception 'La projection identité Client est exécutable anonymement';
