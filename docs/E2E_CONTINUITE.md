@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — matrice Storage Admin + Promoteur validée sur Replay (17 PASS / 0 SKIP, §35) ; protections Livreur SQL testées (§37) ; provisionnement Caisse corrigé (§39) ; lecture RLS Stock corrigée (§40) ; le verrou de validation centrale des fiches a été retiré et remplacé par une déclaration autonome de la pharmacie (§43), avec accès Promoteur limité aux pharmacies actives de son réseau. Les écrans de recherche, catalogue hors ligne, fiche produit et offre ne filtrent plus sur `fiche_validee`. Le catalogue client peut afficher une référence déclarée même à quantité zéro dès qu'une ligne de stock la rattache à une pharmacie réelle active/visible/non démo ; les offres d'achat gardent leurs contrôles de stock vendable, lots, péremption, réservations et fraîcheur 48 h. La déclaration atomique et les trois contrôles SQL Replay passent. Les tests CI les plus récents sont en cours de relecture après correction des assertions précédemment défaillantes ; aucun compte de recette ni produit/lot réel n'a encore été créé. Les 100 lignes de stock existantes sont uniquement rattachées à une pharmacie démo, donc aucune fiche de test n'est publique. Aucun changement Production ou Vercel.
+**État global :** 🟡 PARTIEL — publication autonome des fiches et stocks par les pharmacies, sans validation NAXA, implémentée sur Replay (§43) ; correction du marqueur `declaration_pharmacie` et de la lecture catalogue par Promoteur (§44) ; tests runtime sous JWT Promoteur et Gestionnaire Stock **PASS**, refus hors périmètre **PASS**, transactions de recette annulées et aucun produit/stock temporaire conservé. Le workflow inclut les tests structurels mais son dernier run reste à confirmer. Les produits et stocks positifs de démonstration demeurent limités aux pharmacies démo ; aucune offre réelle n'est publiée sur les pharmacies E2E, aucun lot réel ni réservation n'a été créé. Production et Vercel inchangés.
 
 
 
@@ -1271,6 +1271,8 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 
 ## 41. Protection du catalogue public et diagnostic réel du blocage stock (15/11/2026)
 
+> **Statut historique — approche intermédiaire abandonnée.** Cette section a été écrite avant la clarification métier : NAXA ne valide pas les fiches, ne vérifie pas les AMM à la place des pharmacies et ne conditionne pas leur publication à une approbation. Les règles de ce §41 qui imposaient une validation centrale, une source DPML ou un rôle Admin pour publier sont **obsolètes et remplacées par les §§43–44**. La protection actuelle porte sur le cloisonnement par pharmacie et l'absence d'exposition des pharmacies démo, pas sur le contenu déclaré.
+
 **Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Aucun changement Production/Vercel.
 
 ### Audit → contradiction → cause racine
@@ -1324,6 +1326,8 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 
 
 ## 42. Isolation du helper Marketplace de disponibilité du stock (15/11/2026)
+
+> **Note de succession :** l'isolation ACL du helper interne décrite ici reste applicable. En revanche, l'ancien contrôle `fiche_validee` cité dans l'analyse initiale du helper a été supprimé par le §43 : la visibilité d'une offre ne dépend plus d'une validation NAXA.
 
 **Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Aucun changement Production/Vercel.
 
@@ -1395,9 +1399,9 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
   - `20261115082742` — `pharmacy_owned_marketplace_product_publication`
   - `20261115083317` — `pharmacy_product_declare_and_stock_reference`
   - `20261115083951` — `promoter_scope_and_zero_stock_catalogue_visibility`
-- Trois tests SQL exécutés sur Replay : **PASS**
-  1. Policies produits/RLS, visibilité anon restreinte aux pharmacies réelles non démo : PASS.
-  2. RPC atomique, authentification et scope, identité créatrice, référence stock initialisée à zéro : PASS.
+- Trois tests SQL contractuels exécutés sur Replay : **PASS**
+  1. Policies produits/RLS, visibilité anon rattachée aux pharmacies réelles non démo : PASS.
+  2. Contrat RPC, authentification, périmètre, identité créatrice et référence stock initialisée à zéro : PASS. À cette date, ce test vérifiait la définition SQL, pas encore une création sous JWT en situation réelle ; les essais runtime ont été réalisés ensuite au §44.
   3. Promoteur limité à ses pharmacies actives, visibilité catalogue même à stock nul, absence de verrou `fiche_validee` dans offres/recherches : PASS.
 - ACL constatées : helper `private.naxa_scope_allows` — authenticated EXECUTE = true, anon = false ; RPC `pharmacie_produit_declarer_et_reference_initialiser` — authenticated EXECUTE = true, anon = false.
 - Contrôle des données Replay : 20 produits historiques, 0 avec `fiche_validee=true`, 100 lignes stock positives mais toutes sur une pharmacie démo, 0 lot. Aucune référence de stock n'est rattachée à une pharmacie non démo active/visible. Les pharmacies E2E Promoteur sont à 0 stock. En conséquence, la policy anon retourne toujours 0 produit visible sur ce jeu Replay : aucune fiche de test n'est exposée.
@@ -1411,8 +1415,72 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 
 1. Lire le résultat final du workflow de qualité générale run 43696172324 ; corriger tout échec Node/TypeScript/lint/build avant de considérer le code stabilisé.
 2. Utiliser la fixture Stock/Caisse/Client acheteur déjà provisionnée et testée par le run Replay E2E réussi ; ne pas recréer de comptes en dehors du workflow strictement Replay. Aucun poste Caisse ne doit être ouvert et aucun fonds fictif ajouté.
-3. Exercer la RPC de déclaration sous JWT Promoteur et sous JWT rôle racine pharmacie/personnel ; vérifier qu'une pharmacie liée est acceptée et qu'une pharmacie hors réseau est refusée ; vérifier la fiche et la ligne stock à zéro via RLS.
-4. Vérifier côté anon que la référence se retrouve au catalogue même à zéro quantité, et côté recherche/offre qu'elle n'est pas achetable avant approvisionnement réel ; contrôler aussi qu'une pharmacie démo ou masquée n'est jamais exposée.
+3. **Réalisé au §44 :** exercer la RPC sous JWT Promoteur et Gestionnaire Stock, vérifier la création, l'identité propriétaire et la ligne stock à zéro ; confirmer le refus hors périmètre.
+4. Exécuter une vérification anon de visibilité pour une référence créée sur une pharmacie publique réelle (aucun stock positif requis pour la découvrir) et vérifier qu'une pharmacie démo ou masquée n'est jamais exposée.
 5. Obtenir une réception fournisseur réelle sur une pharmacie E2E, avec mouvement audité, lot et péremption ; puis exécuter le parcours réservation → préparation → Livreur → livraison → encaissement.
 
 **État au §43 :** publication sans validation NAXA — **CORRIGÉE / SQL PASS Replay** ; déclaration pharmacie/Promoteur — **RPC + UI implémentées / tests structurels SQL PASS, exercice sous JWT dédié restant** ; visibilité catalogue à stock zéro — **fonction/policy implémentées / SQL PASS** ; Replay E2E profils Stock/Caisse/Client acheteur et Storage Admin/Promoteur — **PASS (run 43695995971)** ; stock/lots vendables sur les pharmacies E2E — **0** ; réservation réelle — **BLOQUÉE PAR ABSENCE D'APPROVISIONNEMENT RÉEL** ; CI générale — **PASS : 441/441 tests, TypeScript, ESLint, build Next.js/Serwist, actionlint** ; état global — **PARTIEL**, non AU VERT. Production et Vercel inchangés.
+
+
+## 44. Déblocage réel de la déclaration pharmacie et du périmètre Promoteur (15/11/2026)
+
+**Périmètre : Replay uniquement.** Ref `pwfftcsjyeibxxqhwysw`. Aucune donnée ni migration Production ; aucun déploiement Vercel.
+
+### Décision métier appliquée
+
+- La pharmacie et son Promoteur peuvent déclarer, modifier et publier leurs propres informations produit et stock, sans validation, approbation, contrôle de fiche ou intervention de l'Administrateur NAXA.
+- NAXA relie la déclaration à l'établissement qui l'émet, applique les droits de compte et de périmètre, puis diffuse les informations selon les règles Marketplace. La pharmacie demeure responsable de ses noms, DCI, présentations, prix, quantités, lots, dates et informations publiées.
+- Le champ historique `fiche_validee` est conservé pour compatibilité, mais n'est plus utilisé par les recherches, la visibilité catalogue ou les offres Marketplace. Les nouvelles déclarations le laissent à `false` ; ce n'est pas un état d'attente ni un verrou de publication.
+- Le catalogue peut présenter une référence déclarée lorsqu'une ligne de stock la rattache à une pharmacie active, visible, non démo et non archivée, même à quantité zéro. Une offre achetable reste conditionnée par une quantité vendable positive et les règles techniques de fraîcheur, de réservation et de lot. Ces règles n'impliquent aucune validation par NAXA.
+- L'Admin garde une consultation technique en lecture seule ; il n'approuve ni ne publie les fiches.
+
+### Correction 1 — contrainte de source bloquant chaque nouvelle fiche
+
+**Cause racine reproduite :**
+- Le déclencheur `public.produits_garde_fiche()` attribuait correctement `source_fiche='declaration_pharmacie'`.
+- L'ancienne contrainte `produits_source_fiche_check` n'acceptait que `aucune`, `bdpm`, `ia`, `admin`, `pharmacien`.
+- Une véritable invocation de `pharmacie_produit_declarer_et_reference_initialiser` sous JWT Promoteur a échoué avec SQLSTATE `23514` : `violates check constraint "produits_source_fiche_check"`. La transaction de diagnostic a été annulée ; aucun produit/stock n'a persisté.
+
+**Correction appliquée :**
+- Source : `supabase/migrations/20261115203000_allow_pharmacy_declared_products_source.sql`, commit [`d08e78129940840c55dc35a2766074a0a97dd9ec`](https://github.com/audreymendomo23-netizen/NAXA/commit/d08e78129940840c55dc35a2766074a0a97dd9ec).
+- Version Replay : `20261115090053`, `allow_pharmacy_declared_products_source`.
+- La contrainte conserve les valeurs historiques et ajoute `declaration_pharmacie`, en `NOT VALID` pour ne pas bloquer sur des données historiques non auditées tout en imposant la règle aux nouvelles écritures.
+- Test SQL contractuel : `supabase/tests/20261115203000_allow_pharmacy_declared_products_source.sql`, commit [`deb7cb04b340a114c43a8195f8c204fe5432734c`](https://github.com/audreymendomo23-netizen/NAXA/commit/deb7cb04b340a114c43a8195f8c204fe5432734c) — **PASS Replay**.
+- Test Node : `scripts/test-pharmacy-product-source-check.cjs`, commit [`0a024b77c00b67e66ea2225ac8da995e0cf9cb90`](https://github.com/audreymendomo23-netizen/NAXA/commit/0a024b77c00b67e66ea2225ac8da995e0cf9cb90).
+
+### Correction 2 — lecture RLS du catalogue par le Promoteur
+
+**Cause racine reproduite :**
+- La policy `produits_authenticated_live_offer_read` appelait directement `private.naxa_promoteur_valide(uuid)`.
+- Le helper privé est volontairement non exécutable par `authenticated` (`auth_exec=false)). Le contrôle de lecture sous le JWT Promoteur levait SQLSTATE `42501`, `permission denied for function naxa_promoteur_valide`.
+- Le helper privé n'a pas été exposé pour contourner le problème : cela aurait élargi son API interne.
+
+**Correction appliquée :**
+- Migration : `supabase/migrations/20261115204000_promoter_product_read_policy_uses_public_guard.sql`, commit [`ad531ae5e8c7008071f922854cde9db2105ed201`](https://github.com/audreymendomo23-netizen/NAXA/commit/ad531ae5e8c7008071f922854cde9db2105ed201).
+- Version Replay : `20261115090209`, `promoter_product_read_policy_uses_public_guard`.
+- La policy utilise désormais `public.naxa_promoteur_valide(auth.uid())`, wrapper public existant, auto-scopé à l'identité connectée. `authenticated` garde EXECUTE sur le wrapper ; le helper privé reste inaccessible directement.
+- Test SQL : `supabase/tests/20261115204000_promoter_product_read_policy_uses_public_guard.sql`, commit [`57b8c4d1737583b19de5f72df3868e756c5cc65b`](https://github.com/audreymendomo23-netizen/NAXA/commit/57b8c4d1737583b19de5f72df3868e756c5cc65b) — **PASS Replay**.
+- Test Node : `scripts/test-promoter-product-read-policy.cjs`, commit [`c7cbb21655d4fa7ec7bd0dab991f081c2ef9d8bb`](https://github.com/audreymendomo23-netizen/NAXA/commit/c7cbb21655d4fa7ec7bd0dab991f081c2ef9d8bb).
+
+### Test runtime sous JWT — preuve de bout en bout de déclaration
+
+1. **Promoteur authentifié : PASS.** La RPC crée une fiche, attribue `created_by` au Promoteur et `created_by_pharmacie_id` à sa pharmacie cible ; la source est `declaration_pharmacie`, le flag historique reste `false`, et une ligne `stocks` est créée avec le prix fourni et quantité **0**.
+2. **Gestionnaire Stock authentifié : PASS.** Le profil racine Client avec affectation Stock active déclare une fiche dans sa pharmacie sélectionnée ; la lecture RLS de la fiche et de la ligne Stock réussit ; la quantité reste **0**.
+3. **Hors périmètre : PASS (refus).** Le même Gestionnaire Stock est refusé lorsqu'il tente la déclaration dans une autre pharmacie sans affectation active.
+4. Les trois transactions de recette ont été annulées par `ROLLBACK`. Contrôle post-test : **0** produit temporaire et **0** ligne Stock temporaire ; aucun stock réel n'a été créé.
+
+### État et suite
+
+- Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` inclut les deux nouvelles migrations/tests SQL et les tests Node source + RLS Promoteur ; intégration commit [`008a4984941b422e48f96887ef23f8334c8c4894`](https://github.com/audreymendomo23-netizen/NAXA/commit/008a4984941b422e48f96887ef23f8334c8c4894). Le run CI post-commit n'est pas encore visible dans les vérifications disponibles ; ne pas revendiquer les tests Node CI PASS.
+- Inventaire de sécurité métier post-test : 0 fiche legacy `fiche_validee=true` ; 100 lignes de stock positives globales restent exclusivement en pharmacies démo ; 0 lot ; 0 référence BDPM ; 0 stock sur les deux pharmacies E2E non-démo ; aucun test temporaire conservé.
+- Les contrôles de périmètre ne sont pas une validation de contenu : ils empêchent seulement un compte d'écrire pour une pharmacie qui ne lui appartient pas. Le contenu, le prix et le stock publiés sont déclarés par la pharmacie, qui en assume la responsabilité. NAXA n'intervient pas dans leur approbation.
+
+**État :** liberté de déclaration pharmacie/Promoteur sans validation NAXA — **RUNTIME PASS Replay** ; écriture du rôle Stock dans sa pharmacie — **PASS** ; écriture hors périmètre — **REFUS PASS** ; lecture RLS Promoteur — **CORRIGÉE** ; tests Node CI — **à confirmer** ; stock réel/lot pour une réservation — **absents** ; recette réservation → Stock → Livreur → Caisse — **non exécutée** ; NAXA global — **PARTIEL**, pas AU VERT.
+
+**Point exact de reprise :**
+1. Confirmer le run GitHub Actions déclenché par le commit workflow `008a498...` et relever les résultats Node.
+2. Tester la déclaration depuis le véritable espace UI sur navigateur avec les comptes E2E Promoteur et Gestionnaire Stock ; la preuve SQL runtime ne remplace pas la navigation UI.
+3. Publier une référence et un prix par la pharmacie de recette ; effectuer ensuite une réception fournisseur réelle et enregistrer les lots/péremptions dans le flux métier, sans stock fictif.
+4. Vérifier l'affichage public à quantité zéro et l'absence de fiche d'une pharmacie démo ; vérifier une offre achetable seulement après quantité vendable réelle.
+5. Reprendre la recette Client → préparation Stock → mission Livreur → livraison → encaissement.
+
