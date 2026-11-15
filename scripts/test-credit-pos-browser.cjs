@@ -13,7 +13,7 @@ const source = fs.readFileSync(
 test("la recette navigateur crédit est épinglée à Replay uniquement", () => {
   assert.match(source, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
   assert.match(source, /function assertReplayUrl\(value\)/);
-  assert.match(source, /url\.hostname !== PROJECT_REF \+ "\\.supabase\\.co"/);
+  assert.match(source, /url\.hostname !== PROJECT_REF \+ "\.supabase\.co"/);
   assert.match(source, /assertReplayUrl\(env\.NAXA_STORAGE_E2E_URL \|\| env\.SUPABASE_URL\)/);
 });
 
