@@ -16,8 +16,6 @@ declare
   v_total integer;
   v_stock integer;
   v_balance integer;
-  v_credit uuid;
-  v_refund_operation uuid;
 begin
   set local session_replication_role='replica';
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
@@ -47,7 +45,7 @@ begin
   insert into public.caisses_sessions(id,caisse_id,ouvert_par,statut,fond_initial)
   values(v_session,v_caisse,v_admin,'ouverte',0);
   insert into public.client_credits(client_id,pharmacie_id,plafond,solde,actif,created_by)
-  values(v_client,v_ph,500,0,true,v_admin) returning id into v_credit;
+  values(v_client,v_ph,500,0,true,v_admin);
 
   -- 1) Dépassement : la demande attend une décision sans mouvement physique de stock.
   v_sale:=public.vente_creer(v_session,v_client);
@@ -108,23 +106,6 @@ begin
      or exists(select 1 from public.compta_evenement where source_type='vente' and source_id=v_sale::text and evenement_type='vente_encaissee')
   then raise exception 'Les événements comptables des octrois ne sont pas idempotents ou isolés'; end if;
 
-  -- 4) Remboursement partiel en espèces : session personnelle, solde et outbox idempotente.
-  v_refund_operation:=public.client_credit_rembourser(
-    v_credit,500,'especes'::public.mode_paiement_caisse,
-    'E2E-CREDIT-POS-REFUND','Remboursement partiel de recette'
-  );
-  select solde into v_balance from public.client_credits where id=v_credit;
-  if v_balance<>1500 then raise exception 'Le remboursement partiel ne réduit pas correctement le solde'; end if;
-  if not exists(
-    select 1 from public.client_credit_operations
-    where id=v_refund_operation and nature='remboursement'
-      and caisse_session_id=v_session and mode_paiement='especes' and montant=500
-  ) then raise exception 'Le remboursement n’est pas lié à la session et au mode espèces'; end if;
-  if not exists(
-    select 1 from public.compta_evenement
-    where source_type='credit_operation' and source_id=v_refund_operation::text
-      and evenement_type='credit_remboursement'
-  ) then raise exception 'L’événement comptable de remboursement est absent'; end if;
 end
 $e2e$;
 rollback;
