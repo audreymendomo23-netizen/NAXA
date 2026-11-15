@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { approuverDemandeCreditMarketplace, refuserDemandeCreditMarketplace, configurerCreditClient } from "./actions";
+import { approuverDemandeCreditMarketplace, refuserDemandeCreditMarketplace, configurerCreditClient, configurerPlafondResponsable } from "./actions";
 
 type CreditRequest={id:string;pharmacie_id:string;client_id:string;montant:number;statut:string;created_at:string;telephone_demande:string|null;date_remboursement:string|null;justificatif_path:string|null;panier_items:{produit_id:string;quantite:number}[]|null;reservation_id:string|null;origine:string;vente_id:string|null;motif:string|null};
 const fcfa=(v:number)=>Number(v||0).toLocaleString("fr-FR")+" FCFA";
@@ -27,8 +27,18 @@ export default async function CreditsMarketplacePage({searchParams}:{searchParam
  return <main className="mx-auto max-w-5xl space-y-4 px-4 py-6">
  <header className="rounded-2xl bg-[#0B3D26] p-5 text-white"><h1 className="text-2xl font-black">Crédits clients · Marketplace et comptoir</h1><p className="mt-2 text-sm">Les demandes Marketplace déclenchent une réservation et une préparation Stock. Les demandes Caisse concernent un panier POS ; après approbation, le caissier reprend la finalisation.</p></header>
  <section className="space-y-3 rounded-2xl border bg-white p-4"><h2 className="font-black">Activer ou modifier le plafond d’un Client</h2><p className="text-sm text-slate-600">Renseignez l’identifiant du compte Client et définissez son plafond pour une pharmacie de votre réseau. Le serveur vérifie le rôle, le périmètre et l’identité Client.</p><form action={configurerCreditClient} className="grid gap-3 sm:grid-cols-3"><label className="text-sm font-semibold">Pharmacie<select className="champ mt-1 w-full" name="pharmacie_id" required defaultValue=""><option value="" disabled>Choisir une pharmacie</option>{(pharmacies??[]).map(ph=><option key={ph.id} value={ph.id}>{ph.nom}</option>)}</select></label><label className="text-sm font-semibold">UUID du compte Client<input className="champ mt-1 w-full" name="client_id" required placeholder="Identifiant du profil Client" /></label><label className="text-sm font-semibold">Plafond (FCFA)<input className="champ mt-1 w-full" name="plafond" type="number" min="0" step="1" required placeholder="Ex. 25000" /></label><button className="btn btn-vert sm:col-span-3" type="submit">Enregistrer le plafond de crédit</button></form></section>
- {params.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{params.ok==="configuration"?"Plafond Client enregistré.":params.ok==="approuvee"?"Décision enregistrée. Le parcours concerné peut reprendre.":"Demande refusée ; aucun stock n’a été débité."}</p>}
- {params.erreur==="configuration"&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Configuration refusée. Vérifiez l’identifiant du Client, la pharmacie, le plafond et vos droits Promoteur.</p>}
+  <section className="space-y-3 rounded-2xl border bg-white p-4">
+    <h2 className="font-black">Plafond de décision du Responsable</h2>
+    <p className="text-sm text-slate-600">Déléguez un montant maximal par Responsable et par pharmacie. Un Responsable sans plafond actif, ou dont le plafond est inférieur au montant demandé, ne peut pas approuver la demande.</p>
+    <form action={configurerPlafondResponsable} className="grid gap-3 sm:grid-cols-3">
+      <label className="text-sm font-semibold">Pharmacie<select className="champ mt-1 w-full" name="pharmacie_id" required defaultValue=""><option value="" disabled>Choisir une pharmacie</option>{(pharmacies??[]).map(ph=><option key={ph.id} value={ph.id}>{ph.nom}</option>)}</select></label>
+      <label className="text-sm font-semibold">UUID du Responsable<input className="champ mt-1 w-full" name="responsable_id" required placeholder="Identifiant du profil Responsable" /></label>
+      <label className="text-sm font-semibold">Plafond d’approbation (FCFA)<input className="champ mt-1 w-full" name="plafond_fcfa" type="number" min="0" step="1" required placeholder="Ex. 50000" /></label>
+      <button className="btn btn-vert sm:col-span-3" type="submit">Enregistrer le plafond délégué</button>
+    </form>
+  </section>
+ {params.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm">{params.ok==="configuration"?"Plafond Client enregistré.":params.ok==="plafond_responsable"?"Plafond de décision Responsable enregistré.":params.ok==="approuvee"?"Décision enregistrée. Le parcours concerné peut reprendre.":"Demande refusée ; aucun stock n’a été débité."}</p>}
+ {(params.erreur==="configuration"||params.erreur==="plafond")&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Configuration refusée. Vérifiez les identifiants, l’affectation, le montant et vos droits Promoteur.</p>}
  {params.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm">Décision non enregistrée. Vérifiez le statut, les droits et le stock.</p>}
  {error&&<p role="alert" className="rounded-xl bg-red-50 p-3">Impossible de charger les demandes.</p>}
  {!error&&!requests.length&&<p className="rounded-xl border bg-white p-4">Aucune demande de crédit enregistrée.</p>}
