@@ -22,6 +22,10 @@ const pushServiceWorker = fs.readFileSync(
   path.join(root, "public/naxa-push-sw.js"),
   "utf8"
 );
+const webPushE2E = fs.readFileSync(
+  path.join(root, "scripts/e2e/verify-replay-expiry-webpush.cjs"),
+  "utf8"
+);
 
 test("le worker push accepte un identifiant UUID et conserve le mode batch historique", () => {
   assert.match(route, /const UUID_RE\s*=\s*\/\^\[0-9a-f\]/i);
@@ -50,4 +54,12 @@ test("le script Service Worker Push est servi sans redirection du middleware d'Ã
   assert.ok(middleware.includes("matcher: ["));
   assert.ok(pushServiceWorker.includes('self.addEventListener("push"'));
   assert.ok(pushServiceWorker.includes("showNotification"));
+});
+
+
+test("la recette Web Push utilise le vrai Chromium headless et contrÃ´le les permissions avant subscribe", () => {
+  assert.ok(webPushE2E.includes('channel: "chromium"'));
+  assert.ok(webPushE2E.includes('Notification.permission'));
+  assert.ok(webPushE2E.includes('permissionStatus.state !== "granted"'));
+  assert.ok(webPushE2E.includes('navigator.serviceWorker.register("/naxa-push-sw.js"'));
 });
