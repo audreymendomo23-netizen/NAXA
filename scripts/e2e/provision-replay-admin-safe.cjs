@@ -90,7 +90,7 @@ async function provision(env = process.env) {
   }
   const profile = profiles[0];
   const authResult = await api(
-    "/auth/v1/admin/users/" + encodeURIComponent(profile.id),
+    "/auth/v1/admin/user/" + encodeURIComponent(profile.id),
     "GET", undefined, "lecture Auth Admin par ID"
   );
   const user = authResult && authResult.user ? authResult.user : authResult;
@@ -114,7 +114,7 @@ async function provision(env = process.env) {
 
   // Re-read the same Auth identity and profile after the password rotation.
   const verifiedAuthResult = await api(
-    "/auth/v1/admin/users/" + encodeURIComponent(user.id),
+    "/auth/v1/admin/user/" + encodeURIComponent(user.id),
     "GET", undefined, "relecture Auth Admin après rotation"
   );
   const verifiedUser = verifiedAuthResult && verifiedAuthResult.user
