@@ -1,3 +1,26 @@
+## Clôture ciblée POS privé et publication pharmacie — 15/11/2026
+
+**État : PARTIEL global ; blocage P1 POS corrigé et validé sur Supabase Replay.** La caisse d'une pharmacie active ne dépend plus de la visibilité publique Marketplace ; la publication des fiches reste maîtrisée par la pharmacie propriétaire, sans validation NAXA.
+
+### Correctifs appliqués et preuves Replay
+
+- Migration `20261115205000_pos_internal_sellable_stock_scope.sql` enregistrée sous `pos_internal_sellable_stock_scope` : helper privé `private.naxa_pos_stock_vendable`, branchement des fonctions POS d'ajout, débit, recherche simple et codes-barres ; prix/quantité des recherches calculés à partir du stock vendable et des lots.
+- Migration `20261115206000_pos_cashier_unpublished_settlement.sql` appliquée sous `pos_cashier_unpublished_settlement` : autorisation Caisse et finalisation espèces vérifient toujours identité, scope, activité et non-archivage, sans exiger `visible_recherche=true`.
+- `20261115205000_pos_internal_stock_scope.sql` : **PASS** — helper inaccessible directement aux rôles API ; quatre consommateurs POS reliés au helper interne ; stock d'une pharmacie démo active mais masquée publiquement toujours vendable.
+- `20261115206000_pos_cashier_unpublished_settlement.sql` : **PASS** — gardes Caisse/finaliseur indépendants de la publication publique, contrôles d'autorisation conservés.
+- Test 284 E2E hors ligne : **PASS** — vente `applied` de **4 700 FCFA**, reçu **5 000 FCFA**, monnaie **300 FCFA**, stock **52 → 51**, une vente payée ; clôture **14 700 / 14 700 FCFA**, écart **0 FCFA**. Le fixture non publié a été restauré après rollback ; aucun jeu de test persistant.
+- Tests catalogue/sécurité sur Replay : `20261105142000` exécuté sans exception SQL ; `20261115190000`, `20261115191000`, `20261115200000`, `20261115201000`, `20261115202000`, `20261115203000`, `20261115204000` **PASS**.
+- Diagnostic temporaire de la fonction offline retiré ; vérification SQL : aucun champ `debug_error`. Fixture restauré : pharmacie active, visible comme initialement, démo, non archivée ; stock 52.
+
+### Bloqueurs externes toujours ouverts
+
+- Storage E2E Replay : secrets GitHub Actions masqués à renseigner (`NAXA_STORAGE_E2E_URL`, `NAXA_STORAGE_E2E_ANON_KEY`, `NAXA_STORAGE_E2E_ADMIN_KEY`).
+- Protection HIBP des mots de passe compromis : bloquée par le plan Supabase Free ; aucune montée de plan engagée.
+- Configuration « Exposed schemas » du projet Replay : contrôle visuel du schéma `private` à confirmer dans Settings → API.
+- Recette navigateur/appareils réels (scanner, caméra, galerie/PDF/OCR, GPS/Bluetooth, FCM/SMS) et acceptation par une pharmacie partenaire volontaire non effectuées.
+- **Périmètre : Replay seulement.** Aucun SQL Production, aucun déploiement Vercel, aucun Play Store. Pas de statut AU VERT global.
+
+---
 ## Correctifs des blocages POS / catalogue — 15/11/2026
 
 **État : PARTIEL — correctif source préparé, validation Replay à exécuter.** Le catalogue est publié par la pharmacie propriétaire ; la lecture publique reste conditionnée à une offre d'une pharmacie réelle, active et publiée. La Caisse doit calculer son stock indépendamment des filtres de publication Marketplace.

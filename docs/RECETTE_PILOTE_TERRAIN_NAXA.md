@@ -2,7 +2,7 @@
 
 **Date :** 5 novembre 2026  
 **Référence de départ :** `main` — `feb221e79714e6034f3ac303acde4ff9da1700ad`  
-**État documentaire courant :** `main` — correction POS privée préparée à partir du HEAD `86ac0c92e2a0b61857059fb08dc9f16c0a1f43e3`  
+**État documentaire courant :** `main` — correctif POS privé et contrats SQL validés sur Replay  
 **Décision :** 🟡 recette technique Replay réussie sur le périmètre couvert ; recette terrain avec de vraies pharmacies et des utilisateurs externes non réalisée et non certifiable à cette date.
 
 ## 1. Environnements et preuves observés
@@ -33,6 +33,8 @@ La recette a révélé une cause racine métier : le POS réutilisait `marketpla
 
 Le correctif ajoute le helper privé `private.naxa_pos_stock_vendable` et rebranche les fonctions POS de recherche simple/code-barres, ajout au panier et débit à l'encaissement. Il découple aussi les deux gardes d'autorisation/encaissement (`naxa_caisse_actor_for_pharmacy` et `vente_encaisser_finaliser`) de la visibilité Marketplace. Le helper conserve les garde-fous pharmacie active/non archivée, lots bloqués/périmés et réservations actives. Le test 284 est réaligné pour garder `est_demo=true` et `visible_recherche=false`, sans modifier `fiche_validee`.
 
+**Re-test final sur Replay : PASS.** Vente hors ligne `applied` : 4 700 FCFA ; 5 000 FCFA reçus, monnaie 300 FCFA ; stock 52 → 51 avec une seule vente payée ; clôture `cloturee`, théorique 14 700 FCFA, compté 14 700 FCFA, écart 0 FCFA. Après rollback, le fixture est restauré (pharmacie active, visible comme initialement, démo, non archivée, stock 52) et aucune donnée de test ne persiste.
+
 **Résultat du test corrigé :**
 - Vente appliquée : **4 700 FCFA**.
 - Montant reçu : **5 000 FCFA** ; monnaie rendue : **300 FCFA**.
@@ -46,7 +48,7 @@ Le correctif ajoute le helper privé `private.naxa_pos_stock_vendable` et rebran
 | Priorité | Constat | Conséquence / traitement |
 |---|---|---|
 | Bloquant terrain | Aucune pharmacie réelle ni cohorte d'utilisateurs représentatifs dans Replay ; uniquement des fixtures démo et un profil Admin. | Impossible de signer une acceptation métier terrain. Il faut des comptes volontaires rattachés à au moins une pharmacie réelle. |
-| P1 — correction en validation | Les quatre consommateurs POS doivent utiliser la disponibilité interne, pas le filtre Marketplace public. | Migration `20261115205000` et tests Replay 284/`20261115205000_pos_internal_stock_scope.sql` à exécuter avant la clôture. La recette terrain avec une vraie pharmacie demeure indépendante. |
+| P1 — corrigé / PASS Replay | POS et finalisation espèces indépendants de la publication Marketplace. | Migrations `pos_internal_sellable_stock_scope` et `pos_cashier_unpublished_settlement` appliquées ; contrats POS 205000/206000 et E2E 284 PASS avec pharmacie active non publiée. La recette terrain réelle reste indépendante. |
 | P1 si livraison au lancement | Le poste Livreur est attribuable/sélectionnable mais reste informatif, sans workflow opérationnel ni action de livraison. | Ne pas inclure la livraison réelle dans le périmètre accepté tant que l'affectation, la prise en charge, les transitions, la preuve de remise et les droits ne sont pas livrés et testés. |
 | À certifier | Recette UI mobile/navigateur, caméra, galerie, PDF, scanner, réservation et parcours de caisse avec JWT réels non exécutés dans cette passe. | Aucun résultat de test physique ou d'acceptation utilisateur ne peut être revendiqué. |
 | À certifier | `npm test`, typecheck global, lint et build Next.js non exécutés sur le HEAD courant. | La qualité globale du commit n'est pas certifiée par cette recette ciblée. |
