@@ -1,8 +1,11 @@
 do $test$
 declare
   v_propose text;
+  v_propose_normal text;
   v_reply text;
+  v_reply_normal text;
   v_confirm text;
+  v_confirm_normal text;
   v_policy text;
   v_rls boolean;
 begin
@@ -77,30 +80,33 @@ begin
   v_confirm:=pg_get_functiondef(
     'public.assurance_confirmer_prise_en_charge(uuid,text)'::regprocedure
   );
+  v_propose_normal:=regexp_replace(lower(v_propose),'\\s+',' ','g');
+  v_reply_normal:=regexp_replace(lower(v_reply),'\\s+',' ','g');
+  v_confirm_normal:=regexp_replace(lower(v_confirm),'\\s+',' ','g');
 
-  if position('security definer' in lower(v_propose))=0
-     or position('search_path=""' in lower(v_propose))=0
-     or position('private.naxa_scope_allows' in v_propose)=0
-     or position('montant_assureur_fcfa>least' in lower(v_propose))=0
-     or position('montant_modifie_le=now()' in lower(v_propose))=0
-     or position('set montant_brut_fcfa' in lower(v_propose))>0
-     or position('set montant_assureur_fcfa' in lower(v_propose))>0
-     or position('set montant_client_fcfa' in lower(v_propose))>0 then
+  if position('security definer' in v_propose_normal)=0
+     or position('set search_path to ''''' in v_propose_normal)=0
+     or position('private.naxa_scope_allows' in v_propose_normal)=0
+     or position('p_montant_assureur_fcfa>least(' in v_propose_normal)=0
+     or position('montant_modifie_le=now()' in v_propose_normal)=0
+     or position('set montant_brut_fcfa' in v_propose_normal)>0
+     or position('set montant_assureur_fcfa' in v_propose_normal)>0
+     or position('set montant_client_fcfa' in v_propose_normal)>0 then
     raise exception 'Proposition : scope, rôle, plafond initial et snapshot monétaire immuable requis';
   end if;
 
-  if position('p.role=''client''' in lower(v_reply))=0
-     or position('p_accepter is null' in lower(v_reply))=0
-     or position('v_d.client_id is distinct from v_uid' in lower(v_reply))=0
-     or position('set montant_prise_en_charge=v_p.montant_assureur_fcfa' in lower(v_reply))=0
-     or position('set accord_client_modification_le=now()' in lower(v_reply))=0
-     or position('accord_client_refuse' in v_reply)=0
-     or position('set montant_assureur_fcfa' in lower(v_reply))>0 then
+  if position('p.role=''client''' in v_reply_normal)=0
+     or position('p_accepter is null' in v_reply_normal)=0
+     or position('v_d.client_id is distinct from v_uid' in v_reply_normal)=0
+     or position('set montant_prise_en_charge=v_p.montant_assureur_fcfa' in v_reply_normal)=0
+     or position('set accord_client_modification_le=now()' in v_reply_normal)=0
+     or position('accord_client_refuse' in v_reply_normal)=0
+     or position('set montant_assureur_fcfa' in v_reply_normal)>0 then
     raise exception 'Réponse Client : propriétaire authentifié, consentement explicite, dossier opérationnel et snapshot initial immuable requis';
   end if;
 
-  if position('p.statut=''proposee''' in lower(v_confirm))=0
-     or position('proposition de montant attend encore' in lower(v_confirm))=0 then
+  if position('p.statut=''proposee''' in v_confirm_normal)=0
+     or position('proposition de montant attend encore' in v_confirm_normal)=0 then
     raise exception 'La confirmation finale doit être bloquée tant qu''une proposition attend le Client';
   end if;
 
