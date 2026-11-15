@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, "..");
 const importMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115120000_assurance_import_membership_pos_negotiation.sql"), "utf8");
 const verificationMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql"), "utf8");
 const importContract = fs.readFileSync(path.join(root, "supabase/tests/20261115121500_assurance_import_membership_pos_negotiation.sql"), "utf8");
+const runtimeImportTest = fs.readFileSync(path.join(root, "supabase/tests/20261115123000_assurance_import_runtime_multipharmacy.sql"), "utf8");
 const declarationStampMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115124000_assurance_declaration_version_uses_clock_timestamp.sql"), "utf8");
 const pharmacyPage = fs.readFileSync(path.join(root, "src/app/pharmacie/assurance/page.tsx"), "utf8");
 const clientPage = fs.readFileSync(path.join(root, "src/components/assurance/AssuranceReceiptDetails.tsx"), "utf8");
@@ -76,6 +77,14 @@ test("le Client ne peut calculer un devis qu'après vérification de sa couvertu
   assert.match(clientPage, /assurance_couverture_verifications/);
   assert.match(clientPage, /eligibleCoverages/);
   assert.match(clientPage, /n’a pas encore été rapprochée avec une liste de cet assureur/);
+});
+
+test("le test runtime vérifie import delta/complet multi-pharmacies et rollbacke toutes ses fixtures", () => {
+  assert.match(runtimeImportTest, /20261115123000_assurance_import_runtime_multipharmacy PASS/);
+  assert.match(runtimeImportTest, /rollback/i);
+  assert.match(runtimeImportTest, /v_verification_a<>'suspendue'/);
+  assert.match(runtimeImportTest, /v_verification_b<>'verifiee'/);
+  assert.match(verificationMigration, /verification_le timestamptz not null default clock_timestamp\\(\\)/);
 });
 
 test("les fichiers et les tests de contrat couvrent le contrôle des imports et du POS négocié", () => {
