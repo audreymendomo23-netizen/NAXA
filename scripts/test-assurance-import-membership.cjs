@@ -30,7 +30,7 @@ test("les colonnes sont normalisées et les champs requis sont contrôlés avant
   assert.match(pharmacyPage, /numero_adherent/);
   assert.match(pharmacyPage, /beneficiairenom/);
   assert.match(pharmacyPage, /date_debut/);
-  assert.match(pharmacyPage, /assureur-liste-assures-exemple\\.csv/);
+  assert.ok(pharmacyPage.includes("assureur-liste-assures-exemple.csv"));
   assert.match(pharmacyPage, /statut/);
   assert.match(pharmacyPage, /Colonne obligatoire absente/);
   assert.match(pharmacyPage, /importDateToIso/);
@@ -106,13 +106,13 @@ test("le test runtime utilise un Responsable réellement affecté et bloque les 
 });
 
 test("le modèle CSV utilise les colonnes canoniques, dont le bénéficiaire, et n'embarque que des données fictives", () => {
-  const headers = csvTemplate.split(/\\r?\\n/)[0];
+  const headers = csvTemplate.trim().split(String.fromCharCode(10))[0];
   for (const header of ["numero_adherent","numero_police","beneficiaire_nom","date_debut","date_fin","statut"]) {
     assert.ok(headers.split(",").includes(header), `colonne absente du modèle: ${header}`);
   }
   assert.match(csvTemplate, /EXEMPLE-/);
   assert.match(pharmacyPage, /beneficiairenom/);
-  assert.match(pharmacyPage, /assureur-liste-assures-exemple\\.csv/);
+  assert.ok(pharmacyPage.includes("assureur-liste-assures-exemple.csv"));
   assert.match(importGuide, /SHA-256/);
   assert.match(importGuide, /ne prouvent pas cryptographiquement/);
 });
