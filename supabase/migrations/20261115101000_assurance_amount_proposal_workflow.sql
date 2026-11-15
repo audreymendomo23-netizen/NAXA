@@ -320,7 +320,7 @@ $function$;
 
 create or replace function public.assurance_confirmer_prise_en_charge(
   p_dossier uuid,
-  p_reference text
+  p_reference text default null
 )
 returns void
 language plpgsql
