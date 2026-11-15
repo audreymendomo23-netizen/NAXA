@@ -148,9 +148,14 @@ async function run(env = process.env) {
       throw new Error("Le Promoteur n'a pas provisionné exactement une affectation et une Caisse physique active.");
     }
 
-    await rpc("naxa_select_active_role", stock.token, {
+    const selectedStockRole = await rpc("naxa_select_active_role", stock.token, {
       p_role_code: "gestionnaire_stock", p_pharmacie_id: PHARMACY_ID,
     });
+    if (selectedStockRole !== true) throw new Error("Le Gestionnaire Stock n'a pas pu activer son rôle sur la pharmacie technique.");
+    const stockAssignment = await rpc("naxa_has_active_professional_assignment", stock.token, {
+      p_profile: stock.id, p_pharmacie: PHARMACY_ID, p_fonction: "gestionnaire_stock",
+    });
+    if (stockAssignment !== true) throw new Error("L'affectation Gestionnaire Stock active n'est pas confirmée par la RPC.");
 
     const declaredProduct = await rpc("pharmacie_produit_declarer_et_reference_initialiser", stock.token, {
       p_pharmacie: PHARMACY_ID,
