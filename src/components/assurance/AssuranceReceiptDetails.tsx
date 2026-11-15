@@ -12,7 +12,6 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
  const sb=useMemo(()=>supabaseBrowser(),[]);
  const [data,setData]=useState<Snapshot|null>(null),[name,setName]=useState("Assureur");
  const [coverages,setCoverages]=useState<Coverage[]>([]),[insurers,setInsurers]=useState<Insurer[]>([]);
- const [reservationPharmacyId,setReservationPharmacyId]=useState("");
  const [selected,setSelected]=useState(""),[newInsurer,setNewInsurer]=useState(""),[member,setMember]=useState(""),[policy,setPolicy]=useState("");
  const [start,setStart]=useState(new Date().toISOString().slice(0,10)),[end,setEnd]=useState("");
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -46,7 +45,6 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
   if(reservationError||!reservation){setError("Cette réservation n’est pas accessible à votre compte.");setLoading(false);return;}
   if(ce){setError("Impossible de charger vos couvertures Assurance.");setLoading(false);return;}
   const today=new Date().toISOString().slice(0,10);
-  setReservationPharmacyId(reservation.pharmacie_id);
   const active=(rows??[]).filter(x=>x.date_debut&&x.date_debut<=today&&(!x.date_fin||x.date_fin>=today));
   const [{data:ins,error:insError},{data:verificationRows,error:verificationError}]=await Promise.all([
    sb.from("assureurs").select("id,nom").eq("actif",true).order("nom"),
