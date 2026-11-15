@@ -1,8 +1,8 @@
 -- Runtime transactionnel Marketplace Assurance -> Caisse POS -> Ticket -> remboursements.
--- Réutilise un Client, une Caisse et un Responsable Auth existants sur Replay,
--- déjà affectés à la même pharmacie non-démo visible. Prépare stock/réservation, puis ROLLBACK.
--- Si le prérequis métier manque, le test est bloqué avant toute écriture de fixture.
--- Aucun compte, stock, vente, import, remboursement ou écriture comptable n'est conservé.
+-- Réutilise un Client et un compte Caisse Auth existants sur une pharmacie de démonstration visible.
+-- Ajoute temporairement le rôle Responsable au compte Caisse, puis bascule par la RPC officielle.
+-- Stock/coût, réservation, affectation temporaire, vente, remboursement et outbox sont rollbackés.
+-- Ce test prouve le backend sous JWT Auth ; il ne remplace pas la recette navigateur/commerciale.
 begin;
 select set_config('request.jwt.claim.role','service_role',true);
 
