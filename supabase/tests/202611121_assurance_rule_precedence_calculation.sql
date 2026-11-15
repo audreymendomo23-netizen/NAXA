@@ -176,7 +176,8 @@ begin
   end if;
   if position('insert into public.compta_evenement' in v_confirm)=0
      or position('assurance_prise_en_charge' in v_confirm)=0
-     or position('on conflict (cle_idempotence) do nothing' in v_confirm)=0 then
+     or (position('on conflict (pharmacie_id,cle_idempotence) do nothing' in v_confirm)=0
+         and position('on conflict (cle_idempotence) do nothing' in v_confirm)=0) then
     raise exception 'ACCEPTED_CLAIM_RECEIVABLE_EVENT_MISSING_OR_NOT_IDEMPOTENT';
   end if;
   if position('insert into public.compta_evenement' in v_reimburse)=0
