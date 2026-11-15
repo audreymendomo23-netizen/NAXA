@@ -4,10 +4,10 @@
 
 - Le référentiel des assureurs est partagé. Un Promoteur peut proposer un assureur ; le nom est normalisé pour empêcher les doublons actifs. La création d'un assureur ne crée jamais automatiquement une convention pharmacie.
 - Chaque pharmacie déclare sa convention et ses règles : taux, périmètre global/catégorie/produit, plafond, franchise, exclusions, justificatifs et dates.
-- Le client peut déclarer une couverture depuis le reçu de réservation. Cette déclaration reste non vérifiée jusqu'au contrôle de la carte et des justificatifs par la pharmacie.
+- Le client peut déclarer sa couverture depuis le reçu de réservation. La déclaration ne prouve pas les droits : la pharmacie doit la rapprocher d'une liste reçue de l'assureur, importée et simulée dans son périmètre ; les justificatifs papier/numériques sont contrôlés séparément au retrait.
 - Le devis est calculé côté PostgreSQL depuis le prix stocké dans la réservation et les règles actives de la convention pharmacie. Le client ne peut pas imposer son taux ou son plafond : il déclare son identité d'assuré ; la pharmacie fixe taux, plafonds, franchises et exclusions.
-- Un snapshot immuable fige les montants bruts, part assureur, part client et versions de règles. Une nouvelle négociation nécessite une nouvelle réservation ; un ancien devis n'est pas réécrit.
-- Le client doit accepter le devis avant soumission. La pharmacie doit contrôler les justificatifs avant confirmation de prise en charge.
+- Un snapshot initial immuable fige les montants bruts, le partage initial et les versions de règles. Si la pharmacie propose une réduction de la part assureur, une proposition versionnée est conservée séparément ; le partage opérationnel ne change qu'après réponse explicite du Client. Aucun montant initial du snapshot n'est réécrit.
+- Le client doit accepter le devis initial avant soumission. Une proposition financière ultérieure attend un accord ou un refus explicite du même Client. La pharmacie doit contrôler les justificatifs conformes avant confirmation de prise en charge.
 - Un refus de l'assureur n'est jamais présenté comme un remboursement.
 - Une prise en charge confirmée crée une créance assureur. Seul un règlement effectivement reçu, sa date et sa référence diminuent cette créance. Les règlements partiels restent possibles, sans dépasser le solde dû.
 - Les événements sont conservés dans un journal dédié, horodaté et en lecture seule pour les utilisateurs applicatifs.
@@ -31,14 +31,19 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - assurance_confirmer_prise_en_charge
 - assurance_refuser_prise_en_charge
 - assurance_enregistrer_remboursement
+- assurance_proposer_montant
+- assurance_repondre_proposition_montant
+- assurance_import_simuler
+- assurance_import_simuler_mode
+- assurance_import_appliquer
 
 ## Restitutions livrées
 
-- Tableau de bord /pharmacie/assurance : conventions, règles, dossiers, contrôles documentaires, confirmations de prise en charge, remboursements réellement reçus et journal d'événements.
+- Tableau de bord /pharmacie/assurance : conventions, règles, import CSV/XLS/XLSX des listes assureurs (simulation puis application), dossiers, contrôles documentaires, propositions versionnées, remboursements réellement reçus et journal d'événements.
 - Accès depuis l'espace Promoteur, Caisse et Comptable.
-- Reçu client : déclaration/choix de couverture, calcul du devis, acceptation par le client, montant brut, part assureur (créance, non encaissée), part client et état du contrôle des justificatifs.
+- Reçu client : déclaration/choix de couverture, blocage du devis jusqu'à une vérification exacte de l'adhérent pour la pharmacie de la réservation, calcul du devis, acceptation initiale, puis acceptation/refus d'une proposition de nouveau partage, historique et détail des montants initial/opérationnel.
 - Ticket Caisse : montant brut, part assureur, part client, règlements reçus et solde de créance, lorsque le dossier est relié à la vente POS.
-- POS fractionné : le total brut reste le montant de vente ; la caisse encaisse uniquement la part client et enregistre la part assureur comme règlement de tiers/ créance. La finalisation exige que les deux parts égalent le devis et que le dossier soit accepté après contrôle documentaire.
+- POS fractionné : le total brut reste le montant de vente ; la caisse encaisse uniquement la part client retenue après le dernier accord du Client et enregistre la part assureur comme créance. La finalisation bloque une proposition en attente et rapproche le dossier, le règlement et le ticket sur le dernier partage accepté.
 
 ## Limites de validation à ne pas masquer
 
@@ -49,8 +54,8 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Le Replay ne contient aucun compte, mapping, paramètre ni période comptable configuré ; aucune écriture métier réelle n'a donc été postée. Le test positif ci-dessous utilise exclusivement des comptes synthétiques dans une transaction annulée.
 - Le contrat SQL vérifie également que `compta_emettre_evenement_metier` exclut les lignes `ASSURANCE:%` du montant de vente encaissé et que la clôture de caisse ne retient que les paiements en espèces. Ces garde-fous structurels ne remplacent pas un test de rapprochement avec une vente réelle.
 - Le filtre Assurance est déjà raccordé à la recherche Marketplace `/resultats` via les projections publiques des assureurs et des conventions actives ; la recette HTTP/browser multi-pharmacies reste à exécuter.
-- Le mécanisme de proposition d'un nouveau montant par la pharmacie et d'accord client en cas d'écart de droits reste à construire.
-- Le build TypeScript/UI et les scénarios métier authentifiés restent à exécuter. Le tableau Assurance expose désormais les actions documentaires, confirmation et remboursement ; aucun test navigateur/role JWT de ces actions n'est encore prouvé. Le parcours de proposition d'un nouveau montant reste à construire.
+- Le nouveau pipeline d'import et le flux de proposition versionnée sont livrés en code et appliqués sur Replay ; aucun vrai fichier d'assureur n'a encore été fourni pour une recette de données réelles.
+- Le build TypeScript/UI et les scénarios métier authentifiés restent à confirmer sur le dernier commit. Aucun test navigateur avec rôles Client/Pharmacien/Caisse, aucun encaissement de réservation Assurance réel et aucun remboursement réel n'ont encore été prouvés.
 - Aucune migration ni écriture sur Supabase Production ; aucun déploiement Vercel.
 
 
@@ -176,3 +181,31 @@ Le plan comptable et les mappings doivent être configurés/validés par la phar
 - Le workflow GitHub qualité doit terminer avec Node/TypeScript/lint/build ; aucun résultat complet n'est encore retenu comme preuve dans cette clôture.
 
 **État : PARTIEL — PAS AU VERT.** Les contrats SQL et les corrections de code sont avancés et testés sur Replay, mais le chargement assuré, la négociation d'écart, les comptes métier authentifiés et le parcours réel complet restent bloquants. Production et Vercel inchangés.
+
+
+## Complément de clôture — import des assurés et négociation versionnée (15 novembre 2026)
+
+### Import contrôlé des listes assureurs
+
+- `supabase/migrations/20261115120000_assurance_import_membership_pos_negotiation.sql` : tables d'import et de lignes, simulation, empreinte SHA-256, détection des doublons, des correspondances nulles ou ambiguës, statuts actifs/suspendus/expirés, vérification de l'adhésion exigée avant calcul du devis.
+- `supabase/migrations/20261115121500_assurance_multipharmacy_coverage_verification.sql` : historique de vérification indépendant par couple couverture/pharmacie ; mode `complet` remplaçant les vérifications antérieures de l'assureur pour cette pharmacie ; mode `delta` ne touchant que les lignes reçues ; toute correction des identifiants de couverture client invalide la vérification antérieure via `declaration_maj_at`.
+- Interface `/pharmacie/assurance` : import CSV/XLS/XLSX, 10 Mo maximum, 5 000 lignes maximum, colonnes canoniques numéro adhérent/date début/statut et alias courants ; simulation obligatoire avant application. Une ligne non unique, invalide, répétée ou sans correspondance ne vérifie aucune couverture.
+- Aucun compte client n'est créé par l'import. Les fichiers sont rattachés à l'assureur, à la pharmacie, à une référence de transmission et à une empreinte. L'empreinte atteste l'intégrité du fichier traité, pas l'identité cryptographique de l'émetteur ; la provenance reste attestée par l'opérateur qui reçoit le document.
+- Le reçu Client ne permet plus le calcul du devis tant que la dernière vérification de cette couverture, dans cette pharmacie, est valide et correspond à la version actuelle de la déclaration.
+
+### Négociation de montant et POS
+
+- `assurance_montant_propositions` conserve chaque version, le motif, les deux parts et la réponse du Client. La proposition autorise seulement une réduction ou suppression de la part assureur initialement calculée ; le montant brut et le snapshot initial restent immuables.
+- La pharmacie peut proposer depuis `/pharmacie/assurance` ; seul le Client propriétaire peut accepter ou refuser depuis le reçu de réservation.
+- Une proposition en attente bloque la confirmation finale et l'encaissement. Après accord, le dossier, le POS fractionné, l'événement comptable et le ticket utilisent le dernier partage accepté ; la créance reste distincte de tout encaissement reçu.
+
+### Preuves Replay et limites
+
+- Tests exécutés sur Replay : `20261115101000_assurance_amount_proposal_workflow.sql` **PASS** ; `20261115121500_assurance_import_membership_pos_negotiation.sql` **PASS** ; `202611121_assurance_rule_precedence_calculation.sql` **PASS** après alignement du test d'idempotence sur la clé composite pharmacie ; `202611121_assurance_compta_worker_positive.sql` **PASS** ; `187_caisse_parcours_scope_assurances.sql` **PASS** ; contrats comptables et projections Marketplace exécutés sans exception.
+- Test Node ajouté : `scripts/test-assurance-import-membership.cjs`, inclus dans `npm test` via `scripts/test-*.cjs`.
+- État Replay après tests : 5 assureurs, 4 profils Client, 1 Promoteur, 1 Admin et 9 pharmacies toutes marquées démo ; 0 import, 0 couverture, 0 convention, 0 règle, 0 snapshot, 0 dossier, 0 vérification, 0 proposition et 0 règlement. Comptabilité : 0 plan, 0 mapping, 0 paramètre, 0 période, 0 événement, 0 écriture et 0 ligne.
+- Aucun fichier assureur réel n'a été fourni ; l'import n'a donc pas été exécuté sur une liste réelle. Aucun rôle Pharmacien, Caisse ou Comptable n'est présent dans les profils Replay contrôlés et aucune pharmacie non-démo n'est disponible. L'E2E de bout en bout reste non prouvé.
+- Le moteur comptable a passé le test transactionnel synthétique avec rollback, mais une écriture réelle n'est pas possible sans plan, mappings, paramètres et période configurés. Aucune configuration de test n'a été inventée.
+- Aucun changement Production ni déploiement Vercel.
+
+**État : PARTIEL — PAS AU VERT.** Les blocages d'implémentation de l'import et de la négociation sont levés côté code/Replay et les contrats structurels passent. Les preuves réelles de réception des listes, E2E métier et comptabilité restent à obtenir.
