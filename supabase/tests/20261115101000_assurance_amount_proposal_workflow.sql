@@ -5,6 +5,7 @@ declare
   v_reply text;
   v_reply_normal text;
   v_confirm text;
+  v_event_policy text;
   v_confirm_normal text;
   v_policy text;
   v_rls boolean;
@@ -96,6 +97,7 @@ begin
   end if;
 
   if position('p.role=''client''' in v_reply_normal)=0
+     or position('naxa_business_function(v_uid)<>''client''' in v_reply_normal)=0
      or position('p_accepter is null' in v_reply_normal)=0
      or position('v_d.client_id is distinct from v_uid' in v_reply_normal)=0
      or position('set montant_prise_en_charge=v_p.montant_assureur_fcfa' in v_reply_normal)=0
@@ -108,6 +110,14 @@ begin
   if position('p.statut=''proposee''' in v_confirm_normal)=0
      or position('proposition de montant attend encore' in v_confirm_normal)=0 then
     raise exception 'La confirmation finale doit être bloquée tant qu''une proposition attend le Client';
+  end if;
+
+  select qual into v_event_policy
+  from pg_policies
+  where schemaname='public' and tablename='assurance_evenements'
+    and policyname='assurance_evenements_scope_read';
+  if v_event_policy is null or position('accord_client_refuse' in v_event_policy)=0 then
+    raise exception 'Le refus client doit rester visible au propriétaire de la réservation';
   end if;
 
   if not exists (
