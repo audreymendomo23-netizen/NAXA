@@ -112,8 +112,30 @@ async function run(env = process.env) {
     });
     await page.locator("#username").fill(PROMOTER_USERNAME);
     await page.locator("#password").fill(promoterPassword);
+    const loginResponsePromise = page.waitForResponse(response =>
+      new URL(response.url()).pathname === "/api/auth/login"
+        && response.request().method() === "POST",
+    { timeout: 60000 });
     await page.getByRole("button", { name: "Connexion", exact: true }).click();
-    await page.waitForURL(url => url.pathname === "/pharmacie/comptabilite/plan", { timeout: 60000 });
+    const loginResponse = await loginResponsePromise;
+    let loginPayload = null;
+    try { loginPayload = await loginResponse.json(); } catch { /* diagnostic HTTP conservé */ }
+    if (!loginResponse.ok()) {
+      throw new Error("API login Promoteur refusée (HTTP " + loginResponse.status() + ") : "
+        + String(loginPayload?.error || loginPayload?.message || "réponse sans détail").slice(0, 240));
+    }
+    try {
+      await page.waitForURL(url => url.pathname === "/pharmacie/comptabilite/plan", {
+        timeout: 60000, waitUntil: "domcontentloaded",
+      });
+    } catch {
+      const diagnostic = await page.evaluate(() => ({
+        url: window.location.href, title: document.title,
+        body: document.body?.innerText?.slice(0, 500) || "",
+      })).catch(() => ({ url: page.url(), title: "", body: "" }));
+      throw new Error("API login Promoteur acceptée mais destination comptable absente (URL "
+        + diagnostic.url + ", titre " + diagnostic.title + ", contenu " + diagnostic.body + ").");
+    }
   }
 
   async function cleanupCreatedRows() {

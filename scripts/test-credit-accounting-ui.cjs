@@ -43,9 +43,14 @@ test("la recette Marketplace utilise uniquement Replay et restaure le masquage",
 
 test("la recette de configuration comptable passe par le Promoteur et valide les quatre mappings", () => {
   assert.match(accountingBrowserSource, /compta_plan_lister_pharmacies/);
-  assert.match(accountingBrowserSource, /compta_plan_valider_compte/);
+  assert.match(accountingBrowserSource, /createAndValidateAccount/);
+  assert.match(accountingBrowserSource, /createAndValidateJournal/);
+  assert.match(accountingBrowserSource, /createAndValidateMapping/);
   assert.match(accountingBrowserSource, /credit_octroi/);
   assert.match(accountingBrowserSource, /credit_remboursement/);
   assert.match(accountingBrowserSource, /Valider mapping/);
   assert.match(accountingBrowserSource, /cleanupCreatedRows/);
+  assert.match(source, /compta_plan_valider_compte/);
+  assert.match(source, /compta_config_valider_journal/);
+  assert.match(source, /compta_plan_valider_mapping/);
 });
