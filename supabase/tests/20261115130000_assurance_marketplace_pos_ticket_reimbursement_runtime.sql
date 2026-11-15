@@ -97,6 +97,14 @@ begin
         date_peremption=excluded.date_peremption,
         updated_at=now();
 
+  if exists(select 1 from public.stocks_couts
+    where pharmacie_id=v_pharmacy and produit_id=v_product) then
+    raise exception 'Un coût existe déjà pour la fixture produit/pharmacie ; ne pas le modifier';
+  end if;
+  -- Coût unitaire synthétique, uniquement pour permettre le gel du coût POS.
+  insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
+  values(v_pharmacy,v_product,5000,'XAF');
+
   insert into public.reservations(
     client_id,pharmacie_id,statut,total,expires_at,mode,paiement_statut,
     code_paiement,stock_decremented,stock_restored
