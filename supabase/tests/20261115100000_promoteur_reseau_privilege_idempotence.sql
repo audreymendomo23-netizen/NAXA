@@ -92,5 +92,19 @@ begin
     raise exception 'Le provisionnement a créé ou perdu des privilèges RESEAU: avant %, après %',
       v_before, v_after;
   end if;
+
+  -- Prove the unique index itself rejects a duplicate active network grant.
+  begin
+    insert into public.naxa_profile_privileges (
+      profile_id, privilege_code, pharmacie_id, scope_type, granted_by, active, revoked_at
+    ) values (
+      v_profile_id, 'VIEW_NETWORK_PILOTAGE', null, 'RESEAU', v_profile_id, true, null
+    );
+
+    raise exception 'L index unique a accepté un privilège RESEAU actif en double';
+  exception
+    when unique_violation then
+      null;
+  end;
 end
 $test$;
