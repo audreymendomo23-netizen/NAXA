@@ -264,7 +264,7 @@ begin
       membre_statut,date_debut,date_fin,adherent_normalise,police_normalisee,
       beneficiaire_normalise,couverture_id,resultat,motif
     ) values(
-      v_batch,v_entry.numero,v_member,v_policy,v_beneficiary,v_status,v_start,v_end,
+      v_batch,v_entry.numero,v_member,v_policy,v_beneficiary,case when v_status in ('actif','suspendu','expire') then v_status else null end,v_start,v_end,
       v_member_key,v_policy_key,v_beneficiary_key,v_coverage,v_result,v_reason
     );
   end loop;
