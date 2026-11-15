@@ -10,8 +10,9 @@ begin
   );
 
   if position('auth.uid()' in v_def)=0
-     or position('public.my_pharmacie()' in v_def)=0
      or position('private.naxa_business_function' in v_def)=0
+     or position('private.naxa_scope_allows' in v_def)=0
+     or position('naxa.product_declaration_pharmacy' in v_def)=0
      or position('public.gestionnaire_stock_reference_initialiser' in v_def)=0
      or position('declaration_pharmacie' in v_def)=0 then
     raise exception 'RPC declaration doit exiger une session, un rôle actif, la pharmacie sélectionnée et l''initialisation stock gardée';
@@ -31,10 +32,11 @@ begin
 
   v_trigger:=pg_get_functiondef('public.produits_garde_fiche()'::regprocedure);
   if position('new.created_by := auth.uid()' in v_trigger)=0
-     or position('new.created_by_pharmacie_id := public.my_pharmacie()' in v_trigger)=0
+     or position('new.created_by_pharmacie_id := v_pharmacie' in v_trigger)=0
+     or position('private.naxa_scope_allows' in v_trigger)=0
      or position('new.source_fiche := ''declaration_pharmacie''' in v_trigger)=0
      or position('new.fiche_validee := false' in v_trigger)=0 then
-    raise exception 'Le déclencheur doit identifier le créateur et la pharmacie, sans validation NAXA';
+    raise exception 'Le déclencheur doit identifier le créateur, le périmètre et permettre le Promoteur lié, sans validation NAXA';
   end if;
 
   if exists (
