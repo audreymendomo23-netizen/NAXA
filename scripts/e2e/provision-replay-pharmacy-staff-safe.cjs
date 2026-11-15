@@ -250,7 +250,7 @@ async function provision(env = process.env) {
       const passwordFile = env.RUNNER_TEMP + "/naxa-e2e-" + key + "-" + randomBytes(8).toString("hex") + ".secret";
       fs.writeFileSync(passwordFile, fixtures[key].password, { encoding: "utf8", flag: "wx", mode: 0o600 });
       const variable = "NAXA_STORAGE_E2E_" + key.toUpperCase() + "_PASSWORD_FILE";
-      fs.appendFileSync(env.GITHUB_ENV, variable + "=" + passwordFile + "\\n", { encoding: "utf8", mode: 0o600 });
+      fs.appendFileSync(env.GITHUB_ENV, variable + "=" + passwordFile + "\n", { encoding: "utf8", mode: 0o600 });
     }
 
     for (const persona of PERSONAS.filter(item => item.role !== "client")) {
