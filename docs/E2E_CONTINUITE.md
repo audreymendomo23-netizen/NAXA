@@ -2086,3 +2086,72 @@ Lecture post-test Replay :
 2. Faire confirmer le workflow qualité Node 22, TypeScript, ESLint, build et actionlint sur le commit final (le run 488/488 est antérieur au test runtime révisé).
 3. Sur la pharmacie non commerciale autorisée, exécuter Client → réservation → couverture vérifiée → contrôle justificatifs → confirmation de prise en charge → POS/ticket → remboursement → événement comptable, avec comptes métier valides.
 4. Garder la pharmacie hors recherche publique tant qu'une recette publique n'est pas expressément autorisée ; conserver Production et Vercel inchangés.
+
+
+## 54. POS Assurance fractionné, reçu Client et remboursements — runtime transactionnel PASS (15/11/2026)
+
+### Causes racines corrigées
+
+1. `private.set_reservation_status` exigeait qu'une seule ligne de paiement POS soit égale au total brut de la réservation. Cette hypothèse rejetait le tiers payant Assurance, qui enregistre séparément le paiement Client et la créance assureur.
+2. `naxa_reservation_receipt_snapshot` prenait la dernière ligne `vente_paiements` sans exclure `ASSURANCE:%`. Lorsque les lignes Client/Assurance partageaient le même horodatage transactionnel, le reçu pouvait sélectionner la créance plutôt que le montant réellement reçu du Client.
+3. Le parseur CSV/XLS/XLSX normalisait l'en-tête canonique `beneficiaire_nom` en `beneficiairenom`, mais cet alias n'était pas listé ; un nom de bénéficiaire fourni pouvait donc être ignoré sans rejet de la colonne.
+
+### Corrections versionnées sur `main`
+
+- Migration `supabase/migrations/20261115134500_allow_split_pos_payments_for_reservations.sql` : le garde vérifie maintenant qu'il existe des lignes POS et que **la somme de toutes les lignes** égale le total brut de la vente/réservation. La transition, le périmètre et la vente payée restent obligatoires.
+- Migration `supabase/migrations/20261115140000_fix_reservation_receipt_snapshot_split_payments.sql` : le snapshot de reçu sélectionne le paiement Client, exclut `ASSURANCE:%`, conserve le montant réellement perçu et la monnaie rendue. Si l'assureur couvre 100 % et qu'aucun paiement Client n'existe, le reçu marque explicitement `a_convenir` et 0 FCFA reçu ; il ne présente pas la créance comme de l'argent encaissé.
+- `src/app/pharmacie/assurance/page.tsx` : l'alias `beneficiairenom` est accepté pour la colonne bénéficiaire ; l'écran propose le modèle CSV d'exemple.
+- Modèle fictif : `public/modeles/assureur-liste-assures-exemple.csv`. Il ne contient aucune donnée personnelle réelle ; la ligne d'exemple doit être supprimée avant tout import.
+- Guide du format et des limites : `docs/architecture/ASSURANCE_IMPORT_FORMAT_NAXA.md`.
+- Régressions Node : `scripts/test-assurance-split-pos-receipt.cjs` et extension de `scripts/test-assurance-import-membership.cjs`. Les deux sont détectés par `npm test` (glob `scripts/test-*.cjs`).
+
+### Runtime transactionnel exécuté sur Replay
+
+Test versionné : `supabase/tests/20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql`.
+
+**Résultat : `assurance_marketplace_pos_ticket_reimbursement_runtime PASS`.** Le test exécute, sous contextes JWT Auth distincts Client/Responsable/Caisse, les étapes suivantes : déclaration client non vérifiée → convention de pharmacie → simulation et application d'une liste assureur synthétique → devis → acceptation initiale → contrôle documentaire → proposition financière → nouvel accord Client → confirmation de prise en charge → caisse POS → reçu Client → remboursements partiel et final.
+
+| Contrôle | Résultat |
+|---|---|
+| Réservation Marketplace brute | 10 000 FCFA |
+| Part assureur retenue après nouvel accord Client | 5 500 FCFA |
+| Part Client encaissée | 4 500 FCFA |
+| Espèces remises / monnaie rendue | 5 000 / 500 FCFA |
+| Ligne POS de créance Assurance | 5 500 FCFA, marquée `ASSURANCE:%` |
+| Ticket Client | partage initial 6 000/4 000 et partage accepté 5 500/4 500 visibles |
+| Remboursements assureur | 2 000 puis 3 500 FCFA ; créance soldée |
+| Outbox | 1 créance + 2 règlements Assurance ; vente encaissée limitée à la part Client |
+
+Le test réutilise un Client et un compte Caisse Replay existants. Une affectation Responsable temporaire sur la même pharmacie de démonstration visible est créée dans la transaction, le compte bascule via `naxa_select_active_role` vers Responsable puis revient à Caisse via la même RPC. **Ce n'est pas une pharmacie commerciale ni une recette navigateur réelle.** Stock et coût d'achat de test, réservation, import, compte/affectation temporaire, dossier, vente, ticket et règlements sont annulés par `ROLLBACK`.
+
+### Vérification après rollback
+
+Replay confirme :
+- 0 couverture, import, ligne d'import, vérification, convention, règle, snapshot, dossier, proposition, événement Assurance et règlement ;
+- 0 période, événement, écriture et ligne comptable persistants ;
+- 0 stock et 0 coût d'achat de fixture pour le produit/pharmacie utilisés ;
+- 0 réservation ou vente de recette ;
+- le compte Caisse a retrouvé son rôle actif `caisse`, sans affectation Responsable temporaire persistante.
+
+### Tests Replay rejoués dans cette clôture
+
+- `20261115121500_assurance_import_membership_pos_negotiation.sql` — PASS.
+- `20261115123000_assurance_import_runtime_multipharmacy.sql` — 8 contrôles runtime PASS (liste complète, Delta, suspension/réactivation, correction de déclaration, devis par pharmacie).
+- `20261115101000_assurance_amount_proposal_workflow.sql` — PASS.
+- `20261115103000_assurance_client_refusal_event_visibility.sql` — PASS.
+- `20261115104000_assurance_accounting_event_idempotence_scope.sql` — PASS.
+- `20261115134500_split_pos_reservation_payment_contract.sql` — PASS.
+- `20261115140000_reservation_receipt_snapshot_split_payments.sql` — PASS.
+- `20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql` — PASS.
+- `202611121_assurance_compta_worker_positive.sql` — PASS, fixtures/mappings synthétiques et rollback.
+
+### Limites qui empêchent encore AU VERT global
+
+1. Aucun export réel, même expurgé, n'a été fourni par un assureur. Le modèle fixe les noms de colonnes, mais le téléversement navigateur et le rapprochement avec le fichier propriétaire de chaque assureur restent à vérifier sur un exemple authentique reçu par un opérateur habilité. Le SHA-256 prouve l'intégrité du fichier traité, pas l'identité de l'émetteur.
+2. Le runtime complet prouve les RPC et triggers PostgreSQL sous JWT simulés avec les rôles Replay ; il ne remplace pas un test navigateur des écrans Client, Assurance, Caisse et ticket sur une pharmacie réelle autorisée. La pharmacie utilisée est une pharmacie de démonstration visible et reste marquée démo.
+3. La comptabilité Replay reste vierge : 0 compte, mapping, paramètre et période. Le test worker synthétique valide le moteur et l'idempotence ; il ne produit pas une écriture comptable réelle. Les comptes, journaux, mappings et période doivent être fournis/validés par le Promoteur ou le Comptable de la pharmacie selon le cahier Comptable. Aucun compte OHADA, journal ou mapping n'a été inventé.
+4. Le workflow Node/TypeScript/lint/build doit terminer sur la tête finale de `main` ; les résultats SQL ne remplacent pas cette validation applicative.
+
+**État §54 : PARTIEL — PAS AU VERT GLOBAL.** Le flux backend transactionnel Marketplace → Assurance → POS → ticket → remboursements est PASS sur Replay avec rollback complet. L'import du fichier réel, le parcours navigateur sur pharmacie autorisée et la comptabilité réelle restent ouverts. Production et Vercel inchangés.
+
+**Point exact de reprise :** recevoir un export assureur expurgé et un plan/mapping comptable validé par la pharmacie, puis exécuter le téléversement navigateur et la recette UI avec ses rôles autorisés. Aucun changement Production/Vercel sans autorisation expresse.
