@@ -72,9 +72,14 @@ test("la recette Web Push utilise des profils Chromium persistants, permission a
 });
 
 test("le serveur Next local Replay transmet la clé serveur attendue par supabaseAdmin sans modifier Production", () => {
-  assert.ok(replayWorkflow.includes('export SUPABASE_SECRET_KEY="${SUPABASE_SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"'));
+  assert.ok(replayWorkflow.includes('NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}'));
+  assert.ok(replayWorkflow.includes('NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}'));
+  assert.ok(replayWorkflow.includes('SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}'));
+  assert.ok(replayWorkflow.includes('export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"'));
   assert.ok(replayWorkflow.includes('echo "::add-mask::$SUPABASE_SECRET_KEY"'));
   assert.ok(replayWorkflow.includes('if [ -z "$SUPABASE_SECRET_KEY" ]'));
+  assert.ok(replayWorkflow.includes('test -n "$NAXA_STORAGE_E2E_URL"'));
   assert.ok(replayWorkflow.includes("Ce workflow est strictement limité à NAXA Replay"));
+  assert.doesNotMatch(replayWorkflow, /secrets\\.(?:SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_ANON_KEY)\\b/);
   assert.ok(!replayWorkflow.includes("VERCEL_ENV=production"));
 });
