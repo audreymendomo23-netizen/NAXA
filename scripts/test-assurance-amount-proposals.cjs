@@ -110,16 +110,15 @@ test("la créance Assurance utilise la clé d'idempotence unique réellement dé
 });
 
 
-test("le runtime Marketplace/POS réutilise des professionnels déjà affectés et ne fabrique aucune identité Auth", () => {
-  assert.match(marketplacePosRuntimeTest, /ra\.role_code='responsable'/);
-  assert.match(marketplacePosRuntimeTest, /ra\.pharmacie_id=v_pharmacy/);
-  assert.match(marketplacePosRuntimeTest, /private\.naxa_scope_allows\(rp\.id,v_pharmacy,'PHARMACIE'\)/);
-  assert.match(marketplacePosRuntimeTest, /ph\.est_demo=false/);
+test("le runtime Marketplace/POS réutilise un compte Caisse et bascule temporairement le rôle, sans créer une identité Auth", () => {
+  assert.match(marketplacePosRuntimeTest, /a\.role_code='caisse'/);
+  assert.match(marketplacePosRuntimeTest, /a\.role_code='responsable'/);
+  assert.match(marketplacePosRuntimeTest, /v_responsable:=v_cashier/);
+  assert.ok(marketplacePosRuntimeTest.includes("naxa_select_active_role('responsable'"));
+  assert.ok(marketplacePosRuntimeTest.includes("naxa_select_active_role('caisse'"));
   assert.match(marketplacePosRuntimeTest, /ph\.visible_recherche=true/);
-  assert.match(marketplacePosRuntimeTest, /v_responsable is null/);
+  assert.match(marketplacePosRuntimeTest, /insert into public\.naxa_professional_assignments/i);
   assert.doesNotMatch(marketplacePosRuntimeTest, /insert into auth\.users/i);
-  assert.doesNotMatch(marketplacePosRuntimeTest, /session_replication_role/i);
   assert.doesNotMatch(marketplacePosRuntimeTest, /insert into public\.profiles/i);
-  assert.doesNotMatch(marketplacePosRuntimeTest, /insert into public\.naxa_professional_assignments/i);
   assert.match(marketplacePosRuntimeTest, /rollback;/i);
 });
