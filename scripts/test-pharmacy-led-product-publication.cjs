@@ -13,6 +13,8 @@ const offlineApi = fs.readFileSync(path.join(root, "src/app/api/medicaments/cata
 const searchUi = fs.readFileSync(path.join(root, "src/components/Recherche.tsx"), "utf8");
 const productPage = fs.readFileSync(path.join(root, "src/app/produit/[id]/page.tsx"), "utf8");
 const offerPage = fs.readFileSync(path.join(root, "src/app/offre/[pharmacieId]/[produitId]/page.tsx"), "utf8");
+const productIdentityMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115110000_pharmacy_product_identity_scoped_by_pharmacy.sql"), "utf8");
+const productIdentitySqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115110000_pharmacy_product_identity_scoped_by_pharmacy.sql"), "utf8");
 
 test("le gestionnaire Stock peut déclarer une référence absente du catalogue", () => {
   assert.match(workspace, /Déclarer un produit absent du catalogue/);
@@ -70,3 +72,31 @@ test("l'espace Stock expose seulement les fiches appartenant au périmètre phar
   assert.match(workspace, /fonction!=="admin"/);
 });
 
+
+
+test("deux pharmacies gardent des fiches distinctes pour un même médicament", () => {
+  assert.match(productIdentityMigration, /drop constraint if exists produits_nom_dosage_forme_key/i);
+  assert.match(productIdentityMigration, /drop index if exists public\.produits_code_barre_uq/i);
+  assert.match(productIdentityMigration, /create unique index produits_pharmacy_identity_uq/i);
+  assert.match(productIdentityMigration, /create unique index produits_pharmacy_barcode_uq/i);
+  assert.match(productIdentityMigration, /where p\.created_by_pharmacie_id=p_pharmacie/i);
+  assert.match(productIdentityMigration, /pg_advisory_xact_lock/i);
+  assert.match(productIdentityMigration, /v_owner is not null and v_owner is distinct from p_pharmacie/i);
+  assert.match(productIdentityMigration, /Ce code-barres est déjà utilisé par une autre fiche de votre pharmacie/);
+});
+
+test("l'espace Stock ne propose que le catalogue historique partagé et les fiches de son réseau", () => {
+  assert.match(workspace, /\.or\("created_by_pharmacie_id\.is\.null,created_by_pharmacie_id\.in\.\("\+ids\.join\(","\)\+"\)"\)/);
+  assert.match(workspace, /fonction!=="admin"&&<><ImportStockIntelligent/);
+  assert.match(workspace, /fonction!=="admin"&&<section className="space-y-3 rounded-2xl border bg-white p-4">/);
+});
+
+test("l'Administrateur reste en lecture seule et la recherche conserve une identité par pharmacie", () => {
+  assert.match(productIdentityMigration, /Administrateur : consultation uniquement/);
+  assert.match(productIdentityMigration, /drop policy if exists produits_write/);
+  assert.match(productIdentityMigration, /drop policy if exists produits_update/);
+  assert.match(productIdentitySqlTest, /partition by t\.n,s\.pharmacie_id/i);
+  assert.match(productIdentitySqlTest, /group by d\.pharmacie_id/i);
+  assert.match(productIdentitySqlTest, /produits_pharmacy_identity_uq/i);
+  assert.match(productIdentitySqlTest, /is_admin/i);
+});
