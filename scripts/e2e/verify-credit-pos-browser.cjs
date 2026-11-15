@@ -230,9 +230,19 @@ async function run(env = process.env) {
       throw new Error("Le stock technique doit contenir au moins une unité à 1 000 FCFA.");
     }
 
-    await rpc("naxa_select_active_role", cashierToken, {
+    const selectedPromoterRole = await rpc("naxa_select_active_role", promoterToken, {
+      p_role_code: "promoteur", p_pharmacie_id: null,
+    }, "Sélection du rôle Promoteur");
+    if (selectedPromoterRole !== true) throw new Error("Le Promoteur n'a pas pu activer son rôle métier.");
+    const selectedCashierRole = await rpc("naxa_select_active_role", cashierToken, {
       p_role_code: "caisse", p_pharmacie_id: PHARMACY_ID,
     }, "Sélection du rôle Caisse sur pharmacie masquée");
+    if (selectedCashierRole !== true) throw new Error("La Caisse n'a pas pu activer son rôle sur la pharmacie masquée.");
+    const cashierBusinessFunction = await rpc("naxa_business_function", cashierToken, {}, "Vérification du rôle métier Caisse");
+    const cashierActivePharmacy = await rpc("naxa_active_role_pharmacy", cashierToken, {}, "Vérification de la pharmacie active Caisse");
+    if (cashierBusinessFunction !== "caisse" || cashierActivePharmacy !== PHARMACY_ID) {
+      throw new Error("Le contexte Caisse actif ne correspond pas à la pharmacie technique masquée.");
+    }
 
     const existingSessions = await rows(
       "caisses_sessions?select=id&ouvert_par=eq." + encodeURIComponent(cashierUserId)
