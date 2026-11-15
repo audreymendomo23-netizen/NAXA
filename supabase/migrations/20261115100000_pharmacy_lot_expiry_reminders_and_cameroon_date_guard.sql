@@ -191,8 +191,8 @@ begin
     v_updated:=v_updated+1;
   end loop;
 
-  if v_updated<>9 then
-    raise exception 'Mise à jour des gardes de péremption incomplète : % fonction(s) modifiée(s), 9 attendues',v_updated;
+  if v_updated<>7 then
+    raise exception 'Mise à jour des gardes de péremption incomplète : % fonction(s) modifiée(s), 7 attendues',v_updated;
   end if;
 end;
 $date_guards$;
