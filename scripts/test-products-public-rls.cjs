@@ -11,7 +11,7 @@ const migration = fs.readFileSync(
   "utf8"
 ).toLowerCase();
 const declaration = fs.readFileSync(
-  path.join(root, "supabase/migrations/20261115201000_pharmacy_product_declare_and_stock_reference.sql"),
+  path.join(root, "supabase/migrations/20261115202000_promoter_scope_and_zero_stock_catalogue_visibility.sql"),
   "utf8"
 ).toLowerCase();
 
