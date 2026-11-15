@@ -86,7 +86,8 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: "File de notifications indisponible" }, { status: 500 });
 
   const items = (data ?? []) as OutboxItem[];
-  let sent = 0, noDevice = 0, retried = 0, failed = 0, fcmSent = 0, webPushSent = 0, webPushFailures = 0;\n  const webPushErrorCodes = new Set<string>();
+  let sent = 0, noDevice = 0, retried = 0, failed = 0, fcmSent = 0, webPushSent = 0, webPushFailures = 0;
+  const webPushErrorCodes = new Set<string>();
 
   for (const item of items) {
     let hasDevice = false;
@@ -171,7 +172,8 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    ok: true, claimed: items.length, sent, noDevice, retried, failed, webPushSent, fcmSent,\n    webPushFailures, webPushErrorCodes: [...webPushErrorCodes],
+    ok: true, claimed: items.length, sent, noDevice, retried, failed, webPushSent, fcmSent,
+    webPushFailures, webPushErrorCodes: [...webPushErrorCodes],
     notificationId: notificationId ?? null,
     at: new Date().toISOString(),
   });
