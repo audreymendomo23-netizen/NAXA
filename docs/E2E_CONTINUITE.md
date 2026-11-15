@@ -1130,3 +1130,38 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 3. Préparer le cycle métier en mode paiement espèces à la livraison, avec une validation effective par la Caisse de test avant clôture ; Stock doit confirmer la préparation physique avant publication de mission.
 4. Exécuter ensuite le cycle réel : mission disponible → acceptation Livreur → retrait → suivi GPS/chat → arrivée → confirmations Livreur + Client → encaissement validé par Caisse → clôture `livree`. Vérifier aussi les refus hors pharmacie et après suspension/expiration.
 5. Continuer sans modifier Production ni déployer Vercel ; ne pas déclarer AU VERT avant les preuves métier et appareil réel encore manquantes.
+
+
+## 38. Audit des prérequis réservation → Stock → Caisse → Livreur (15/11/2026)
+
+**Périmètre : Replay uniquement, contrôles SQL en lecture seule.** Les seules données nouvelles conservées sont la fixture Client/Livreur et son affectation documentées au §37. Aucun stock, produit, compte supplémentaire, caisse, réservation, mission ou paiement n'a été créé pendant cet audit.
+
+**État des comptes et affectations sur les deux pharmacies E2E du Promoteur :**
+- Comptes Auth E2E présents : Admin, Promoteur et Livreur. Le compte Livreur a un profil racine Client et une affectation métier Livreur ; il ne doit pas être réutilisé comme acheteur séparé.
+- Une seule affectation professionnelle active est présente sur les pharmacies liées : `livreur`. Aucune affectation active Gestionnaire Stock ni Caisse.
+- Les rôles `gestionnaire_stock` et `caisse` sont déclarés actifs et attribuables à l'échelle PHARMACIE.
+- Le Promoteur dispose, sur chacune de ses deux pharmacies E2E, des privilèges actifs `ASSIGN_USER_TO_PHARMACY`, `CREATE_CAISSE` et `MANAGE_LOTS`.
+- Les contrôles de la RPC `naxa_grant_professional_assignment` ont été lus : elle vérifie le rôle assignable, le compte cible actif, la pharmacie active, le périmètre Promoteur, les privilèges requis, l'architecture et les chevauchements d'affectation. La sélection du rôle actif passe par `naxa_select_active_role`.
+- Fonctions de service disponibles et ACL vérifiées : `gestionnaire_stock_service_ouvrir`, `gestionnaire_stock_reference_initialiser`, `gestionnaire_stock_quantite_ajuster`, `stock_lot_enregistrer`, `caisse_ouvrir`. Elles sont exécutables par `authenticated`, pas par `anon`.
+- Les tables `caisses`, `stocks` et `stocks_lots` ne comportent pas de ligne d'ouverture ou de provisionnement pour ces pharmacies ; aucun service Stock ouvert et aucune session Caisse ne sont présents. La policy `caisses_scope` limite les opérations Authenticated à l'Admin ou à un profil pouvant accéder à la pharmacie.
+
+**État de l'inventaire et du catalogue Replay :**
+- `produits` contient **20 fiches** au total, dont **0 fiche validée** (`fiche_validee=true`).
+- Pour chacune des pharmacies E2E liées, le contrôle trouve **0 référence avec quantité positive vendable**, **0 lot positif non bloqué et non expiré**.
+- Synthèse sur les deux pharmacies : **0 ligne de stock positif**, **0 lot valide**, **0 réservation existante**, **0 mission de livraison existante**.
+- Il n'existe donc pas de produit vendable actuellement démontrable pour une vraie réservation Client ; ajouter arbitrairement un médicament ou un prix de test risquerait de rendre une fiche non validée visible via la policy publique `produits_read`. Aucun produit n'a été créé ou rendu public.
+
+**Contradictions et conséquences :**
+- Le tableau de bord Livreur et son affectation sont prêts sur Replay, mais il ne peut pas recevoir de mission sans réservation de commande préparée par Stock et ayant un mode de paiement sélectionné.
+- Une mission ne doit être créée qu'après confirmation Stock `prete_au_retrait` et validation du paiement requis par les règles serveur.
+- Le scénario `especes_livraison` peut garder le paiement à encaisser jusqu'à la livraison, mais la finalisation métier exige ensuite une confirmation d'encaissement par une Caisse autorisée. Aucun paiement ne doit être marqué `effectue` directement par SQL et aucun faux reçu/SMS ne doit être généré.
+- Aucune RPC dédiée `create_caisse` n'a été trouvée dans l'inventaire public des fonctions ; la policy de table `caisses_scope` autorise les écritures seulement dans un périmètre pharmacie accessible. Il faut donc vérifier le parcours UI/API métier de création de la caisse avant d'ouvrir sa session.
+
+**Conclusion :** la recette des gardes Livreur et la fixture sont avancées, mais la chaîne métier ne peut pas encore démarrer faute de Client acheteur distinct, d'affectations Gestionnaire Stock/Caisse, d'une caisse et d'un catalogue/stock vendable validé. Aucune donnée artificielle n'a été injectée pour masquer ces prérequis. La recette globale reste **PARTIELLE**.
+
+**Point exact de reprise :**
+1. Identifier le parcours UI/API autorisé qui crée une caisse pour une affectation Caisse active ; tester sa policy sous session authentifiée, sans ouvrir une session caisse avec des fonds inventés.
+2. Préparer, via le flux E2E dédié sur Replay, un Client acheteur distinct du Livreur et un personnel Stock/Caisse ; faire attribuer les rôles par le Promoteur via `naxa_grant_professional_assignment`, puis vérifier l'activation d'un seul rôle à la fois.
+3. Obtenir ou importer une fiche médicament réelle et validée dans le catalogue Replay à partir de la source référentielle autorisée ; ne pas créer une fiche factice visible publiquement.
+4. Initialiser la référence, faire un mouvement de stock audité et enregistrer le lot correspondant avec quantité identique au stock agrégé, péremption valide et étiquetage explicite E2E. Le tout sur Replay seulement.
+5. Créer la réservation par le parcours Client, faire préparer physiquement par Stock, sélectionner le paiement espèces livraison, publier la mission, puis suivre la livraison et encaisser par la Caisse. Garder Production et Vercel intouchés.
