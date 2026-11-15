@@ -62,6 +62,17 @@ begin
   ) then
     raise exception $msg$Une ligne du registre conserve une commission non nulle$msg$;
   end if;
+
+  perform set_config('request.jwt.claim.sub', '5bff6417-ebd2-4c2f-b675-424632fa43a4', true);
+  perform set_config('request.jwt.claim.role', 'authenticated', true);
+  v_report := public.naxa_delivery_fees_report(current_date, current_date, null);
+  if (v_report->'totaux'->>'retenue_naxa')::integer <> 0 then
+    raise exception $msg$Le rapport Admin doit afficher une retenue NAXA nulle$msg$;
+  end if;
+  if (v_report->'totaux'->>'frais_clients')::integer <> 0
+     or (v_report->'totaux'->>'montant_affecte_service')::integer <> 0 then
+    raise exception $msg$Le rapport doit rester cohérent lorsque le registre est vide$msg$;
+  end if;
 end
 $test$;
 
