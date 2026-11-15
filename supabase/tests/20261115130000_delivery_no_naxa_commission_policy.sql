@@ -4,7 +4,7 @@ declare
   v_check_commission text;
   v_check_balance text;
   v_finalizer text;
-  v_report text;
+  v_report jsonb;
 begin
   select pg_get_constraintdef(oid)
     into v_check_commission
