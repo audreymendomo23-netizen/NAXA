@@ -102,45 +102,48 @@ begin
     v_definition := pg_get_functiondef(v_signature);
     v_before := v_definition;
 
-    if v_signature in (
-      'private.naxa_pos_debit_stock(uuid)'::regprocedure,
-      'public.vente_ajouter_produit(uuid,uuid,integer)'::regprocedure
-    ) then
-      v_definition := replace(
-        v_definition,
-        'public.marketplace_offre_stock_disponible(',
-        'private.naxa_pos_stock_vendable('
-      );
-    elsif v_signature = 'public.caisse_rechercher_produit(uuid,text,text)'::regprocedure then
-      v_definition := replace(
-        v_definition,
-        'p.code_barre,s.prix,s.quantite,s.emplacement',
-        'p.code_barre,avail.prix,avail.quantite,s.emplacement'
-      );
-      v_definition := replace(
-        v_definition,
-        'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie',
-        E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
-      );
-    else
-      v_definition := replace(
-        v_definition,
-        'p.dosage,s.prix,s.quantite,s.emplacement',
-        'p.dosage,avail.prix,avail.quantite,s.emplacement'
-      );
-      v_definition := replace(
-        v_definition,
-        'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie',
-        E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
-      );
+    if v_definition not ilike '%private.naxa_pos_stock_vendable(%' then
+      if v_signature in (
+        'private.naxa_pos_debit_stock(uuid)'::regprocedure,
+        'public.vente_ajouter_produit(uuid,uuid,integer)'::regprocedure
+      ) then
+        v_definition := replace(
+          v_definition,
+          'public.marketplace_offre_stock_disponible(',
+          'private.naxa_pos_stock_vendable('
+        );
+      elsif v_signature = 'public.caisse_rechercher_produit(uuid,text,text)'::regprocedure then
+        v_definition := replace(
+          v_definition,
+          'p.code_barre,s.prix,s.quantite,s.emplacement',
+          'p.code_barre,avail.prix,avail.quantite,s.emplacement'
+        );
+        v_definition := replace(
+          v_definition,
+          'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie',
+          E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
+        );
+      else
+        v_definition := replace(
+          v_definition,
+          'p.dosage,s.prix,s.quantite,s.emplacement',
+          'p.dosage,avail.prix,avail.quantite,s.emplacement'
+        );
+        v_definition := replace(
+          v_definition,
+          'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie',
+          E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
+        );
+      end if;
+
+      if v_definition not ilike '%private.naxa_pos_stock_vendable(%' then
+        raise exception 'Le consommateur POS % ne peut pas être rebranché sur le stock interne', v_signature;
+      end if;
     end if;
 
-    if v_definition = v_before
-       or v_definition not ilike '%private.naxa_pos_stock_vendable(%' then
-      raise exception 'Le consommateur POS % ne peut pas être rebranché sur le stock interne', v_signature;
+    if v_definition <> v_before then
+      execute v_definition;
     end if;
-
-    execute v_definition;
   end loop;
   -- The Caisse actor guard must enforce identity and pharmacy scope, not
   -- public Marketplace visibility. A hidden/ unpublished pharmacy still operates
@@ -153,10 +156,11 @@ begin
     'and ph.actif=true and ph.visible_recherche=true',
     'and ph.actif=true and ph.archivee_le is null'
   );
-  if v_definition = v_before then
-    raise exception 'Le garde Caisse contient une condition de visibilité attendue absente';
+  if v_definition <> v_before then
+    execute v_definition;
+  elsif v_definition ilike '%visible_recherche%' or v_definition not ilike '%ph.archivee_le is null%' then
+    raise exception 'Le garde Caisse est dans un état inattendu : aucune règle de visibilité ne doit être ajoutée implicitement';
   end if;
-  execute v_definition;
 end
 $rewire$;
 
