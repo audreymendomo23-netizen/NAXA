@@ -8,7 +8,7 @@ select set_config('request.jwt.claim.role','service_role',true);
 do $setup$
 declare
   v_admin uuid;
-  v_responsable uuid:=gen_random_uuid();
+  v_responsable uuid;
   v_cashier uuid;
   v_client uuid;
   v_insurer uuid;
@@ -17,7 +17,6 @@ declare
   v_open_session uuid;
   v_reservation uuid;
   v_product uuid;
-  v_username text:='naxa_assurance_pos_'||substr(replace(gen_random_uuid()::text,'-',''),1,18);
   v_code text:='AS'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));
 begin
   select p.id,a.pharmacie_id,c.id
@@ -73,22 +72,25 @@ begin
   where p.role::text='admin' and p.actif=true order by p.created_at limit 1;
   if v_admin is null then raise exception 'Profil Admin d''audit absent'; end if;
 
-  set local session_replication_role=replica;
-  insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
-  values(v_responsable,'authenticated','authenticated',v_username||'@invalid.local','',now(),now());
-  set local session_replication_role=origin;
-
-  insert into public.profiles(id,role,username,actif,pharmacie_id)
-  values(v_responsable,'client',v_username,true,v_pharmacy);
-
-  insert into public.naxa_professional_assignments(
-    profile_id,pharmacie_id,fonction,statut,motif,commence_at,
-    accorde_par,accorde_at,nature_affectation,role_code
-  ) values(
-    v_responsable,v_pharmacy,'responsable','active',
-    'Fixture transactionnelle E2E Assurance POS',now(),
-    v_admin,now(),'ordinaire','responsable'
-  );
+  -- Même compte professionnel : ajout temporaire du poste Responsable, puis
+  -- retour explicite au poste Caisse via la RPC standard, dans la transaction.
+  v_responsable:=v_cashier;
+  if not exists(select 1 from public.naxa_professional_assignments a
+    where a.profile_id=v_cashier and a.pharmacie_id=v_pharmacy
+      and a.role_code='responsable' and a.statut='active') then
+    insert into public.naxa_professional_assignments(
+      profile_id,pharmacie_id,fonction,statut,motif,commence_at,
+      accorde_par,accorde_at,nature_affectation,role_code
+    ) values(
+      v_cashier,v_pharmacy,'responsable','active',
+      'Fixture transactionnelle E2E Assurance POS',now(),
+      v_admin,now(),'ordinaire','responsable'
+    );
+  end if;
+  if private.naxa_business_function(v_cashier)<>'responsable'
+     or private.naxa_active_role_pharmacy(v_cashier) is distinct from v_pharmacy then
+    raise exception 'Bascule temporaire vers le rôle Responsable non appliquée';
+  end if;
 
   -- Stock agrégé temporaire : aucune ligne de lot n'est créée.
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption,updated_at)
@@ -302,6 +304,8 @@ select set_config('request.jwt.claims',jsonb_build_object('role','authenticated'
 select set_config('request.jwt.claim.sub',current_setting('naxa.test.assurance.pos.cashier'),true);
 select set_config('request.jwt.claim.role','authenticated',true);
 set local role authenticated;
+
+select public.naxa_select_active_role('caisse',current_setting('naxa.test.assurance.pos.pharmacy')::uuid);
 
 do $cashier_pos$
 declare
