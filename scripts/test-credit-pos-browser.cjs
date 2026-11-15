@@ -13,7 +13,7 @@ const source = fs.readFileSync(
 test("la recette navigateur crédit est épinglée à Replay uniquement", () => {
   assert.match(source, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
   assert.match(source, /function assertReplayUrl\(value\)/);
-  assert.match(source, /url\.hostname !== PROJECT_REF \+ "\.supabase\.co"/);
+  assert.match(source, /url\.hostname !== PROJECT_REF \+ "\\.supabase\\.co"/);
   assert.match(source, /assertReplayUrl\(env\.NAXA_STORAGE_E2E_URL \|\| env\.SUPABASE_URL\)/);
 });
 
@@ -37,5 +37,5 @@ test("la recette couvre le remboursement réel, l'outbox et le rapprochement Cai
 test("la pharmacie de recette reste active et masquée au catalogue public", () => {
   assert.match(source, /visible_recherche !== false/);
   assert.match(source, /archivee_le !== null/);
-  assert.match(source, /Aucun produit\/offre public n'est créé/);
+  assert.match(source, /aucun produit\/offre public n'est créé/i);
 });
