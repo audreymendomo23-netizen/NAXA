@@ -2301,3 +2301,51 @@ Le workflow relancé avec les secrets Replay strictement dédiés, run [43725341
 3. **Comptabilité réelle :** le Promoteur ou le Comptable de la pharmacie doit valider son plan, ses mappings, ses paramètres, ses journaux et sa période. Aucun paramétrage comptable réel n'est inventé.
 
 **Verdict : PARTIEL — PAS AU VERT GLOBAL.** Le parcours backend Assurance → Marketplace → Caisse → ticket → remboursements → worker comptable est PASS sur Replay (§56) ; la qualité applicative et la validation de tous les workflows sont PASS sur `86ac0c9`. Le workflow Replay strict est encore en cours et les trois validations métier externes restent ouvertes. Production et Vercel inchangés.
+
+
+## 58. Audit d'intégration du poste Pharmacien — PASS SQL ciblé, parcours métier partiel (15/11/2026)
+
+### Périmètre et source
+
+- Audit effectué sur le dépôt `main`, HEAD contrôlé : `e660ca84e2cca4505e02ca84fdf9f3dfb50f0357`.
+- Base QA utilisée exclusivement : Replay `pwfftcsjyeibxxqhwysw`. Aucune écriture Production et aucun déploiement.
+- Sources contrôlées : `src/components/EspaceNaxaSwitcher.tsx`, `src/app/pharmacie/affectations/actions.ts`, `src/app/pharmacie/affectations/page.tsx`, `src/components/pharmacie/PharmacienWorkspace.tsx`, `src/app/pharmacie/pharmacien/service/page.tsx`, `src/components/ScannerShell.tsx`, `src/components/client/ClientOperations.tsx`, migrations et policies Pharmacien, ainsi que `supabase/tests/297_active_role_pharmacien_e2e.sql`.
+
+### Branchement présent et contrôlé
+
+- Le rôle `pharmacien` est déclaré actif et assignable pour le périmètre `PHARMACIE`.
+- Le Promoteur peut attribuer le rôle depuis la page Affectations ; le sélecteur global `EspaceNaxaSwitcher` détecte l'affectation active, appelle `naxa_select_active_role` puis ouvre `/pharmacie/pharmacien`.
+- Le workspace valide l'utilisateur authentifié, la fonction métier active, la pharmacie sélectionnée et l'état actif de la pharmacie.
+- Les RPC Pharmacien vérifient le poste et le périmètre actif pour les consultations, prescriptions, demandes de complément, décisions de validation, préparations, pointages de service et exports audités.
+- Le garde `vente_prescription_guard` bloque une vente si la prescription n'est pas validée, est expirée, appartient à une autre pharmacie ou ne correspond pas au Client. Le RPC `ordonnancier_enregistrer` accepte également un poste Pharmacien actif dans la pharmacie de la prescription.
+- Les politiques RLS sont présentes sur les tables cliniques, les sessions et les événements d'audit. Plusieurs lectures utilisent encore les alias synchronisés `profiles.fonction_interne` et `profiles.pharmacie_id` ; le sélecteur de poste actif met ces champs en cohérence avec l'affectation choisie.
+
+### Preuve SQL Replay — 8/8 PASS
+
+Le fichier `supabase/tests/297_active_role_pharmacien_e2e.sql` a été exécuté directement sur Replay. Les assertions ont confirmé :
+1. création d'une consultation par le compte portant le poste Pharmacien ;
+2. création d'une prescription liée à la consultation et validateur cohérent ;
+3. export Pharmacien journalisé ;
+4. lecture des prescriptions dans le périmètre actif ;
+5. ouverture et clôture d'une session de service ;
+6. affectation Pharmacien sans convertir l'identité de base, qui reste Client ;
+7. refus d'agir dans une autre pharmacie ;
+8. blocage des RPC Pharmacien après retour au poste Client.
+
+Le script se termine par `ROLLBACK`. Le contrôle post-test confirme zéro résidu : 0 profil alias Pharmacien, 0 affectation Pharmacien active, 0 entrée de rôle actif Pharmacien, 0 dossier `suivi_professionals` et 0 accréditation hiérarchique. Aucun compte métier permanent n'a donc été provisionné sur Replay.
+
+### Contradictions et blocages de bout en bout
+
+1. **Affectation et agrément Admin non raccordés.** La page Promoteur `/pharmacie/affectations` accorde directement une affectation Pharmacien active via `naxa_grant_professional_assignment`. Le contrôle documentaire Admin existant sur `/admin/suivi-professionnels` gère `suivi_professionals`, table sans `pharmacie_id`, utilisée par le Suivi connecté ; il n'est pas consulté par le moteur d'affectations Pharmacie. Le contrôle « proposition Promoteur → validation Admin → activation Pharmacien » n'est donc pas imposé par le flux ERP observé.
+2. **Entrée Client → file Pharmacien non reliée dans les écrans vérifiés.** Le scanner `ScannerShell` réalise une lecture OCR locale, cherche des produits dans le catalogue et conduit à la recherche de pharmacies ; il n'insère pas de ligne dans `prescriptions`. `ClientOperations` charge les réservations et leurs événements, pas les prescriptions. La policy SQL `prescriptions_client_submit` permet une insertion Client encadrée, et le workspace Pharmacien sait lire les prescriptions `source='client'`, mais aucun formulaire/flux de soumission correspondant n'a été trouvé dans les écrans Client examinés. Le transfert réel d'une ordonnance Client vers la file Pharmacien n'est donc pas démontré.
+3. **Ancienne route distincte non raccordée à Replay.** `/pharmacien/validations` appelle `naxa_validations_pharmaceutiques`, `naxa_validations_pharmaceutiques_notifications` et trois RPC `naxa_*validation_pharmaceutique` absents du schéma Replay contrôlé. Cette route ne doit pas être confondue avec le workspace opérationnel `/pharmacie/pharmacien`.
+4. **Ordonnancier : asymétrie lecture/RPC à conserver sous surveillance.** La policy directe `ordonnancier_staff_read` n'accorde pas le SELECT au rôle `pharmacien`, mais le RPC `ordonnancier_enregistrer` l'autorise explicitement lorsque le poste et la pharmacie actifs correspondent. Le workspace Pharmacien actuel n'effectue pas de lecture directe de cette table ; ce n'est donc pas un échec prouvé du flux actuel, mais toute future interface de consultation directe devra aligner sa policy RLS.
+5. **Recette avec identité réelle absente.** Replay ne contient aucun compte, affectation ni rôle actif Pharmacien permanent. Le test 297 est un test transactionnel SQL avec rollback, pas une recette navigateur multi-comptes ; build, TypeScript et navigation UI n'ont pas été exécutés dans cet audit.
+
+### Verdict et point exact de reprise
+
+**PARTIEL — le sélecteur de rôle, les gardes serveur et les RPC Pharmacien essentiels passent le contrat SQL 297 (8/8), mais l'intégration globale n'est pas verte.** Les principaux verrous sont l'agrément Admin avant activation ERP et la soumission effective des ordonnances par le Client. L'ancienne route de validations pharmaceutiques séparée doit également être réconciliée ou retirée.
+
+**Reprise recommandée :** traiter d'abord la machine d'état d'agrément Pharmacien (proposé par Promoteur, vérifié/accepté par Admin, puis activable pour une pharmacie), sans réutiliser comme source d'autorité le module Suivi connecté ; ensuite brancher le dépôt Client d'ordonnance sur la table et les RPC canoniques, puis réaliser une recette navigateur avec deux pharmacies et des comptes métier dédiés.
+
+Aucun code produit n'a été modifié dans cet audit. Aucun changement persistant n'a été effectué dans Replay ; Production et Vercel restent inchangés.
