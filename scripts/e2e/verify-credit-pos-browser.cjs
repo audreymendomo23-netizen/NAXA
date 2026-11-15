@@ -143,16 +143,31 @@ async function run(env = process.env) {
         + encodeURIComponent(open.id) + "&statut=eq.brouillon&limit=3"
     );
     for (const draft of drafts) {
-      await rpc("vente_brouillon_abandonner", cashierToken, { p_vente: draft.id }, "Abandon du panier incomplet");
-      const pending = await rows(
-        "client_credit_requests?select=id,statut&vente_id=eq."
-          + encodeURIComponent(draft.id) + "&statut=eq.en_attente&limit=3"
+      const decisions = await rows(
+        "client_credit_requests?select=id,statut,consumed_at&vente_id=eq."
+          + encodeURIComponent(draft.id) + "&limit=5"
       );
-      for (const item of pending) {
+      const approved = decisions.find(item => item.statut === "approuvee" && item.consumed_at === null);
+      if (approved) {
+        const resumed = await rpc("vente_credit_finaliser", cashierToken, {
+          p_vente: draft.id,
+          p_reference: "NAXA-E2E-CREDIT-RECOVERY-" + crypto.randomUUID(),
+        }, "Finalisation de récupération après approbation");
+        const result = Array.isArray(resumed) ? resumed[0] : resumed;
+        if (result?.resultat !== "finalisee") {
+          throw new Error("Une demande approuvée ne peut pas être abandonnée ; reprise de la même vente impossible.");
+        }
+        continue;
+      }
+
+      for (const item of decisions.filter(item => item.statut === "en_attente")) {
         if (promoterToken) await rpc("client_credit_demande_decider", promoterToken, {
           p_demande: item.id, p_approuver: false,
-        }, "Refus de la demande technique incomplète").catch(() => null);
+        }, "Refus de la demande technique incomplète");
       }
+      await rpc("vente_brouillon_abandonner", cashierToken, {
+        p_vente: draft.id,
+      }, "Abandon du panier incomplet");
     }
     if (!creditId && clientUserId) {
       const accounts = await rows(
@@ -232,6 +247,16 @@ async function run(env = process.env) {
         + "&statut=eq.brouillon&limit=2"
     );
     if (existingDrafts.length) throw new Error("Un brouillon non réconcilié subsiste avant le début de la recette.");
+
+    const staleRequests = await rows(
+      "client_credit_requests?select=id,statut,consumed_at&client_id=eq."
+        + encodeURIComponent(clientUserId) + "&pharmacie_id=eq."
+        + encodeURIComponent(PHARMACY_ID)
+        + "&statut=in.(en_attente,approuvee)&consumed_at=is.null&limit=5"
+    );
+    if (staleRequests.length) {
+      throw new Error("Une demande de crédit technique non résolue subsiste ; récupération Caisse nécessaire avant une nouvelle recette.");
+    }
 
     const accountRows = await rows(
       "client_credits?select=id,solde&client_id=eq." + encodeURIComponent(clientUserId)
