@@ -110,43 +110,22 @@ begin
 
   insert into public.reservations(
     client_id,pharmacie_id,statut,total,mode,paiement_statut,stock_decremented
-  ) values
-    (v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false),
-    (v_client,v_other_pharmacy,'en_attente',10000,'reservation','a_verifier',false),
-    (v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false)
-  returning id into v_reservation_allowed;
+  ) values (
+    v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false
+  ) returning id into v_reservation_allowed;
 
-  -- Retrieve all three IDs in insertion order to avoid direct reliance on table ordering.
-  select r.id into v_reservation_allowed
-  from public.reservations r
-  where r.client_id=v_client
-    and r.pharmacie_id=v_pharmacy
-    and r.total=10000
-    and r.stock_decremented=false
-    and r.created_at >= transaction_timestamp()
-  order by r.created_at,r.id
-  limit 1;
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,mode,paiement_statut,stock_decremented
+  ) values (
+    v_client,v_other_pharmacy,'en_attente',10000,'reservation','a_verifier',false
+  ) returning id into v_reservation_other;
 
-  select r.id into v_reservation_stale
-  from public.reservations r
-  where r.client_id=v_client
-    and r.pharmacie_id=v_pharmacy
-    and r.total=10000
-    and r.stock_decremented=false
-    and r.created_at >= transaction_timestamp()
-    and r.id<>v_reservation_allowed
-  order by r.created_at,r.id
-  limit 1;
+  insert into public.reservations(
+    client_id,pharmacie_id,statut,total,mode,paiement_statut,stock_decremented
+  ) values (
+    v_client,v_pharmacy,'en_attente',10000,'reservation','a_verifier',false
+  ) returning id into v_reservation_stale;
 
-  select r.id into v_reservation_other
-  from public.reservations r
-  where r.client_id=v_client
-    and r.pharmacie_id=v_other_pharmacy
-    and r.total=10000
-    and r.stock_decremented=false
-    and r.created_at >= transaction_timestamp()
-  order by r.created_at,r.id
-  limit 1;
 
   if v_reservation_allowed is null or v_reservation_stale is null or v_reservation_other is null then
     raise exception 'Les trois réservations de recette ne sont pas disponibles';
