@@ -37,7 +37,7 @@ export default function AssuranceDashboardPage(){
   }else{
    const {data:id,error:e}=await sb.rpc("naxa_active_role_pharmacy");if(e||typeof id!=="string"){setError("Aucune pharmacie active n’est associée à ce poste.");setLoading(false);return;}ids=[id];
   }
-  if(!ids.length){setPharmacies([]);setDossiers([]);setEvents([]);setLoading(false);return;}
+  if(!ids.length){setPharmacies([]);setDossiers([]);setEvents([]);setProposals([]);setLoading(false);return;}
   setPharmacies(ids);
   const {data:pharmacyRows}=await sb.from("pharmacies").select("id,nom").in("id",ids);
   setPharmacyOptions((pharmacyRows??[]) as PharmacyOption[]);
@@ -118,7 +118,7 @@ export default function AssuranceDashboardPage(){
    const amount=Number(proposalAmounts[d.id]);
    const motif=(proposalReasons[d.id]||"").trim();
    const snapshot=snapshots.find(x=>x.reservation_id===d.reservation_id);
-   if(savingProposal||!snapshot||!snapshot.valide_client||!Number.isSafeInteger(amount)
+   if(savingProposal||!(proposalAmounts[d.id]||"").trim()||!snapshot||!snapshot.valide_client||!Number.isSafeInteger(amount)
       ||amount<0||amount>=Number(d.montant_prise_en_charge)||motif.length<3||motif.length>500)return;
    setSavingProposal(d.id);setError("");setNotice("");
    const {error:e}=await supabaseBrowser().rpc("assurance_proposer_montant",{
@@ -212,7 +212,7 @@ export default function AssuranceDashboardPage(){
         {pendingProposal&&<p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-950">Proposition v{pendingProposal.version} en attente : assureur {money(pendingProposal.montant_assureur_fcfa)} · client {money(pendingProposal.montant_client_fcfa)}. Une nouvelle proposition la remplacera.</p>}
         <label className="block text-xs font-semibold">Nouvelle part assureur (FCFA)<input type="number" min="0" max={Math.max(0,Number(d.montant_prise_en_charge)-1)} step="1" className="mt-1 w-full rounded-xl border p-2" value={proposalAmounts[d.id]||""} onChange={e=>setProposalAmounts(v=>({...v,[d.id]:e.target.value}))} placeholder={String(d.montant_prise_en_charge)}/></label>
         <label className="block text-xs font-semibold">Motif obligatoire (3 à 500 caractères)<textarea minLength={3} maxLength={500} className="mt-1 w-full rounded-xl border p-2" value={proposalReasons[d.id]||""} onChange={e=>setProposalReasons(v=>({...v,[d.id]:e.target.value}))} placeholder="Expliquer le motif de la modification"/></label>
-        <button type="button" disabled={savingProposal===d.id||!Number.isSafeInteger(Number(proposalAmounts[d.id]))||Number(proposalAmounts[d.id])<0||Number(proposalAmounts[d.id])>=Number(d.montant_prise_en_charge)||(proposalReasons[d.id]||"").trim().length<3} onClick={()=>void submitAmountProposal(d)} className="btn btn-vert w-full">{savingProposal===d.id?"Enregistrement…":pendingProposal?"Remplacer la proposition en attente":"Envoyer la proposition au Client"}</button>
+        <button type="button" disabled={savingProposal===d.id||!(proposalAmounts[d.id]||"").trim()||!Number.isSafeInteger(Number(proposalAmounts[d.id]))||Number(proposalAmounts[d.id])<0||Number(proposalAmounts[d.id])>=Number(d.montant_prise_en_charge)||(proposalReasons[d.id]||"").trim().length<3} onClick={()=>void submitAmountProposal(d)} className="btn btn-vert w-full">{savingProposal===d.id?"Enregistrement…":pendingProposal?"Remplacer la proposition en attente":"Envoyer la proposition au Client"}</button>
         {dossierProposals.length>0&&<details className="rounded-lg border p-2"><summary className="cursor-pointer text-xs font-bold">Historique des propositions ({dossierProposals.length})</summary><ol className="mt-2 space-y-2">{dossierProposals.map(p=><li key={p.id} className="border-t pt-2 text-xs"><p className="font-bold">Version {p.version} · {({proposee:"En attente du Client",acceptee:"Acceptée",refusee:"Refusée",remplacee:"Remplacée"} as Record<string,string>)[p.statut]}</p><p>Assureur {money(p.montant_assureur_fcfa)} · Client {money(p.montant_client_fcfa)}</p><p className="text-slate-500">{new Date(p.proposee_le).toLocaleString("fr-FR")} · {p.motif}</p></li>)}</ol></details>}
        </div>}
        {d.statut==="accepte"&&remaining>0&&canRecordPayment&&<div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-3">
