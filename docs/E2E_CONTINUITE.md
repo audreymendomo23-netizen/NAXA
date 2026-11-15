@@ -1594,7 +1594,7 @@ Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la
 - Les autres avis Supabase préexistants restent ouverts ; ce contrôle ne constitue pas un audit de sécurité global.
 
 **Tests de code :**
-- Les huit contrats Node sont présents dans `scripts/test-pharmacy-lot-expiry-notifications.cjs` (seuils, rôles, déduplication, date camerounaise, ACL, batch, interface Stock, lien de notification) ; les contrôles statiques de source/UI sont PASS. Le run `node --test` en CI reste à confirmer.
+- Les huit tests Node sont présents dans `scripts/test-pharmacy-lot-expiry-notifications.cjs` (seuils, rôles, déduplication, date camerounaise, ACL, batch, interface Stock, lien de notification). Vérification statique finale des fichiers versionnés : **10/10 groupes de contrats PASS**. Le lancement réel de `node --test` dans GitHub Actions après le dernier push reste à confirmer.
 - Le test Node est branché dans le workflow Replay et le workflow surveille la migration, le test SQL, le script et l'écran Stock.
 - **Run GitHub Actions après le dernier commit non confirmé** par les contrôles de session disponibles ; ne pas déclarer le test Node en CI PASS sur la seule présence du workflow.
 
