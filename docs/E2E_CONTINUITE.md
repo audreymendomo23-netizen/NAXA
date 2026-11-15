@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§62)  
+**Dernière mise à jour :** 15 novembre 2026 (§63)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **État global :** 🟡 PARTIEL — correctifs backend crédit Marketplace/comptoir et tests SQL Replay ciblés PASS (§59–§60). Le run Replay E2E 129 reste SUCCESS : Web Push Chromium 3/3 et Storage 17 PASS / 0 SKIP (§61). La configuration comptable des événements crédit est désormais permise par les RPC et appliquée sur Replay ; worker runtime octroi + remboursement PASS en transaction annulée, écritures équilibrées et zéro fixture comptable persistante (§62). Le vrai remboursement via JWT Caisse est maintenant un scénario automatisé versionné dans le workflow Replay, mais son exécution CI n'est pas encore confirmée. Parcours navigateur complet Client → Marketplace → décision → Stock → Caisse → remboursement toujours non prouvé. Les mappings/journaux commerciaux de chaque pharmacie restent à valider par son Promoteur/Comptable. Aucun PASS qualité actuel post-dernières modifications n'est confirmé. Production, Vercel et Play Store inchangés.
 
@@ -2590,3 +2590,27 @@ Fichiers ajoutés :
 5. **Navigateur/Android.** Le succès Chromium Web Push 3/3 du run 129 reste une preuve Web Push navigateur seulement ; FCM Android physique n'a pas été testé ici.
 
 **Verdict §62 : PROGRÈS RÉEL, MAIS PARTIEL / NO-GO GLOBAL.** La configuration des types comptables crédit est rétablie sur Replay ; le worker a passé une vraie exécution transactionnelle octroi + remboursement, équilibrée et annulée. Le test du remboursement avec le véritable JWT Caisse est intégré mais attend sa première exécution CI observée ; le parcours navigateur complet et les paramètres commerciaux restent ouverts. Aucune migration Production, aucun déploiement Vercel ni Play Store.
+
+
+## 63. Rejeu du worker versionné et durcissement du nettoyage remboursement (15/11/2026)
+
+### Test comptable versionné rejoué
+
+Le fichier \`supabase/tests/20261115230500_credit_accounting_worker_runtime.sql\` — commit [\`8d80a6a0\`](https://github.com/audreymendomo23-netizen/NAXA/commit/8d80a6a0d810892f58b9f406218e1644b6a1d15d) — a été relu depuis \`main\` puis exécuté intégralement sur Replay après sa création : **PASS**.
+- \`credit_octroi\` et \`credit_remboursement\` traités par \`compta_traiter_evenement\`.
+- Deux écritures comptables et quatre lignes ; débit cumulé = crédit cumulé = **500 FCFA**.
+- Les événements passent à \`traite\` avant la fin du test.
+- La transaction est annulée intégralement.
+- Contrôle post-run : zéro compte/mapping/journal/période/événement/écriture technique résiduel sur la pharmacie cachée.
+
+### Durcissement du test remboursement Auth
+
+- Le script \`scripts/e2e/verify-credit-refund-runtime.cjs\` supporte les clés Supabase de type \`sb_secret_\` sans les placer comme Bearer JWT ; seuls les véritables jetons de session Promoteur/Caisse/Client sont utilisés pour les RPC sous rôle utilisateur.
+- Les mots de passe Caisse et Client sont écrits comme fichiers temporaires 0600 dans le runner, les chemins sont transférés via \`GITHUB_ENV\`, puis les fichiers sont supprimés dans l'étape \`always()\`.
+- Le script vérifie que le payload d'outbox porte le bon montant et la référence source ; il refuse aussi un remboursement supérieur au solde restant.
+- Nettoyage ordonné : suppression de l'opération temporaire, retrait de son événement outbox, suppression du compte crédit et de la fiche Client créée par la fixture ; enfin, clôture de la session Caisse **après** suppression des opérations de test, avec total espèces nul. La session fermée est conservée comme trace d'audit et relue pour confirmer statut clôturé, total théorique 0, total compté 0 et écart 0.
+- Le script échoue si une opération, un événement, un compte ou une session ouverte subsiste. Le script ne prétend pas simuler une vente : le solde initial de 500 FCFA est préchargé par le service Replay uniquement pour tester le RPC de remboursement.
+- Derniers commits de durcissement : [\`f7997dac\`](https://github.com/audreymendomo23-netizen/NAXA/commit/f7997dac985d7b1c3942d03b3fde52119d59d168), [\`f52a0759\`](https://github.com/audreymendomo23-netizen/NAXA/commit/f52a07590c9b90532beb24049bdcbea51ce376e2), [\`b2c28b01\`](https://github.com/audreymendomo23-netizen/NAXA/commit/b2c28b018e13b40c23cf9c2b40fdcba989885680).
+- Le chemin reste intégré au workflow Replay ; le statut combiné des commits consultés ne fournit aucun contexte de statut exploitable et les identifiants de runs récents ne sont pas exposés par les outils disponibles dans cette reprise. La recette remboursement runtime reste donc **INTÉGRÉE / EXÉCUTION CI NON CONFIRMÉE**.
+
+**Verdict §63 :** la comptabilité technique crédit est maintenant prouvée sur Replay par le worker, avec rollback et zéro résidu. Le remboursement authentifié bénéficie d'un harnais plus sûr et d'un nettoyage contrôlé, mais n'est pas déclaré PASS avant une conclusion SUCCESS visible du workflow Replay. Le parcours navigateur complet et les paramètres comptables commerciaux légitimes restent ouverts. Production, Vercel et Play Store inchangés.
