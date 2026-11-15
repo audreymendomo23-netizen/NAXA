@@ -215,7 +215,7 @@ async function run(env = process.env) {
       throw new Error("Le dispatcher n'a pas ciblé le rôle actif : " + item.label + ".");
     }
 
-    browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+    browser = await chromium.launch({ headless: true, channel: "chromium", args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     for (const identity of identities) {
       const context = await browser.newContext();
       contexts.push(context);
@@ -224,6 +224,14 @@ async function run(env = process.env) {
       await page.goto(ORIGIN + "/", { waitUntil: "domcontentloaded", timeout: 30000 });
 
       const subscription = await page.evaluate(async (publicKey) => {
+        const permission = Notification.permission;
+        if (permission !== "granted") {
+          throw new Error("Permission Notifications non accordée dans Chromium (" + permission + ").");
+        }
+        const permissionStatus = await navigator.permissions.query({ name: "notifications" });
+        if (permissionStatus.state !== "granted") {
+          throw new Error("Permission API Notifications non accordée dans Chromium (" + permissionStatus.state + ").");
+        }
         const registration = await navigator.serviceWorker.register("/naxa-push-sw.js", { scope: "/naxa-push/" });
         await navigator.serviceWorker.ready;
         const existing = await registration.pushManager.getSubscription();
