@@ -2450,7 +2450,7 @@ Tous les scénarios E2E SQL ci-dessus sont annulés par ROLLBACK.
 
 ### GitHub Actions lancées
 
-- [NAXA quality — run 3321](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589972), commit e67d066 : **en cours au contrôle**. Le run précédent 3319 sur c277bff a exécuté **511/511 tests Node PASS** et actionlint PASS, mais TypeScript a échoué sur le narrowing de panier_items dans les écrans Promoteur/Responsable. Ces deux erreurs ont été corrigées sur main avant le run 3321 ; ne pas compter le build TypeScript/Next PASS avant la conclusion du run 3321.
+- [NAXA quality — run 3321](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589972), commit e67d066 : **SUCCESS**. Node : **511/511 PASS, 0 FAIL** (tests rejoués aussi pendant le prebuild) ; TypeScript : PASS ; ESLint : PASS ; build Next.js/Serwist : PASS ; actionlint sur les workflows actifs : PASS. Le run 3319 précédent sur c277bff avait détecté le narrowing de panier_items dans les écrans Promoteur/Responsable ; les deux erreurs ont été corrigées avant ce run réussi.
 - [NAXA Replay Promoteur E2E — run 124](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43760589933), commit e67d066 : **en cours au contrôle**. Le run précédent 122 sur c277bff a échoué au build sur les mêmes erreurs TypeScript antérieures à la correction. Le run 124 est la reprise sur le commit corrigé ; il a déjà franchi le préflight Replay et les préparations Promoteur, Admin, Client/Livreur, Gestionnaire Stock, Caisse et Responsable, puis installait Chromium.
 - Le workflow Replay est désormais déclenché par les chemins du chantier crédit/prêt (écrans Caisse/Promoteur/Responsable, migrations et tests crédit) ainsi que par les changements du workflow lui-même.
 
