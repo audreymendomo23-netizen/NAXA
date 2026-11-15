@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§47)  
+**Dernière mise à jour :** 15 novembre 2026 (§48)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. Production et Vercel inchangés.
+**État global :** 🟡 PARTIEL — rappels de péremption J-30/J-15/J-7/J-3/J0 configurés et cron batch actif sur Replay (§45) ; recette runtime Replay §46 exécutée : 2 notifications in-app Promoteur/Gestionnaire Stock, 2 enqueues dans chaque file push, aucun envoi Caisse/Livreur, recherche publique excluant l'offre quand seul un lot périmé subsiste ; job cron observé succeeded. Les files push de recette étaient encore pending : réception sur téléphone non démontrée. Tous les stocks, lots, notifications, journaux et indicateurs temporaires ont été nettoyés ; Mvan restaurée est_demo=true. Exécution Node/GitHub Actions post-commit non confirmée. Une pharmacie publique réelle et un appareil push enregistré restent nécessaires pour la dernière preuve de livraison. Modèle des fiches désormais indépendant par pharmacie (§47) : deux déclarations E2E authentifiées du même médicament et code-barres ont produit deux IDs propriétaires, prix et stocks distincts ; refus du cross-owner et Admin en lecture seule. Contrat SQL PASS ; Node/GitHub Actions non confirmé. §48 : les 8 assertions du contrat de péremption ont été rejouées sur les fichiers de main et passent 8/8 ; le runner GitHub Actions node --test reste non confirmé. Contrôle Replay : zéro abonnement push/appareil actif, zéro profil ou affectation Responsable et zéro pharmacie non-démo ; les preuves téléphone et pharmacie/Responsable restent bloquées par l'absence de fixtures réelles. Aucun état artificiel n'a été créé. Production et Vercel inchangés.
 
 
 
@@ -1755,3 +1755,69 @@ Le modèle précédent imposait une unicité globale sur `(nom,dosage,forme)` et
 2. Sur une pharmacie non-démo de recette explicitement autorisée, créer une fiche identique à celle d'une autre pharmacie, enregistrer une offre réelle traçable et vérifier dans la recherche publique que chaque offre reste rattachée à son propre `produit_id`, son prix et sa pharmacie.
 3. Reprendre ensuite une réception réelle avec lots et péremption, puis réservation Client → préparation Gestionnaire Stock → affectation Livreur → livraison. Ne jamais remplacer ces preuves par des quantités fictives.
 4. Maintenir Production et Vercel inchangés jusqu'à autorisation expresse.
+
+
+## 48. Vérification des assertions Node et clôture factuelle des dépendances externes (15/11/2026)
+
+**Périmètre :** vérification des sources main et lecture agrégée de NAXA Replay (pwfftcsjyeibxxqhwysw). Aucune écriture SQL, aucun utilisateur, appareil, lot ou stock temporaire créé. Production et Vercel non touchés.
+
+### Contrat de test — assertions rejouées
+
+Le fichier scripts/test-pharmacy-lot-expiry-notifications.cjs contient huit groupes d'assertions. Leur logique a été réexécutée contre le contenu exact des sources récupérées depuis main dans l'environnement d'audit :
+
+| Groupe | Résultat |
+|---|---|
+| Seuils J-30/J-15/J-7/J-3/J0, Africa/Douala et cadence cron | **PASS** |
+| Ciblage Promoteur, Responsable et Gestionnaire Stock actifs | **PASS** |
+| Déduplication par lot/date/seuil/destinataire | **PASS** |
+| Date locale Cameroun et exclusion Marketplace des lots périmés | **PASS** |
+| Table privée, ACL et fixture SQL annulable | **PASS** |
+| Progression batch et absence de rediffusion aux destinataires servis | **PASS** |
+| Date civile Africa/Douala dans l'interface Stock | **PASS** |
+| Lien direct vers Lots & Péremptions | **PASS** |
+
+**Résultat : 8/8 assertions PASS.** Sources vérifiées par SHA de blob : migration c80433f0e521853084cca4c7490105084a2ed9b7, batch fe1f61399e41d5c363b87b7d5efa6fd5a2b942e3, test SQL fc893546c6b29fca0d5e6075e59dbe1177aff7d5, UI Stock 3d01589e264338069b99bab26a9b43d1d71e35ec, page Notifications 375256b14674b23e7adf1a4a6c69b403610aeddb, script Node 9c6e3693d04a9299c4052c62287dced79b75f46c.
+
+**Limite de preuve :** il s'agit d'une réexécution des huit assertions sur les sources actuelles, pas d'une invocation du runner node --test. Le workflow GitHub inclut workflow_dispatch et un déclenchement push filtré, mais le connecteur de cette session ne fournit pas l'action de dispatch ni la liste des runs push. Le statut combiné du commit consulté 70266ea1cc61136ffbe69bfe70bc070e12fb04b4 est vide. CI Node/TypeScript/lint/build : **NON CONFIRMÉ**, jamais déclaré PASS.
+
+### Réalité du canal push sur Replay
+
+Lecture des tables de souscription et d'appareils :
+
+| Source | Enregistrements actifs |
+|---|---:|
+| public.naxa_push_subscriptions | **0** |
+| public.naxa_payment_notification_devices | **0** |
+| public.naxa_partner_payment_devices | **0** |
+| public.naxa_promoteur_payment_devices | **0** |
+
+Les deux files contiennent chacune une ancienne ligne pending (état de référence, pas une preuve d'envoi). Aucun terminal Promoteur/Gestionnaire Stock n'est donc appairé avec un abonnement ou jeton push actif dans Replay. Sans appareil réel, consentement et abonnement, l'envoi fournisseur et la réception visuelle ne peuvent pas être démontrés. **Point classé BLOQUÉ — dépendance appareil**, pas défaut de l'algorithme d'alerte. Aucune ligne de file n'a été traitée ni modifiée.
+
+### Réalité du rôle Responsable et de la pharmacie
+
+- Les profils actifs recensés dans Replay couvrent Admin, Client, Caisse, Gestionnaire Stock, Livreur et Promoteur ; **aucun profil Responsable** n'existe.
+- Sur la pharmacie E2E Mvan, les affectations actives sont Caisse (1), Gestionnaire Stock (1) et Livreur (1) ; aucune affectation Responsable.
+- Replay contient **0 pharmacie non-démo** et **0 pharmacie publique non-démo**. Les deux enregistrements Mvan visibles portent est_demo=true.
+- Aucune pharmacie n'a été artificiellement requalifiée en non-démo ; aucun profil Client/Employé n'a été détourné en Responsable.
+
+**Point classé BLOQUÉ — fixture professionnelle réelle** : il faut une pharmacie de recette explicitement autorisée, non-démo par conception, et un compte Auth Responsable créé/affecté par le parcours professionnel normal du Promoteur. Une ligne de profil isolée ou un changement opportuniste de rôle ne constituerait pas une preuve valable.
+
+### État consolidé et continuation exacte
+
+| Point | État |
+|---|---|
+| Assertions source du test de péremption | **8/8 PASS** |
+| Runner GitHub Actions node --test + TypeScript/lint/build | **NON CONFIRMÉ** |
+| Enqueue notifications in-app / files push sur la recette précédente (§46) | **PASS** |
+| Envoi fournisseur et réception sur téléphone réel | **BLOQUÉ — aucun appareil/abonnement actif** |
+| Ciblage runtime d'un Responsable | **BLOQUÉ — aucun compte/affectation Responsable** |
+| Recette sur pharmacie non-démo | **BLOQUÉ — aucune pharmacie non-démo sur Replay** |
+| Production et Vercel | **INCHANGÉS** |
+
+**État global : PARTIEL, pas AU VERT.** Les contrats techniques vérifiables sont PASS ; les points restants dépendent d'éléments réels non présents dans Replay et ne doivent pas être simulés.
+
+**Point exact de reprise :**
+1. Déclencher manuellement le workflow NAXA Replay Promoteur E2E depuis GitHub Actions (workflow_dispatch) et consigner les logs des étapes Node, TypeScript, lint et build.
+2. Enregistrer un appareil Android de recette sur un compte Promoteur ou Gestionnaire Stock Replay, accepter explicitement les permissions/notifications, vérifier la création d'un abonnement/token, puis prouver l'état envoyé côté fournisseur et la réception sur le téléphone.
+3. Créer ou autoriser une pharmacie de recette non-démo dédiée et un véritable compte Auth Responsable ; lui attribuer l'affectation par le parcours professionnel normal, puis répéter la notification sur un lot de recette au seuil attendu.
+4. Garder Production et Vercel inchangés jusqu'à autorisation expresse.
