@@ -198,7 +198,7 @@ export async function proposerAccreditationPharmacien(formData:FormData){
     ||issuingAuthority.length<2||issuingAuthority.length>180
     ||specialty.length>120
     ||motif.length<5||motif.length>500
-    ||(validUntil&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(validUntil))
+    ||(validUntil&&!/^\d{4}-\d{2}-\d{2}$/.test(validUntil))
     ||!(file instanceof File)||file.size===0||file.size>10*1024*1024
     ||!["application/pdf","image/jpeg","image/png"].includes(file.type)){
     redirect("/pharmacie/affectations?erreur=accreditation_validation");
