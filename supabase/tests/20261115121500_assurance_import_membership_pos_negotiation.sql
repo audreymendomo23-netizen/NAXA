@@ -75,6 +75,10 @@ begin
 
   v_calculate:=pg_get_functiondef('public.assurance_calculer_devis(uuid,uuid)'::regprocedure);
   if position('assurance_couverture_verifications' in v_calculate)=0
+     or position('where c.id=p_couverture and c.client_id=v_uid' in replace(lower(v_calculate),E'\\n',' '))=0
+     or position('v.couverture_id=c.id' in lower(v_calculate))=0
+     or position('v2.couverture_id=c.id' in lower(v_calculate))=0
+     or position('v.couverture_id=v_c.id' in lower(v_calculate))>0
      or position('v_r.pharmacie_id' in v_calculate)=0
      or position('v.declaration_maj_at=v_c.declaration_maj_at' in v_calculate)=0
      or position('v.statut=''verifiee''' in v_calculate)=0 then
