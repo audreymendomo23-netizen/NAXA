@@ -65,6 +65,16 @@ begin
      or v_definition not ilike '%can_operate_pharmacy%' then
     raise exception 'Le garde Caisse doit conserver le scope identité/pharmacie sans dépendre de la visibilité publique';
   end if;
+
+  v_definition := pg_get_functiondef(
+    'public.vente_encaisser_finaliser(uuid,integer)'::regprocedure
+  );
+  if v_definition ilike '%visible_recherche%'
+     or v_definition not ilike '%ph.actif=true%'
+     or v_definition not ilike '%ph.archivee_le is null%'
+     or v_definition not ilike '%can_operate_pharmacy%' then
+    raise exception 'L''encaissement doit garder activité, non-archivage et droits sans exiger la publication Marketplace';
+  end if;
 end
 $contract$;
 

@@ -31,7 +31,7 @@ Tous les tests ci-dessous ont été exécutés sur Supabase Replay, jamais sur S
 
 La recette a révélé une cause racine métier : le POS réutilisait `marketplace_offre_stock_disponible`, qui applique les filtres de publication publique (pharmacie visible, non-démo et stock actualisé depuis moins de 48 h). Ces filtres sont légitimes pour le Marketplace mais ne doivent pas bloquer les ventes internes d'une pharmacie active non publiée.
 
-Le correctif proposé ajoute le helper privé `private.naxa_pos_stock_vendable` et rebranche quatre consommateurs POS (recherche simple/code-barres, ajout au panier et débit à l'encaissement). Le helper conserve les garde-fous pharmacie active/non archivée, lots bloqués/périmés et réservations actives. Le test 284 est réaligné pour garder `est_demo=true` et `visible_recherche=false`, sans modifier `fiche_validee`.
+Le correctif ajoute le helper privé `private.naxa_pos_stock_vendable` et rebranche les fonctions POS de recherche simple/code-barres, ajout au panier et débit à l'encaissement. Il découple aussi les deux gardes d'autorisation/encaissement (`naxa_caisse_actor_for_pharmacy` et `vente_encaisser_finaliser`) de la visibilité Marketplace. Le helper conserve les garde-fous pharmacie active/non archivée, lots bloqués/périmés et réservations actives. Le test 284 est réaligné pour garder `est_demo=true` et `visible_recherche=false`, sans modifier `fiche_validee`.
 
 **Résultat du test corrigé :**
 - Vente appliquée : **4 700 FCFA**.

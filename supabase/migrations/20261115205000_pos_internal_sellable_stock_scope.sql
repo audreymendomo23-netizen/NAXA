@@ -161,6 +161,23 @@ begin
   elsif v_definition ilike '%visible_recherche%' or v_definition not ilike '%ph.archivee_le is null%' then
     raise exception 'Le garde Caisse est dans un état inattendu : aucune règle de visibilité ne doit être ajoutée implicitement';
   end if;
+
+  -- Final cash settlement is also private POS behavior. Do not reject a
+  -- legitimate active pharmacy merely because its Marketplace listing is hidden.
+  v_signature := 'public.vente_encaisser_finaliser(uuid,integer)'::regprocedure;
+  v_definition := pg_get_functiondef(v_signature);
+  v_before := v_definition;
+  v_definition := replace(
+    v_definition,
+    'and ph.visible_recherche=true',
+    'and ph.archivee_le is null'
+  );
+  if v_definition <> v_before then
+    execute v_definition;
+  elsif v_definition ilike '%visible_recherche%'
+     or v_definition not ilike '%ph.archivee_le is null%' then
+    raise exception 'Le garde d''encaissement contient une règle de publication inattendue';
+  end if;
 end
 $rewire$;
 

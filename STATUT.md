@@ -2,7 +2,7 @@
 
 **État : PARTIEL — correctif source préparé, validation Replay à exécuter.** Le catalogue est publié par la pharmacie propriétaire ; la lecture publique reste conditionnée à une offre d'une pharmacie réelle, active et publiée. La Caisse doit calculer son stock indépendamment des filtres de publication Marketplace.
 
-- Migration préparée : `20261115205000_pos_internal_sellable_stock_scope.sql` ; helper privé `private.naxa_pos_stock_vendable`, rebranchement des quatre consommateurs POS (recherche, codes-barres, ajout au panier, débit à l'encaissement).
+- Migration préparée : `20261115205000_pos_internal_sellable_stock_scope.sql` ; helper privé `private.naxa_pos_stock_vendable`, rebranchement des quatre consommateurs POS (recherche, codes-barres, ajout au panier, débit) et retrait du filtre de publication des deux gardes Caisse (`naxa_caisse_actor_for_pharmacy`, `vente_encaisser_finaliser`).
 - Contrats SQL réalignés : les anciens tests `20261105142000`, `20261115190000` et `20261115191000` attendaient encore une validation NAXA des fiches ou un accès API direct à un helper privé. Les nouvelles assertions gardent la publication contrôlée par pharmacie et les ACL privées.
 - Le test 284 utilise désormais une pharmacie Replay active/démo non publiée (`est_demo=true`, `visible_recherche=false`) et n'altère plus `fiche_validee`. Exécution à confirmer après application transactionnelle du correctif.
 - **Aucune écriture Supabase Production, aucun déploiement.** Replay utilisé : `pwfftcsjyeibxxqhwysw`.
