@@ -55,6 +55,16 @@ begin
       raise exception 'La recherche Caisse doit retourner le stock vendable interne, pas la quantité brute agrégée';
     end if;
   end loop;
+
+  v_definition := pg_get_functiondef(
+    'public.naxa_caisse_actor_for_pharmacy(uuid)'::regprocedure
+  );
+  if v_definition ilike '%visible_recherche%'
+     or v_definition not ilike '%ph.archivee_le is null%'
+     or v_definition not ilike '%private.naxa_scope_allows%'
+     or v_definition not ilike '%can_operate_pharmacy%' then
+    raise exception 'Le garde Caisse doit conserver le scope identité/pharmacie sans dépendre de la visibilité publique';
+  end if;
 end
 $contract$;
 

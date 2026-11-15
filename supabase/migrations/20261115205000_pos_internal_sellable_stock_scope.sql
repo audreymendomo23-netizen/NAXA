@@ -142,6 +142,21 @@ begin
 
     execute v_definition;
   end loop;
+  -- The Caisse actor guard must enforce identity and pharmacy scope, not
+  -- public Marketplace visibility. A hidden/ unpublished pharmacy still operates
+  -- its private POS while active and not archived.
+  v_signature := 'public.naxa_caisse_actor_for_pharmacy(uuid)'::regprocedure;
+  v_definition := pg_get_functiondef(v_signature);
+  v_before := v_definition;
+  v_definition := replace(
+    v_definition,
+    'and ph.actif=true and ph.visible_recherche=true',
+    'and ph.actif=true and ph.archivee_le is null'
+  );
+  if v_definition = v_before then
+    raise exception 'Le garde Caisse contient une condition de visibilité attendue absente';
+  end if;
+  execute v_definition;
 end
 $rewire$;
 
