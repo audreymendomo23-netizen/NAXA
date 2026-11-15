@@ -145,6 +145,8 @@ export async function GET(request: Request) {
             webPushSent++;
           } catch (error) {
             const status = (error as { statusCode?: number }).statusCode;
+            webPushFailures++;
+            webPushErrorCodes.add(typeof status === "number" && Number.isInteger(status) ? String(status) : "network_error");
             if (status === 404 || status === 410) {
               await db.from("naxa_push_subscriptions").delete()
                 .eq("endpoint", sub.endpoint).eq("user_id", item.user_id);
