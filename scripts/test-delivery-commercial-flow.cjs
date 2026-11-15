@@ -39,25 +39,27 @@ const files = {
   reviewSql: read("supabase/migrations/20261107120000_delivery_reviews_and_commission_scope_20261107.sql"),
   posSql: read("supabase/migrations/20261107133000_delivery_pos_cash_collection_and_monthly_due_20261107.sql"),
   courierSql: read("supabase/migrations/20261107141000_delivery_courier_cash_and_eta_mission_data.sql"),
-  settlementSql: read("supabase/migrations/20261107144500_delivery_subscription_commission_settlement_trigger.sql"),
+  noCommissionSql: read("supabase/migrations/20261115130000_delivery_no_naxa_commission_policy.sql"),
 };
 
-test("le devis routier applique les tranches progressives et les zones tout en conservant 500 FCFA pour NAXA", () => {
+test("le devis routier conserve le barème progressif et affecte 100 % des frais au service sans commission NAXA", () => {
   assert.match(files.pricing, /FRAIS_LIVRAISON_MIN\s*=\s*1500/);
   assert.match(files.pricing, /FRAIS_LIVRAISON_MAX_STANDARD\s*=\s*3500/);
-  assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\s*=\s*500/);
+  assert.match(files.pricing, /COMMISSION_NAXA_LIVRAISON\s*=\s*0/);
   assert.match(files.pricingTest, /calculerFraisLivraison\(3\), 1550/);
   assert.match(files.pricingTest, /calculerFraisLivraison\(20, "eloignee", 700\), 5200/);
-  assert.match(files.pricingTest, /commissionNaxa: 500/);
+  assert.match(files.pricingTest, /commissionNaxa: 0/);
+  assert.match(files.pricingTest, /soldeLivraison: amount/);
   assert.match(files.routing, /return calculerFraisLivraison\(distanceKm, zoneType, supplementZoneFcfa\)/);
-  assert.match(files.createSql, /check \(commission_naxa = 500\)/);
+  assert.match(files.noCommissionSql, /check \(commission_naxa = 0\)/);
+  assert.match(files.noCommissionSql, /check \(solde_livraison = frais_livraison_client\)/);
+  assert.match(files.noCommissionSql, /v_r\.frais_livraison, 0, v_r\.frais_livraison/);
+  assert.match(files.noCommissionSql, /between 1500 and 20000/);
   assert.match(files.quoteSql, /new\.frais_livraison := v_quote\.frais_livraison/);
   assert.match(files.tariffSql, /frais_livraison between 1500 and 20000/);
-  assert.match(files.tariffSql, /v_r\.frais_livraison between 1500 and 20000/);
   assert.match(files.tariffSql, /naxa_delivery_tariff_zones/);
   assert.match(files.zoneConfig, /naxa_delivery_tariff_zones/);
   assert.match(files.adminDeliveries, /DeliveryTariffZoneConfig/);
-  assert.match(files.tariffSql, /solde_livraison/);
 });
 
 test("le Client demande la livraison avant paiement et choisit le paiement seulement après confirmation Stock", () => {
@@ -121,23 +123,26 @@ test("le suivi géographique est consultable côté Client et côté pharmacie",
   assert.match(files.pharmacyTracking, /setInterval/);
 });
 
-test("les frais sont montrés au Client sans dévoiler la commission NAXA", () => {
+test("les frais sont visibles au Client et les rapports affichent zéro retenue NAXA", () => {
   assert.match(files.paymentSelector, /Livraison\s*:/);
   assert.doesNotMatch(files.paymentSelector, /commission_naxa|commission NAXA/i);
   assert.doesNotMatch(files.checkout, /commission NAXA|commission de plateforme/i);
   assert.match(files.pharmacyOrders, /frais_livraison/);
-  assert.match(files.report, /500 FCFA par livraison terminée/);
-  assert.match(files.adminDeliveries, /DeliveryCommissionReport/);
-  assert.match(files.promoterDeliveries, /DeliveryCommissionReport/);
+  assert.match(files.report, /NAXA ne prélève aucune commission/);
+  assert.match(files.report, /0 FCFA/);
+  assert.match(files.adminDeliveries, /DeliveryFeesReport/);
+  assert.match(files.promoterDeliveries, /DeliveryFeesReport/);
 });
 
-test("les commissions sont uniques, rapportées par pharmacie/région et rapprochées avec l'abonnement mensuel", () => {
+test("les frais de livraison ne sont jamais ajoutés au montant mensuel de l'abonnement", () => {
   assert.match(files.createSql, /reservation_id uuid not null unique/);
   assert.match(files.createSql, /on conflict\(mission_id\) do nothing/);
   assert.match(files.posSql, /naxa_delivery_monthly_due/);
-  assert.match(files.settlementSql, /montant_mensuel/);
-  assert.match(files.settlementSql, /new\.montant>=v_base_due\+v_commission_due/);
+  assert.match(files.noCommissionSql, /drop trigger if exists trg_naxa_delivery_commission_monthly_settlement/);
+  assert.match(files.noCommissionSql, /drop function if exists private\.naxa_delivery_sync_subscription_commission_settlement/);
+  assert.match(files.noCommissionSql, /retenue_naxa', 0/);
   assert.match(files.report, /naxa_delivery_monthly_due/);
+  assert.doesNotMatch(files.report, /commission_a_payer|commissions à ajouter|commission acquise/i);
   assert.match(files.reviewSql, /v_role<>'promoteur'/);
 });
 
