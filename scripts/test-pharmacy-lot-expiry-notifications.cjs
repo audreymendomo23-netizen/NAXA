@@ -63,7 +63,7 @@ test("table privée, ACL et fixture transactionnelle annulée", () => {
 });
 
 test("interface Lots & péremptions utilise la date civile Africa/Douala et non UTC", () => {
-  assert.match(stockUi, /Africa\\/Douala/);
-  assert.match(stockUi, /dateDouala\\(new Date\\(\\)\\)/);
-  assert.doesNotMatch(stockUi, /toISOString\\(\\)\\.slice\\(0,10\\)/);
+  assert.ok(stockUi.includes('timeZone:"Africa/Douala"'));
+  assert.ok(stockUi.includes("dateDouala(new Date())"));
+  assert.equal(stockUi.includes("toISOString().slice(0,10)"), false);
 });
