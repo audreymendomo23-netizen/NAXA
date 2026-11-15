@@ -20,8 +20,8 @@ begin
   set local session_replication_role='replica';
   insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values
-    (v_admin,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-pos-admin-'||replace(v_admin::text,'-','')||'@example.invalid','x',now(),'{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb,'{}'::jsonb,now(),now()),
-    (v_client,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-pos-client-'||replace(v_client::text,'-','')||'@example.invalid','x',now(),'{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb,'{}'::jsonb,now(),now());
+    (v_admin,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-pos-admin-'||replace(v_admin::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now()),
+    (v_client,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','naxa-credit-pos-client-'||replace(v_client::text,'-','')||'@example.invalid','x',now(),'{"provider":"email","providers":["email"]}'::jsonb,'{}'::jsonb,now(),now());
   set local session_replication_role='origin';
 
   insert into public.profiles(id,role,first_name,last_name,actif,age_verified,consent_accepted_at,niveau_interne)
