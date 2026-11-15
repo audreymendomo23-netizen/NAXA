@@ -3,7 +3,7 @@ import { useCallback,useEffect,useMemo,useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Snapshot={id:string;assureur_id:string;montant_brut_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;valide_client:boolean;controle_documents_statut:string;calcule_le:string;};
-type Coverage={id:string;assureur_id:string;nom:string;numero_adherent:string;date_debut:string;date_fin:string|null;};
+type Coverage={id:string;assureur_id:string;nom:string;numero_adherent:string;date_debut:string;date_fin:string|null;verification_statut:"non_verifiee"|"verifiee"|"suspendue"|"expiree";verification_pharmacie_id:string|null;};
 type Insurer={id:string;nom:string};
 type Proposal={id:string;version:number;statut:"proposee"|"acceptee"|"refusee"|"remplacee";montant_total_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;motif:string;proposee_le:string;decidee_le:string|null;};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR").format(Number(v||0))+" FCFA";
@@ -12,6 +12,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
  const sb=useMemo(()=>supabaseBrowser(),[]);
  const [data,setData]=useState<Snapshot|null>(null),[name,setName]=useState("Assureur");
  const [coverages,setCoverages]=useState<Coverage[]>([]),[insurers,setInsurers]=useState<Insurer[]>([]);
+ const [reservationPharmacyId,setReservationPharmacyId]=useState("");
  const [selected,setSelected]=useState(""),[newInsurer,setNewInsurer]=useState(""),[member,setMember]=useState(""),[policy,setPolicy]=useState("");
  const [start,setStart]=useState(new Date().toISOString().slice(0,10)),[end,setEnd]=useState("");
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -38,18 +39,22 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
   setData(null);setProposals([]);
   const {data:u}=await sb.auth.getUser();
   if(!u.user){setLoading(false);return;}
-  const today=new Date().toISOString().slice(0,10);
-  const {data:rows,error:ce}=await sb.from("couvertures_assurance")
-   .select("id,assureur_id,numero_adherent,date_debut,date_fin")
-   .eq("client_id",u.user.id).eq("actif",true).lte("date_debut",today);
+  const [{data:reservation,error:reservationError},{data:rows,error:ce}]=await Promise.all([
+   sb.from("reservations").select("pharmacie_id").eq("id",reservationId).eq("client_id",u.user.id).maybeSingle(),
+   sb.from("couvertures_assurance").select("id,assureur_id,numero_adherent,date_debut,date_fin,verification_statut,verification_pharmacie_id").eq("client_id",u.user.id).eq("actif",true)
+  ]);
+  if(reservationError||!reservation){setError("Cette réservation n’est pas accessible à votre compte.");setLoading(false);return;}
   if(ce){setError("Impossible de charger vos couvertures Assurance.");setLoading(false);return;}
-  const active=(rows??[]).filter(x=>!x.date_fin||x.date_fin>=today);
+  const today=new Date().toISOString().slice(0,10);
+  setReservationPharmacyId(reservation.pharmacie_id);
+  const active=(rows??[]).filter(x=>x.date_debut&&x.date_debut<=today&&(!x.date_fin||x.date_fin>=today));
   const ids=[...new Set(active.map(x=>x.assureur_id))];
   const {data:ins}=await sb.from("assureurs").select("id,nom").eq("actif",true).order("nom");
   const names=new Map((ins??[]).map(x=>[x.id,x.nom]));
   setInsurers((ins??[]) as Insurer[]);
   const mapped=active.map(x=>({...x,nom:names.get(x.assureur_id)??"Assureur"})) as Coverage[];
-  setCoverages(mapped);setSelected(mapped[0]?.id??"");setNewInsurer(ins?.[0]?.id??"");setLoading(false);
+  const eligible=mapped.filter(x=>x.verification_statut==="verifiee"&&x.verification_pharmacie_id===reservation.pharmacie_id);
+  setCoverages(mapped);setSelected(eligible[0]?.id??"");setNewInsurer(ins?.[0]?.id??"");setLoading(false);
  },[reservationId,sb]);
 
  useEffect(()=>{void load()},[load]);
@@ -90,6 +95,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
   else await load();
   setBusy(false);
  };
+ const eligibleCoverages=coverages.filter(x=>x.verification_statut==="verifiee"&&x.verification_pharmacie_id===reservationPharmacyId);
  const acceptedProposal=proposals.filter(x=>x.statut==="acceptee").sort((a,b)=>b.version-a.version)[0]??null;
  const pendingProposal=proposals.find(x=>x.statut==="proposee")??null;
  const proposalStatus:Record<string,string>={proposee:"En attente de votre réponse",acceptee:"Acceptée",refusee:"Refusée",remplacee:"Remplacée par une nouvelle proposition"};
@@ -98,14 +104,16 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
  if(!data)return <section className="carte space-y-3">
   <h2 className="font-extrabold">Prise en charge par assurance</h2>
   <p className="text-sm text-slate-600">Associez une couverture active à cette réservation. Le devis sera calculé côté serveur selon la convention de la pharmacie. La pharmacie vérifiera les justificatifs avant toute prise en charge.</p>
-  {coverages.length>0&&<><label className="block text-sm font-semibold" htmlFor="assurance-couverture">Votre couverture</label>
+  {eligibleCoverages.length>0&&<><label className="block text-sm font-semibold" htmlFor="assurance-couverture">Couverture vérifiée pour cette pharmacie</label>
    <select id="assurance-couverture" className="w-full rounded-xl border p-3" value={selected} onChange={e=>setSelected(e.target.value)}>
-    {coverages.map(x=><option key={x.id} value={x.id}>{x.nom} · Adhérent {x.numero_adherent}</option>)}
+    {eligibleCoverages.map(x=><option key={x.id} value={x.id}>{x.nom} · Adhérent {x.numero_adherent}</option>)}
    </select>
    <button disabled={!selected||busy} onClick={()=>void quote()} className="btn btn-vert w-full">{busy?"Calcul…":"Calculer mon devis assurance"}</button>
   </>}
+  {coverages.length>0&&eligibleCoverages.length===0&&<p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Votre couverture est enregistrée, mais elle n’a pas encore été rapprochée avec une liste de cet assureur importée par cette pharmacie. Le devis Assurance reste indisponible tant que cette vérification n’est pas faite.</p>}
+  {coverages.some(x=>x.verification_statut==="suspendue"&&x.verification_pharmacie_id===reservationPharmacyId)&&<p className="text-xs text-amber-800">Une couverture a été suspendue pour cette pharmacie selon la dernière liste importée.</p>}
   <details className="rounded-xl border p-3">
-   <summary className="cursor-pointer text-sm font-bold">{coverages.length?"Ajouter une autre couverture":"Enregistrer ma couverture"}</summary>
+   <summary className="cursor-pointer text-sm font-bold">{coverages.length?"Ajouter ou corriger ma couverture":"Enregistrer ma couverture"}</summary>
    <div className="mt-3 grid gap-3 sm:grid-cols-2">
     <label className="text-sm font-semibold">Assureur<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={newInsurer} onChange={e=>setNewInsurer(e.target.value)}>{insurers.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
     <label className="text-sm font-semibold">N° adhérent<input className="mt-1 w-full rounded-xl border p-3 font-normal" value={member} onChange={e=>setMember(e.target.value)} /></label>
@@ -114,7 +122,7 @@ export function AssuranceReceiptDetails({reservationId}:{reservationId:string}){
     <label className="text-sm font-semibold">Fin de validité<input type="date" className="mt-1 w-full rounded-xl border p-3 font-normal" value={end} onChange={e=>setEnd(e.target.value)} /></label>
    </div>
    <button disabled={!newInsurer||member.trim().length<2||busy} onClick={()=>void saveCoverage()} className="btn btn-vert mt-3 w-full">{busy?"Enregistrement…":"Enregistrer ma couverture"}</button>
-   <p className="mt-2 text-xs text-slate-500">La saisie ne vaut pas validation des droits. Le taux, les plafonds, franchises et exclusions proviennent de la convention déclarée par la pharmacie. Celle-ci vérifiera la carte et les justificatifs.</p>
+   <p className="mt-2 text-xs text-slate-500">La saisie ou la correction retire toute vérification antérieure. Seule une correspondance unique avec une liste assureur importée par la pharmacie autorisera le calcul du devis. Les taux, plafonds, franchises et exclusions proviennent toujours de la convention de la pharmacie.</p>
   </details>
   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
  </section>;
