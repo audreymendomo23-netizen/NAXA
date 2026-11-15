@@ -31,7 +31,7 @@ test("la recette couvre le remboursement réel, l'outbox et le rapprochement Cai
   assert.match(source, /credit_remboursement/);
   assert.match(source, /caisse_cloturer/);
   assert.match(source, /Number\(closed\.ecart\) !== 0/);
-  assert.match(source, /balanceAfterRefund/);
+  assert.match(source, /accountAfterRefund/);
 });
 
 test("la pharmacie de recette reste active et masquée au catalogue public", () => {
