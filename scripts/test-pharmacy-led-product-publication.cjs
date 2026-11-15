@@ -46,3 +46,27 @@ test("la recherche client ne filtre plus les produits par validation NAXA", () =
   assert.match(searchUi, /NAXA ne certifie pas cette fiche/);
   assert.match(offerPage, /Stock communiqué comme disponible/);
 });
+
+
+test("chaque pharmacie peut modifier ses propres fiches sans pouvoir modifier celle d'une autre pharmacie", () => {
+  assert.match(action, /export async function modifierFicheProduitPharmacie/);
+  assert.match(action, /naxa_business_function/);
+  assert.match(action, /"promoteur","pharmacie","pharmacien","pharmacien_assistant","responsable","gestionnaire_stock","magasinier"/);
+  assert.match(action, /\.from\("produits"\)\.update\(/);
+  assert.match(action, /\.eq\("created_by_pharmacie_id", pharmacie\)/);
+  assert.match(action, /erreur=modification_fiche/);
+  assert.doesNotMatch(action.slice(action.indexOf("export async function modifierFicheProduitPharmacie")), /fiche_validee\s*:/);
+});
+
+test("l'espace Stock expose seulement les fiches appartenant au périmètre pharmacie actif", () => {
+  assert.match(workspace, /created_by_pharmacie_id/);
+  assert.match(workspace, /ids\.includes\(product\.created_by_pharmacie_id as string\)/);
+  assert.match(workspace, /Modifier mes fiches produits/);
+  assert.match(workspace, /action=\{modifierFicheProduitPharmacie\}/);
+  for (const field of ["nom","dci","dosage","forme","code_barre","conditionnement","description","indications","precautions","fabricant","sur_ordonnance"]) {
+    assert.match(workspace, new RegExp('name="' + field + '"'));
+  }
+  assert.match(workspace, /NAXA ne relit ni n’approuve ces changements/);
+  assert.match(workspace, /fonction!=="admin"/);
+});
+
