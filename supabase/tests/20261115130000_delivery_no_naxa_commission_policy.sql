@@ -5,6 +5,7 @@ declare
   v_check_balance text;
   v_finalizer text;
   v_report jsonb;
+  v_monthly_due jsonb;
 begin
   select pg_get_constraintdef(oid)
     into v_check_commission
@@ -72,6 +73,21 @@ begin
   if (v_report->'totaux'->>'frais_clients')::integer <> 0
      or (v_report->'totaux'->>'montant_affecte_service')::integer <> 0 then
     raise exception $msg$Le rapport doit rester cohérent lorsque le registre est vide$msg$;
+  end if;
+
+  v_monthly_due := public.naxa_delivery_monthly_due(date_trunc('month', current_date)::date);
+  if (v_monthly_due->'totaux'->>'commissions_livraison')::integer <> 0
+     or (v_monthly_due->'totaux'->>'total_a_payer')::integer
+        <> (v_monthly_due->'totaux'->>'abonnements')::integer then
+    raise exception $msg$Le décompte mensuel ne doit contenir que les abonnements de base$msg$;
+  end if;
+  if exists (
+    select 1
+    from jsonb_array_elements(coalesce(v_monthly_due->'par_pharmacie','[]'::jsonb)) as item
+    where (item->>'commission_a_payer')::integer <> 0
+       or (item->>'total_mensuel_du')::integer <> (item->>'abonnement_mensuel')::integer
+  ) then
+    raise exception $msg$Une pharmacie conserve une commission de livraison dans son abonnement$msg$;
   end if;
 end
 $test$;
