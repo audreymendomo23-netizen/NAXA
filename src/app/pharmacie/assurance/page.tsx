@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import * as XLSX from "xlsx";
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
@@ -13,6 +14,27 @@ type ConventionRule = {id:string;convention_id:string;portee:string;categorie:st
 type ProductOption = {id:string;nom:string;categorie:string|null};
 type Proposition={id:string;dossier_id:string;reservation_id:string;snapshot_id:string;version:number;statut:"proposee"|"acceptee"|"refusee"|"remplacee";montant_total_fcfa:number;montant_assureur_fcfa:number;montant_client_fcfa:number;motif:string;proposee_le:string;decidee_le:string|null;};
 type PharmacyOption={id:string;nom:string};
+type ImportPreview={import_id:string;statut:"simulee"|"appliquee";total_lignes:number;correspondances:number;sans_correspondance:number;ambiguite:number;invalides:number;doublons:number;};
+const normalizeImportHeader=(value:string)=>value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const importDateToIso=(value:unknown):string=>{
+ if(value instanceof Date&&!Number.isNaN(value.getTime())) return [value.getFullYear(),String(value.getMonth()+1).padStart(2,"0"),String(value.getDate()).padStart(2,"0")].join("-");
+ if(typeof value==="number"&&Number.isFinite(value)){
+  const parsed=XLSX.SSF.parse_date_code(value);
+  if(parsed) return [parsed.y,String(parsed.m).padStart(2,"0"),String(parsed.d).padStart(2,"0")].join("-");
+ }
+ const raw=String(value??"").trim();
+ if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return raw;
+ const match=raw.match(/^(\\d{1,2})[/.\\-](\\d{1,2})[/.\\-](\\d{4})$/);
+ if(match) return [match[3],match[2].padStart(2,"0"),match[1].padStart(2,"0")].join("-");
+ return "";
+};
+const importStatus=(value:unknown):string=>{
+ const valueKey=normalizeImportHeader(String(value??""));
+ if(["actif","active","valide","valid","enregle","enordre"].includes(valueKey))return "actif";
+ if(["suspendu","suspendue","suspended"].includes(valueKey))return "suspendu";
+ if(["expire","expiree","expired","resilie","resiliee","inactif"].includes(valueKey))return "expire";
+ return valueKey;
+};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR").format(Math.round(v||0))+" FCFA";
 const labels:Record<string,string>={devis_calcule:"Devis calculé",reservation_assurance_validee:"Devis accepté par le client",documents_controles:"Justificatifs contrôlés",prise_en_charge_confirmee:"Prise en charge confirmée",prise_en_charge_refusee:"Prise en charge refusée",montant_modifie:"Proposition de montant",accord_client_obtenu:"Modification acceptée par le client",accord_client_refuse:"Modification refusée par le client",vente_assurance_enregistree:"Vente enregistrée",remboursement_recu:"Remboursement reçu",remboursement_partiel:"Remboursement partiel",dossier_solde:"Dossier soldé"};
 
@@ -20,6 +42,7 @@ export default function AssuranceDashboardPage(){
  const [loading,setLoading]=useState(true),[error,setError]=useState(""),[role,setRole]=useState(""),[pharmacies,setPharmacies]=useState<string[]>([]),[dossiers,setDossiers]=useState<Dossier[]>([]),[events,setEvents]=useState<Evenement[]>([]),[assureurs,setAssureurs]=useState<Record<string,string>>({}),[newInsurer,setNewInsurer]=useState(""),[newCode,setNewCode]=useState(""),[savingInsurer,setSavingInsurer]=useState(false),[notice,setNotice]=useState(""),[pharmacyOptions,setPharmacyOptions]=useState<PharmacyOption[]>([]),[assureurOptions,setAssureurOptions]=useState<Assureur[]>([]),[selectedPharmacy,setSelectedPharmacy]=useState(""),[selectedInsurer,setSelectedInsurer]=useState(""),[ruleRate,setRuleRate]=useState(""),[ruleCap,setRuleCap]=useState(""),[ruleFranchise,setRuleFranchise]=useState("0"),[savingConvention,setSavingConvention]=useState(false);
  const [conventions,setConventions]=useState<Convention[]>([]),[conventionRules,setConventionRules]=useState<ConventionRule[]>([]),[products,setProducts]=useState<ProductOption[]>([]),[selectedConventionId,setSelectedConventionId]=useState("");
  const [snapshots,setSnapshots]=useState<Snapshot[]>([]),[busyDossier,setBusyDossier]=useState("");
+ const [importFile,setImportFile]=useState<File|null>(null),[importSourceRef,setImportSourceRef]=useState(""),[importPreview,setImportPreview]=useState<ImportPreview|null>(null),[importBusy,setImportBusy]=useState(false);
  const [proposals,setProposals]=useState<Proposition[]>([]),[proposalAmounts,setProposalAmounts]=useState<Record<string,string>>({}),[proposalReasons,setProposalReasons]=useState<Record<string,string>>({}),[savingProposal,setSavingProposal]=useState("");
  const [insurerRefs,setInsurerRefs]=useState<Record<string,string>>({}),[repaymentAmounts,setRepaymentAmounts]=useState<Record<string,string>>({}),[repaymentDates,setRepaymentDates]=useState<Record<string,string>>({}),[repaymentRefs,setRepaymentRefs]=useState<Record<string,string>>({});
  const todayLocal=()=>{const now=new Date();return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10)};
@@ -137,6 +160,74 @@ export default function AssuranceDashboardPage(){
    else {setNotice("Règlement assureur enregistré. La créance restante est recalculée par le serveur.");setRepaymentAmounts(current=>({...current,[d.id]:""}));setRepaymentRefs(current=>({...current,[d.id]:""}));}
    setBusyDossier("");await load();
   };
+ const simulateInsurerImport=async()=>{
+  if(!importFile||!selectedPharmacy||!selectedInsurer||importSourceRef.trim().length<3||importBusy)return;
+  if(importFile.size>10*1024*1024){setError("Fichier trop volumineux : limite de 10 Mo.");return;}
+  const extension=importFile.name.toLowerCase().split(".").pop();
+  if(!["csv","xls","xlsx"].includes(extension||"")){setError("Format non accepté. Utilisez CSV, XLS ou XLSX.");return;}
+  setImportBusy(true);setError("");setNotice("");setImportPreview(null);
+  try{
+   const buffer=await importFile.arrayBuffer();
+   const workbook=XLSX.read(buffer,{type:"array",cellDates:true});
+   const firstSheet=workbook.SheetNames[0];
+   if(!firstSheet)throw new Error("Aucune feuille trouvée dans ce fichier.");
+   const sheet=workbook.Sheets[firstSheet];
+   const rawRows=XLSX.utils.sheet_to_json<Record<string,unknown>>(sheet,{defval:"",raw:true});
+   if(!rawRows.length)throw new Error("Le fichier ne contient aucune ligne de données.");
+   if(rawRows.length>5000)throw new Error("Limite de 5 000 lignes dépassée.");
+   const aliases={
+    numero_adherent:["numeroadherent","numadherent","adherent","matricule","identifiantadherent","numeroassure","numassure"],
+    numero_police:["numeropolice","police","contrat","numerocontrat","policy"],
+    beneficiaire_nom:["beneficiaire","nombeneficiaire","nomassure","nomcomplet","beneficiary","beneficiaryname"],
+    date_debut:["datedebut","datedebutvalidite","debutvalidite","startdate","datedeffet"],
+    date_fin:["datefin","datefinvalidite","finvalidite","enddate","expiration","dateexpiration"],
+    statut:["statut","status","etat","state"]
+   } as const;
+   const headerKeys=Object.keys(rawRows[0]).map(normalizeImportHeader);
+   for(const required of ["numero_adherent","date_debut","statut"] as const){
+    if(!aliases[required].some(alias=>headerKeys.includes(alias)))throw new Error("Colonne obligatoire absente : "+required.replaceAll("_"," "));
+   }
+   const getValue=(row:Record<string,unknown>,names:readonly string[])=>{
+    const entry=Object.entries(row).find(([key])=>names.includes(normalizeImportHeader(key)));
+    return entry?.[1]??"";
+   };
+   const rows=rawRows.map(row=>({
+    numero_adherent:String(getValue(row,aliases.numero_adherent)).trim(),
+    numero_police:String(getValue(row,aliases.numero_police)).trim(),
+    beneficiaire_nom:String(getValue(row,aliases.beneficiaire_nom)).trim(),
+    date_debut:importDateToIso(getValue(row,aliases.date_debut)),
+    date_fin:importDateToIso(getValue(row,aliases.date_fin)),
+    statut:importStatus(getValue(row,aliases.statut))
+   }));
+   const hashBytes=await crypto.subtle.digest("SHA-256",buffer);
+   const sha256=Array.from(new Uint8Array(hashBytes)).map(byte=>byte.toString(16).padStart(2,"0")).join("");
+   const {data,error:e}=await supabaseBrowser().rpc("assurance_import_simuler",{
+    p_pharmacie:selectedPharmacy,p_assureur:selectedInsurer,p_reference_source:importSourceRef.trim(),
+    p_nom_fichier:importFile.name,p_sha256:sha256,p_lignes:rows
+   });
+   if(e)throw new Error(e.message||"La simulation de rapprochement a échoué.");
+   setImportPreview(data as ImportPreview);
+   setNotice("Simulation terminée. Seules les correspondances uniques sont proposées ; aucune couverture n'a encore été vérifiée.");
+  }catch(err){
+   setError(err instanceof Error?err.message:"Impossible de lire ou simuler ce fichier.");
+  }finally{
+   setImportBusy(false);
+  }
+ };
+ const applyInsurerImport=async()=>{
+  if(!importPreview||importPreview.statut!=="simulee"||importPreview.correspondances<1||importBusy)return;
+  setImportBusy(true);setError("");setNotice("");
+  const {data,error:e}=await supabaseBrowser().rpc("assurance_import_appliquer",{p_import:importPreview.import_id});
+  if(e)setError(e.message||"L'application de l'import a échoué.");
+  else {
+   const result=data as {statut?:string;couvertures_appliquees?:number;suspendues?:number;expirees?:number};
+   setImportPreview(current=>current?{...current,statut:"appliquee"}:current);
+   setNotice((result.couvertures_appliquees??0)+" couverture(s) rapprochée(s) ; "+(result.suspendues??0)+" suspendue(s), "+(result.expirees??0)+" expirée(s).");
+   setImportFile(null);
+   await load();
+  }
+  setImportBusy(false);
+ };
  const selectedConvention=conventions.find(x=>x.id===selectedConventionId);
  const activeRules=conventionRules.filter(x=>x.convention_id===selectedConventionId).sort((a,b)=>Number(b.actif)-Number(a.actif)||b.version-a.version);
 
@@ -180,6 +271,30 @@ export default function AssuranceDashboardPage(){
     <button disabled={savingRule||!selectedConventionId||!ruleRate.trim()||(ruleScope==="categorie"&&!ruleCategory.trim())||(ruleScope==="produit"&&!ruleProduct)||!ruleStart||(ruleEnd !== "" && ruleEnd < ruleStart)} onClick={()=>void saveRule()} className="btn btn-vert w-full">{savingRule?"Enregistrement…":"Enregistrer une nouvelle règle"}</button>
     <div className="space-y-2"><h3 className="font-bold">Historique des règles de cette convention</h3>{activeRules.length?activeRules.map(r=><article key={r.id} className="rounded-xl border p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{r.portee==="tout"?"Tous les produits":r.portee==="categorie"?"Catégorie : "+(r.categorie||"—"):"Produit : "+(products.find(p=>p.id===r.produit_id)?.nom||r.produit_id||"—")}</strong><span className={r.actif?"text-emerald-700":"text-slate-500"}>{r.actif?"Active":"Historique"} · v{r.version}</span></div><p className="mt-1">Taux {Number(r.taux)} % · Plafond {r.plafond_fcfa==null?"sans plafond":money(Number(r.plafond_fcfa))} · Franchise {money(Number(r.franchise_fcfa))}</p><p className="text-xs text-slate-500">Validité : {r.valide_du} → {r.valide_jusquau||"sans fin"}{r.exclusions?.length?" · Exclusions : "+r.exclusions.join(", "):""}</p><p className="text-xs text-slate-500">Justificatifs : {r.justificatifs_requis?.length?r.justificatifs_requis.join(", "):"aucun précisé"}</p></article>):<p className="text-sm text-slate-500">Aucune règle enregistrée pour cette convention.</p>}</div>
    </section></>}
+  {(role==="promoteur"||role==="pharmacien"||role==="responsable")&&<section className="space-y-3 rounded-2xl bg-white p-4">
+   <div><h2 className="font-extrabold">Importer la liste des assurés reçue de l’assureur</h2><p className="text-xs text-slate-600">Import CSV, XLS ou XLSX (10 Mo, 5 000 lignes maximum). L’import est rattaché à la pharmacie et à l’assureur sélectionnés. Référence de transmission et empreinte SHA-256 sont conservées.</p></div>
+   <div className="grid gap-2 sm:grid-cols-2">
+    <label className="text-sm font-semibold">Pharmacie<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedPharmacy} onChange={e=>{setSelectedPharmacy(e.target.value);setImportPreview(null);}}>{pharmacyOptions.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
+    <label className="text-sm font-semibold">Assureur<select className="mt-1 w-full rounded-xl border p-3 font-normal" value={selectedInsurer} onChange={e=>{setSelectedInsurer(e.target.value);setImportPreview(null);}}>{assureurOptions.map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}</select></label>
+    <label className="text-sm font-semibold sm:col-span-2">Référence de transmission / courrier assureur<input className="mt-1 w-full rounded-xl border p-3 font-normal" value={importSourceRef} onChange={e=>setImportSourceRef(e.target.value)} placeholder="Référence du courrier ou du fichier transmis"/></label>
+    <label className="text-sm font-semibold sm:col-span-2">Fichier assureur<input type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="mt-1 w-full rounded-xl border p-3 font-normal" onChange={e=>{setImportFile(e.target.files?.[0]??null);setImportPreview(null);}}/><span className="mt-1 block text-xs font-normal text-slate-500">{importFile?importFile.name:"Choisir un fichier de liste des adhérents"}</span></label>
+   </div>
+   <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Colonnes attendues : numéro adhérent, date début et statut. Numéro de police, nom du bénéficiaire et date de fin sont facultatifs. Les dates doivent être lisibles en AAAA-MM-JJ ou JJ/MM/AAAA. Les colonnes peuvent porter des intitulés usuels équivalents.</p>
+   <button type="button" disabled={importBusy||!importFile||!selectedPharmacy||!selectedInsurer||importSourceRef.trim().length<3} onClick={()=>void simulateInsurerImport()} className="btn btn-vert w-full">{importBusy?"Analyse du fichier…":"Simuler le rapprochement sans valider de couverture"}</button>
+   {importPreview&&<div className="space-y-2 rounded-xl border p-3">
+    <p className="text-sm font-bold">Résultat de la simulation · {importPreview.statut==="appliquee"?"Import appliqué":"Import non appliqué"}</p>
+    <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+     <p>Lignes <strong className="block">{importPreview.total_lignes}</strong></p>
+     <p>Correspondances uniques <strong className="block">{importPreview.correspondances}</strong></p>
+     <p>Sans correspondance <strong className="block">{importPreview.sans_correspondance}</strong></p>
+     <p>Ambiguës <strong className="block">{importPreview.ambiguite}</strong></p>
+     <p>Invalides <strong className="block">{importPreview.invalides}</strong></p>
+     <p>Doublons <strong className="block">{importPreview.doublons}</strong></p>
+    </div>
+    {importPreview.statut==="simulee"&&<button type="button" disabled={importBusy||importPreview.correspondances<1} onClick={()=>void applyInsurerImport()} className="btn btn-vert w-full">{importBusy?"Application…":"Appliquer uniquement les correspondances uniques"}</button>}
+    <p className="text-xs text-slate-600">Les lignes sans correspondance, ambiguës, invalides ou répétées ne valident aucun assuré. Aucun profil client n’est créé à partir du fichier. La référence et l’empreinte enregistrent la provenance déclarée par l’opérateur, pas une authentification cryptographique de l’assureur.</p>
+   </div>}
+  </section>}
   {role==="promoteur"&&<section className="rounded-2xl bg-white p-4"><h2 className="font-extrabold">Référentiel partagé des assureurs</h2><p className="mb-3 text-xs text-slate-500">L’ajout rend l’assureur disponible dans la recherche. Il ne conventionne aucune pharmacie automatiquement.</p><div className="grid gap-2 sm:grid-cols-[1fr_180px_auto]"><input aria-label="Nom de l’assureur" className="rounded-xl border p-3" placeholder="Nom de l’assureur" value={newInsurer} onChange={e=>setNewInsurer(e.target.value)}/><input aria-label="Code assureur facultatif" className="rounded-xl border p-3" placeholder="Code (facultatif)" value={newCode} onChange={e=>setNewCode(e.target.value)}/><button disabled={savingInsurer||newInsurer.trim().length<2} onClick={()=>void addInsurer()} className="btn btn-vert">{savingInsurer?"Ajout…":"Ajouter l’assureur"}</button></div></section>}
   <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <article className="rounded-2xl bg-white p-4"><p className="text-sm text-slate-500">Dossiers suivis</p><p className="mt-1 text-2xl font-black">{dossiers.length}</p></article>
