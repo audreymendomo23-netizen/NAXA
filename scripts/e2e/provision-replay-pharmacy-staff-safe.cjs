@@ -241,6 +241,18 @@ async function provision(env = process.env) {
       fixtures[persona.key] = await provisionIdentity(persona);
     }
 
+    // Keep only the short-lived Client and Caisse passwords available to later
+    // Replay runtime/browser steps. They are files with mode 0600, never logs.
+    if (!env.GITHUB_ENV || !env.RUNNER_TEMP) {
+      throw new Error("Export des secrets E2E autorisé uniquement depuis GitHub Actions.");
+    }
+    for (const key of ["client", "caisse"]) {
+      const passwordFile = env.RUNNER_TEMP + "/naxa-e2e-" + key + "-" + randomBytes(8).toString("hex") + ".secret";
+      fs.writeFileSync(passwordFile, fixtures[key].password, { encoding: "utf8", flag: "wx", mode: 0o600 });
+      const variable = "NAXA_STORAGE_E2E_" + key.toUpperCase() + "_PASSWORD_FILE";
+      fs.appendFileSync(env.GITHUB_ENV, variable + "=" + passwordFile + "\\n", { encoding: "utf8", mode: 0o600 });
+    }
+
     for (const persona of PERSONAS.filter(item => item.role !== "client")) {
       const rows = await restAdmin(
         "naxa_professional_assignments?select=id,pharmacie_id,role_code,statut,commence_at,expire_at"
