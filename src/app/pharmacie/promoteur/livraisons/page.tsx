@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { DeliveryCommissionReport } from "@/components/DeliveryCommissionReport";
+import { DeliveryFeesReport } from "@/components/DeliveryFeesReport";
 
 export const dynamic="force-dynamic";
 
@@ -16,9 +16,9 @@ export default async function PromoteurLivraisonsPage() {
   if(profile?.actif!==true||role!=="promoteur")redirect("/");
   return <main className="mx-auto max-w-6xl space-y-5 px-4 pb-16 pt-5">
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0B3D26] p-5 text-white">
-      <div><p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Espace Promoteur</p><h1 className="mt-1 text-2xl font-black">Livraisons de mon réseau</h1><p className="mt-1 text-sm text-emerald-100">Livraisons, frais clients et commissions NAXA dues par pharmacie.</p></div>
+      <div><p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Espace Promoteur</p><h1 className="mt-1 text-2xl font-black">Livraisons de mon réseau</h1><p className="mt-1 text-sm text-emerald-100">Livraisons, frais acquittés par les Clients et montant intégral affecté au service.</p></div>
       <Link href="/pharmacie/promoteur" className="font-bold underline">Retour Promoteur</Link>
     </header>
-    <DeliveryCommissionReport/>
+    <DeliveryFeesReport/>
   </main>;
 }
