@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { DeliveryFeesReport } from "@/components/DeliveryFeesReport";
+import { DeliveryFeesReport } from "@/components/DeliveryCommissionReport";
 
 export const dynamic="force-dynamic";
 
