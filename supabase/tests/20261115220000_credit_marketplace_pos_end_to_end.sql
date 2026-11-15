@@ -34,7 +34,9 @@ begin
 
   insert into public.pharmacies(id,nom,ville,lat,lng,actif,visible_recherche)
   values(v_ph,'NAXA credit POS E2E','Yaoundé',3.87,11.52,true,false);
+  set local session_replication_role='replica';
   insert into public.produits(id,nom) values(v_product,'Produit crédit comptoir E2E');
+  set local session_replication_role='origin';
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption)
   values(v_ph,v_product,1000,5,private.naxa_date_cameroun()+90);
   insert into public.caisses(id,pharmacie_id,nom,actif) values(v_caisse,v_ph,'Caisse credit POS E2E',true);
