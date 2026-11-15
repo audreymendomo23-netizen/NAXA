@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 15 novembre 2026 (§45)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — publication autonome des fiches et stocks par les pharmacies sans validation NAXA, déclarations runtime Promoteur/Gestionnaire Stock et périmètre Promoteur validés sur Replay (§43/§44) ; rappels automatiques de péremption J-30/J-15/J-7/J-3/J0 et garde de date camerounaise intégrés sur Replay (§45), test SQL transactionnel PASS, offre Marketplace démontrée à 50 unités valides puis 0 lorsque seul le lot périmé subsiste ; cron actif à 07:00 Africa/Douala. Les tests Node sont intégrés au workflow, mais leur run CI après cette modification reste à confirmer ; aucun rappel n'a été livré à une pharmacie réelle, car Replay ne contient aucune pharmacie publique non-démo et les tests ont annulé leurs fixtures. Aucune quantité, lot, notification, réservation ou mission de test n'a persisté. Stock réel et parcours réservation → préparation → Livreur → clôture toujours à tester. Production et Vercel inchangés.
+**État global :** 🟡 PARTIEL — publication autonome des fiches et stocks par les pharmacies sans validation NAXA, déclarations runtime Promoteur/Gestionnaire Stock et périmètre Promoteur validés sur Replay (§43/§44) ; rappels automatiques de péremption J-30/J-15/J-7/J-3/J0 et garde de date camerounaise intégrés sur Replay (§45), tests SQL transactionnels PASS, offre Marketplace démontrée à 50 unités valides puis 0 lorsque seul le lot périmé subsiste ; cron actif toutes les 10 minutes avec traitement par lots de 1 000 et déduplication. Les tests Node sont intégrés au workflow, mais leur run CI après cette modification reste à confirmer ; aucun rappel n'a été livré à une pharmacie réelle, car Replay ne contient aucune pharmacie publique non-démo et les tests ont annulé leurs fixtures. Aucune quantité, lot, notification, réservation ou mission de test n'a persisté. Stock réel et parcours réservation → préparation → Livreur → clôture toujours à tester. Production et Vercel inchangés.
 
 
 
@@ -1533,7 +1533,7 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 
 ### Rappels automatiques créés
 
-Un traitement quotidien planifié à **06:00 UTC / 07:00 Africa/Douala** détecte les lots à quantité positive avec échéance :
+Un job planifié toutes les **10 minutes** détecte les lots à quantité positive avec échéance. Il utilise la date civile `Africa/Douala` à chaque passage et traite jusqu'à 1 000 lots par appel :
 - J-30 ;
 - J-15 ;
 - J-7 ;
@@ -1547,7 +1547,7 @@ Destinataires uniquement :
 
 Aucun rappel n'est adressé aux Clients, Caissiers ou Livreurs. Chaque notification donne la pharmacie, le produit, le numéro de lot, la quantité restante, la date de péremption et le seuil d'alerte. Les enregistrements utilisent le type `lot_expiry_reminder` dans `public.notifications`, repris par les mécanismes de notification existants. Aucun SMS ou WhatsApp n'est ajouté.
 
-La déduplication est assurée par une clé unique `(lot_id,date_peremption,jours_avant,destinataire_id)` : un même lot, pour le même destinataire, ne produit pas deux fois le même seuil, même si le planificateur est relancé.
+La déduplication est assurée par une clé unique `(lot_id,date_peremption,jours_avant,destinataire_id)`. Le sélecteur de lots ignore ceux dont tous les destinataires actifs ont déjà reçu le seuil demandé ; le passage suivant progresse vers les lots suivants au lieu de retenter toujours le même premier lot. Si un nouveau Responsable ou Gestionnaire Stock est affecté plus tard, le lot redevient sélectionnable pour le seul nouveau destinataire non servi. Un même lot, pour le même destinataire et le même seuil, ne produit donc pas deux notifications.
 
 ### Cause racine et correction de date
 
@@ -1562,13 +1562,16 @@ La migration ajoute `private.naxa_date_cameroun()`, calculée avec `(now() at ti
 - Test transactionnel : `supabase/tests/20261115100000_pharmacy_lot_expiry_reminders_and_cameroon_date_guard.sql`, commit [83c2736d8514c17c42815ec7fc253d7e5d84a23c](https://github.com/audreymendomo23-netizen/NAXA/commit/83c2736d8514c17c42815ec7fc253d7e5d84a23c).
 - Test Node contractuel : `scripts/test-pharmacy-lot-expiry-notifications.cjs`, source initiale commit [83fb2fa99d3e5011d92e7fad0cb69d7c8154d4e7](https://github.com/audreymendomo23-netizen/NAXA/commit/83fb2fa99d3e5011d92e7fad0cb69d7c8154d4e7), assertion UI ajoutée commit [2e86dbb627233e9e472068e873201650ebf28a68](https://github.com/audreymendomo23-netizen/NAXA/commit/2e86dbb627233e9e472068e873201650ebf28a68), expressions d'assertion corrigées commit [d639f140d8dcf8833494c0edd27e3a47a03be052](https://github.com/audreymendomo23-netizen/NAXA/commit/d639f140d8dcf8833494c0edd27e3a47a03be052).
 - Écran Stock en date Cameroun : commit [00e07de65dad7dd625ec16e347e4b4f51c025e8a](https://github.com/audreymendomo23-netizen/NAXA/commit/00e07de65dad7dd625ec16e347e4b4f51c025e8a).
-- Workflow Replay ajoutant les trois fichiers et lançant le test Node : commit [42442e7905ff157900720230225644db122910cb](https://github.com/audreymendomo23-netizen/NAXA/commit/42442e7905ff157900720230225644db122910cb).
+- Migration batch : `supabase/migrations/20261115103000_batch_pharmacy_lot_expiry_dispatch.sql`, commit [9d51b3798480ec63572641ae7b7e003439d882e3](https://github.com/audreymendomo23-netizen/NAXA/commit/9d51b3798480ec63572641ae7b7e003439d882e3), appliquée sur Replay après la migration initiale.
+- Test SQL adapté au traitement batch (limite d'un lot par appel, six passages) : commit [0800ddad630d6e53129e109543b18476f9c0ac50](https://github.com/audreymendomo23-netizen/NAXA/commit/0800ddad630d6e53129e109543b18476f9c0ac50).
+- Test Node couvrant le traitement batch : commit [01532b9a95bbcbbda86b57ec6dbc693f23d0a7f2](https://github.com/audreymendomo23-netizen/NAXA/commit/01532b9a95bbcbbda86b57ec6dbc693f23d0a7f2).
+- Workflow Replay ajoutant les trois fichiers, la migration batch et le test Node : commit initial [42442e7905ff157900720230225644db122910cb](https://github.com/audreymendomo23-netizen/NAXA/commit/42442e7905ff157900720230225644db122910cb), extension batch [f06d2ffc4fa99b00e9e24ff12125c9e2577a17ca](https://github.com/audreymendomo23-netizen/NAXA/commit/f06d2ffc4fa99b00e9e24ff12125c9e2577a17ca).
 
 ### Preuves d'exécution sur Replay
 
 **Migration appliquée : PASS.** Version `20261115090807` présente dans `supabase_migrations.schema_migrations`.
 
-**Test SQL transactionnel : PASS.** Il crée dans une seule transaction six lots temporaires d'un même produit : cinq échéances (J-30, J-15, J-7, J-3, J0) avec 10 unités chacun, et un lot expiré la veille avec 999 unités. Résultats :
+**Test SQL transactionnel : PASS.** Il crée dans une seule transaction six lots temporaires d'un même produit : cinq échéances (J-30, J-15, J-7, J-3, J0) avec 10 unités chacun, et un lot expiré la veille avec 999 unités. Le dispatcher est appelé avec une limite d'un lot et six passages successifs pour démontrer qu'il progresse après chaque lot notifié. Résultats :
 1. Offre Marketplace = **50 unités**, pas 1 049 : les 999 unités périmées ne sont pas comptées.
 2. Cinq seuils déclenchent exactement un rappel par destinataire autorisé.
 3. Deuxième exécution immédiate = **0 notification supplémentaire**.
@@ -1576,12 +1579,12 @@ La migration ajoute `private.naxa_date_cameroun()`, calculée avec `(now() at ti
 5. Après mise à zéro des cinq lots encore valides, le lot périmé de 999 unités ne maintient plus l'offre : quantité Marketplace = **0**.
 6. Aucun rappel destiné à Caisse/Livreur.
 7. Les neuf fonctions de contrôle ciblées ne reposent plus sur `current_date` UTC pour les gardes de péremption.
-8. Le cron quotidien attendu est présent et actif.
+8. Le cron de dix minutes attendu est présent et actif.
 
 Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la table de dispatch, **0** notification `lot_expiry_reminder`, **0** lot de test, **0** ligne Stock conservée sur la pharmacie E2E utilisée.
 
 **Planificateur et ACL : PASS.**
-- Job `naxa-pharmacy-lot-expiry-notifications` : `0 6 * * *`, actif, propriétaire `postgres`.
+- Job `naxa-pharmacy-lot-expiry-notifications` : `*/10 * * * *`, actif, propriétaire `postgres` ; jusqu'à 1 000 lots par passage avec progression batch.
 - Routine de dispatch `SECURITY DEFINER`, propriétaire `postgres`, EXECUTE refusé à `anon`, `authenticated` et `service_role` ; seul le scheduler propriétaire l'appelle.
 - Helper de date locale non exécutable par les rôles clients.
 - La table de dispatch est dans le schéma privé, RLS activée, aucun droit accordé aux rôles clients ; l'avertissement linter « RLS activée sans policy » sur cette table privée correspond à ce choix fermé et n'est pas une exposition publique.
@@ -1600,7 +1603,7 @@ Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la
 - Vérifier en navigateur que le résultat de recherche et la fiche offre disparaissent lorsque le seul stock restant est un lot périmé ; le moteur SQL qui alimente ces offres est déjà testé.
 - Le parcours réservation → préparation → Livreur → livraison → encaissement reste séparément bloqué par l'absence d'approvisionnement traçable.
 
-**État au §45 :** rappels configurés / migration Replay appliquée — **PASS** ; seuils et déduplication — **SQL PASS** ; exclusion Marketplace du lot expiré — **SQL PASS** ; calendrier Cameroun dans les gardes et l'écran Stock — **PASS structurel + SQL** ; cron actif — **PASS** ; livraison réelle d'une notification à une pharmacie publique — **non démontrée, faute de pharmacie non-démo/lot échu sur Replay** ; CI Node — **en attente de confirmation de run** ; état global — **PARTIEL**, pas AU VERT. Production et Vercel inchangés.
+**État au §45 :** rappels configurés / migrations Replay appliquées — **PASS** ; cinq seuils, progression batch et déduplication — **SQL PASS** ; exclusion Marketplace du lot expiré — **SQL PASS** ; calendrier Cameroun dans les gardes et l'écran Stock — **PASS structurel + SQL** ; cron toutes les dix minutes — **PASS** ; livraison réelle d'une notification à une pharmacie publique — **non démontrée, faute de pharmacie non-démo/lot échu sur Replay** ; CI Node — **en attente de confirmation de run** ; état global — **PARTIEL**, pas AU VERT. Production et Vercel inchangés.
 
 **Point exact de reprise :**
 1. Consulter le run GitHub Actions déclenché par l'ajout au workflow du test `test-pharmacy-lot-expiry-notifications.cjs` ; relever les tests Node, TypeScript, lint et build.
