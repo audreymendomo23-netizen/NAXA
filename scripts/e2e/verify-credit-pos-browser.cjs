@@ -356,7 +356,7 @@ async function run(env = process.env) {
       await fund.fill("0");
       await openSessionButton.click();
     }
-    await cashierPage.getByText("Session ouverte", { exact: false }).waitFor();
+    await cashierPage.getByText("Session ouverte", { exact: true }).waitFor();
     const sessionRows = await rows(
       "caisses_sessions?select=id,caisse_id,ouvert_par,statut,fond_initial&ouvert_par=eq."
         + encodeURIComponent(cashierUserId) + "&statut=eq.ouverte&limit=2"
