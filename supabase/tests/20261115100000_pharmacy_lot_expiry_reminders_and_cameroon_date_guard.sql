@@ -198,11 +198,11 @@ begin
       and schedule='*/10 * * * *'
       and active=true
   ) then
-    raise exception 'Le job quotidien de rappels J-30/J-15/J-7/J-3/J0 est absent ou inactif';
+    raise exception 'Le job batch toutes les 10 minutes de rappels J-30/J-15/J-7/J-3/J0 est absent ou inactif';
   end if;
 end;
 $test$;
 
 rollback;
 
-select 'PASS — cinq seuils de rappel, destinataires Promoteur/Responsable/Gestionnaire Stock, aucun Caisse/Livreur, aucune répétition, lot J+1 exclu du Marketplace, date Africa/Douala, cron quotidien. Toutes les fixtures de test sont annulées.' as result;
+select 'PASS — cinq seuils de rappel, destinataires Promoteur/Responsable/Gestionnaire Stock, aucun Caisse/Livreur, aucune répétition, lot J+1 exclu du Marketplace, date Africa/Douala, cron batch toutes les 10 minutes. Toutes les fixtures de test sont annulées.' as result;
