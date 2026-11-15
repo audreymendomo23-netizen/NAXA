@@ -183,7 +183,7 @@ test("agent événements : empreinte stable et métadonnées bornées", () => {
     cameraId: "a4a4b1a1-4d0d-4b83-8db4-ae7c1b19ea20",
     eventType: "motion", sourceType: "onvif",
     summary: "Mouvement détecté par la caméra",
-    detectedAt: "2026-11-08T04:30:00.000Z",
+    detectedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     confidence: null, metadata: { event_code: "Rule-1" },
   };
   const first = buildSecurityEventPayload(payload);
