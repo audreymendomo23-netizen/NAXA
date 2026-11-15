@@ -3,7 +3,7 @@ import { requireAdminActive } from "@/lib/admin/require-admin-active";
 import { isDemoPharmacy } from "@/lib/admin/is-demo-pharmacy";
 import { PharmacyDeliveryConfig } from "@/components/PharmacyDeliveryConfig";
 import { DeliveryTariffZoneConfig, type DeliveryTariffZone } from "@/components/DeliveryTariffZoneConfig";
-import { DeliveryFeesReport } from "@/components/DeliveryFeesReport";
+import { DeliveryFeesReport } from "@/components/DeliveryCommissionReport";
 
 export const dynamic="force-dynamic";
 
