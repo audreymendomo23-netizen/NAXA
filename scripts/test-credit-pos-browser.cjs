@@ -45,3 +45,12 @@ test("la recette navigateur respecte les deux preuves locales de déclaration d�
   assert.match(source, /naxa-age-declaration-v1/);
   assert.match(source, /waitFor\(\{ state: "visible", timeout: 30000 \}\)/);
 });
+
+test("les serveurs locaux de recette fournissent un secret anti-bruteforce éphémère", () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, "../.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml"),
+    "utf8",
+  );
+  assert.equal((workflow.match(/export NAXA_RATE_LIMIT_SECRET=.*openssl rand -hex 32/g) || []).length, 2);
+  assert.equal((workflow.match(/echo "::add-mask::\$NAXA_RATE_LIMIT_SECRET"/g) || []).length, 2);
+});
