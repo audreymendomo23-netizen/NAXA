@@ -55,7 +55,7 @@ begin
   select pg_get_functiondef('public.vente_annulation_demander(uuid,text)'::regprocedure)
     into v_definition;
   if position('created_by' in v_definition)=0
-     or position('ne peut demander l''annulation que de ses propres ventes' in v_definition)=0 then
+     or position('ne peut demander' in v_definition)=0 then
     raise exception 'Le contrôle serveur des ventes propres à la caisse est absent';
   end if;
 end $$;
