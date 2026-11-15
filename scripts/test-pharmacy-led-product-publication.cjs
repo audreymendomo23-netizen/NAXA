@@ -15,6 +15,8 @@ const productPage = fs.readFileSync(path.join(root, "src/app/produit/[id]/page.t
 const offerPage = fs.readFileSync(path.join(root, "src/app/offre/[pharmacieId]/[produitId]/page.tsx"), "utf8");
 const productIdentityMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115110000_pharmacy_product_identity_scoped_by_pharmacy.sql"), "utf8");
 const productIdentitySqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115110000_pharmacy_product_identity_scoped_by_pharmacy.sql"), "utf8");
+const productFicheReadMigration = fs.readFileSync(path.join(root, "supabase/migrations/20261115112000_scope_private_product_fiche_reads.sql"), "utf8");
+const productFicheReadSqlTest = fs.readFileSync(path.join(root, "supabase/tests/20261115112000_scope_private_product_fiche_reads.sql"), "utf8");
 
 test("le gestionnaire Stock peut déclarer une référence absente du catalogue", () => {
   assert.match(workspace, /Créer ma fiche produit pour cette pharmacie/);
@@ -99,4 +101,16 @@ test("l'Administrateur reste en lecture seule et la recherche conserve une ident
   assert.match(productIdentitySqlTest, /group by d\.pharmacie_id/i);
   assert.match(productIdentitySqlTest, /produits_pharmacy_identity_uq/i);
   assert.match(productIdentitySqlTest, /is_admin/i);
+});
+
+
+test("les fiches privées d'une pharmacie sont invisibles hors de son périmètre RLS", () => {
+  assert.match(productFicheReadMigration, /created_by_pharmacie_id is not null/i);
+  assert.match(productFicheReadMigration, /naxa_scope_allows/);
+  assert.match(productFicheReadMigration, /created_by_pharmacie_id is null/i);
+  assert.match(productFicheReadMigration, /marketplace_produit_visible/);
+  assert.match(productFicheReadMigration, /is_admin/);
+  assert.match(productFicheReadSqlTest, /naxa_scope_allows/);
+  assert.match(productFicheReadSqlTest, /marketplace_produit_visible/);
+  assert.match(productFicheReadSqlTest, /legacy shared catalogue retained/);
 });
