@@ -948,3 +948,24 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 1. Corriger le test de date d'événement avec une date relative au temps d'exécution, puis relancer la qualité.
 2. Diagnostiquer le listing Auth Admin REST malgré la fixture SQL unique ; débloquer le provisionneur strictement sans nouvelle identité ni conversion de rôle, puis exécuter la matrice Storage Admin et Promoteur complète.
 3. Faire une passe d'audit des garde-fous du rôle Livreur et du cycle de mission, intégrer/assainir le harnais, puis seulement préparer les comptes et données métier de recette sur Replay.
+
+
+## 34. Corrections ciblées suite aux échecs du 15/11/2026 (15/11/2026)
+
+**Correctif du test temporel :**
+- Le test `scripts/test-security-gateway-agent.cjs` utilisait une date fixe au 08/11/2026 ; le validateur impose une fenêtre glissante de sept jours, d'où l'échec au run qualité du 15/11.
+- La valeur du test utilise désormais `new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()`, conservant une date passée valide sans réduire la contrainte serveur.
+- Commit : `98b8ffd2981545b2cfc28e1ef69f3f6fe29a9f16`.
+
+**Correctif ciblé du provisionneur Admin :**
+- La version précédente parcourait `GET /auth/v1/admin/users?page=1&per_page=1000` puis filtrait la liste ; elle ne retrouvait pas la fixture alors que SQL prouve l'existence d'un unique profil Admin actif et son identité Auth confirmée.
+- Le nouveau chemin interroge d'abord `profiles` par le nom d'utilisateur unique `e2e_admin_261104`, rôle Admin et profil actif, puis lit l'identité via `GET /auth/v1/admin/users/{id}`. Il conserve ensuite la validation stricte e-mail exact, liaison ID, email confirmé, marqueurs E2E, rôle admin et profil actif, avant de renouveler le mot de passe éphémère. Il re-vérifie le même Auth ID et le même profil après rotation.
+- Aucun compte créé, supprimé, converti ou réactivé par ce changement ; seule la fixture explicitement désignée pourra voir son mot de passe de test renouvelé.
+- Commit : `0cc91e53f376a0436b45edf6b81114f32ac1120a`.
+
+**Nouveaux runs déclenchés par le push du 15/11 :**
+- [Run qualité 43683863943](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43683863943), commit `0cc91e53f376a0436b45edf6b81114f32ac1120a) : démarré ; résultat final non encore connu au moment de cette entrée.
+- [Run Promoteur/Admin/Storage 43683863952](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43683863952), même commit : tests unitaires de garde PASS ; préflight Replay PASS ; provisionnement Promoteur en cours ; provisionnement Admin et matrices Storage en attente.
+- Ne pas convertir ces runs en PASS tant que leurs conclusions et logs finaux n'ont pas été consultés.
+
+**Point exact de reprise :** consulter les conclusions des runs 43683863943 et 43683863952. Vérifier la suite tests/TypeScript/lint/build, la lecture Auth par ID, la rotation du mot de passe Admin, les deux matrices Storage et tous les nettoyages. Si l'étape Admin réussit, cela lèvera le blocage Auth mais ne suffira pas à déclarer les parcours métier complets.
