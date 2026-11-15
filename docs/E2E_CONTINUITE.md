@@ -1229,3 +1229,37 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 3. Importer seulement le référentiel BDPM dans `medicaments_referentiel_sources` si le flux source et les secrets Replay sont disponibles ; cette donnée française ne vaut pas autorisation Cameroun et ne doit pas être transformée en fiche `produits` validée sans contrôle pharmacien.
 4. Initialiser une référence vendable uniquement à partir d'un produit réellement autorisé/validé ; approvisionner le stock par les parcours métier audités, lot et péremption réels. Ne pas injecter de faux produit, quantité, lot, caisse initiale ou paiement.
 5. Seulement après ces prérequis : réservation par le Client acheteur, préparation physique confirmée par Stock, mission Livreur, arrivée, confirmation de réception, encaissement réellement rapproché par Caisse et clôture.
+
+
+## 40. Correction de la lecture RLS de l’espace Gestionnaire Stock (15/11/2026)
+
+**Périmètre : Replay uniquement.** Cette correction complète le §39 ; aucun profil Stock n'a encore été provisionné par le workflow, aucune ligne de stock n'a été créée.
+
+### Audit et cause racine
+- La fonction `private.naxa_has_privilege` utilise la matrice `naxa_architecture_privileges` pour les rôles canoniques Promoteur, Responsable, Caisse et Comptable. La matrice HYBRIDE ne contient aucune entrée `gestionnaire_stock` ou `magasinier`.
+- Les opérations métier Gestionnaire Stock sont néanmoins conçues autour de l'affectation professionnelle active : plusieurs RPC de préparation, référence, ajustement et lot vérifient `naxa_has_active_professional_assignment`.
+- Contradiction : la policy existante `stocks_read` n'autorisait SELECT que par `VIEW_STOCK` (ou Admin). Un profil Stock correctement affecté pouvait appeler les RPC gardées par son affectation, mais sa lecture de la table `stocks` était filtrée par une matrice d'architecture qui ne contient pas ce rôle.
+- Il n'est pas correct d'ajouter des privilèges Promoteur/Caisse au rôle Stock, ni d'élargir la matrice d'architecture à un ensemble de droits plus puissant. La séparation d'intention est : droits d'opération via affectation Stock active et RPC contrôlées, lecture inventaire bornée à la pharmacie active.
+
+### Correction appliquée
+- Migration `allow_active_stock_assignments_to_read_pharmacy_stock`, version Replay `20261115071723`, source `supabase/migrations/20261115183000_allow_active_stock_assignments_to_read_pharmacy_stock.sql`, commit `ab4273baa13338785d355bfca03d92a0fc9a1d0d`.
+- Policy additionnelle `stocks_read_active_stock_assignment` : SELECT seulement pour `authenticated`, via `naxa_has_active_professional_assignment(auth.uid(), pharmacie_id, 'gestionnaire_stock')` ou `magasinier`. Cette fonction contrôle le profil actif, le rôle métier, la pharmacie du rôle sélectionné, l'affectation active/non expirée et la pharmacie active.
+- Aucune policy d'écriture n'a été ajoutée ou modifiée ; aucun privilège table `INSERT`, `UPDATE` ou `DELETE` n'a été conféré par cette migration. Les opérations d'écriture restent sur les RPC métier existantes. `anon` ne reçoit pas SELECT.
+- Test SQL exécuté sur Replay : **PASS** — RLS reste activée, policy présente pour SELECT/authenticated et rôle strict Stock/Magasinier, aucun SELECT `anon`.
+- Contrôle post-migration : policies existantes `stocks_management_insert`, `stocks_import_update`, `stocks_caisse_update`, `stocks_management_delete` restent inchangées ; la nouvelle policy est distincte et lecture seule.
+- Le provisionneur E2E appelle désormais `naxa_has_active_professional_assignment` avec le JWT Stock pour prouver le contexte serveur actif avant son GET REST `stocks`. Commit `578c7e3af8ed42f47b405da98a915119fa64ff94`.
+- Test Node statique `scripts/test-stock-assignment-read-rls.cjs` ajouté (2 tests) et raccordé à la commande `node --test` du workflow. Commit du test `5da9b8df016c37f4d3621e23444b51d8b8573305`, commit workflow `7ccaa132b6738404a76616fc977594d43550b870`. Son exécution CI n'est pas encore prouvée.
+
+### État et réserve
+- Contrôle de données Replay après application : catalogue toujours **20 produits / 0 fiche validée**, **0 ligne de stock positive** ; aucune réservation ni mission créée.
+- Les trois identités E2E Stock/Caisse/Client acheteur restent absentes de `auth.users` au dernier contrôle. Aucune affectation Stock/Caisse ni Caisse physique n'est présente. Le workflow reste intégré dans `main`, mais aucun run push terminal consultable n'est disponible pour confirmer le provisionnement.
+- Le test RLS SQL vérifie la définition de la policy ; il ne remplace pas le test réel avec un JWT de Gestionnaire Stock. Le prochain run doit confirmer `naxa_has_active_professional_assignment=true` puis la requête REST en tant que Stock.
+- Aucun produit, stock, lot, caisse ouverte, montant initial, réservation ou paiement n'a été fabriqué ; Production et Vercel n'ont pas été modifiés.
+
+**État :** policy lecture Stock — **corrigée et testée SQL sur Replay** ; privilèges d'écriture — **inchangés** ; provisionnement des profils — **non exécuté/proof manquante** ; chaîne commande et livraison — **bloquée par catalogue et stock vendable absents** ; recette globale — **PARTIELLE**, non AU VERT.
+
+**Point exact de reprise :**
+1. Consulter le prochain run GitHub Actions déclenché par les commits `578c7e3...` et `7ccaa13...`. Vérifier tous les tests Node et le provisionnement des trois profils séparés.
+2. Sur Replay, confirmer que le Gestionnaire Stock reçoit bien le rôle actif, que la RPC d'affectation retourne `true`, et que son GET `stocks` retourne HTTP 200 ; confirmer aussi que le rôle Caisse voit une seule ressource physique via RLS.
+3. Faire ouvrir puis fermer un service Stock de recette avec note E2E explicite, sans ouvrir de session Caisse ni fonds fictifs.
+4. Résoudre séparément le catalogue vendable validé et le stock/lot conforme avant de créer la première réservation Client.
