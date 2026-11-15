@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§64)  
+**Dernière mise à jour :** 15 novembre 2026 (§65)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **État global :** 🟡 PARTIEL — correctifs backend crédit Marketplace/comptoir et tests SQL Replay ciblés PASS (§59–§60). Run Replay E2E 129 : SUCCESS, Web Push Chromium 3/3 et Storage 17 PASS / 0 SKIP (§61). Configuration comptable `credit_octroi` / `credit_remboursement` corrigée sur Replay ; worker runtime octroi + remboursement PASS en transaction annulée, écritures équilibrées (§62–§63). Le contrôle Caisse ne confond plus publication Marketplace et disponibilité ERP : une pharmacie active non archivée, même masquée, peut ouvrir sa propre Caisse. Une fixture interne masquée et un parcours navigateur crédit comptoir (demande au-dessus plafond → décision Promoteur → reprise du même panier → stock unique → remboursement par JWT Caisse → clôture rapprochée) sont maintenant versionnés et branchés à l’Action Replay (§64), mais **leur exécution Actions n'est pas encore confirmée**. Le parcours Marketplace complet dans le navigateur n'est pas encore prouvé. Les mappings/journaux/périodes commerciaux restent à configurer et valider par chaque Promoteur/Comptable. Aucun PASS qualité terminal sur le dernier SHA n'est confirmé. Production, Vercel et Play Store inchangés.
 
@@ -2665,3 +2665,38 @@ Le scénario garde les ventes, demandes consommées, opérations de crédit/remb
 - **Comptabilité commerciale : CONDITIONNELLE** tant que chaque pharmacie n'a pas ses comptes, mappings, journaux et période validés par son Promoteur/Comptable.
 
 **Verdict §64 : PARTIEL / NO-GO GLOBAL.** La cause racine « publication Marketplace obligatoire pour ouvrir la Caisse interne » est corrigée ; une recette navigateur authentifiée et limitée à une pharmacie masquée est prête et branchée au workflow Replay, mais sa première exécution reste à confirmer. Le worker comptable crédit reste PASS transactionnel selon §62–§63. Aucun déploiement Production, Vercel ou Play Store.
+
+
+## 65. Alignement final des contrats E2E et état vérifiable des Actions (15/11/2026)
+
+**Tête \`main\` contrôlée :** \`43d55e53aed354bcf9b235fc54db21ccc7ec275a\`.
+
+### Durcissements intégrés après §64
+
+- Le provisionneur vérifie maintenant explicitement que la RPC active le rôle Gestionnaire Stock et confirme l'affectation Stock avant de déclarer le produit et d'ajuster la quantité : commit [\`a4dee238\`](https://github.com/audreymendomo23-netizen/NAXA/commit/a4dee2388ccdce23f085397ba04a7e09cdb12cea).
+- Le scénario navigateur vérifie que les sélections de rôle Promoteur et Caisse retournent \`true\`, que \`naxa_business_function\` retourne \`caisse\` et que \`naxa_active_role_pharmacy\` retourne précisément la pharmacie masquée : commit [\`085a4044\`](https://github.com/audreymendomo23-netizen/NAXA/commit/085a4044131982149c9615f526f707680ce04526).
+- En récupération d'une exécution interrompue, un brouillon avec demande encore approuvée est finalisé sur le même panier avant régularisation du solde ; les demandes en attente sont refusées avant abandon. Un résidu non résolu bloque la tentative suivante : commit [\`22af25ca\`](https://github.com/audreymendomo23-netizen/NAXA/commit/22af25ca1b14343867dd1abe4a2560ff090d9fff).
+- Le test contractuel Playwright reste indépendant de l'installation tardive de la dépendance Playwright ; l'assertion vérifie la structure du parcours, sans lancer de navigateur pendant la phase pré-build : commits [\`cc06f923\`](https://github.com/audreymendomo23-netizen/NAXA/commit/cc06f92314fcbe8e76e987f3e3731dcdc3fcdc8b) et [\`c2a2bec5\`](https://github.com/audreymendomo23-netizen/NAXA/commit/c2a2bec53be687f3c2fb685673959ae3026c2060).
+- Les filtres de chemins du workflow Replay ont été dédupliqués : commit [\`43d55e53\`](https://github.com/audreymendomo23-netizen/NAXA/commit/43d55e53aed354bcf9b235fc54db21ccc7ec275a).
+
+### Workflow Replay au SHA contrôlé
+
+Le workflow \`.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml\` inclut maintenant, dans le même job Replay :
+1. tests Node/contrats sans dépendance navigateur ;
+2. provisionnement des profils et affectations, Promoteur, Admin, Client, Stock/Responsable ;
+3. provisionnement de la Caisse et du produit dans la pharmacie technique non publique ;
+4. installation Chromium et vérification Web Push ;
+5. remboursement runtime avec le JWT du compte Caisse dédié au test de remboursement ;
+6. parcours Playwright crédit comptoir sur la pharmacie masquée ;
+7. Storage E2E avec matrices Admin et Promoteur puis nettoyage des secrets temporaires.
+
+Les pushes touchant ces scripts, pages ou workflow satisfont les filtres de déclenchement. Cela confirme le **branchement** et la **demande de lancement par push**, pas la réussite de l'exécution.
+
+### Contrôle des statuts disponibles
+
+- Recherche des commits : tête \`43d55e53\` bien présente sur \`main\`.
+- Statut combiné demandé pour cette tête : aucune entrée retournée.
+- L'action de récupération des runs commit ne retourne que les exécutions associées aux Pull Requests ; elle ne fournit pas la liste des exécutions déclenchées par push sur \`main\`.
+- Aucun ID de run récent ni résultat de job terminal n'est donc vérifiable ici pour le nouveau provisionnement crédit, le remboursement authentifié ou Playwright. Ces étapes restent **INTÉGRÉES / EXÉCUTION NON CONFIRMÉE**. Ne pas interpréter l'absence de status retourné comme un succès ou un échec.
+
+**Verdict §65 : PARTIEL / NO-GO GLOBAL.** Le correctif de disponibilité ERP sur pharmacie masquée, le provisionnement et le parcours crédit comptoir navigateur sont versionnés et les Action paths sont branchés, mais leur premier résultat E2E doit encore être lu. Le parcours Marketplace navigateur complet et la configuration comptable commerciale par pharmacie restent ouverts. Les preuves SQL du worker comptable (§62–§63) ne sont pas substituées à ces validations. Production, Vercel et Play Store restent inchangés.
