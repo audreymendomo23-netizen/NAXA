@@ -30,23 +30,10 @@ begin
   join public.caisses c on c.pharmacie_id=ph.id and c.actif=true
   where p.actif=true and p.role::text='client'
     and p.pharmacie_id=ph.id
-    and ph.actif=true and ph.est_demo=false
-    and ph.visible_recherche=true and ph.archivee_le is null
+    and ph.actif=true and ph.visible_recherche=true
     and private.naxa_business_function(p.id)='caisse'
     and private.naxa_active_role_pharmacy(p.id)=ph.id
   order by p.created_at,p.id,c.id
-  limit 1;
-
-  select rp.id into v_responsable
-  from public.profiles rp
-  join public.naxa_professional_assignments ra
-    on ra.profile_id=rp.id and ra.pharmacie_id=v_pharmacy
-   and ra.role_code='responsable' and ra.statut='active'
-   and ra.commence_at<=now() and (ra.expire_at is null or ra.expire_at>now())
-  where rp.actif=true
-    and private.naxa_business_function(rp.id)='responsable'
-    and private.naxa_scope_allows(rp.id,v_pharmacy,'PHARMACIE')
-  order by rp.created_at,rp.id
   limit 1;
 
   select p.id into v_client
@@ -54,8 +41,7 @@ begin
   where p.actif=true and p.role::text='client'
     and private.naxa_business_function(p.id)='client'
     and p.id is distinct from v_cashier
-  order by p.created_at,p.id
-  limit 1;
+  order by p.created_at,p.id limit 1;
 
   select a.id into v_insurer from public.assureurs a
   where a.actif=true order by a.nom,a.id limit 1;
@@ -68,13 +54,9 @@ begin
   where cs.caisse_id=v_register and cs.statut='ouverte'
   order by cs.ouvert_at desc limit 1;
 
-  if v_cashier is null or v_responsable is null or v_client is null
-     or v_insurer is null or v_pharmacy is null or v_register is null or v_product is null then
-    raise exception 'Pré-requis Replay absents : Client, Caisse et Responsable réellement affectés à la même pharmacie non-démo visible, registre, assureur et produit de recette';
-  end if;
-  if private.naxa_business_function(v_responsable)<>'responsable'
-     or not private.naxa_scope_allows(v_responsable,v_pharmacy,'PHARMACIE') then
-    raise exception 'Responsable existant sans rôle actif ou hors périmètre pharmacie';
+  if v_cashier is null or v_client is null or v_insurer is null
+     or v_pharmacy is null or v_register is null or v_product is null then
+    raise exception 'Pré-requis Replay absents : Client, Caisse affectée, registre, pharmacie visible, assureur et produit de recette';
   end if;
   if exists(select 1 from public.caisses_sessions cs
     where cs.caisse_id=v_register and cs.statut='ouverte'
@@ -86,9 +68,37 @@ begin
     raise exception 'Le produit de recette possède déjà des lots : le test sans lot doit utiliser une autre référence de fixture';
   end if;
 
-  -- Réutilisation stricte des deux professionnels Auth déjà affectés à la pharmacie.
-  -- Aucune création d'identité, aucun ajout d'affectation et aucun changement de rôle actif.
-  -- Stock agrégé temporaire : aucune ligne de lot n'est créée.
+  select p.id into v_admin from public.profiles p
+  where p.role::text='admin' and p.actif=true order by p.created_at limit 1;
+  if v_admin is null then raise exception 'Profil Admin d''audit absent'; end if;
+
+  -- Affectation Responsable provisoire au compte Caisse existant dans la même
+  -- pharmacie de démonstration visible ; aucune identité nouvelle n'est créée.
+  v_responsable:=v_cashier;
+  if not exists(select 1 from public.naxa_professional_assignments a
+    where a.profile_id=v_cashier and a.pharmacie_id=v_pharmacy
+      and a.role_code='responsable' and a.statut='active') then
+    insert into public.naxa_professional_assignments(
+      profile_id,pharmacie_id,fonction,statut,motif,commence_at,
+      accorde_par,accorde_at,nature_affectation,role_code
+    ) values(
+      v_cashier,v_pharmacy,'responsable','active',
+      'Fixture transactionnelle E2E Assurance POS — rollback obligatoire',now(),
+      v_admin,now(),'ordinaire','responsable'
+    );
+  end if;
+
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('role','authenticated','sub',v_cashier)::text,true);
+  perform set_config('request.jwt.claim.sub',v_cashier::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform public.naxa_select_active_role('responsable',v_pharmacy);
+  if private.naxa_business_function(v_cashier)<>'responsable'
+     or private.naxa_active_role_pharmacy(v_cashier) is distinct from v_pharmacy then
+    raise exception 'RPC de sélection n''a pas activé le rôle Responsable';
+  end if;
+
+  -- Stock agrégé et coût d'achat synthétiques, tous deux rollbackés.
   insert into public.stocks(pharmacie_id,produit_id,prix,quantite,date_peremption,updated_at)
   values(v_pharmacy,v_product,10000,5,current_date+30,now())
   on conflict(pharmacie_id,produit_id) do update
@@ -101,7 +111,6 @@ begin
     where pharmacie_id=v_pharmacy and produit_id=v_product) then
     raise exception 'Un coût existe déjà pour la fixture produit/pharmacie ; ne pas le modifier';
   end if;
-  -- Coût unitaire synthétique, uniquement pour permettre le gel du coût POS.
   insert into public.stocks_couts(pharmacie_id,produit_id,cout_unitaire,devise)
   values(v_pharmacy,v_product,5000,'XAF');
 
