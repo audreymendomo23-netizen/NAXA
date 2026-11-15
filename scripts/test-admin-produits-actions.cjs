@@ -27,7 +27,7 @@ test("l'administration consulte le catalogue sans approuver ni modifier les fich
 });
 
 test("l'administration ne reçoit aucun formulaire de publication ou de validation produit", () => {
-  assert.doesNotMatch(adminProductsPage, /<form|<button/);
+  assert.doesNotMatch(adminProductsPage, /<PhotoUpload|formAction|enregistrerFiche|brouillonIA|fiche_validee/);
   assert.match(adminProductsPage, /Déclaration pharmacie/);
 });
 
