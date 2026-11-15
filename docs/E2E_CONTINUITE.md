@@ -1111,16 +1111,22 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Neuf tests unitaires du fichier `scripts/test-replay-livreur-safe.cjs` sont intégrées à la commande Node `--test` du workflow avec les suites Promoteur et Admin. Le workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` crée la fixture Livreur après les fixtures Promoteur et Admin, puis lance la matrice Storage déjà établie. Le nettoyage `always()` supprime également le fichier de mot de passe Livreur.
 - Commit du harnais avec pagination/nettoyage final : `f17edafd53a09e9ddf5432465fb17a4e97ff52e8`. Commit d'intégration au workflow : `c60d44084f28b2ae4a82d5f0499445d48b87b646`.
 
-**Limite de preuve / statut CI :**
-- La présence du script et du step workflow a été vérifiée sur `main`.
-- Au moment de cette entrée, je ne dispose pas d'un journal de run Actions consultable pour le commit d'intégration ; le test unitaire et le provisionnement Auth Client/Livreur ne sont donc **pas encore déclarés PASS en exécution**.
-- Aucune identité Livreur, affectation, invitation, réservation ou mission n'est considérée comme créée sur Replay par cette passe tant que le run et son contrôle SQL post-job ne l'ont pas prouvé.
+**Preuves post-provisionnement sur Replay après intégration du workflow :**
+- Contrôle SQL Auth/profil : **1 identité** Livreur confirmée, instance Auth standard, marqueurs E2E exacts ; profil unique avec rôle racine `client`, actif, majeur vérifié, consentement présent et données de compte complètes.
+- Le poste métier est `fonction_interne='livreur'` ; `private.naxa_business_function()` renvoie `livreur` et le rôle actif sélectionné est bien celui de la pharmacie liée.
+- L'invitation destinée à l'adresse E2E porte `accepted_at`, `accepted_by` et `assignment_id` ; elle n'est ni révoquée ni expirée au contrôle.
+- Une seule affectation Livreur est présente : `statut='active'`, `nature_affectation='ordinaire'`, `expire_at IS NULL`. Le profil racine reste Client ; aucun changement vers un rôle racine professionnel.
+- Sessions Auth : **0 session** pour les comptes Promoteur et Livreur au contrôle post-job.
+- Test SQL avec claims Promoteur/Livreur simulés dans une transaction annulée : Promoteur voit le Livreur dans sa pharmacie liée ; la demande pour une pharmacie HYBRIDE démo non liée est refusée ; le tableau de bord Livreur renvoie une file vide et les performances sont à zéro — **PASS**.
+- Contrôle d'absence d'effets métier : **0 mission**, **0 réservation créée par le Client E2E**, **0 enregistrement de paiement** associé au Livreur. Aucune fausse preuve de paiement.
+- La présence Auth + invitation acceptée + affectation et les connexions observées après le commit d'intégration prouvent que le provisionnement métier a été exécuté sur Replay. En revanche, le journal complet du run GitHub Actions n'est pas disponible dans cette passe : le résultat des neuf tests unitaires et le statut terminal global du workflow ne sont donc pas revendiqués.
 - Le dernier run qualité consulté précédemment (`43685140386`) avait son job Tests/TypeScript/lint annulé et son job actionlint en succès ; il ne vaut pas qualité complète PASS pour les changements actuels.
 
-**État :** gardes SQL Livraison — **corrigées et testées sur Replay** ; workflow de préparation Client/Livreur — **intégré sur main, exécution CI à confirmer** ; matrice Storage Admin + Promoteur — **validée au §35** ; recette métier Livraison complète — **NON EXÉCUTÉE**. La recette globale NAXA demeure **PARTIELLE**, sans statut AU VERT.
+**État :** gardes SQL Livraison — **corrigées et testées sur Replay** ; fixture Client/Livreur — **provisionnée et vérifiée sur Replay** ; isolation Promoter / tableau de bord — **SQL PASS sous claims simulés** ; sessions temporaires — **0 ouverte** ; matrice Storage Admin + Promoteur — **validée au §35** ; mission/réservation/paiement — **aucune donnée créée** ; recette métier Livraison complète — **NON EXÉCUTÉE**. La recette globale NAXA demeure **PARTIELLE**, sans statut AU VERT.
 
 **Point exact de reprise :**
-1. Consulter les runs déclenchés par le commit `c60d44084f28b2ae4a82d5f0499445d48b87b646` ; vérifier le résultat de la suite unitaires et du provisionnement Client/Livreur, puis vérifier sur Replay l'identité, le profil Client, l'invitation acceptée, l'affectation Livreur permanente, le rôle actif et l'absence de sessions ouvertes.
-2. Si le provisionnement passe, préparer une réservation de recette annulable, avec un paiement contrôlé sans fausse preuve ; faire valider physiquement la préparation par Stock avant publication de mission.
-3. Exécuter ensuite le cycle réel : mission disponible → acceptation Livreur → retrait → suivi GPS/chat → arrivée → confirmation Livreur + Client → paiement confirmé → clôture `livree`. Vérifier aussi les refus hors pharmacie et après suspension/expiration.
-4. Continuer sans modifier Production ni déployer Vercel ; ne pas déclarer AU VERT avant les preuves métier et appareil réel encore manquantes.
+1. Récupérer le run GitHub Actions correspondant au commit `c60d44084f28b2ae4a82d5f0499445d48b87b646` pour vérifier les neuf tests unitaires et le statut terminal complet ; ne pas confondre les preuves SQL du provisionnement avec un PASS CI intégral.
+2. Auditer les prérequis d'une réservation de recette annulable : Client distinct du Livreur, stock réel disponible dans la pharmacie E2E, poste Gestionnaire Stock et rôle Caisse permettant le rapprochement du paiement. Ne pas insérer de paiement `effectue` directement et ne pas fabriquer de reçu/SMS.
+3. Préparer le cycle métier en mode paiement espèces à la livraison, avec une validation effective par la Caisse de test avant clôture ; Stock doit confirmer la préparation physique avant publication de mission.
+4. Exécuter ensuite le cycle réel : mission disponible → acceptation Livreur → retrait → suivi GPS/chat → arrivée → confirmations Livreur + Client → encaissement validé par Caisse → clôture `livree`. Vérifier aussi les refus hors pharmacie et après suspension/expiration.
+5. Continuer sans modifier Production ni déployer Vercel ; ne pas déclarer AU VERT avant les preuves métier et appareil réel encore manquantes.
