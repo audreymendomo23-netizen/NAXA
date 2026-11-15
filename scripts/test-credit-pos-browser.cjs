@@ -24,6 +24,7 @@ test("la recette navigateur couvre refus avant décision, reprise du même broui
   assert.match(source, /stockBeforeApproval/);
   assert.match(source, /stockAfterApproval/);
   assert.match(source, /stockAfterSale/);
+  assert.match(source, /getByText\("Session ouverte", \{ exact: true \}\)/);
 });
 
 test("la recette couvre le remboursement réel, l'outbox et le rapprochement Caisse", () => {
