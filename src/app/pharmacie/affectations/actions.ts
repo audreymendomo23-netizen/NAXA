@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -40,7 +41,7 @@ export async function accorderAffectationProfessionnelle(formData:FormData){
 
   if(!uuid.test(pharmacie)
     ||!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)
-    ||!["caisse","gestionnaire_stock","magasinier","pharmacien","responsable","comptable","livreur"].includes(fonction)
+    ||!["caisse","gestionnaire_stock","magasinier","responsable","comptable","livreur"].includes(fonction)
     ||(isPharmacie&&(fonction!=="livreur"||pharmacie!==String(activePharmacy)))
     ||!["ordinaire","urgence"].includes(nature)
     ||!debutDate||!Number.isFinite(debutDate.getTime())
@@ -168,4 +169,70 @@ export async function attribuerDroitCreditMarketplace(formData:FormData){
 
 export async function retirerDroitCreditMarketplace(formData:FormData){
   return gererDroitCreditMarketplace(formData,false);
+}
+
+
+export async function proposerAccreditationPharmacien(formData:FormData){
+  const sb=supabaseServer();
+  const {data:auth}=await sb.auth.getUser();
+  if(!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
+
+  const {data:actor,error:actorError}=await sb.from("profiles")
+    .select("role,actif").eq("id",auth.user.id).maybeSingle();
+  if(actorError||actor?.role!=="promoteur"||actor.actif!==true){
+    redirect("/pharmacie/affectations?erreur=accreditation_acteur");
+  }
+
+  const pharmacyId=value(formData,"pharmacie_id");
+  const username=value(formData,"username").toLowerCase();
+  const registrationNumber=value(formData,"registration_number");
+  const issuingAuthority=value(formData,"issuing_authority");
+  const specialty=value(formData,"specialty");
+  const motif=value(formData,"motif");
+  const validUntil=value(formData,"valid_until");
+  const file=formData.get("justificatif");
+
+  if(!uuid.test(pharmacyId)
+    ||!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)
+    ||registrationNumber.length<3||registrationNumber.length>100
+    ||issuingAuthority.length<2||issuingAuthority.length>180
+    ||specialty.length>120
+    ||motif.length<5||motif.length>500
+    ||(validUntil&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(validUntil))
+    ||!(file instanceof File)||file.size===0||file.size>10*1024*1024
+    ||!["application/pdf","image/jpeg","image/png"].includes(file.type)){
+    redirect("/pharmacie/affectations?erreur=accreditation_validation");
+  }
+
+  const db=supabaseAdmin();
+  const {data:matches,error:lookupError}=await db.from("profiles")
+    .select("id,username,actif").ilike("username",username).limit(2);
+  if(lookupError)redirect("/pharmacie/affectations?erreur=recherche");
+  if(!matches||matches.length!==1||matches[0].actif!==true){
+    redirect("/pharmacie/affectations?erreur=cible");
+  }
+
+  const extension=file.type==="application/pdf"?"pdf":file.type==="image/png"?"png":"jpg";
+  const storagePath=[auth.user.id,matches[0].id,pharmacyId,randomUUID()+"."+extension].join("/");
+  const {error:uploadError}=await db.storage.from("naxa-pharmacien-accreditations")
+    .upload(storagePath,file,{contentType:file.type,upsert:false});
+  if(uploadError)redirect("/pharmacie/affectations?erreur=accreditation_document");
+
+  const {error:proposalError}=await sb.rpc("naxa_proposer_accreditation_pharmacien",{
+    p_target:matches[0].id,
+    p_pharmacie:pharmacyId,
+    p_registration_number:registrationNumber,
+    p_issuing_authority:issuingAuthority,
+    p_specialty:specialty||null,
+    p_credential_storage_path:storagePath,
+    p_valid_until:validUntil||null,
+    p_motif:motif,
+  });
+  if(proposalError){
+    await db.storage.from("naxa-pharmacien-accreditations").remove([storagePath]);
+    redirect("/pharmacie/affectations?erreur=accreditation_rpc");
+  }
+  revalidatePath("/pharmacie/affectations");
+  revalidatePath("/admin/pharmaciens");
+  redirect("/pharmacie/affectations?ok=accreditation_proposee");
 }
