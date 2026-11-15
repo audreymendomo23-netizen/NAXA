@@ -56,8 +56,9 @@ export async function GestionnaireStockEspace({ section, page = 1, ok, erreur }:
  if(pharmacyError||!ids.length) return <main className="mx-auto max-w-6xl p-4"><p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">Le périmètre pharmacie n’a pas pu être déterminé. Aucune donnée n’est affichée.</p></main>;
  const pageNumber=Math.max(1,Math.min(10000,Number.isSafeInteger(page)?page:1));
  const pageSize=100;
- const today=new Date().toISOString().slice(0,10);
- const cutoff=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+ const dateDouala=(date:Date)=>{const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Douala",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);const v=Object.fromEntries(p.map(x=>[x.type,x.value]));return `${v.year}-${v.month}-${v.day}`;};
+ const today=dateDouala(new Date());
+ const cutoff=dateDouala(new Date(Date.now()+30*86400000));
  const [stockResult,lotsResult,reservationsResult,adjustmentsResult]=await Promise.all([
   sb.from("stocks").select("pharmacie_id,produit_id,quantite,date_peremption,emplacement,updated_at,produits(nom,dosage,forme)",{count:"exact"}).in("pharmacie_id",ids).order("quantite",{ascending:true}).range((pageNumber-1)*pageSize,pageNumber*pageSize-1),
   sb.from("stocks_lots").select("id,pharmacie_id,produit_id,numero_lot,date_peremption,quantite,bloque,motif_blocage,emplacement,produits(nom,dosage,forme)",{count:"exact"}).in("pharmacie_id",ids).order("date_peremption",{ascending:true}).range((pageNumber-1)*pageSize,pageNumber*pageSize-1),
