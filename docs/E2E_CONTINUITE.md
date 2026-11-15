@@ -1528,6 +1528,7 @@ Total : **6 rubriques repliables, 24 destinations fixes conservées, aucune rout
 - Un lot dont la date de péremption est antérieure à la date civile du Cameroun ne contribue plus au stock vendable Marketplace.
 - Un lot encore valide peut continuer à alimenter l'offre du même produit. Le Marketplace ne compte que les quantités des lots non bloqués et dont la péremption est au moins égale à la date locale `Africa/Douala`.
 - Si seuls des lots périmés, bloqués ou à quantité nulle restent, la quantité vendable est zéro : aucune offre achetable n'est affichée.
+- La recherche publique des pharmacies ne renvoie plus l'établissement comme offre disponible si aucun lot vendable ne reste. La référence catalogue du produit peut rester visible à quantité nulle selon la règle de découverte §43 ; cela n'expose pas le lot périmé ni une offre achetable.
 - La date d'expiration est traitée comme valable jusqu'à la fin de cette date locale ; le lot est exclu à partir de 00:00 le lendemain, heure du Cameroun. Le rappel J0 informe le personnel du lot qui atteint sa date ce jour-là.
 - NAXA n'inspecte ni ne valide le produit ou la date déclarée. Les alertes rappellent les informations de stock saisies par la pharmacie et lui laissent la gestion du lot.
 
@@ -1563,8 +1564,8 @@ La migration ajoute `private.naxa_date_cameroun()`, calculée avec `(now() at ti
 - Test Node contractuel : `scripts/test-pharmacy-lot-expiry-notifications.cjs`, source initiale commit [83fb2fa99d3e5011d92e7fad0cb69d7c8154d4e7](https://github.com/audreymendomo23-netizen/NAXA/commit/83fb2fa99d3e5011d92e7fad0cb69d7c8154d4e7), assertion UI ajoutée commit [2e86dbb627233e9e472068e873201650ebf28a68](https://github.com/audreymendomo23-netizen/NAXA/commit/2e86dbb627233e9e472068e873201650ebf28a68), expressions d'assertion corrigées commit [d639f140d8dcf8833494c0edd27e3a47a03be052](https://github.com/audreymendomo23-netizen/NAXA/commit/d639f140d8dcf8833494c0edd27e3a47a03be052).
 - Écran Stock en date Cameroun : commit [00e07de65dad7dd625ec16e347e4b4f51c025e8a](https://github.com/audreymendomo23-netizen/NAXA/commit/00e07de65dad7dd625ec16e347e4b4f51c025e8a).
 - Migration batch : `supabase/migrations/20261115103000_batch_pharmacy_lot_expiry_dispatch.sql`, commit [9d51b3798480ec63572641ae7b7e003439d882e3](https://github.com/audreymendomo23-netizen/NAXA/commit/9d51b3798480ec63572641ae7b7e003439d882e3), appliquée sur Replay après la migration initiale.
-- Test SQL adapté au traitement batch (limite d'un lot par appel, six passages) : commit [0800ddad630d6e53129e109543b18476f9c0ac50](https://github.com/audreymendomo23-netizen/NAXA/commit/0800ddad630d6e53129e109543b18476f9c0ac50).
-- Test Node couvrant le traitement batch : commit [01532b9a95bbcbbda86b57ec6dbc693f23d0a7f2](https://github.com/audreymendomo23-netizen/NAXA/commit/01532b9a95bbcbbda86b57ec6dbc693f23d0a7f2).
+- Test SQL adapté au traitement batch (limite d'un lot par appel, six passages), puis étendu à la recherche publique pharmacie et à la visibilité séparée de la référence catalogue : commit [6cfda89052dc93dbe1cb9c3c45f8ee4226583fec](https://github.com/audreymendomo23-netizen/NAXA/commit/6cfda89052dc93dbe1cb9c3c45f8ee4226583fec).
+- Test Node couvrant le traitement batch, la recherche Marketplace, la date locale et les liens d'action : commit [c3deca77b9231d398ca24c49ae7cce844e1ab140](https://github.com/audreymendomo23-netizen/NAXA/commit/c3deca77b9231d398ca24c49ae7cce844e1ab140).
 - Lien d'action depuis la notification vers `/pharmacie/gestionnaire-stock/lots-peremptions` : commit [0b01340e01328a134725aa19c01cbcae9d18d2de](https://github.com/audreymendomo23-netizen/NAXA/commit/0b01340e01328a134725aa19c01cbcae9d18d2de). Le contrat de ce lien est couvert dans le test Node mis à jour [c0180c5d424882dbd03acc6b37ab4bfc2a570a69](https://github.com/audreymendomo23-netizen/NAXA/commit/c0180c5d424882dbd03acc6b37ab4bfc2a570a69).
 - Workflow Replay ajoutant les trois fichiers, la migration batch et le test Node : commit initial [42442e7905ff157900720230225644db122910cb](https://github.com/audreymendomo23-netizen/NAXA/commit/42442e7905ff157900720230225644db122910cb), extension batch [f06d2ffc4fa99b00e9e24ff12125c9e2577a17ca](https://github.com/audreymendomo23-netizen/NAXA/commit/f06d2ffc4fa99b00e9e24ff12125c9e2577a17ca). Le workflow suit maintenant aussi l'écran Notifications, commit [d87e8926ebff560b1e51133c9960499c86186887](https://github.com/audreymendomo23-netizen/NAXA/commit/d87e8926ebff560b1e51133c9960499c86186887).
 
@@ -1574,13 +1575,14 @@ La migration ajoute `private.naxa_date_cameroun()`, calculée avec `(now() at ti
 
 **Test SQL transactionnel : PASS.** Il crée dans une seule transaction six lots temporaires d'un même produit : cinq échéances (J-30, J-15, J-7, J-3, J0) avec 10 unités chacun, et un lot expiré la veille avec 999 unités. Le dispatcher est appelé avec une limite d'un lot et six passages successifs pour démontrer qu'il progresse après chaque lot notifié. Résultats :
 1. Offre Marketplace = **50 unités**, pas 1 049 : les 999 unités périmées ne sont pas comptées.
-2. Cinq seuils déclenchent exactement un rappel par destinataire autorisé.
-3. Deuxième exécution immédiate = **0 notification supplémentaire**.
-4. Aucun rappel pour le lot déjà expiré J+1.
-5. Après mise à zéro des cinq lots encore valides, le lot périmé de 999 unités ne maintient plus l'offre : quantité Marketplace = **0**.
-6. Aucun rappel destiné à Caisse/Livreur.
-7. Les neuf fonctions de contrôle ciblées ne reposent plus sur `current_date` UTC pour les gardes de péremption.
-8. Le cron de dix minutes attendu est présent et actif.
+2. La recherche publique de pharmacie renvoie cette offre avec **50 unités valides seulement**.
+3. Cinq seuils déclenchent exactement un rappel par destinataire autorisé, en six passages batch avec une limite d'un lot par appel.
+4. Le passage suivant et une relance immédiate = **0 notification supplémentaire**.
+5. Aucun rappel pour le lot déjà expiré J+1 ; aucun rappel destiné à Caisse/Livreur.
+6. Après mise à zéro des cinq lots encore valides, le lot périmé de 999 unités ne maintient plus l'offre : quantité Marketplace = **0**, et la recherche publique ne renvoie plus la pharmacie comme offre disponible.
+7. La référence catalogue reste découvrable à quantité nulle conformément à §43, sans exposition du lot ni offre achetable.
+8. Les neuf fonctions de contrôle ciblées ne reposent plus sur `current_date` UTC pour les gardes de péremption.
+9. Le cron de dix minutes attendu est présent et actif.
 
 Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la table de dispatch, **0** notification `lot_expiry_reminder`, **0** lot de test, **0** ligne Stock conservée sur la pharmacie E2E utilisée.
 
@@ -1592,7 +1594,7 @@ Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la
 - Les autres avis Supabase préexistants restent ouverts ; ce contrôle ne constitue pas un audit de sécurité global.
 
 **Tests de code :**
-- Les six groupes d'assertions contractuelles source/UI ont été vérifiés sur les fichiers versionnés : PASS.
+- Les huit contrats Node sont présents dans `scripts/test-pharmacy-lot-expiry-notifications.cjs` (seuils, rôles, déduplication, date camerounaise, ACL, batch, interface Stock, lien de notification) ; les contrôles statiques de source/UI sont PASS. Le run `node --test` en CI reste à confirmer.
 - Le test Node est branché dans le workflow Replay et le workflow surveille la migration, le test SQL, le script et l'écran Stock.
 - **Run GitHub Actions après le dernier commit non confirmé** par les contrôles de session disponibles ; ne pas déclarer le test Node en CI PASS sur la seule présence du workflow.
 
@@ -1601,7 +1603,7 @@ Le test termine par `ROLLBACK`. Contrôle post-test Replay : **0** ligne dans la
 - Replay contient **0 pharmacie active non-démo visible en recherche**. Le test a donc rendu temporairement une pharmacie démo non-démo uniquement dans sa transaction, puis a annulé cette modification avec le reste des fixtures.
 - Le cron est créé et actif, mais aucune notification destinée à une vraie pharmacie n'a été livrée pendant ce test : aucune pharmacie publique réelle avec un lot échéant n'existe sur Replay.
 - À la prochaine recette sur une pharmacie réelle de test non-démo, créer/réceptionner un lot réel avec date proche des seuils, vérifier l'arrivée de la notification Promoteur/Responsable/Gestionnaire Stock, la réception push/email selon les préférences et l'absence de notification pour les rôles exclus.
-- Vérifier en navigateur que le résultat de recherche et la fiche offre disparaissent lorsque le seul stock restant est un lot périmé ; le moteur SQL qui alimente ces offres est déjà testé.
+- Vérifier en navigateur que la carte/offre de pharmacie disparaît lorsque le seul stock restant est un lot périmé ; le retour de `public.search_pharmacies` et le calcul d'offre sont déjà testés en SQL. La référence catalogue peut rester accessible sans quantité vendable.
 - Le parcours réservation → préparation → Livreur → livraison → encaissement reste séparément bloqué par l'absence d'approvisionnement traçable.
 
 **État au §45 :** rappels configurés / migrations Replay appliquées — **PASS** ; cinq seuils, progression batch et déduplication — **SQL PASS** ; exclusion Marketplace du lot expiré — **SQL PASS** ; calendrier Cameroun dans les gardes et l'écran Stock — **PASS structurel + SQL** ; lien d'action vers les lots — **intégré / test contractuel ajouté** ; cron toutes les dix minutes — **PASS** ; livraison réelle d'une notification à une pharmacie publique — **non démontrée, faute de pharmacie non-démo/lot échu sur Replay** ; CI Node — **en attente de confirmation de run** ; état global — **PARTIEL**, pas AU VERT. Production et Vercel inchangés.
