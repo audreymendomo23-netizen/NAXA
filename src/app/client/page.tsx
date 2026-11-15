@@ -159,6 +159,16 @@ function ClientPageContent(){
  <p className="mt-8 text-center text-xs text-slate-500">NAXA facilite vos opérations d\’achats en pharmacie, Aucune transaction financière n\’est effectuée depuis cet espace.</p></div></main>;
 }
 
-function ClientRouteContent(){const searchParams=useSearchParams();return searchParams.get("onglet")==="achats"?<ClientOperations/>:<AccueilClient />}
+function ClientRouteContent(){
+ const searchParams=useSearchParams();
+ const ordonnancesLink=<div className="mx-auto max-w-[480px] bg-[#F4F8F5] px-4 pt-3">
+  <Link href="/client/ordonnances" className="flex min-h-11 items-center justify-between rounded-xl border border-[#CFE2D5] bg-white px-4 text-sm font-extrabold text-[#0B3D26] shadow-sm">
+   <span>Mes ordonnances</span><span aria-hidden="true">→</span>
+  </Link>
+ </div>;
+ return searchParams.get("onglet")==="achats"
+  ?<>{ordonnancesLink}<ClientOperations/></>
+  :<>{ordonnancesLink}<AccueilClient/></>;
+}
 
 export default function ClientPage(){return <Suspense fallback={<main className="mx-auto min-h-screen max-w-2xl px-4 pb-28"><p className="carte mt-6">Chargement de votre espace…</p></main>}><ClientRouteContent /></Suspense>}
