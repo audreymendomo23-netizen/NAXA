@@ -121,7 +121,7 @@ begin
         v_definition := replace(
           v_definition,
           'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie',
-          E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
+          E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
         );
       else
         v_definition := replace(
@@ -132,7 +132,7 @@ begin
         v_definition := replace(
           v_definition,
           'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie',
-          E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
+          E'join public.stocks s on s.produit_id=p.id and s.pharmacie_id=p_pharmacie\n  cross join lateral private.naxa_pos_stock_vendable(p_pharmacie,s.produit_id) avail'
         );
       end if;
 
