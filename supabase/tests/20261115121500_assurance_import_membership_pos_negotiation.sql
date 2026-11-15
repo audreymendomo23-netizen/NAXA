@@ -80,7 +80,7 @@ begin
      or position('v2.couverture_id=c.id' in lower(v_calculate))=0
      or position('v.couverture_id=v_c.id' in lower(v_calculate))>0
      or position('v_r.pharmacie_id' in v_calculate)=0
-     or position('v.declaration_maj_at=v_c.declaration_maj_at' in v_calculate)=0
+     or position('v.declaration_maj_at=c.declaration_maj_at' in v_calculate)=0
      or position('v.statut=''verifiee''' in v_calculate)=0 then
     raise exception 'Calcul de devis doit exiger la dernière vérification de cette pharmacie et la version de déclaration courante';
   end if;
