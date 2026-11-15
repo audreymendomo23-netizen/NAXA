@@ -9,7 +9,7 @@ begin
   );
 
   v_normal:=regexp_replace(lower(v_def),'\\s+',' ','g');
-  if position('on conflict (pharmacie_id,cle_idempotence) do nothing' in replace(v_normal,' ',''))=0 then
+  if position('on conflict (pharmacie_id,cle_idempotence) do nothing' in v_normal)=0 then
     raise exception 'La confirmation doit cibler la clé unique pharmacie + idempotence';
   end if;
 
