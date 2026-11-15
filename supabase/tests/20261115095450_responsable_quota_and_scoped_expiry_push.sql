@@ -53,7 +53,8 @@ begin
   v_dispatch:=pg_get_functiondef(
     'public.naxa_dispatch_pharmacy_lot_expiry_alerts_internal(date,integer)'::regprocedure
   );
-  if position('request.jwt.claim.role' in lower(v_dispatch))=0
+  if position('auth.role()' in lower(v_dispatch))=0
+     or position('request.jwt.claim.role' in lower(v_dispatch))>0
      or position('private.dispatch_pharmacy_lot_expiry_alerts' in lower(v_dispatch))=0
      or has_function_privilege(
        'authenticated',
