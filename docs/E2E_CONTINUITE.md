@@ -3531,3 +3531,89 @@ Pour avancer sans prétendre à une preuve inexistante, la proposition est de la
 **Conclusion :** aucun déploiement Vercel correspondant aux corrections de navigation ou aux mises à jour documentaires examinées n’a été trouvé. Cette vérification est une lecture de l’historique Vercel ; aucune action de déploiement n’a été effectuée par cette passe.
 
 **Statut de sécurité déploiement : VERT — aucun déploiement Vercel des commits examinés détecté.** Cette preuve ne modifie pas la réserve du §82 sur les clics runtime non encore testés.
+
+
+## 84. Préconditions réelles du contrôle navigateur des menus
+
+**Date :** 16 novembre 2026  
+**Branche :** `main` uniquement  
+**HEAD vérifié :** `99e13e77418c3e2306ddf973d268d6f581458db6`  
+**Périmètre :** contrôle en lecture seule de Replay et qualification des preuves restantes. Aucun provisionnement ni changement de données.
+
+### 84.1 Qualité du HEAD actuel
+
+Le workflow [NAXA quality — run 43798572471](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43798572471), déclenché sur le HEAD indiqué ci-dessus, est terminé avec succès :
+
+- Job « Tests, TypeScript et lint » : `success`.
+- Job « GitHub Actions syntax and expression checks » : `success`.
+- Le job qualité exécute `npm run quality && npm run build` ; le job de validation exécute `actionlint` sur les workflows actifs.
+
+**Résultat : VERT — qualité, compilation et syntaxe CI sur le HEAD exact.**
+
+### 84.2 État des profils et données de rôle dans le projet Replay
+
+Projet interrogé en lecture seule : `pwfftcsjyeibxxqhwysw` (`naxa-ci-replay-2`), statut Supabase `ACTIVE_HEALTHY`.
+
+Résultat des requêtes SQL en lecture seule :
+
+| Élément | État observé |
+|---|---:|
+| Profils totaux | 9 |
+| Profils racine Admin | 1 |
+| Profils racine Client | 7 |
+| Profils racine Promoteur | 1 |
+| Affectations professionnelles actives | 6 |
+| Affectations Caisse | 2 |
+| Affectations Gestionnaire Stock | 2 |
+| Affectations Livreur | 1 |
+| Affectations Responsable | 1 |
+| Affectations Comptable | **0** |
+| Enregistrements partenaires | **0** |
+| Adhésions `partner_members` | **0** |
+
+Le profil technique `naxa_e2e_promoteur` existe, est actif et possède trois rattachements Promoteur/pharmacie actifs. Il fournit une fixture existante pour le parcours Promoteur, sous réserve de disposer de son moyen d’authentification de recette au moment du test.
+
+### 84.3 Contradiction et cause racine du blocage runtime
+
+Les routes et liens Comptable/Partenaire sont présents dans le code et leur compilation a été prouvée au §82. Cependant, l’environnement Replay ne contient actuellement :
+
+- aucun profil auquel le poste Comptable est affecté ;
+- aucun partenaire ;
+- aucun membre owner/manager de partenaire.
+
+Il n’existe donc aucune session Replay légitime permettant de vérifier le rendu du menu Comptable ni l’accès owner/manager vers « Centres et examens ». Un test en simulant ces rôles, ou en se limitant à une requête non authentifiée qui redirige, ne constituerait pas une preuve positive du clic utilisateur.
+
+Le dépôt possède déjà un workflow Chromium/Playwright, mais celui-ci exécute des provisionneurs qui peuvent créer ou modifier des identités et données de fixtures, notamment la fixture Promoteur et le personnel. Le relancer tel quel n’est pas acceptable pour ce contrôle limité : il ne respecte pas le principe « comptes existants uniquement » et mélange le test de navigation à d’autres recettes mutantes.
+
+### 84.4 Décision de sûreté
+
+Aucune des opérations suivantes n’a été exécutée :
+
+- création d’un compte Auth ;
+- création d’un partenaire ou d’une adhésion ;
+- ajout/modification d’une affectation Comptable ;
+- rotation de mot de passe ou révocation de session ;
+- mutation de données Replay, migration ou recette bulk ;
+- création de Preview, déploiement ou promotion Vercel.
+
+Les requêtes de ce §84 sont uniquement des lectures de métadonnées et de comptes agrégés sur Replay.
+
+### 84.5 Voie contrôlée pour obtenir la preuve manquante
+
+La voie techniquement adaptée est une recette Chromium dédiée, exécutée sur un runner GitHub Actions avec le serveur Next.js local connecté exclusivement à Replay — sans Preview Vercel et sans déploiement — et qui :
+
+1. réutilise les profils Auth déjà existants, sans créer de nouvel utilisateur ;
+2. prépare temporairement, uniquement sur Replay, une affectation Comptable et un partenaire de recette avec une adhésion owner/manager, puis les nettoie ;
+3. ouvre une vraie session pour chaque rôle et clique les entrées de menu ;
+4. vérifie l’URL finale, le titre de page, le menu actif et le refus d’accès pour un rôle non autorisé ;
+5. vérifie le nettoyage des seuls enregistrements temporaires avant de conclure.
+
+**Prérequis de sûreté :** cette méthode nécessite une autorisation explicite pour les deux mutations temporaires de données Replay (affectation Comptable et partenaire/adhésion), même si aucun compte Auth supplémentaire n’est créé. Aucune de ces mutations ne sera faite avant cet accord.
+
+### 84.6 Verdict
+
+- **VERT :** navigation source, routes compilées, guards relus, qualité CI et build sur le HEAD actuel.
+- **JAUNE :** clic réel Promoteur non encore exécuté dans cette passe ; clic réel Comptable et Partenaire impossible à prouver avec les fixtures présentes.
+- **BULK :** toujours non lancé et toujours en attente d’une validation ultérieure distincte.
+
+**Conclusion :** ne pas déclarer le contrôle interactif global vert. La cause du blocage est désormais établie par l’état réel de Replay : les deux catégories de fixtures Comptable et Partenaire n’existent pas. La seule suite sûre est une recette navigateur locale avec réutilisation des comptes existants et fixtures de données temporaires autorisées puis nettoyées.
