@@ -7,6 +7,8 @@ const {
   buildMetadata,
   assertFixture,
   generateEphemeralPassword,
+  buildTestCredentialPdf,
+  buildClientPrescriptionObjectPath,
   PERSONAS,
 } = require("./e2e/provision-replay-pharmacy-staff-safe.cjs");
 
@@ -125,4 +127,31 @@ test("le Livreur invité est connecté à la pharmacie et validé par un JWT ré
   assert.ok(source.includes('p_role_code: "livreur"'));
   assert.ok(source.includes('courierBusinessRole.data !== "livreur"'));
   assert.ok(source.includes("courierActivePharmacy.data !== pharmacyId"));
+});
+
+test("PDF d'ordonnance fictif et chemin Storage sont strictement marqués E2E", () => {
+  const pdf = buildTestCredentialPdf();
+  assert.ok(pdf.subarray(0, 8).toString("utf8").startsWith("%PDF-1.4"));
+  assert.match(pdf.toString("utf8"), /NOT A REAL LICENSE OR PRESCRIPTION/);
+  assert.equal(
+    buildClientPrescriptionObjectPath(
+      "dcb2242b-50fb-46c8-8c90-e01d42fa4175",
+      "76dd4983-273a-4a83-ae3d-9a7838d3aa35",
+      "0123456789abcdef"
+    ),
+    "dcb2242b-50fb-46c8-8c90-e01d42fa4175/76dd4983-273a-4a83-ae3d-9a7838d3aa35/naxa-e2e-prescription-0123456789abcdef.pdf"
+  );
+  assert.throws(() => buildClientPrescriptionObjectPath("client/other", "pharmacy", "nonce"), /Chemin Storage invalide/);
+});
+
+test("le harnais exécute upload Client, lecture Pharmacien, téléchargement, validation et nettoyage", () => {
+  const source = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "e2e/provision-replay-pharmacy-staff-safe.cjs"),
+    "utf8"
+  );
+  assert.ok(source.includes("naxa-client-prescriptions"));
+  assert.ok(source.includes("naxa_client_soumettre_ordonnance"));
+  assert.ok(source.includes("prescription_valider"));
+  assert.ok(source.includes("object/authenticated/naxa-client-prescriptions/"));
+  assert.ok(source.includes("Nettoyage ordonnance E2E incomplet"));
 });
