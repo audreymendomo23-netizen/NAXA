@@ -5,7 +5,6 @@ const fs = require("node:fs");
 const crypto = require("node:crypto");
 const os = require("node:os");
 const path = require("node:path");
-const webpush = require("web-push");
 const { chromium } = require("playwright");
 const {
   sumLotQuantities,
@@ -301,6 +300,16 @@ async function run(env = process.env) {
       });
       if (!saved.ok) throw new Error("Souscription authentifiée refusée pour " + identity.label + " (HTTP " + saved.status + ").");
 
+      const storedRows = await admin("/rest/v1/naxa_push_subscriptions?select=user_id,endpoint,subscription&user_id=eq."
+        + encodeURIComponent(identity.session.id));
+      const stored = Array.isArray(storedRows)
+        ? storedRows.find(row => row.endpoint === subscription.subscription.endpoint)
+        : null;
+      if (!stored || stored.user_id !== identity.session.id
+        || stored.subscription?.keys?.p256dh !== subscription.subscription.keys?.p256dh
+        || stored.subscription?.keys?.auth !== subscription.subscription.keys?.auth) {
+        throw new Error("Souscription stockée différente de la souscription Chromium pour " + identity.label + ".");
+      }
       // Une seule livraison par souscription : le worker NAXA est le test réel.
       // La lecture REST ci-dessus confirme que l'endpoint et les clés stockées
       // correspondent exactement à la souscription créée par Chromium.
