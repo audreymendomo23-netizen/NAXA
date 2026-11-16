@@ -227,6 +227,27 @@ export async function creerProduitCatalogue(form: FormData) {
   redirect("/partenaire/catalogue?ok=creation");
 }
 
+export async function definirProduitBebeMamanCatalogue(form: FormData) {
+  const partnerId = field(form, "partner_id", 36);
+  const productId = field(form, "product_id", 36);
+  const active = field(form, "active", 5) === "true";
+  const { sb, memberships, isParapharmacy } = await partnerContext("EDIT_PRODUCT", partnerId);
+  if (!isParapharmacy || !uuid(partnerId) || !uuid(productId)
+      || !memberships.some((membership: any) => membership.partner_id === partnerId)) {
+    redirect("/partenaire/catalogue?erreur=publication_bebe_maman");
+  }
+  const { data, error } = await sb.rpc("partner_bebe_maman_product_definir", {
+    p_partner: partnerId,
+    p_product: productId,
+    p_active: active,
+  });
+  if (error || data !== true) redirect("/partenaire/catalogue?erreur=publication_bebe_maman");
+  revalidatePath("/partenaire/catalogue");
+  revalidatePath("/bebe-maman");
+  revalidatePath("/parapharmacie");
+  redirect("/partenaire/catalogue?ok=publication_bebe_maman");
+}
+
 export async function ajusterStockCatalogue(form: FormData) {
   const partnerId = field(form, "partner_id", 36);
   const { sb, memberships } = await partnerContext("EDIT_STOCK_QUANTITY", partnerId);
