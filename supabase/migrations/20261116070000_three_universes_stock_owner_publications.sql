@@ -256,10 +256,18 @@ begin
     raise exception 'Cette fiche ne relève pas du catalogue Parapharmacie de ce partenaire';
   end if;
   if p_active then
-    if not exists(select 1 from public.universes u
-      join public.feature_flags f on f.flag_key='universe.bebe-maman' and f.enabled=true
-      where u.slug='bebe-maman' and u.enabled=true) then
-      raise exception 'Univers Bébé & Maman désactivé par l’Administration';
+    if not exists(
+      select 1
+      from public.partners pa
+      join public.partner_universes pu on pu.partner_id=pa.id
+        and pu.universe_slug='parapharmacie' and pu.enabled=true
+      join public.universes up on up.slug='parapharmacie' and up.enabled=true
+      join public.feature_flags fp on fp.flag_key='universe.parapharmacie' and fp.enabled=true
+      join public.universes ub on ub.slug='bebe-maman' and ub.enabled=true
+      join public.feature_flags fb on fb.flag_key='universe.bebe-maman' and fb.enabled=true
+      where pa.id=p_partner and pa.partner_type='parapharmacie' and pa.status='active'
+    ) then
+      raise exception 'Association Parapharmacie ou univers indisponible';
     end if;
     if not exists(select 1 from public.partner_products pp
       where pp.id=p_product and pp.partner_id=p_partner and pp.status='active'
@@ -360,6 +368,10 @@ as $function$
     and pp.partner_id=pub.partner_id and pp.universe_slug='parapharmacie'
   join public.partners pa on pa.id=pub.partner_id
     and pa.partner_type='parapharmacie' and pa.status='active'
+  join public.partner_universes pu on pu.partner_id=pa.id
+    and pu.universe_slug='parapharmacie' and pu.enabled=true
+  join public.universes up on up.slug='parapharmacie' and up.enabled=true
+  join public.feature_flags fp on fp.flag_key='universe.parapharmacie' and fp.enabled=true
   join public.universes ub on ub.slug='bebe-maman' and ub.enabled=true
   join public.feature_flags fb on fb.flag_key='universe.bebe-maman' and fb.enabled=true
   left join lateral (
@@ -591,10 +603,11 @@ begin
     where p.id=v_user and p.role='client' and p.actif=true) then
     raise exception 'Compte Client actif requis';
   end if;
+  -- private.reserve_stock accepte au plus 10 lignes ; conserver le même contrat ici.
   if p_pharmacie is null or p_universe_slug not in ('bebe-maman','parapharmacie')
      or jsonb_typeof(p_items) is distinct from 'array'
-     or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>20 then
-    raise exception 'Panier ou destination invalide';
+     or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>10 then
+    raise exception 'Panier ou destination invalide (10 lignes maximum par pharmacie)';
   end if;
   select * into v_pharmacie from public.pharmacies ph
   where ph.id=p_pharmacie and ph.actif=true and ph.visible_recherche=true
@@ -630,8 +643,12 @@ begin
         where pub.pharmacie_id=p_pharmacie
           and pub.produit_id=(x->>'product_id')::uuid
           and pub.universe_slug='bebe-maman' and pub.active=true
+      ) or not exists(
+        select 1 from public.produits p
+        where p.id=(x->>'product_id')::uuid
+          and (p.created_by_pharmacie_id is null or p.created_by_pharmacie_id=p_pharmacie)
       ) or not private.naxa_bebe_maman_product_allowed((x->>'product_id')::uuid)
-    ) then raise exception 'Article non publié ou non éligible à Bébé & Maman'; end if;
+    ) then raise exception 'Article non publié, hors propriétaire ou non éligible à Bébé & Maman'; end if;
   else
     if exists(
       select 1 from jsonb_array_elements(p_items) x
@@ -640,8 +657,12 @@ begin
         where pub.pharmacie_id=p_pharmacie
           and pub.produit_id=(x->>'product_id')::uuid
           and pub.universe_slug='parapharmacie' and pub.active=true
+      ) or not exists(
+        select 1 from public.produits p
+        where p.id=(x->>'product_id')::uuid
+          and (p.created_by_pharmacie_id is null or p.created_by_pharmacie_id=p_pharmacie)
       ) or not private.naxa_pharmacie_parapharmacie_product_allowed((x->>'product_id')::uuid)
-    ) then raise exception 'Article non publié ou non éligible à Parapharmacie'; end if;
+    ) then raise exception 'Article non publié, hors propriétaire ou non éligible à Parapharmacie'; end if;
   end if;
 
   select coalesce(jsonb_agg(jsonb_build_object(
