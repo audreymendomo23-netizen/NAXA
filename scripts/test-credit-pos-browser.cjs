@@ -21,6 +21,7 @@ test("la recette navigateur couvre refus avant décision, reprise du même broui
   assert.match(source, /Dépassement du plafond/);
   assert.match(source, /Approuver le crédit comptoir/);
   assert.match(source, /Finaliser la vente à crédit/);
+  assert.match(source, /getByText\("Achat à crédit", \{ exact: false \}\)\.first\(\)\.waitFor\(\)/);
   assert.match(source, /stockBeforeApproval/);
   assert.match(source, /stockAfterApproval/);
   assert.match(source, /stockAfterSale/);
