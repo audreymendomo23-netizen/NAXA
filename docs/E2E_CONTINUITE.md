@@ -3110,7 +3110,7 @@ Replay exclusivement (`pwfftcsjyeibxxqhwysw`). Aucune écriture Supabase Product
 
 ### Verdict CTO
 
-**AU VERT pour la campagne E2E Replay crédit / Marketplace / comptabilité / Web Push navigateur / Storage.** Le run final est `43791964746` SUCCESS sur le SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5`. La tête actuelle `main` est `ff30cd524ffdcf93e887a109e8eaed9dacb52717`, constituée depuis ce SHA uniquement de commits documentaires ; son contrôle qualité `43792994708` est SUCCESS.
+**AU VERT pour la campagne E2E Replay crédit / Marketplace / comptabilité / Web Push navigateur / Storage.** Le run final est `43791964746` SUCCESS sur le SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5`. Les commits postérieurs mentionnés dans cette continuité (`b816df62`, `ff30cd52`, `6d53595e` et les mises à jour documentaires qui suivent) ne modifient que `docs/E2E_CONTINUITE.md`, pas le code applicatif ni les scripts de recette. Les contrôles qualité terminaux réussis sont `43791964638` sur le SHA applicatif et `43792994708` sur le commit documentaire `ff30cd524ffdcf93e887a109e8eaed9dacb52717`. Le contrôle qualité lancé spécifiquement sur `6d53595e` (`43793618908`) était encore en cours au dernier relevé ; il concerne le document seul et ne remet pas en cause les preuves de code et d'exécution ci-dessus.
 
 **Limite de portée :** ce vert ne signifie ni preuve de push Android FCM physique ni validation générale de tous les modules NAXA. Il certifie les parcours précisément nommés ci-dessus.
 
