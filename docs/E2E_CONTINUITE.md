@@ -4887,3 +4887,38 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 **Verdict Lot A : PARTIEL.** Les RPC marketplace anon ont désormais une preuve positive et les cas négatifs majeurs ont été exécutés sur des fixtures de stock réelles en transaction, sans résidu. Restent à fermer : preuve navigateur Auth (connexion, refresh, expiration, révocation), revue ciblée des fonctions SECURITY DEFINER et classification des tables RLS sans policy ; la protection native des mots de passe compromis demeure une limite de forfait non modifiable depuis les accès actuels. Ne pas confondre cette limite avec une activation réussie.
 
 **Point exact de reprise :** compléter la preuve Auth navigateur avec un moyen d'exécution accessible ; auditer les fonctions SECURITY DEFINER qui touchent identité/session/affectations et classifier les 72 tables RLS sans policy ; définir avec l'utilisateur le critère d'acceptation formel du contrôle Auth non disponible sur le forfait gratuit. Aucun accès Production, aucun déploiement Vercel ou Play Store.
+
+
+## 119. Lot A — parcours stock via RPC Gestionnaire de stock et tri RLS/SECURITY DEFINER (16/11/2026)
+
+**Recette stock avec identité Auth de test**
+- Profil Auth existant utilisé : compte de test Gestionnaire de stock (profil actif, rôle métier `gestionnaire_stock`, affectation active et espace actif sur la pharmacie fixture Mvan). Le compte est bien présent dans `auth.users`.
+- Important : le JWT a été simulé dans la session SQL Replay avec les claims de cette identité et le rôle SQL `authenticated`. Ce n'est pas une connexion navigateur avec saisie du mot de passe ; cela teste les RPC, les gardes métier et RLS sous le rôle Auth correspondant.
+- Produit fictif : `Amoxicilline NAXA Test`, id `893b49e6-faaa-4944-a396-f03f79d17978`, sans stock initial dans la pharmacie Mvan.
+- Parcours réellement exécuté, dans l'ordre : `gestionnaire_stock_reference_initialiser` → `gestionnaire_stock_quantite_ajuster` (+5, mouvement `retour`) → `stock_lot_enregistrer` (lot de 5 unités, péremption future).
+- PASS : les trois RPC ont réussi sous `authenticated` avec l'identité du Gestionnaire de stock ; le stock (quantité 5) et le lot (1) étaient lisibles sous ce même rôle via RLS.
+- PASS refus : un profil Client sans affectation professionnelle et le Gestionnaire de stock essayant une autre pharmacie ont tous deux été rejetés par `Pharmacie hors périmètre`.
+- Nettoyage : transaction `ROLLBACK`. Contrôle après rollback : zéro stock, zéro lot et zéro mouvement journalisé résiduel pour ce produit/pharmacie.
+
+**Triage des 72 alertes RLS sans policy**
+- Reproduction SQL de l'ensemble des tables correspondantes : 65 tables `public` + 7 tables `private` = 72, cohérent avec le Security Advisor.
+- Aucun de ces 65 objets `public` ne donne de privilège SELECT/INSERT/UPDATE/DELETE à `anon` ou `authenticated` (0 table lisible/écrivable par ces rôles). Les 7 tables `private` n'accordent pas non plus de privilèges de table à ces rôles.
+- Classement : accès fermé par défaut, pas de policy nécessaire tant qu'aucun accès direct API n'est voulu. Ne pas ajouter des policies permissives pour faire disparaître l'alerte. Les objets `storage`/ `realtime` hors de ces 72 constats sont gérés séparément par leurs mécanismes propres.
+- Cette vérification confirme l'absence de privilège direct pour les deux rôles testés ; elle ne certifie pas à elle seule les flux internes `service_role` ou Edge Functions.
+
+**Triage statique ciblé des 253 SECURITY DEFINER accessibles à authenticated**
+- Inventaire PostgreSQL Replay : 253 fonctions exposées à `authenticated`.
+- 248 définitions contiennent un signal de garde explicite (identité JWT, Admin, privilège, capacité ou contrôle de scope). C'est un tri statique, non une preuve comportementale exhaustive.
+- Les 5 définitions sans signal direct ont été lues :
+  - `assurance_import_simuler_mode` délègue à `assurance_import_simuler`, qui exige `auth.uid()`, un rôle professionnel autorisé et `naxa_scope_allows` sur la pharmacie.
+  - `set_garde` dérive la pharmacie depuis `my_pharmacie()` et exige `authorize('MANAGE_GUARD_STATUS', ...)`, façade vers le moteur de privilèges.
+  - `get_universe_catalog_v2`, `marketplace_offre_stock_disponible` et `marketplace_produit_visible` sont les 3 RPC publiques anon maintenant validées par les recettes positives/négatives du §118.
+- Aucun grant n'a été modifié. Les avertissements SECURITY DEFINER ne sont pas effacés artificiellement : ils restent à interpréter comme surface RPC autorisée, avec garde métier, et non comme 253 vulnérabilités confirmées.
+- Les tests d'identité, affectation et sessions déjà PASS au §115 restent la preuve comportementale des chemins couverts. Le tri statique de 248 fonctions ne remplace pas une recette par fonction.
+
+**Limites inchangées**
+- Aucun outil disponible pour lancer le workflow `workflow_dispatch`, ouvrir un navigateur/Playwright interactif ou modifier le paramètre Auth natif `Leaked Password Protection`.
+- Le test Auth ci-dessus simule les claims d'un compte Auth existant ; il ne démontre pas la connexion réelle, le refresh, l'expiration ni la révocation dans un navigateur.
+- `Leaked Password Protection` reste désactivé. Le contrôle compensatoire côté application n'est pas prouvé et ne doit pas être assimilé à la protection native.
+
+**Verdict Lot A : PARTIEL, nettement avancé.** PASS : création de stock par les RPC métier avec identité Auth de test simulée, visibilité RLS Gestionnaire, refus Client/hors périmètre, RPC anon positives/négatives, et classification des 72 tables sans policy. Le vert global reste conditionné à la preuve navigateur Auth (connexion/refresh/expiration/révocation), à l'acceptation explicite de la limite du forfait gratuit ou à un contrôle compensatoire prouvé, et à la poursuite des tests comportementaux ciblés sur les RPC sensibles. Aucun accès Production, aucun déploiement Vercel ou Play Store.
