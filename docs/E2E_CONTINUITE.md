@@ -4228,3 +4228,28 @@ Contrôles SQL lecture seule après application :
 
 **Point exact de reprise :** vérifier la conclusion du run GitHub Actions `43860902055` sur `ba400521...`. En cas de succès, passer à une revue de recette ciblée (stock partagé, disponibilité croisée, réservation Pharmacie B&M, réservation Parapharmacie B&M, refus médicaments, transitions Admin interdites), uniquement après ordre utilisateur de lancer cette recette. En cas d'échec, corriger uniquement la cause démontrée et relancer sur le nouveau HEAD. Ne pas déployer et ne pas toucher à Production.
 
+
+
+## 96. Alignement des profils professionnels entre Web et application native (16/11/2026)
+
+**Correction appliquée sur `main` :**
+- La connexion Web ne déduit plus l'espace professionnel du seul `profiles.role` racine. Après authentification du mot de passe, elle résout le rôle actif avec la RPC authentifiée `naxa_business_function()`, comme la session native.
+- Les fonctions professionnelles reconnues sont alignées sur les deux canaux : Promoteur, Pharmacie, Caisse/Caissière, Responsable, Comptable, Pharmacien, Gestionnaire de stock, Magasinier et Livreur.
+- La connexion Web récupère le périmètre pharmacie avec `naxa_active_role_pharmacy()`, au lieu de déduire le rattachement depuis le seul profil racine.
+- La session native utilise désormais la même RPC de périmètre pharmacie ; elle ne prend plus `profiles.pharmacie_id` comme source d'autorité pour les fonctions affectées.
+- En cas de refus de rôle ou de périmètre pendant la connexion Web, la session créée pour la résolution est fermée.
+- Les conflits d'affectation Centre d'examens restent bloqués explicitement et ne sont pas requalifiés en espace Pharmacie.
+
+**Preuves Replay sur les comptes déjà présents :**
+- Contrôle SQL en contexte PostgreSQL `authenticated` avec `auth.uid()` réglé sur chaque compte existant : Promoteur, Caisse, Responsable, Gestionnaire de stock (deux pharmacies), Livreur et Client.
+- Résultat : **7/7 résolutions exactes**, avec le bon rôle actif et, pour les rôles rattachés à une pharmacie, le bon identifiant de pharmacie.
+- Le contrôle a été exécuté dans des transactions annulées ; aucune donnée, affectation ou session de compte n'a été modifiée.
+- Test de non-régression ajouté : `scripts/test-auth-workspace-parity.cjs`, inclus automatiquement dans `npm test`.
+
+**Limites réelles — pas de faux vert :**
+- Le rejeu contient actuellement des identités Auth/profils Promoteur, Responsable, Caisse, Gestionnaire de stock, Livreur et Client. Il ne contient **aucun compte Pharmacien ni Comptable** et aucune accréditation Pharmacien. Ces deux parcours ne peuvent donc pas être déclarés validés avec les seuls comptes existants.
+- La recette SQL prouve la résolution du rôle et du périmètre sous le rôle PostgreSQL `authenticated`, mais ne remplace pas une connexion par mot de passe ni une recette navigateur réelle. Aucun mot de passe ou secret des comptes existants n'a été lu, réinitialisé ou exposé.
+- Le correctif Web/native est en attente du résultat du workflow GitHub Actions déclenché par le dernier commit de test ; le statut final devra être reporté après exécution.
+- Aucun compte supplémentaire n'a été créé. Aucune donnée Production n'a été consultée ou modifiée. Aucun déploiement n'a été lancé.
+
+**Point exact de reprise :** vérifier le workflow qualité du HEAD après l'ajout du test de parité. Puis exécuter, avec les identifiants de recette déjà autorisés lorsqu'ils sont disponibles, la connexion Web et native des profils existants. Ne pas créer ni convertir un compte pour simuler Pharmacien ou Comptable ; ces deux profils restent bloquants pour le vert intégral tant qu'une identité métier existante et autorisée n'est pas disponible.
