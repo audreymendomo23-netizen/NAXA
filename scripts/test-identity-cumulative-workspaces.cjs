@@ -24,6 +24,13 @@ test("Admin SPD provisioning reuses an existing identity found by username or ph
   assert.match(source, /naxa_request_cumulative_activity/);
 });
 
+test("Replay staff provisioner explicitly activates the Promoteur workspace", () => {
+  const provisioner = read("scripts/e2e/provision-replay-pharmacy-staff-safe.cjs");
+  assert.match(provisioner, /naxa_select_active_role/);
+  assert.match(provisioner, /p_role_code:\s*"promoteur"/);
+  assert.match(provisioner, /promoterBusinessFunction\.data !== "promoteur"/);
+});
+
 test("SPD switcher uses server-authorized, paid memberships", () => {
   const source = read("src/components/EspaceNaxaSwitcher.tsx");
   assert.match(source, /naxa_list_accessible_spd_workspaces/);
