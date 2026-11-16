@@ -130,6 +130,17 @@ async function loginExisting(email, password, label) {
   return { id: session.user.id, token: session.access_token };
 }
 
+async function optionalRoleLogin(email, password, label, requiredMatrix) {
+  if (!email || !password) return null;
+  try {
+    return await loginExisting(email, password, label);
+  } catch (error) {
+    if (requiredMatrix) throw error;
+    process.stdout.write("SKIP — matrice " + label + " facultative : authentification indisponible.\\n");
+    return null;
+  }
+}
+
 async function logoutTemporaryUser(accessToken) {
   const response = await http("/auth/v1/logout?scope=local", {
     method: "POST",
@@ -358,8 +369,8 @@ async function run() {
     const otherPharmacyId = process.env.NAXA_STORAGE_E2E_OTHER_PHARMACY_ID;
     const requireRoleMatrix = process.env.NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX === "1";
 
-    if (adminEmail && adminPassword) {
-      const admin = await loginExisting(adminEmail, adminPassword, "Admin actif");
+    const admin = await optionalRoleLogin(adminEmail, adminPassword, "Admin actif", requireRoleMatrix);
+    if (admin) {
       roleSessions.push(admin.token);
       const docPath = "storage-e2e/" + suffix + ".pdf";
       const medicinePath = "storage-e2e/" + suffix + ".png";
@@ -391,8 +402,13 @@ async function run() {
       skipped.push("matrice Admin active (identifiants Admin non configurés)");
     }
 
-    if (promoterEmail && promoterPassword && pharmacyId && otherPharmacyId) {
-      const promoter = await loginExisting(promoterEmail, promoterPassword, "Promoteur actif");
+    const promoter = await optionalRoleLogin(
+      promoterEmail && pharmacyId && otherPharmacyId ? promoterEmail : null,
+      promoterPassword && pharmacyId && otherPharmacyId ? promoterPassword : null,
+      "Promoteur actif",
+      requireRoleMatrix
+    );
+    if (promoter) {
       roleSessions.push(promoter.token);
       const ownPath = "logos/" + pharmacyId + "/storage-e2e-" + suffix + ".png";
       const otherPath = "logos/" + otherPharmacyId + "/storage-e2e-" + suffix + ".png";
