@@ -1,5 +1,5 @@
 -- E2E capacité équipe pharmacie et séparation effectifs / architecture / comptabilité.
--- Crée 14 profils métier éphémères sur deux pharmacies d'un même Promoteur.
+-- Crée 16 profils métier éphémères sur deux pharmacies d'un même Promoteur.
 -- Toutes les écritures sont annulées par ROLLBACK.
 begin;
 
@@ -12,6 +12,7 @@ create temporary table naxa_team_capacity_results(
 do $test$
 declare
   v_promoter uuid:='b5b79627-46ac-4dea-8ea9-6f0464cb3404';
+  v_second_promoter uuid:=gen_random_uuid();
   v_pharmacy_a uuid:='76dd4983-273a-4a83-ae3d-9a7838d3aa35';
   v_pharmacy_b uuid:='86bfc15b-0737-4656-ab72-0a199acb8b1f';
   v_now timestamptz:=now();
@@ -88,13 +89,16 @@ begin
     (v_responsable_a_2,'authenticated','authenticated','naxa-team-'||replace(v_responsable_a_2::text,'-','')||'@example.invalid','',v_now,
       '{}'::jsonb,jsonb_build_object('username','naxateamresp2'||substr(replace(v_responsable_a_2::text,'-',''),1,8),'naxa_signup_pending',true),false,v_now,v_now),
     (v_responsable_b,'authenticated','authenticated','naxa-team-'||replace(v_responsable_b::text,'-','')||'@example.invalid','',v_now,
-      '{}'::jsonb,jsonb_build_object('username','naxateamresp3'||substr(replace(v_responsable_b::text,'-',''),1,8),'naxa_signup_pending',true),false,v_now,v_now);
+      '{}'::jsonb,jsonb_build_object('username','naxateamresp3'||substr(replace(v_responsable_b::text,'-',''),1,8),'naxa_signup_pending',true),false,v_now,v_now),
+    (v_second_promoter,'authenticated','authenticated','naxa-team-'||replace(v_second_promoter::text,'-','')||'@example.invalid','',v_now,
+      '{}'::jsonb,jsonb_build_object('username','naxateamowner'||substr(replace(v_second_promoter::text,'-',''),1,8),'naxa_signup_pending',true),false,v_now,v_now);
 
   insert into public.profiles(id,role,username,actif)
   values
     (v_responsable_a,'client','naxateamresp'||substr(replace(v_responsable_a::text,'-',''),1,8),true),
     (v_responsable_a_2,'client','naxateamresp2'||substr(replace(v_responsable_a_2::text,'-',''),1,8),true),
-    (v_responsable_b,'client','naxateamresp3'||substr(replace(v_responsable_b::text,'-',''),1,8),true);
+    (v_responsable_b,'client','naxateamresp3'||substr(replace(v_responsable_b::text,'-',''),1,8),true),
+    (v_second_promoter,'promoteur','naxateamowner'||substr(replace(v_second_promoter::text,'-',''),1,8),true);
 
   perform set_config('request.jwt.claim.sub',v_promoter::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
@@ -210,6 +214,22 @@ begin
   end if;
   insert into naxa_team_capacity_results values('promoteur_multipharmacie',true,
     'Le même Promoteur gère deux pharmacies indépendantes, chacune avec un seul Responsable');
+
+  -- Une pharmacie ne peut pas être rattachée à un deuxième Promoteur actif.
+  perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoter::text,'role','authenticated')::text,true);
+  v_rejected:=false;
+  begin
+    insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
+    values(v_second_promoter,v_pharmacy_a,true);
+  exception when unique_violation then
+    v_rejected:=true;
+  end;
+  if not v_rejected then
+    raise exception 'Une pharmacie a accepté un deuxième Promoteur actif';
+  end if;
+  insert into naxa_team_capacity_results values('un_promoteur_responsable_par_pharmacie',true,
+    'Une seule relation Promoteur active est permise par pharmacie, tandis qu''un Promoteur peut posséder plusieurs liens');
 
   -- Le rôle actif est indépendant sur chaque compte, pour toutes les fonctions multiples.
   perform set_config('request.jwt.claim.sub',v_cashiers[1]::text,true);
