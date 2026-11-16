@@ -3458,3 +3458,60 @@ Ce blocage n’est pas un échec fonctionnel des liens : leur fonctionnement au 
 - Prochaine condition : disposer d’un navigateur interactif sur un environnement de test déjà existant, correspondant au commit courant, sans créer de nouveau déploiement. À défaut, demander une autorisation distincte si un Preview doit être créé.
 
 **État global : JAUNE — corrections source vérifiées statiquement ; contrôle interactif bloqué ; campagnes bulk en attente d’un accord ultérieur après levée du blocage.**
+
+
+## 82. Contrôle qualité automatisé et voie de mise au vert avant bulk
+
+**Date :** 16 novembre 2026  
+**Branche :** `main`  
+**Commit testé :** `148b9393fa7dfeb43a164f356f6148461cf97134`  
+**Workflow GitHub Actions :** [NAXA quality — run 43797987731](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43797987731)
+
+### 82.1 Preuves obtenues sur le commit exact
+
+| Contrôle | Résultat observé | Verdict |
+|---|---:|---|
+| Installation reproductible | `npm ci --no-audit --no-fund` terminée | PASS |
+| Tests Node (`npm run quality`) | 538 passés, 0 échec, 0 annulé, 0 ignoré | PASS |
+| Phase `prebuild` | La qualité a été rejouée : 538 passés, 0 échec, 0 annulé, 0 ignoré | PASS |
+| TypeScript | `tsc --noEmit` terminé sans erreur | PASS |
+| ESLint | 0 erreur, 225 avertissements | PASS avec réserves |
+| Build Next.js / Serwist | Compilation réussie ; 152/152 pages statiques générées | PASS |
+| Validation des workflows | `actionlint` sur tous les workflows actifs | PASS |
+
+Les 538 tests ne représentent pas 538 parcours E2E navigateur : il s’agit de la suite Node déclarée par `npm test`. La seconde série de 538 correspond au contrôle qualité réexécuté automatiquement par le script `prebuild`, et non à 538 tests supplémentaires.
+
+### 82.2 Preuve de compilation des destinations corrigées
+
+Le manifeste de routes émis par le build contient notamment :
+- `/pharmacie/promoteur/livraisons` ;
+- `/partenaire/examens` ;
+- `/pharmacie/comptable/creances-bordereaux` ;
+- `/pharmacie/comptable/rejets-relances` ;
+- `/pharmacie/comptable/rapports-exports` ;
+- `/pharmacie/comptable/documents` ;
+- `/pharmacie/comptable/referentiels` ;
+- `/pharmacie/comptabilite/plan`.
+
+La relecture des sources sur `main` confirme en complément :
+- Promoteur : l’entrée « Livraisons du réseau » existe dans les deux navigations ; le layout conserve le contrôle du rôle Promoteur et la page conserve les gardes d’authentification, de profil actif et de rôle.
+- Partenaire : « Centres et examens » est présenté uniquement aux membres actifs owner/manager ; la page cible conserve sa propre garde owner/manager.
+- Comptable : les six destinations ajoutées existent comme routes Next.js dans l’arborescence.
+
+### 82.3 Limites et réserves
+
+- Le build et les tests ne simulent pas un clic utilisateur et ne prouvent pas le rendu de chaque menu selon les sessions réelles.
+- ESLint remonte 225 avertissements, 0 erreur. Le journal relève aussi l’avertissement de dépréciation du support React 18 avec Next.js 16 et l’avertissement de type de module de `serwist.config.js`. Ces points ne bloquent pas le workflow, mais restent à traiter séparément.
+- Le check Supabase Preview a été annulé avec le message de limite mensuelle atteinte : 1 000 événements Git push. Il ne s’agit pas d’un échec de migration ou de build.
+- Aucun Preview n’a été créé. Aucun déploiement n’a été effectué. Aucune donnée Replay n’a été modifiée et aucun compte supplémentaire n’a été créé.
+- Le contrôle interactif n’a toujours pas été exécuté : aucun navigateur de pilotage n’est disponible dans cette session. Le workflow Replay Chromium existant est un parcours spécialisé qui provisionne/reprend ses fixtures et n’est pas un simple test de navigation ; il n’a pas été déclenché.
+
+### 82.4 Verdict gradué et porte avant bulk
+
+**VERT — corrections source, présence des routes, tests automatisés, TypeScript, lint sans erreur bloquante, compilation Next.js et validation des workflows.**
+
+**NON CERTIFIÉ — comportement réel au clic et rendu des menus avec les sessions Replay.** Il serait inexact de transformer cette absence de preuve navigateur en PASS.
+
+Pour avancer sans prétendre à une preuve inexistante, la proposition est de lancer les recettes bulk après validation utilisateur, en intégrant un contrôle d’accès/navigation des trois rôles Promoteur, Partenaire owner/manager et Comptable au tout début des campagnes concernées. Toute anomalie constatée devient un blocage de la campagne associée ; aucune création de compte, migration ou mutation hors des données de recette nécessaires ne sera faite sans respecter le périmètre de chaque scénario.
+
+**État de préparation : VERT pour la qualité/intégration des corrections ; validation utilisateur encore requise pour les recettes bulk.** Le contrôle navigateur pré-bulk autonome reste explicitement non réalisé.
