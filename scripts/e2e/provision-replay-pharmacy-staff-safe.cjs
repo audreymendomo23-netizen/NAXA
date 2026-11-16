@@ -194,6 +194,8 @@ async function provision(env = process.env) {
     return { id: result.data.user.id, token: result.data.access_token };
   }
 
+  // Insert-only upload: the bucket policy deliberately has no UPDATE grant.
+  // The Storage MIME policy also accepts the safe file extension when metadata.mimetype is absent.
   async function uploadPharmacistCredential(accessToken, objectPath) {
     const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
     const response = await fetch(
