@@ -144,6 +144,8 @@ declare
   v_partner uuid;
   v_space text;
   v_active_partner uuid;
+  v_denied boolean;
+  v_profile_active boolean;
 begin
   select id into v_partner from public.partners
   where name='NAXA E2E paid SPD employer' and created_by=v_owner and status='active'
