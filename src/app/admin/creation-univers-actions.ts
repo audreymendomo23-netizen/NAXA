@@ -54,22 +54,29 @@ export async function creerDossierUnivers(form: FormData) {
   if (Object.keys(errors).length) redirect("/admin?erreur=validation&univers=" + encodeURIComponent(universe) + "&champs=" + encodeURIComponent(JSON.stringify(errors)));
 
   const db = supabaseAdmin();
-  const { data: existingProfiles, error: existingLookupError } = await db.from("profiles")
-    .select("id,username,actif,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
-    .ilike("username", username)
-    .limit(2);
-  if (existingLookupError || (existingProfiles?.length ?? 0) > 1) {
+  const normalizedPhone = normalizePromoteurPhone(rawPhone, country);
+  const profileSelection = "id,username,actif,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at";
+  const [{ data: usernameMatches, error: usernameLookupError }, { data: phoneMatches, error: phoneLookupError }] = await Promise.all([
+    db.from("profiles").select(profileSelection).ilike("username", username).limit(2),
+    db.from("profiles").select(profileSelection).eq("phone", normalizedPhone).limit(2),
+  ]);
+  const matchingProfiles = new Map<string, NonNullable<typeof usernameMatches>[number]>();
+  for (const profile of [...(usernameMatches ?? []), ...(phoneMatches ?? [])]) {
+    matchingProfiles.set(profile.id, profile);
+  }
+  const existingProfiles = [...matchingProfiles.values()];
+  if (usernameLookupError || phoneLookupError || existingProfiles.length > 1) {
     redirect("/admin?erreur=identite&univers=" + encodeURIComponent(universe));
   }
 
-  const normalizedPhone = normalizePromoteurPhone(rawPhone, country);
   let ownerId: string;
   let createdAuthUser = false;
-  const existingProfile = existingProfiles?.[0];
+  const existingProfile = existingProfiles[0];
 
   if (existingProfile) {
     const existingAuth = await db.auth.admin.getUserById(existingProfile.id);
     const identityMatches = existingProfile.actif === true
+      && existingProfile.username?.toLowerCase() === username
       && existingProfile.first_name?.trim().toLocaleLowerCase("fr") === get(form, "first_name").toLocaleLowerCase("fr")
       && existingProfile.last_name?.trim().toLocaleLowerCase("fr") === get(form, "last_name").toLocaleLowerCase("fr")
       && existingProfile.phone === normalizedPhone
