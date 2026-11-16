@@ -4210,9 +4210,9 @@ Contrôles SQL lecture seule après application :
 
 ### Qualité applicative — preuves GitHub
 
-- Le workflow `NAXA quality` sur le commit `fa0aa869ac58be8b0f64f0284a30376658bb7869` a terminé avec succès : **549 tests réussis, 0 échec ; TypeScript sans erreur ; lint terminé avec avertissements ; build Next.js compilé et 153 pages statiques générées.** Le lint a encore des warnings existants de synchronisation de state dans des effets et d'appels impurs en render ; ils ne sont pas bloquants dans ce run.
-- Le job actionlint de validation des workflows a réussi sur ce même SHA.
-- Un run distinct est déclenché sur le HEAD courant `ba4005211223521fb799fdbaf6dc5bcb65521551`, après ajout de la migration Admin lecture seule. À la dernière vérification, il est encore `in_progress` sur le job Tests/TypeScript/lint/build ; le job de validation syntaxe workflows a réussi. Ne pas reporter le succès du run précédent comme preuve du SHA courant.
+- Le workflow `NAXA quality` sur le commit applicatif `ba4005211223521fb799fdbaf6dc5bcb65521551` a terminé avec succès (run `43860902055`) : **549 tests réussis, 0 échec ; TypeScript sans erreur ; lint terminé avec avertissements non bloquants ; build Next.js compilé et 153 pages statiques générées.** Le lint émet encore des avertissements préexistants (mises à jour de state dans des effets, accès aux refs et appels impurs pendant le rendu) ; aucun ne bloque le run.
+- Le job actionlint de validation des workflows a réussi sur le commit applicatif `ba400521...`.
+- Le HEAD courant est ensuite le commit documentaire `1843585b73f1a1d394173c150f395d2f754ce73d` : seul `docs/E2E_CONTINUITE.md` diffère du SHA applicatif validé. Son run `43861306360` est en cours au dernier contrôle ; le job actionlint a réussi et le job qualité/build est en cours. Le code TypeScript/SQL est identique au commit applicatif `ba400521...` dont le run est vert.
 - GitLab miroir : branche `main` non synchronisée avec GitHub ; son ancien pipeline vert n'est pas une preuve pour cette version. GitHub Actions est le seul contrôle de qualité courant exploitable dans cette passe.
 
 ### Limites et statut
