@@ -104,6 +104,19 @@ export async function creerDossierUnivers(form: FormData) {
     ownerId = created.data.user.id;
     createdAuthUser = true;
   }
+  if (universe === "prestations") {
+    const { data: cumulativeRequest, error: cumulativeError } = await sb.rpc("naxa_request_cumulative_activity", {
+      p_target_profile_id: ownerId,
+      p_direction: "PHARMACIE_VERS_SPD",
+      p_destination_pharmacy_id: null,
+      p_destination_partner_id: null,
+      p_destination_role_code: null,
+      p_reason: "Demande de cumul pour création d’un espace Soins & Prestations à domicile",
+    });
+    if (cumulativeError) redirect("/admin?erreur=cumul&univers=" + encodeURIComponent(universe));
+    if (cumulativeRequest) redirect("/naxa/cumuls?ok=demande_envoyee");
+  }
+
   const docs = {
     kyc: form.get("kyc") === "oui",
     piece_existence_legale: form.get("piece_existence_legale") === "oui",
