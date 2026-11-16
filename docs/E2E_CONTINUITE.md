@@ -4490,3 +4490,34 @@ Une seconde exécution ciblée confirme séparément l'absence de dispatch prém
 **Limite maintenue :** aucune pièce PDF/JPEG/PNG n'a été téléversée dans le bucket `naxa-client-prescriptions` ; la création réelle côté Client suivie de la revue Pharmacien n'est donc pas complète. Les deux lignes de test ont été annulées et aucune prescription fictive n'est persistée.
 
 **Statut Pharmacien : 🟡 — les branches métier acceptation/rejet sont prouvées ; le dépôt Storage positif et la connexion interactive restent non prouvés.**
+
+
+
+## 105. Reprise clôture recettes manquantes — inspection worker et Storage (16/11/2026)
+
+**Périmètre confirmé :** Supabase Replay `pwfftcsjyeibxxqhwysw`, pharmacie technique Mvan `76dd4983-273a-4a83-ae3d-9a7838d3aa35`. Aucun accès Production, aucun déploiement.
+
+### Comptable — inspection complémentaire
+
+- L'exécution SQL de contrôle s'effectue sous `current_user=postgres` (aucun rôle JWT simulé). Le worker privé `private.compta_worker_traiter_lot(integer)` exige explicitement `current_user='postgres'`, puis positionne le claim `service_role` dans sa transaction. Il est donc techniquement possible de l'appeler depuis ce contexte privilégié, mais cela traite le lot global, pas une seule pharmacie.
+- Le cron `naxa-compta-worker` est actif à `*/5 * * * *`, commande `select private.compta_worker_traiter_lot(50)`. Les cinq dernières exécutions observées (19:20 à 19:40 UTC) sont `succeeded`. Cela prouve l'exécution SQL planifiée, pas le succès métier de chaque événement.
+- L'inspection des événements montre **28 événements en erreur uniquement sur la pharmacie distincte** `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713` : 14 `credit_octroi`, 14 `credit_remboursement`, code `worker_P0001`. Aucun événement comptable n'existe sur Mvan E2E.
+- Ces événements sont en statut terminal `erreur` et ne sont pas repris automatiquement par la requête de réclamation (qui sélectionne `a_traiter` ou un claim expiré). Leur réouverture ou leur traitement n'est pas autorisé dans cette recette : autre pharmacie, autre lot, et affectation Comptable E2E absente. Aucun événement n'a été touché.
+- **Cause de non-clôture du test worker Mvan :** absence d'événement métier source sur Mvan. Aucun événement synthétique n'a été inséré directement et aucun lot global n'a été lancé pour éviter de traiter les 28 erreurs d'une autre pharmacie. Il faut produire une vente E2E par le parcours POS réel sur Mvan, vérifier son événement émis par le mécanisme métier, configurer le journal/mappings sur cette pharmacie, puis appeler le worker dans un contexte serveur contrôlé et vérifier l'écriture équilibrée et l'état final de l'événement. La clôture doit ensuite être testée sur une période de recette dédiée, après les contrôles obligatoires.
+
+### Pharmacien — Storage
+
+- Le bucket `naxa-client-prescriptions` existe, est privé, limite la taille à 10 MiB et n'autorise que `application/pdf`, `image/jpeg`, `image/png`.
+- Les politiques Storage vérifiées imposent pour l'insertion : utilisateur authentifié, dossier `<client_uid>/<pharmacie_uuid>/...`, profil actif avec fonction métier `client`, pharmacie active et visible, et MIME autorisé. La lecture est limitée au client lié, au Pharmacien affecté à la pharmacie, ou à l'Admin.
+- Aucun outil Storage upload ni client navigateur authentifié n'est disponible dans cette session. Aucun objet n'a été créé et aucune ordonnance fictive n'a été téléversée par SQL (ce qui contournerait précisément le contrôle Storage à tester).
+- **Point de clôture restant :** téléverser un petit PDF/JPEG/PNG non clinique avec le compte Client E2E via l'API Storage authentifiée, vérifier l'objet et son MIME, soumettre son chemin par `naxa_client_soumettre_ordonnance`, puis accepter/rejeter via l'identité Pharmacien et vérifier les droits de lecture des deux côtés.
+
+### Connexions interactives Web / Android
+
+Aucun navigateur pilotable, émulateur Android ni action d'authentification interactive n'est exposé dans cette session. Les connexions réelles et le parcours UI restent non prouvés. Les preuves SQL/RPC ne se substituent pas à une recette UI.
+
+### Statut de clôture
+
+**Toujours PARTIEL, pas vert global.** Livreur reste vert sur son parcours RPC transactionnel (§103). Comptable : cron technique confirmé, mais écriture et clôture par worker non prouvées ; les 28 erreurs d'une autre pharmacie restent intactes. Pharmacien : guards Storage vérifiés, mais upload réel et soumission positive non prouvés. Web/Android : logins interactifs non prouvés.
+
+**Reprise exacte :** (1) préparer une vente réelle E2E Mvan via POS et tracer son événement comptable ; (2) traiter uniquement cet événement Mvan par worker serveur puis tester la clôture de période ; (3) effectuer l'upload d'un document neutre via Storage avec le Client E2E puis la soumission et la revue Pharmacien ; (4) exécuter les logins Web et Android avec un runner navigateur/émulateur. Ne pas traiter les 28 erreurs de l'autre pharmacie sans mandat et diagnostic dédiés.
