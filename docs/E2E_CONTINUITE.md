@@ -2,11 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§115)  
+**Dernière mise à jour :** 16 novembre 2026 (§117)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `a7a00c1762b7fd6c5190400e5ad1dc367697a8a9`  
+**HEAD contrôlé avant cette mise à jour :** `082466d7288c1d5706e4f519f7a399776676fa86`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
-
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
 ## 1. Règles et périmètre sécurisé
@@ -4836,3 +4835,20 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 **Verdict Lot A : PARTIEL, sans changement.** Les recettes SQL restent PASS. Le vert global attend : (1) activation de Leaked Password Protection dans Auth > Settings > Password Security sur Replay, (2) tests anon ciblés des 3 RPC publiques, (3) parcours navigateur Auth démontrant refresh, expiration et révocation, (4) tri de la liste des fonctions SECURITY DEFINER accessibles à authenticated, en ciblant celles qui touchent identité, sessions et affectations.
 
 **Point exact de reprise :** obtenir l'accès aux réglages Auth du projet Replay pour activer la protection des mots de passe compromis ; ajouter/faire exécuter une recette Playwright dédiée aux sessions (connexion, refresh, expiration, révocation) ; compléter les tests de cloisonnement anon des 3 RPC marketplace avant toute modification de leurs grants. Production et Vercel restent hors périmètre.
+
+
+## 117. Lot A — sondes anon complémentaires des RPC marketplace (16/11/2026)
+
+**Exécutions sur Replay sous le rôle SQL `anon`**
+- `get_universe_catalog_v2('pharmacie')` : 0 ligne retournée.
+- `get_universe_catalog_v2('parapharmacie')` : 0 ligne retournée.
+- univers inconnu : 0 ligne retournée.
+- `marketplace_offre_stock_disponible(uuid aléatoires)` : 0 ligne retournée.
+- `marketplace_produit_visible(uuid aléatoire)` : `false`.
+- Toutes les sondes ont été exécutées dans des transactions terminées par `ROLLBACK`, sans mutation persistante.
+
+**Interprétation**
+- Les identifiants arbitraires ne révèlent pas d'offre de stock ni de visibilité produit dans ces sondes.
+- Le catalogue Replay ne contient actuellement aucune offre publique retournée pour les deux univers testés. Ces résultats ne valident donc pas le chemin positif (offre publiée réellement visible à anon) ni les cas pharmacie inactive/masquée/démo avec fixtures métier. L'alerte de grant anon reste ouverte jusqu'à une recette positive et négative complète.
+
+**Verdict Lot A : PARTIEL inchangé.** Aucun grant n'a été modifié. Le point de reprise reste l'activation Auth Password Security, les tests positifs/négatifs des RPC anon et la preuve navigateur refresh/expiration/révocation.
