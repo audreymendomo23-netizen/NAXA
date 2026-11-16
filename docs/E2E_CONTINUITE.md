@@ -4719,3 +4719,22 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Nouveau run Replay déclenché par le changement ; résultat de la recette POS corrigée à contrôler avant clôture.
 
 **État** : le run 43948192865 reste en échec à cause de cette règle d'accès, mais tous ses parcours indépendants listés ci-dessus sont PASS. La correction est versionnée ; aucun déploiement Production ou Vercel.
+
+
+## 112. Lot A — Identité et sécurité : cinq recettes SQL Replay exécutées (16/11/2026)
+
+**Cible et garde-fous**
+- Projet Supabase Replay confirmé : `naxa-ci-replay-2`, ref `pwfftcsjyeibxxqhwysw`, état `ACTIVE_HEALTHY`.
+- Sources des tests lues sur `main`. Aucune migration, aucun changement de schéma, aucun déploiement et aucun accès Production.
+- Les cinq suites sont transactionnelles et se terminent par `ROLLBACK`. Exécution séquentielle via SQL sur Replay ; aucune erreur SQL remontée.
+
+**Résultats**
+- PASS — `supabase/tests/20261116_naxa_identity_cumulative_replay.sql` : identité Client et cumul des espaces professionnels, règles de verrouillage et maintien de l'espace Client.
+- PASS — `supabase/tests/20261116_naxa_cumulative_multi_promoter_reconciliation_replay.sql` : consentements de chaque Promoteur, révocation, recalcul des approbations et refus unique.
+- PASS — `supabase/tests/20261116_naxa_cumulative_rls_replay.sql` : RLS, RPC, cloisonnement des lectures et refus des écritures directes non autorisées.
+- PASS — `supabase/tests/20261116_naxa_admin_client_workspace_replay.sql` : bascule Admin vers Client et retour Admin sans conservation des privilèges Admin dans le contexte Client.
+- PASS — `supabase/tests/20261116_naxa_client_data_privacy_replay.sql` : confidentialité des réservations, ordonnances et fichiers Client vis-à-vis des employeurs Pharmacie/SPD.
+
+**Limite de preuve**
+- Ces résultats prouvent les cinq scénarios SQL transactionnels sur l'état Replay du 16/11/2026. Ils ne remplacent pas une recette navigateur/Auth interactive, ni un test durable multi-session sur données persistées.
+- Statut Lot A : PASS pour ces cinq suites SQL ; lot global non déclaré vert tant que les contrôles complémentaires identité/sécurité (sessions réelles, parcours navigateur et contrôles d'exploitation) ne sont pas consolidés.
