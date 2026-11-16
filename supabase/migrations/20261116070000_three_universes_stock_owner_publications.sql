@@ -424,7 +424,7 @@ as $function$
       join public.feature_flags f on f.flag_key='universe.'||p_universe_slug and f.enabled=true
       where u.slug=p_universe_slug and u.enabled=true
     ))
-  order by universe_slug,category,name,partner_name;
+  order by 7,10,8,6;
 $function$;
 revoke all on function public.get_universe_catalog_v2(text) from public;
 grant execute on function public.get_universe_catalog_v2(text) to anon,authenticated,service_role;
