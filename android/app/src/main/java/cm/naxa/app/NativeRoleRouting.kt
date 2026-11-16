@@ -30,7 +30,7 @@ internal object NaxaNativeRole {
         role == "admin" && workspace == "admin"
 
     fun supportsCourierWorkspace(role: String, workspace: String): Boolean =
-        role == "livreur" && workspace in setOf("pharmacy", "partner", "livreur")
+        role == "livreur" && workspace == "livreur"
 
     fun supportsPharmacyWorkspace(role: String, workspace: String): Boolean =
         workspace == "pharmacy" && role in pharmacyRoles
