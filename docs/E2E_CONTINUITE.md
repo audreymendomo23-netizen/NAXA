@@ -3515,3 +3515,18 @@ La relecture des sources sur `main` confirme en complément :
 Pour avancer sans prétendre à une preuve inexistante, la proposition est de lancer les recettes bulk après validation utilisateur, en intégrant un contrôle d’accès/navigation des trois rôles Promoteur, Partenaire owner/manager et Comptable au tout début des campagnes concernées. Toute anomalie constatée devient un blocage de la campagne associée ; aucune création de compte, migration ou mutation hors des données de recette nécessaires ne sera faite sans respecter le périmètre de chaque scénario.
 
 **État de préparation : VERT pour la qualité/intégration des corrections ; validation utilisateur encore requise pour les recettes bulk.** Le contrôle navigateur pré-bulk autonome reste explicitement non réalisé.
+
+
+## 83. Vérification Vercel en lecture seule après les commits de correction
+
+**Date :** 16 novembre 2026  
+**Projet :** [Vercel · NAXA](https://vercel.com/naxa3/naxa) — équipe NAXA  
+**Périmètre :** contrôle des déploiements sans créer, relancer, promouvoir ni annuler de déploiement.
+
+- Recherche exacte du SHA applicatif final des corrections de navigation (`7f43e103afd17c84960009b00668d312c48840e8`) : **0 déploiement Production et 0 Preview trouvé**.
+- Recherche exacte du commit documentaire courant au moment du contrôle (`d81e3e08809b8a671c3179a5e854133c419fc700`) : **0 déploiement Production et 0 Preview trouvé**.
+- Dans l’historique récent du projet, le déploiement le plus récent retourné est daté du **14 novembre 2026 à 16:39:29 UTC**, sur le SHA `8ed4d811f34518583185fdfe015f0e4a981c633d), antérieur aux corrections de navigation du 16 novembre.
+
+**Conclusion :** aucun déploiement Vercel correspondant aux corrections de navigation ou aux mises à jour documentaires examinées n’a été trouvé. Cette vérification est une lecture de l’historique Vercel ; aucune action de déploiement n’a été effectuée par cette passe.
+
+**Statut de sécurité déploiement : VERT — aucun déploiement Vercel des commits examinés détecté.** Cette preuve ne modifie pas la réserve du §82 sur les clics runtime non encore testés.
