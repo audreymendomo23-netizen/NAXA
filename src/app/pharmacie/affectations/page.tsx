@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { InvitationLivreurForm } from "@/components/pharmacie/InvitationLivreurForm";
 import { LivreursAssignmentsManager } from "@/components/pharmacie/LivreursAssignmentsManager";
 import { PharmacyDeliveryConfig } from "@/components/PharmacyDeliveryConfig";
-import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace, proposerAccreditationPharmacien } from "./actions";
+import { accorderAffectationProfessionnelle, revoquerAffectationProfessionnelle, attribuerDroitCreditMarketplace, retirerDroitCreditMarketplace, proposerAccreditationPharmacien, deciderAccreditationPharmacien } from "./actions";
 
 type Assignment = {
   id:string;
@@ -69,9 +69,14 @@ export default async function AffectationsPage({
   const pharmacyName=new Map((pharmacies??[]).map(p=>[p.id,p.nom]));
   const {data:accreditations,error:accreditationsError}=isPromoteur
     ?await sb.from("naxa_pharmacien_accreditations")
-      .select("id,profile_id,pharmacie_id,registration_number,issuing_authority,specialty,valid_until,status,created_at,review_note")
+      .select("id,profile_id,pharmacie_id,registration_number,issuing_authority,specialty,valid_until,status,created_at,review_note,credential_storage_path")
       .eq("proposed_by",auth.user.id).order("created_at",{ascending:false}).limit(100)
     :{data:[],error:null};
+    const accreditationsWithDocuments=await Promise.all((accreditations??[]).map(async item=>{
+    const {data:signed}=await sb.storage.from("naxa-pharmacien-accreditations")
+      .createSignedUrl(item.credential_storage_path,300);
+    return {...item,credential_url:signed?.signedUrl??null};
+  }));
   const activeResponsableAssignments=assignments.filter(a=>
     a.fonction==="responsable"&&a.statut==="active"
     &&new Date(a.commence_at).getTime()<=Date.now()
@@ -111,6 +116,8 @@ export default async function AffectationsPage({
     accreditation_validation:"Vérifiez le compte cible, le numéro professionnel, l’autorité, le motif et le justificatif PDF/JPEG/PNG (10 Mo maximum).",
     accreditation_document:"Le justificatif n’a pas pu être stocké de manière sécurisée.",
     accreditation_rpc:"La proposition d’agrément a été refusée par les contrôles métier. Vérifiez le rattachement Promoteur/pharmacie et l’existence d’une demande déjà ouverte.",
+    accreditation_decision_validation:"Un motif de 5 caractères minimum est requis pour un refus ou un retrait.",
+    accreditation_decision_refusee:"La décision n’a pas été autorisée. Vérifiez que cette pharmacie appartient encore à votre réseau et que la proposition est dans le bon état.",
 
   };
   const now=Date.now();
@@ -131,7 +138,10 @@ export default async function AffectationsPage({
         filters.ok==="droit_credit"?"Droit d’approbation Marketplace délégué au Responsable.":
         filters.ok==="droit_credit_retire"?"Droit d’approbation Marketplace retiré.":
         filters.ok==="livreur_invite"?"Invitation Livreur créée et affectation enregistrée.":
-        filters.ok==="accreditation_proposee"?"Proposition Pharmacien transmise. Le compte restera sans poste Pharmacien jusqu’à la décision de l’Administrateur.":
+        filters.ok==="accreditation_proposee"?"Proposition enregistrée. Vous restez responsable de la vérification et de la décision d’activation.":
+        filters.ok==="accreditation_validee"?"Vous avez validé le Pharmacien. Son poste est désormais activable dans cette pharmacie.":
+        filters.ok==="accreditation_refusee"?"Vous avez refusé cette proposition. Aucun poste Pharmacien n’a été créé.":
+        filters.ok==="accreditation_retiree"?"Vous avez retiré l’agrément. Le poste Pharmacien a été neutralisé.":
         "Affectation révoquée."
       }</p>}
       {filters.erreur&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-900">{errorMessages[filters.erreur]??"Opération impossible."}</p>}
@@ -197,8 +207,8 @@ export default async function AffectationsPage({
       </section>
 
       {isPromoteur&&<section className="rounded-2xl border border-emerald-200 bg-white p-5">
-        <h2 className="text-lg font-bold">Proposer un Pharmacien à l’agrément NAXA</h2>
-        <p className="mt-2 text-sm text-slate-600">Le Promoteur transmet l’identité, le numéro professionnel, l’autorité émettrice et le justificatif. Aucun poste n’est créé avant la vérification et l’approbation explicite de l’Administrateur.</p>
+        <h2 className="text-lg font-bold">Valider les Pharmaciens de votre réseau</h2>
+        <p className="mt-2 text-sm text-slate-600">Vous contrôlez vous-même l’identité, le numéro professionnel, l’autorité émettrice et le justificatif. NAXA ne valide pas les pharmaciens et l’Administrateur NAXA n’intervient pas dans cette décision. Le poste ne devient actif qu’après votre validation explicite, pour la pharmacie choisie.</p>
         <form action={proposerAccreditationPharmacien} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-semibold">Pharmacie
             <select name="pharmacie_id" required defaultValue="" className="mt-1 w-full rounded-lg border p-3">
@@ -227,7 +237,7 @@ export default async function AffectationsPage({
           <label className="text-sm font-semibold sm:col-span-2">Motif de la proposition (5 à 500 caractères)
             <textarea name="motif" required minLength={5} maxLength={500} rows={3} className="mt-1 w-full rounded-lg border p-3" placeholder="Pourquoi ce compte doit-il recevoir le poste Pharmacien dans cette pharmacie ?"/>
           </label>
-          <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Transmettre à l’Administrateur pour validation</button>
+          <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Soumettre au Promoteur pour ma décision</button>
         </form>
         <div className="mt-5 border-t pt-4">
           <h3 className="font-bold">Suivi de vos propositions</h3>
@@ -235,12 +245,35 @@ export default async function AffectationsPage({
             ?<p role="alert" className="mt-2 rounded-xl bg-red-50 p-3 text-sm text-red-900">Impossible de charger les agréments proposés. Vérifiez les droits de lecture et la migration Pharmacien.</p>
             :(accreditations??[]).length===0
               ?<p className="mt-2 text-sm text-slate-600">Aucune proposition enregistrée.</p>
-              :<div className="mt-3 space-y-2">{(accreditations??[]).map(a=><article key={a.id} className="rounded-xl border p-3">
+              :<div className="mt-3 space-y-3">{accreditationsWithDocuments.map(a=><article key={a.id} className="space-y-3 rounded-xl border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2"><b>{pharmacyName.get(a.pharmacie_id)??"Pharmacie"} · {a.registration_number}</b>
-                  <span className={"rounded-full px-3 py-1 text-xs font-bold "+(a.status==="approved"?"bg-emerald-100 text-emerald-900":a.status==="rejected"||a.status==="revoked"?"bg-red-100 text-red-900":"bg-amber-100 text-amber-900")}>{a.status==="approved"?"Agrément validé":a.status==="rejected"?"Refusé":a.status==="revoked"?"Retiré":"En attente Admin"}</span>
+                  <span className={"rounded-full px-3 py-1 text-xs font-bold "+(a.status==="approved_promoteur"?"bg-emerald-100 text-emerald-900":a.status==="rejected_promoteur"||a.status==="revoked_promoteur"?"bg-red-100 text-red-900":"bg-amber-100 text-amber-900")}>{a.status==="approved_promoteur"?"Validé par vous":a.status==="rejected_promoteur"?"Refusé par vous":a.status==="revoked_promoteur"?"Retiré par vous":"À vérifier par vous"}</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-600">Compte {a.profile_id} · {a.issuing_authority}{a.specialty?" · "+a.specialty:""} · soumis le {date(a.created_at)}</p>
-                {a.review_note&&<p className="mt-2 text-sm">Décision Admin : {a.review_note}</p>}
+                <p className="text-xs text-slate-600">Compte {a.profile_id} · {a.issuing_authority}{a.specialty?" · "+a.specialty:""} · soumis le {date(a.created_at)}{a.valid_until?" · valable jusqu’au "+new Date(a.valid_until+"T12:00:00").toLocaleDateString("fr-FR"):""}</p>
+                {a.credential_url
+                  ?<a href={a.credential_url} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-lg border px-3 py-2 text-sm font-bold underline">Examiner le justificatif professionnel privé</a>
+                  :<p role="alert" className="text-sm font-semibold text-red-700">Justificatif non accessible : ne validez pas ce dossier.</p>}
+                {a.review_note&&<p className="rounded-lg bg-slate-50 p-3 text-sm">Votre décision : {a.review_note}</p>}
+                {a.status==="pending_promoter"&&<div className="grid gap-3 border-t pt-3 sm:grid-cols-2">
+                  <form action={deciderAccreditationPharmacien} className="flex flex-col gap-2">
+                    <input type="hidden" name="accreditation_id" value={a.id}/>
+                    <input type="hidden" name="decision" value="approve"/>
+                    <textarea name="decision_note" rows={2} maxLength={1000} className="w-full rounded-lg border p-2 text-sm" placeholder="Note de validation (facultatif)"/>
+                    <button disabled={!a.credential_url} className="min-h-10 rounded-lg bg-[#0B3D26] px-3 py-2 text-sm font-bold text-white disabled:opacity-40">Je valide et j’active ce Pharmacien</button>
+                  </form>
+                  <form action={deciderAccreditationPharmacien} className="flex flex-col gap-2">
+                    <input type="hidden" name="accreditation_id" value={a.id}/>
+                    <input type="hidden" name="decision" value="reject"/>
+                    <textarea name="decision_note" rows={2} required minLength={5} maxLength={1000} className="w-full rounded-lg border p-2 text-sm" placeholder="Motif obligatoire du refus"/>
+                    <button className="min-h-10 rounded-lg border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Refuser la proposition</button>
+                  </form>
+                </div>}
+                {a.status==="approved_promoteur"&&<form action={deciderAccreditationPharmacien} className="grid gap-2 border-t pt-3">
+                  <input type="hidden" name="accreditation_id" value={a.id}/>
+                  <input type="hidden" name="decision" value="revoke"/>
+                  <textarea name="decision_note" rows={2} required minLength={5} maxLength={1000} className="w-full rounded-lg border p-2 text-sm" placeholder="Motif obligatoire du retrait"/>
+                  <button className="min-h-10 justify-self-start rounded-lg border border-red-300 px-3 py-2 text-sm font-bold text-red-800">Retirer mon agrément et le poste</button>
+                </form>}
               </article>)}</div>}
         </div>
       </section>}
