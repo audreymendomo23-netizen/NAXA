@@ -433,7 +433,7 @@ async function run(env = process.env) {
     const cashierContext = await browser.newContext();
     const cashierPage = await cashierContext.newPage();
     cashierPage.setDefaultTimeout(30000);
-    await pageLogin(cashierPage, CASHIER_USERNAME, cashierPassword, "client", "/pharmacie/caisse");
+    await pageLogin(cashierPage, CASHIER_USERNAME, cashierPassword, "pharmacie", "/pharmacie/caisse");
     await cashierPage.getByRole("heading", { name: "Poste de caisse" }).waitFor();
 
     const openSessionButton = cashierPage.getByRole("button", { name: "Ouvrir la session", exact: true });
