@@ -113,19 +113,20 @@ export async function GET(request: Request) {
     if (activeExamAssignments.length > 1) {
       // More than one active centre role conflicts with NAXA's single active
       // workspace rule. Do not pick the first database row arbitrarily.
-      activeWorkspace = "unresolved";
+      activeRole = "exam_scope_ambiguous";
     } else if (activeExamAssignments.length === 1) {
       if (activeRole !== "client" && activeRole !== "active_role_unresolved") {
-        activeWorkspace = "unresolved";
+        activeRole = "active_role_conflict";
       } else {
         const assignment = activeExamAssignments[0];
-        activeWorkspace = "medical_exams";
+        activeRole = assignment.role_key;
         activeCenterId = assignment.center_id;
+        activeWorkspace = "medical_exams";
       }
     } else if (memberships && memberships.length > 0 && activeRole === "client") {
       // Membership alone does not prove an active Partner role. Production
       // currently lacks the partner-scope resolver, so do not route as Client.
-      activeWorkspace = "unresolved";
+      activeRole = "partner_context_unresolved";
     }
   }
 
