@@ -4999,3 +4999,14 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Le run précédent reste en échec historique. Le correctif n'est pas déclaré PASS avant le résultat d'un nouveau run, notamment ESLint, build et recette Auth Replay.
 
 **Verdict Lot A : PARTIEL inchangé jusqu'au nouveau run.**
+
+
+## 125. Correction ShellCheck du workflow Replay (16/11/2026)
+
+- Le run de validation YAML/actionlint du commit `8732a739` a confirmé que le workflow est désormais parsable, mais a révélé un second séparateur `\\n` littéral dans le bloc shell navigateur, entre les appels `verify-auth-session-lifecycle.cjs` et `verify-credit-pos-browser.cjs`.
+- ShellCheck signalait `SC1012: \\n is just literal 'n' here` à la ligne 294 du workflow.
+- Correction : séparation des deux commandes sur deux vraies lignes du bloc `run: |`. Les séquences `\\n` utilisées normalement à l'intérieur des chaînes JavaScript de génération de secrets restent inchangées.
+- Le run de qualité et le run E2E du commit précédent sont encore en cours à cet instant ; la nouvelle validation sera déclenchée par le présent commit.
+- Aucun changement de logique métier, aucun secret, aucune donnée Replay, aucune migration ni environnement Production/Vercel/Play Store touchés.
+
+**Verdict Lot A : PARTIEL jusqu'aux résultats du nouveau run.**
