@@ -3115,3 +3115,103 @@ Replay exclusivement (`pwfftcsjyeibxxqhwysw`). Aucune écriture Supabase Product
 **Limite de portée :** ce vert ne signifie ni preuve de push Android FCM physique ni validation générale de tous les modules NAXA. Il certifie les parcours précisément nommés ci-dessus.
 
 **Périmètre :** Supabase Replay uniquement. Aucune modification Supabase Production, aucun déploiement Vercel et aucune publication Play Store.
+
+## 76. Audit croisé des recettes déclarées et des preuves du dépôt — 16/11/2026
+
+### Objet et méthode
+
+Audit documentaire et code réalisé sur `main`, sans modification applicative, sans exécution de nouvelle recette Supabase et sans déploiement. Le croisement porte sur :
+- le présent document de continuité ;
+- l'inventaire GitHub du dépôt à la tête auditée ;
+- les scripts de test et d'E2E présents ;
+- les workflows et journaux GitHub Actions consultés, notamment les runs `43791964746` et `43792994708` ;
+- les fichiers de tests SQL présents dans `supabase/tests/`.
+
+**Règle de qualification :** la présence d'un fichier de test ou d'une assertion statique n'est pas une preuve d'exécution runtime. Un statut PASS n'est retenu que lorsqu'un résultat d'exécution ou une preuve de recette est identifiable. Les preuves SQL transactionnelles, JWT, navigateur et appareil physique restent des niveaux distincts.
+
+### A. Recettes avec exécution vérifiable
+
+| Domaine / scénario | Preuve retrouvée | Qualification et limite |
+|---|---|---|
+| Qualité automatisée | Run GitHub Actions `43792994708` SUCCESS ; tests Node, TypeScript, ESLint, build Next.js et actionlint dans le workflow qualité | VERT pour le contrôle qualité de ce run ; ne prouve pas les parcours métier complets |
+| Provisionnement des comptes Replay | Run `43791964746`, étapes 5 à 11 SUCCESS : profils Promoteur, Admin, Client, Livreur, Gestionnaire Stock, Caisse, Responsable et deux pharmacies HYBRIDE liées | PASS provisionnement ; ne constitue pas à lui seul une recette de chaque rôle |
+| Web Push navigateur | Run `43791964746`, étape 15 ; 3 souscriptions Chromium authentifiées, 3 notifications reçues par les Service Workers | PASS navigateur ; aucune preuve FCM Android physique |
+| Crédit comptoir / POS | Run `43791964746`, étape 16 ; dépassement plafond, demande sans débit anticipé, approbation Promoteur, reprise du brouillon, débit stock unique, remboursement JWT Caisse, solde et clôture rapprochés | PASS pour le scénario exécuté ; ne couvre pas toutes les variantes de caisse |
+| Marketplace | Run `43791964746`, étape 17 ; Client authentifié, offre Replay temporaire, panier, justificatif PDF, demande en attente, refus Promoteur et stock inchangé | PASS pour le scénario de refus exécuté ; ne prouve pas l'ensemble des états de commande/livraison |
+| Comptabilité | Run `43791964746`, étape 17 ; création/validation depuis l'interface de 2 comptes, 2 journaux et 4 mappings | PASS configuration testée ; pas de rapprochement complet de toutes les opérations commerciales |
+| Storage Admin / Promoteur | Run `43791964746`, étape 18 ; matrice upload/lecture, accès privé/signé, isolement inter-utilisateurs et inter-pharmacies, MIME, suppressions ; 17 PASS, 0 SKIP | PASS pour la matrice exécutée |
+| Nettoyage de campagne | Run `43791964746`, étape 19 ; suppression des secrets éphémères, fermeture/révocation des sessions et suppression des comptes temporaires | PASS nettoyage de cette campagne |
+
+Liens de preuve :
+- [Run Replay E2E 43791964746](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43791964746)
+- [Run Qualité 43792994708](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43792994708)
+
+Les recettes antérieures décrites dans les sections historiques restent des déclarations documentées avec le niveau de preuve propre à chacune ; elles ne sont pas automatiquement promues au niveau navigateur par le présent audit.
+
+### B. Inventaire du code de test — présence, pas preuve d'exécution
+
+À la tête `main` consultée pendant cet audit, l'arbre GitHub contient :
+- **95** fichiers `scripts/test-*.cjs` ;
+- **370** fichiers `supabase/tests/*.sql` ;
+- **12** scripts dédiés sous `scripts/e2e/` ;
+- **9** workflows sous `.github/workflows/`.
+
+Ces nombres sont un inventaire de fichiers présents dans le dépôt. Ils ne signifient pas que les 370 scripts SQL ont été exécutés, ni que les 12 scripts E2E correspondent à 12 parcours métier complets validés.
+
+Le workflow qualité lance la suite Node via `npm test`. La présence des fichiers SQL dans `supabase/tests/` n'établit pas, à elle seule, leur exécution dans ce run qualité. Les scripts E2E spécialisés doivent être reliés à un run identifié avant d'être déclarés exécutés.
+
+### C. Couverture métier : état de preuve consolidé
+
+| Domaine | Ce qui est effectivement étayé par les éléments consultés | Ce qui n'est pas encore prouvé comme parcours intégral |
+|---|---|---|
+| Authentification / profils | Contrats et tests ciblés présents ; provisionnement multi-rôles Replay dans le run E2E | Inscription, connexion, récupération, changement de rôle actif et révocation parcourus intégralement par interface |
+| Promoteur / Responsable | Scripts et tests SQL de périmètre, délégation et isolation présents ; comptes provisionnés | Cycle interface complet : pharmacies, collaborateurs, affectations, délégations, suspension/réactivation et effets sur les équipes |
+| Pharmacien | Tests SQL et contrats métier dédiés présents dans le dépôt et historique de continuité | Parcours continu Client → Promoteur → Pharmacien → réponse Client prouvé en navigateur |
+| Gestionnaire Stock | Tests de contrats, RLS et droits de stock présents ; compte Replay provisionné | Cycle opérationnel réception fournisseur → lots → inventaire → correction → réservation → préparation |
+| Caisse | Crédit comptoir/POS et remboursement exécutés dans le run Replay ; autres tests ciblés présents | Recette complète de toutes les ventes, moyens de paiement, retours, annulations, clôtures et synchronisation hors ligne |
+| Comptabilité | Configuration des comptes, journaux et mappings exécutée depuis l'interface | Chaîne complète des écritures issues des ventes, remboursements, rapprochements et clôtures réelles |
+| Client / Marketplace | Scénario navigateur de dépôt et refus Promoteur exécuté ; tests ciblés de panier/offres présents | Parcours positif complet commande → paiement → préparation → retrait/livraison → réception Client |
+| Assurance | Scripts ciblés d'import, couverture, POS et comptabilité présents ; preuves SQL/runtime rapportées dans les sections historiques | Parcours intégral inter-interfaces Client/Assureur/Stock/Caisse/Comptabilité avec tous les états et variantes |
+| Livreur | Scripts de provisionnement et contrats métier/sécurité présents ; compte provisionné dans la campagne Replay | Chaîne Client commande → Stock prépare → mission proposée → Livreur accepte → livraison → confirmation Client |
+| Administration | Tests ciblés Admin et actions présentes | Recette navigateur complète de chaque écran et action Admin avec contrôles des effets métier |
+| Examens médicaux et autres univers professionnels | Tests spécialisés présents pour plusieurs modules dans le dépôt | Parcours complets par rôle et échanges inter-rôles démontrés pour chaque univers |
+| PWA / hors ligne / périphériques | Contrats et tests ciblés présents ; Web Push Chromium démontré | Synchronisation réelle hors ligne, caméra, galerie, Bluetooth, GPS et notifications Android physiques |
+| Paiements / abonnements | Tests spécialisés de flux SMS, preuves et vérification présents | Parcours utilisateur complet avec preuves indépendantes, décisions Admin et conséquences de suspension/réactivation |
+
+**Important :** « non prouvé » signifie que les éléments consultés ne suffisent pas à établir une recette complète ; cela ne signifie pas que la fonctionnalité est absente ou qu'elle échoue.
+
+### D. Liste de travail restante pour la recette globale
+
+Les parcours suivants doivent être exécutés ou complétés avec les comptes de recette déjà présents dans l'environnement Replay. Ne pas créer de nouveaux comptes si les comptes existants sont réutilisables.
+
+1. **Client — cycle positif complet :** recherche/offre → panier → réservation/commande → paiement applicable → préparation → retrait ou livraison → réception et historique Client ; compléter annulation, refus, indisponibilité et remboursement.
+2. **Stock — cycle physique métier :** réception fournisseur → création/gestion des lots → inventaire → ajustement → réservation → préparation → remise à la Caisse ou au Livreur ; vérifier quantité, traçabilité et visibilité Marketplace à chaque étape.
+3. **Livraison — parcours intégral :** commande avec livraison → préparation Stock → création/proposition de mission → acceptation Livreur → prise en charge → étapes de livraison → preuve/confirmation → clôture → suivi Client.
+4. **Promoteur / Responsable — parcours interface :** gestion multi-pharmacies, personnel, invitation/affectation, poste actif, délégation, limites, révocation, suspension et réactivation.
+5. **Caisse / Comptabilité — cycle complet :** ouverture, ventes, moyens de paiement, tickets, retours, annulations, remboursements, clôture, rapprochement et écritures correspondantes.
+6. **Assurance — chaîne inter-rôles :** import et actualisation des droits → vérification → proposition/négociation → commande → préparation → paiement partagé → ticket → remboursement → comptabilisation.
+7. **Administration — recette 360 :** dossiers/partenaires, pharmacies, comptes et sécurité, abonnements/paiements, produits, réservations/livraisons, messagerie, rapports, exports et journal.
+8. **Authentification et sécurité de session :** inscription, âge, connexion, récupération, changement de rôle actif, sessions multiples, suspension, révocation et isolation entre comptes/pharmacies.
+9. **Univers professionnels :** exécuter une recette complète par univers effectivement activé, incluant création, traitement, paiement éventuel, résultat, historique et permissions des rôles.
+10. **PWA et périphériques :** caméra/scanner/OCR/PDF, offline puis resynchronisation, notifications, GPS, Bluetooth et essais Android physiques.
+11. **Paiements Promoteur / abonnements :** parcours complet de déclaration, contrôle automatique selon les mécanismes autorisés, contrôle Admin, reçu, expiration et conséquences de suspension/réactivation.
+
+### E. Règles de poursuite et de verdict
+
+- Réutiliser les comptes existants de Replay ; les comptes présents dans cet environnement sont des comptes de recette, conformément au périmètre communiqué.
+- Chaque parcours est consigné avec : identifiant du scénario, rôle(s), préconditions, étapes, données de test, résultat attendu, résultat observé, preuve (run/log/capture ou requête), anomalies et statut.
+- Statuts : **VERT** = parcours complet exécuté et preuves suffisantes ; **JAUNE** = partiel ou preuve incomplète ; **ROUGE** = échec reproduit ; **GRIS** = non exécuté.
+- Un test statique, un fichier SQL présent, une migration appliquée ou un test unitaire ne vaut pas preuve de parcours navigateur complet.
+- Ne pas refaire les scénarios déjà prouvés sauf test de non-régression ou changement de code.
+- Continuer sur `main`, sans branche/PR, sans migration Production et sans déploiement pendant la campagne de recette.
+- Ne jamais transformer « non prouvé » en « échec », ni annoncer un domaine AU VERT par extrapolation depuis un sous-scénario.
+
+### F. Verdict de l'audit croisé
+
+**JAUNE — recette globale NAXA non clôturée.**
+
+La campagne Replay crédit comptoir/POS, Marketplace (scénario de refus), configuration comptable, Web Push navigateur et Storage possède des preuves d'exécution identifiables et est AU VERT dans son périmètre strict. La suite de qualité automatisée possède également un run SUCCESS identifié.
+
+Les autres domaines comportent des tests, contrats et/ou preuves SQL ciblées, mais les éléments examinés ne permettent pas de conclure que tous leurs parcours utilisateur sont exécutés intégralement de bout en bout. La liste D constitue le backlog de recette à poursuivre.
+
+**Limites de cet audit :** audit documentaire/code et inspection des runs GitHub identifiés ; aucune nouvelle exécution fonctionnelle, aucun accès aux appareils physiques et aucune modification applicative effectués lors de cet audit.
