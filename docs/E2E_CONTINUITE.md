@@ -4357,3 +4357,22 @@ Lecture de `main` confirmée au commit `b21d89927f4f894289f3463162ce342b6f6ec394
 - Production / déploiement : **non touchés**.
 
 **Point exact de reprise : Lot A — inventaire SQL.** Lire les migrations existantes, tables, contraintes, triggers, RPC et policies RLS avant toute migration. Ne pas créer de tables en doublon, ne pas provisionner de compte SPD réel et ne pas déclarer vert.
+
+
+## 100. Audit SQL Replay — cause racine du cumul SPD
+
+**Date :** 16 novembre 2026. **Base :** Replay `pwfftcsjyeibxxqhwysw`. **Nature :** lecture seule, aucun enregistrement métier modifié.
+
+- `naxa_profile_active_roles` confirme une seule sélection active par identité ; le champ `partner_id` existe déjà.
+- `naxa_professional_account_domains` n'autorise que `PHARMACIE` et `PARAPHARMACIE`.
+- `naxa_roles` ne contient aucun rôle SPD.
+- `private.naxa_partner_business_function`, `public.naxa_select_active_role`, `private.naxa_partner_scope_allows` et `public.naxa_grant_partner_professional_assignment` sont tous restreints à `partner_type='parapharmacie'` / domaine `PARAPHARMACIE`.
+- `public.admin_create_partner_dossier` désactive globalement `profiles.actif` lorsque l'abonnement initial n'est pas courant. Cette règle peut bloquer l'identité entière, dont Client ; elle doit devenir un verrou commercial scoped au partenaire.
+- Aucun RPC de demande/approbation de cumul transversal n'a été trouvé parmi les fonctions inspectées.
+- Les notifications ont un destinataire `user_id` et des outbox Push/E-mail réutilisables ; la demande devra créer les notifications durables par Promoteur.
+
+**Décision technique :** conserver `naxa_profile_active_roles` comme sélecteur mono-espace, généraliser les domaines/rôles/guards pour SPD et dissocier `profiles.actif` du verrou d'abonnement partenaire. Ne pas réutiliser aveuglément la RPC Parapharmacie pour SPD.
+
+**État :** audit SQL de cause racine effectué en lecture seule. Aucune migration cumul appliquée ; aucun test E2E cumul exécuté ; aucun déploiement/Production touché.
+
+**Point exact de reprise :** inventorier les fonctions et politiques RLS des univers SPD et les parcours de création/activation de partenaire ; concevoir ensuite une migration additive, ses RPC d'approbation atomiques et les guards d'accès, avant de préparer les fixtures multi-espace sur Replay.
