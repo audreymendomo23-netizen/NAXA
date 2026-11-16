@@ -118,7 +118,7 @@ begin
     raise exception 'FAIL: garde affectation ou contrôles de synchronisation offline absents';
   end if;
 
-  if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.naxa_stock_manager_actor(uuid)'::regprocedure))=0 then
+  if position('naxa_scope_allows' in pg_get_functiondef('public.naxa_stock_manager_actor(uuid)'::regprocedure))=0 then
     raise exception 'FAIL: helper Stock ne reconnait pas les affectations actives';
   end if;
   if position('naxa_has_active_professional_assignment' in pg_get_functiondef('public.fournisseur_reception_enregistrer(uuid,jsonb,text,text)'::regprocedure))=0
