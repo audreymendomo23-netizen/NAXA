@@ -115,15 +115,37 @@ async function run(env = process.env) {
     authTokens.push(rotated.data.access_token);
     process.stdout.write("PASS — renouvellement Auth : refresh token remplacé et nouveau jeton d'accès émis.\n");
 
-    // Supabase has a short refresh-token reuse interval. Wait beyond it before replaying the old token.
-    await new Promise(resolve => setTimeout(resolve, 12000));
+    // Supabase intentionally accepts the parent of the currently active refresh token,
+    // even outside the reuse interval, to tolerate a lost response during rotation.
+    // Rotate once more so the first token becomes a grandparent, then replay it after
+    // the documented default 10-second reuse interval.
+    await new Promise(resolve => setTimeout(resolve, 15000));
+    const current = await authRequest("/auth/v1/token?grant_type=refresh_token", {
+      refresh_token: rotated.data.refresh_token,
+    }, "second refresh rotation");
+    if (!current.ok || !current.data?.access_token || !current.data?.refresh_token
+      || current.data.refresh_token === rotated.data.refresh_token) {
+      throw new Error("Deuxième rotation Auth non démontrée (HTTP " + current.status + ").");
+    }
+    authTokens.push(current.data.access_token);
+    process.stdout.write("PASS — deuxième rotation : le premier refresh token n'est plus le parent actif.\\n");
+
     const replay = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: first.refresh_token,
-    }, "old refresh token replay");
+    }, "ancestor refresh token replay");
     if (replay.ok) {
-      throw new Error("Un ancien refresh token est resté réutilisable après la fenêtre de tolérance.");
+      throw new Error("Un refresh token ancêtre (deux rotations précédentes) reste accepté après 15 secondes.");
     }
-    process.stdout.write("PASS — ancien refresh token rejeté après la fenêtre de réutilisation.\n");
+    process.stdout.write("PASS — ancien refresh token ancêtre rejeté hors fenêtre de tolérance.\\n");
+
+    // Reuse detection must revoke the whole session, not merely reject the replay request.
+    const afterReuseDetection = await authRequest("/auth/v1/token?grant_type=refresh_token", {
+      refresh_token: current.data.refresh_token,
+    }, "current refresh token after ancestor reuse detection");
+    if (afterReuseDetection.ok) {
+      throw new Error("La détection de réutilisation n'a pas révoqué le refresh token courant de la session.");
+    }
+    process.stdout.write("PASS — détection de réutilisation : le refresh token courant de la session est également révoqué.\\n");
 
     // Independent session for explicit server-side revocation.
     const second = await passwordLogin();
