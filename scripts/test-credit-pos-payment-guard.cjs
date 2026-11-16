@@ -42,6 +42,13 @@ test("la récupération d'une session approuvée restitue le stock par RPC audit
   assert.match(browser, /stockToRestore/);
   assert.match(browser, /quantity !== 4/);
   assert.match(browser, /Restitution contrôlée du stock après récupération/);
+  assert.match(browser, /const completedSales = await rows/);
+  assert.match(browser, /caisse_session_id=eq\." \+ encodeURIComponent\(open\.id\)/);
+  assert.match(browser, /created_by=eq\." \+ encodeURIComponent\(cashierUserId\)/);
+  assert.match(browser, /client_id=eq\." \+ encodeURIComponent\(clientUserId \|\| ""\)/);
+  assert.match(browser, /item\.statut === "approuvee" && item\.consumed_at !== null/);
+  assert.match(browser, /finalizedDraftIds\.add\(draft\.id\)/);
+  assert.match(browser, /Number\(stockBeforeRecovery\) \+ stockToRestore !== 4/);
 });
 
 test("la recette expose le message métier de finalisation POS après approbation", () => {
