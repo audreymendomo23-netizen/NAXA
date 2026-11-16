@@ -24,14 +24,16 @@ test("le panier principal conserve les métadonnées Bébé & Maman", () => {
   assert.match(basket, /line\.quantite_max \?\? MAX_QTE/);
 });
 
-test("Bébé & Maman rejoint le panier principal uniquement avec une pharmacie identifiée", () => {
+test("Bébé & Maman rejoint le panier principal avec un propriétaire Pharmacie ou Parapharmacie identifié", () => {
   assert.match(grid, /const \{ ajouter: ajouterAuPanierPrincipal, lignes: panierPrincipal \} = usePanier\(\)/);
   assert.match(grid, /ajouterAuPanierPrincipal/);
-  assert.match(grid, /cartError && universe === "bebe-maman"/);
-  assert.match(grid, /x\.universe === "parapharmacie"/);
-  assert.match(grid, /if \(!p\.pharmacie_id\)/);
+  assert.match(grid, /cartError/);
+  assert.match(grid, /if \(!p\.owner_id \|\| !\["pharmacie", "parapharmacie"\]\.includes\(p\.owner_type\)\)/);
+  assert.match(grid, /owner_type: p\.owner_type/);
+  assert.match(grid, /owner_id: p\.owner_id/);
   assert.match(grid, /type_article: "bebe-maman"/);
-  assert.match(grid, /disabled=\{stock < 1 \|\| \(universe === "bebe-maman" && !p\.pharmacie_id\)\}/);
+  assert.match(grid, /disabled=\{stock < 1 \|\| !p\.owner_id\}/);
+  assert.match(grid, /const cartId = "bebe-maman:" \+ p\.owner_type \+ ":" \+ p\.owner_id/);
 });
 
 test("le classement Bébé & Maman reste neutre et sans tri par prix", () => {
@@ -54,7 +56,9 @@ test("le checkout médicaments exclut les lignes Bébé & Maman", () => {
 });
 
 test("le RPC catalogue existant expose aussi l'identifiant de pharmacie", () => {
-  assert.ok(catalog.includes('rpc("get_universe_catalog"'));
+  assert.ok(catalog.includes('rpc("get_universe_catalog_v2"'));
+  assert.ok(catalog.includes('owner_type: "pharmacie" | "parapharmacie"'));
+  assert.ok(catalog.includes("owner_id: string"));
   assert.ok(finalMigration.includes("pharmacie_id uuid"));
   assert.ok(finalMigration.includes("drop function public.get_universe_catalog_for_cart(text)"));
   assert.ok(finalMigration.includes("grant execute on function public.get_universe_catalog(text)"));
