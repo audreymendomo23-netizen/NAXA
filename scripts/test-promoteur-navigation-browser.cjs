@@ -87,6 +87,9 @@ test("les écritures Replay temporaires disposent d'un nettoyage vérifié", () 
   assert.match(runtime, /l'affectation Comptable temporaire est toujours présente/);
   assert.match(runtime, /les champs du profil Comptable n'ont pas été restaurés exactement/);
   assert.match(runtime, /Fermeture de session Auth refusée/);
+  assert.match(runtime, /domain: cookieDomain/);
+  assert.match(runtime, /Aucun cookie Auth SSR à injecter/);
+  assert.match(runtime, /Cookie Auth sans domaine\/chemin valide/);
 });
 
 test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable et Partenaire", () => {
