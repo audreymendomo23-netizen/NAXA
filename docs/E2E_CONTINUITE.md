@@ -2986,3 +2986,39 @@ Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conse
 - Diagnostic ajouté sur `main` : commit `08418675d9ce46d46907e6fc28300aae43df29e8` affiche désormais la pile d'appel complète en cas d'erreur ; commit `a1dce28b25f420e753acaddaab165cf403044338` imprime aussi le journal du serveur Next.js avant de faire échouer l'étape.
 - Prochaine preuve requise : résultat du Replay sur ces commits instrumentés, puis correction de la cause racine. Ne pas rerun l'ancien SHA comme preuve du correctif.
 - Ne pas déclarer vert global tant que Web Push 3/3, remboursement JWT, vente crédit navigateur, Storage et nettoyage post-run n'ont pas chacun leur preuve terminale. Aucun déploiement Production/Vercel ni publication Play Store.
+
+
+## 72. Résultats consolidés POS, Marketplace et Storage — 16/11/2026
+
+### Correctifs RLS Replay
+
+- Migration `20261116015000_storage_promoter_validity_public_wrapper.sql` appliquée au projet Replay `pwfftcsjyeibxxqhwysw`. La politique `naxa_pharmacien_credential_insert_promoter` dépend de `public.naxa_promoteur_valide(uuid)` ; le helper `private.naxa_promoteur_valide(uuid)` reste sans droit EXECUTE pour `authenticated`.
+- Test SQL associé : PASS. La vérification utilise `pg_depend` pour contrôler le schéma de la fonction réellement appelée par la politique.
+- Migration `20261116020000_prescriptions_select_for_storage_rls.sql` appliquée à Replay : SELECT accordé à `authenticated` sur `public.prescriptions` pour permettre l'évaluation des politiques Storage. RLS reste activé ; aucun SELECT accordé à `anon`.
+- Test SQL associé : PASS. La table conserve ses politiques RLS client/staff.
+
+### Résultats navigateur/Storage
+
+- Run `43788573624`, SHA `08418675d9ce46d46907e6fc28300aae43df29e8` :
+  - Web Push Chromium + worker NAXA : PASS.
+  - Remboursement crédit via vrai JWT Caisse Replay : PASS.
+  - Scénario POS : PASS — panier au-dessus du plafond, demande Caisse, approbation Promoteur, débit stock unique, remboursement réel, solde nul, outbox et clôture Caisse sans écart.
+  - Storage avec matrice Admin/Promoteur obligatoire : **17 PASS, 0 SKIP** — dépôt/lecture Admin, remplacement photo, refus non-Admin, dépôt Promoteur pharmacie liée, refus d'écriture autre pharmacie, suppression propriétaire et nettoyage des sessions.
+  - Scénario Marketplace : FAILURE sur un sélecteur Playwright qui choisissait la dernière carte portant le même produit ; le bouton Refuser n'existait pas sur une ancienne demande déjà rejetée. Ce n'est pas un échec de la décision métier ni du stock.
+
+### Correction du scénario Marketplace
+
+- `scripts/e2e/verify-credit-marketplace-browser.cjs` cible maintenant une carte contenant le produit ET le statut `en_attente`, prend la première demande (liste triée de la plus récente à la plus ancienne), puis vérifie l'unicité du bouton Refuser.
+- Nouveau contrat statique `scripts/test-credit-marketplace-browser.cjs`.
+- Le filtre `paths` du workflow E2E inclut désormais le script Marketplace, son test statique, le contrat Storage et les deux migrations/tests RLS, afin que ces changements relancent la recette complète.
+- Qualité sur SHA `c2cd3f8acd3517d5698fee1153801b9b2b1c2441`, run `43790136561` : SUCCESS, y compris actionlint et tests/TypeScript/lint.
+
+### Verdict §72
+
+**VERT — qualité applicative.**  
+**VERT — Web Push, remboursement runtime, POS métier et Storage Admin/Promoteur** sur le run `43788573624`.  
+**JAUNE — parcours navigateur complet** : le seul échec de ce run est le sélecteur du refus Marketplace ; la correction est versionnée mais attend sa preuve navigateur.
+
+**Run de validation courant :** `43790136584`, SHA `c2cd3f8acd3517d5698fee1153801b9b2b1c2441`. Dernier relevé : provisionnement Replay PASS, build du worker de notifications en cours. Les résultats terminaux Web Push, remboursement, POS/Marketplace et Storage doivent être lus avant tout verdict vert global.
+
+**Périmètre :** Replay uniquement ; aucun changement Supabase Production et aucun déploiement Vercel.
