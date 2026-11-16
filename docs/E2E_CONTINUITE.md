@@ -3428,3 +3428,33 @@ Avant toute campagne bulk, demander la validation explicite de l’utilisateur s
 4. l’autorisation de procéder ensuite au contrôle interactif préalable, puis aux campagnes bulk B1 → B2 → B3 et suivantes.
 
 **Arrêt obligatoire :** attendre cette validation. Aucun bulk, aucune mutation de données Replay et aucun déploiement avant accord explicite.
+
+## 81. Validation utilisateur et contrôle interactif préalable
+
+**Date :** 16 novembre 2026  
+**Validation utilisateur :** accord explicite reçu pour les trois corrections de navigation et pour commencer le contrôle interactif préalable. Cet accord ne vaut pas autorisation de lancer les campagnes bulk.
+
+### 81.1 État du contrôle
+
+- HEAD examiné : `8e0d5d3d1e56623e925184462c714bf62deccccf`.
+- Les cinq fichiers modifiés au §80 ont été relus sur `main`; les trois ajouts de navigation et leurs conditions d’affichage sont présents.
+- Les routes cibles sont présentes dans l’arborescence source.
+- Les gardes serveur de `/pharmacie/promoteur/livraisons` et `/partenaire/examens` restent en place.
+- Le dépôt expose des scripts navigateur ciblés pour les parcours Crédit, mais aucun outil de pilotage navigateur interactif n’est disponible dans cette session.
+- Aucun environnement Preview/Replay correspondant exactement au HEAD `8e0d5d3...` n’a été établi. En créer un ou provoquer un déploiement automatique de `main` contreviendrait à la consigne de ne pas déployer pendant cet audit.
+
+### 81.2 Conclusion
+
+**Contrôle interactif : BLOQUÉ — environnement navigateur correspondant au commit non disponible dans cette session.**
+
+Ce blocage n’est pas un échec fonctionnel des liens : leur fonctionnement au clic, leur rendu réel selon chaque rôle et les parcours après navigation restent non vérifiés. Ne pas déclarer les corrections « testées navigateur » ni « vertes ».
+
+### 81.3 Verrou maintenu
+
+- Pas de lancement de campagne bulk B1 à B11.
+- Pas de mutation des données Replay.
+- Pas de création de comptes.
+- Pas de build, test automatisé ou déploiement déclenché dans cette passe.
+- Prochaine condition : disposer d’un navigateur interactif sur un environnement de test déjà existant, correspondant au commit courant, sans créer de nouveau déploiement. À défaut, demander une autorisation distincte si un Preview doit être créé.
+
+**État global : JAUNE — corrections source vérifiées statiquement ; contrôle interactif bloqué ; campagnes bulk en attente d’un accord ultérieur après levée du blocage.**
