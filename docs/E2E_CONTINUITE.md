@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 15 novembre 2026 (§66)  
+**Dernière mise à jour :** 16 novembre 2026 (§71)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — correctifs backend crédit Marketplace/comptoir et tests SQL Replay ciblés PASS (§59–§60). Run Replay E2E 129 : SUCCESS, Web Push Chromium 3/3 et Storage 17 PASS / 0 SKIP (§61). Configuration comptable `credit_octroi` / `credit_remboursement` corrigée sur Replay ; worker runtime octroi + remboursement PASS en transaction annulée, écritures équilibrées (§62–§63). Le contrôle Caisse ne confond plus publication Marketplace et disponibilité ERP : une pharmacie active non archivée, même masquée, peut ouvrir sa propre Caisse. Une fixture interne masquée et un parcours navigateur crédit comptoir (demande au-dessus plafond → décision Promoteur → reprise du même panier → stock unique → remboursement par JWT Caisse → clôture rapprochée) sont maintenant versionnés et branchés à l’Action Replay (§64), mais **leur exécution Actions n'est pas encore confirmée**. Le parcours Marketplace complet dans le navigateur n'est pas encore prouvé. Les mappings/journaux/périodes commerciaux restent à configurer et valider par chaque Promoteur/Comptable. Aucun PASS qualité terminal sur le dernier SHA n'est confirmé. Production, Vercel et Play Store inchangés.
+**État global :** 🟡 PARTIEL — la qualité complète (tests, TypeScript, lint, build Next.js et syntaxe Actions) est `SUCCESS` sur le commit `685ae719631ad71467b6eaaa71a97bb38b759644` (run `43787029143`). Le Replay E2E (`43787029157`) échoue encore à l'étape Web Push : `webpush is not defined`; les étapes remboursement JWT, navigateur crédit et Storage sont donc `SKIPPED` et ne constituent pas des preuves négatives ni positives. Les preuves antérieures SQL/worker et les contrôles de nettoyage restent référencés aux §68–§70. Deux commits de diagnostic ont ensuite été poussés sur `main` (`08418675d9ce46d46907e6fc28300aae43df29e8` : pile d'appel complète dans le script ; `a1dce28b25f420e753acaddaab165cf403044338` : capture du journal Next.js lorsque le test Web Push échoue). La cause racine de `webpush is not defined` n'est pas encore identifiée : attendre le prochain résultat Replay instrumenté avant toute correction fonctionnelle. Production, Vercel et Play Store inchangés.
 
 
 
@@ -2974,3 +2974,15 @@ Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conse
 **Point de reprise exact :** contrôler le run `43787918026` jusqu'à son état terminal ; relever séparément remboursement JWT, POS navigateur et Storage. Ensuite diagnostiquer le 410 Google Push (endpoint du Responsable) sans supprimer ni modifier les souscriptions d'utilisateurs réels.
 
 **Périmètre préservé :** Replay uniquement ; aucune modification Supabase Production, aucun déploiement Vercel, aucune publication Play Store. Les fichiers de mots de passe éphémères sont nettoyés par le workflow.
+
+
+## 71. Reprise du 16 novembre — qualité verte, Replay Web Push bloqué
+
+- Commit testé : `685ae719631ad71467b6eaaa71a97bb38b759644`.
+- Qualité complète, run `43787029143` : `SUCCESS` pour actionlint, tests, TypeScript, lint et build Next.js.
+- Replay E2E, run `43787029157` : échec à l'étape 15 « Exécuter la réception Web Push réelle via Chromium et le worker NAXA ». Message terminal : `RECETTE WEB PUSH PÉREMPTION E2E BLOQUÉE — webpush is not defined`.
+- Les étapes 16 (remboursement JWT Caisse), 17 (vente crédit navigateur) et 18 (Storage) ont été ignorées après cet échec. Aucun résultat ne doit leur être attribué.
+- Le provisionnement Promoteur/Client/Livreur/Gestionnaire Stock/Responsable et la pharmacie technique masquée, étapes 5 à 14, ont réussi sur ce run. Les secrets de test ont été nettoyés à l'étape 19.
+- Diagnostic ajouté sur `main` : commit `08418675d9ce46d46907e6fc28300aae43df29e8` affiche désormais la pile d'appel complète en cas d'erreur ; commit `a1dce28b25f420e753acaddaab165cf403044338` imprime aussi le journal du serveur Next.js avant de faire échouer l'étape.
+- Prochaine preuve requise : résultat du Replay sur ces commits instrumentés, puis correction de la cause racine. Ne pas rerun l'ancien SHA comme preuve du correctif.
+- Ne pas déclarer vert global tant que Web Push 3/3, remboursement JWT, vente crédit navigateur, Storage et nettoyage post-run n'ont pas chacun leur preuve terminale. Aucun déploiement Production/Vercel ni publication Play Store.
