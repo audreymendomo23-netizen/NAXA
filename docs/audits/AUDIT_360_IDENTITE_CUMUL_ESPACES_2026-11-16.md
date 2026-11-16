@@ -81,7 +81,7 @@ Les fichiers de migration correspondants sont présents dans `supabase/migration
 
 ## 5. Recette SQL E2E Replay
 
-<badge>5 suites exécutées</badge>
+**5 suites exécutées**
 
 | Suite | Scénarios prouvés | Résultat |
 |---|---|---|
