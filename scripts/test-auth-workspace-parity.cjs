@@ -85,5 +85,5 @@ test("la connexion Web route tous les profils selon le rôle métier actif, pas 
   assert.ok(login.includes('pharmacien: "/pharmacie/pharmacien"'));
   assert.ok(login.includes('gestionnaire_stock: "/pharmacie/gestionnaire-stock"'));
   assert.ok(login.includes('caisse: "/pharmacie/caisse"'));
-  assert.doesNotMatch(login, /profile\\?\\.role|profile\\.role/);
+  assert.ok(!login.includes("profile?.role") && !login.includes("profile.role"));
 });
