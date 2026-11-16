@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const activeRole =
+  let activeRole =
     typeof resolvedRole === "string" && resolvedRole.trim()
       ? resolvedRole.trim()
       : "active_role_unresolved";
