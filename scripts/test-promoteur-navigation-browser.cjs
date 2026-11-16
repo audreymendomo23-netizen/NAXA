@@ -103,6 +103,9 @@ test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable et Parte
     "/pharmacie/comptabilite/plan",
     "/partenaire/examens",
   ]) assert.ok(runtime.includes(route), "Route absente du scénario : " + route);
+  assert.match(runtime, /Navigation des sous-pages Promoteur/);
+  assert.match(runtime, /Sous-navigation Promoteur → Livraisons du réseau/);
+  assert.match(runtime, /Navigation latérale Promoteur → Livraisons du réseau/);
   assert.match(runtime, /390, height: 844/);
 });
 
