@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/naxa-nav-promoteur-e2e.yml"
+      - ".github/e2e/naxa-navigation-runtime.cjs"
       - "scripts/e2e/verify-promoteur-navigation-browser.cjs"
       - "scripts/test-promoteur-navigation-browser.cjs"
       - "src/app/pharmacie/promoteur/layout.tsx"
@@ -82,10 +83,14 @@ jobs:
             echo "::error::Le serveur local NAXA n'a pas démarré."
             exit 1
           fi
-      - name: Tester les navigations latérale, sous-pages et mobile Promoteur
+      - name: Recette navigateur Promoteur, Comptable et Partenaire
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
-        run: node scripts/e2e/verify-promoteur-navigation-browser.cjs
+          NAXA_E2E_ALLOW_TEMP_FIXTURES: "true"
+        run: node .github/e2e/naxa-navigation-runtime.cjs
+      - name: Nettoyage de secours des fixtures Replay
+        if: always()
+        run: node .github/e2e/naxa-navigation-runtime.cjs --cleanup
       - name: Logs serveur Next.js en cas d'échec
         if: failure()
         shell: bash
