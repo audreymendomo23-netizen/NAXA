@@ -87,8 +87,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://build-test.supabase.co' }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'build-test-anon-key' }}
+      SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      NAXA_BASE_URL: http://10.0.2.2:3000
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -116,6 +117,7 @@ jobs:
           set -euo pipefail
           test "$SUPABASE_URL" = "https://pwfftcsjyeibxxqhwysw.supabase.co" || { echo "::error::Android E2E refuse tout projet autre que Replay"; exit 1; }
           test -n "$SUPABASE_ANON_KEY" || { echo "::error::Clé publique Replay absente"; exit 1; }
+          test "$NAXA_BASE_URL" = "http://10.0.2.2:3000" || { echo "::error::Android E2E refuse le backend NAXA Production"; exit 1; }
 
       - name: Run encrypted queue and WorkManager tests on API 35 emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
