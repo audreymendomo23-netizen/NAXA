@@ -4171,3 +4171,59 @@ Le modèle actuel de Bébé & Maman est exclusivement rattaché à l’ERP Pharm
 - Les filtres d’éligibilité restent des garde-fous lexicaux et les règles métier existantes ; ils ne sont pas une certification réglementaire ni une validation automatique fiable de toutes les familles de produits. Les cas ambigus doivent rester à confirmer par le professionnel.
 
 **Point exact de reprise :** faire une revue SQL ciblée de la migration 20261116070000 (syntaxe, signatures, ACL/RLS, atomicité et transition des réservations), l’appliquer uniquement sur Replay après cette revue, puis compiler les sources et corriger les erreurs. Ensuite, effectuer les tests ciblés de disponibilité croisée et de réservation multi-propriétaire. Ne pas lancer de recette E2E ni de déploiement sans changement explicite de périmètre. Production demeure en lecture seule.
+
+
+## 95. Passe de clôture technique — architecture des trois univers (16/11/2026)
+
+**Résultat de la passe : corrections appliquées sur `main`, schéma actif sur Replay ; clôture complète conditionnée au dernier run CI du HEAD courant.**
+
+### Corrections code et SQL
+
+- Les réservations d'un groupe Pharmacie dans un univers additionnel sont limitées à 10 lignes, alignées sur le contrat du moteur ERP `private.reserve_stock`.
+- L'activation B&M d'une fiche Parapharmacie exige une Parapharmacie active, son association Parapharmacie ouverte et les deux univers actifs. Une fiche partenaire doit d'abord être publiée dans Parapharmacie.
+- La réservation Parapharmacie refuse désormais les médicaments à trois niveaux : filtrage du catalogue, contrôle de l'action serveur et garde-fou SQL du moteur `reserve_universe_products`. Ce dernier contrôle aussi les anciennes fiches potentiellement non conformes.
+- Les tables de publication conservent la propriété du stock et les droits de lecture RLS ; l'écriture est réservée aux RPC authentifiées avec vérification de rôle, de périmètre et de propriétaire.
+- Les index de clés étrangères sont ajoutés aux tables de publication ; les policies RLS utilisent les helpers auth via `(select ...)` pour éviter les warnings initplan sur ces deux tables.
+- Une colonne `reservations.source_universe_slug` et son index permettent de tracer explicitement l'univers d'origine d'une réservation ERP, car une fiche peut être publiée dans plusieurs univers. Les flux de réservation Parapharmacie/Pharmacie additionnelle et l'ancien flux B&M Pharmacie renseignent cette provenance ; la supervision Admin B&M filtre sur cette provenance au lieu de déduire l'univers d'après les seuls produits.
+- Les transitions de réservation B&M sont verrouillées en lecture seule pour le rôle Admin dans les trois voies ERP/Partenaire (transition, confirmation et annulation ERP). Le traitement par les utilisateurs professionnels autorisés reste disponible ; les réservations Pharmacie ordinaires ne sont pas modifiées par cette règle.
+- Les assertions statiques obsolètes du panier propriétaire unique ont été remplacées par des assertions qui couvrent les deux propriétaires, leurs identifiants, les clés de regroupement et le RPC catalogue v2. Le test KPI Admin contrôle désormais la pagination exhaustive et son traitement d'erreur.
+
+### Migrations Replay — exécutées
+
+Toutes les migrations ci-dessous ont d'abord été jouées dans une transaction de contrôle terminée par `ROLLBACK`; le résultat était vide/sans erreur. Elles ont ensuite été appliquées avec succès sur Replay `pwfftcsjyeibxxqhwysw` :
+
+| Version Replay | Migration |
+|---|---|
+| `20261116113251` | `three_universes_stock_owner_publications` |
+| `20261116113531` | `three_universes_write_scope_hardening` |
+| `20261116114024` | `three_universes_partner_medicine_reservation_guard` |
+| `20261116114645` | `reservation_origin_tracking` |
+| `20261116114815` | `bebe_maman_admin_readonly_reservations` |
+
+Contrôles SQL lecture seule après application :
+- Tables de publication présentes, RLS activé ; colonnes/index de traçabilité présents.
+- `authenticated` détient uniquement le SELECT direct sur les tables de publication ; les opérations d'écriture passent par RPC.
+- RPC d'écriture/réservation non exécutables par `anon`; les RPC de catalogue public restent intentionnellement disponibles aux visiteurs.
+- `reserve_universe_products` appelle le garde-fou médicament Parapharmacie ; le helper privé est inaccessible directement à `anon` et `authenticated`.
+- RPC de transition/confirmation/annulation B&M contiennent le refus Admin lecture seule.
+- Aucun enregistrement de publication Pharmacie/Parapharmacie ni de réservation ERP B&M dans Replay au contrôle final : pas de données historiques copiées, pas de scénarios métier exécutés, aucun fixture créé.
+
+### Qualité applicative — preuves GitHub
+
+- Le workflow `NAXA quality` sur le commit `fa0aa869ac58be8b0f64f0284a30376658bb7869` a terminé avec succès : **549 tests réussis, 0 échec ; TypeScript sans erreur ; lint terminé avec avertissements ; build Next.js compilé et 153 pages statiques générées.** Le lint a encore des warnings existants de synchronisation de state dans des effets et d'appels impurs en render ; ils ne sont pas bloquants dans ce run.
+- Le job actionlint de validation des workflows a réussi sur ce même SHA.
+- Un run distinct est déclenché sur le HEAD courant `ba4005211223521fb799fdbaf6dc5bcb65521551`, après ajout de la migration Admin lecture seule. À la dernière vérification, il est encore `in_progress` sur le job Tests/TypeScript/lint/build ; le job de validation syntaxe workflows a réussi. Ne pas reporter le succès du run précédent comme preuve du SHA courant.
+- GitLab miroir : branche `main` non synchronisée avec GitHub ; son ancien pipeline vert n'est pas une preuve pour cette version. GitHub Actions est le seul contrôle de qualité courant exploitable dans cette passe.
+
+### Limites et statut
+
+- **Construction / schéma Replay :** corrections et migrations appliquées ; contrats ACL/RLS, provenance et restrictions de transition contrôlés en lecture seule.
+- **Qualité sur le SHA précédent `fa0aa869...` :** 549/549 tests, TypeScript, lint et build réussis (avertissements lint présents).
+- **Qualité sur le HEAD courant `ba400521...` :** en attente du run GitHub Actions `43860902055` au dernier point de contrôle.
+- **Recette E2E :** non lancée. Aucun stock ou compte de test créé ; aucun comportement réel de réservation/FEFO/paiement/retrait validé sur des données.
+- **Production :** aucune lecture ni écriture dans cette passe ; aucune migration Production.
+- **Déploiement :** aucun déploiement, aucun Preview/Production déclenché.
+- **IA de classification :** les destinations sont définies manuellement par le professionnel et contrôlées côté serveur. La suggestion IA automatique de catégorie/destination n'est pas encore raccordée ; elle reste non bloquante et ne doit pas conférer les droits de publication.
+
+**Point exact de reprise :** vérifier la conclusion du run GitHub Actions `43860902055` sur `ba400521...`. En cas de succès, passer à une revue de recette ciblée (stock partagé, disponibilité croisée, réservation Pharmacie B&M, réservation Parapharmacie B&M, refus médicaments, transitions Admin interdites), uniquement après ordre utilisateur de lancer cette recette. En cas d'échec, corriger uniquement la cause démontrée et relancer sur le nouveau HEAD. Ne pas déployer et ne pas toucher à Production.
+
