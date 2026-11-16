@@ -4042,3 +4042,8 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Aucune migration, aucune écriture persistante, aucune modification Production, aucun déploiement.
 - La supervision Admin est corrigée au niveau source, mais reste À TESTER par build et navigation réelle.
 - État global : JAUNE / NON VERT jusqu'au build/typecheck, aux tests de navigation/pagination, à la matrice des actions sensibles et à la clôture des points externes HIBP / exposition API private.
+
+### 91.5 Contrôle des compteurs Replay après correction
+- Requête SQL indépendante sur Replay : partenaires actifs 0, partenaires en attente 0, produits publiés 0, produits brouillons 0, associations ouvertes 0, professionnels du suivi 0, professionnels vérifiés 0, événements d'audit 99. Ces valeurs décrivent l'environnement Replay à l'instant du contrôle ; elles ne sont pas transposées à Production.
+- Le commit de finition des libellés de synthèse Admin est 316b758f82055791ef5de168a061ac4a0d77a0b7.
+- L'échec du test transactionnel d'expiration d'affectation (contrainte naxa_professional_assignment_nature_ck) n'est pas compté comme un PASS ; la révocation explicite/expiration reste non certifiée. Aucun changement n'a été conservé par cette tentative.
