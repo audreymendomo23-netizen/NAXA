@@ -4128,3 +4128,46 @@ Le modèle actuel de Bébé & Maman est exclusivement rattaché à l’ERP Pharm
 **État de cette reprise :** audit ciblé effectué ; cause racine identifiée ; règle métier documentée. Le code métier n’est pas encore corrigé : une correction limitée aux composants visibles serait incomplète et dangereuse sans le routage catalogue/panier/réservation ci-dessus. Aucun build, CI, test, recette E2E, écriture Supabase/Replay/Production ou déploiement n’a été lancé dans cette passe.
 
 **Point exact de reprise :** implémenter le modèle de destination et le routage double propriétaire dans les migrations SQL et les parcours Gestionnaire Stock / Bébé & Maman / Parapharmacie, en conservant les stocks propriétaires et les deux moteurs de réservation existants ; ensuite seulement faire un contrôle statique ciblé. Ne pas lancer la recette.
+
+
+## 94. Correction d’architecture des trois univers — propriétaire, destinations et réservation (16/11/2026)
+
+**Règle métier appliquée dans les sources :**
+- Pharmacie : destination native Pharmacie ; destinations supplémentaires possibles Bébé & Maman et Parapharmacie.
+- Parapharmacie : destination native Parapharmacie ; destination supplémentaire possible Bébé & Maman ; aucune publication dans Pharmacie.
+- Le stock physique reste dans son système propriétaire : ERP Pharmacie (`stocks`/`stocks_lots`) ou ERP Parapharmacie (`partner_products`). Les tables de publication ne portent aucune quantité.
+- Les offres et paniers portent désormais `owner_type` et `owner_id`. La réservation doit être dirigée vers le moteur de stock du propriétaire.
+
+**Architecture ajoutée sur `main` :**
+- Migration `supabase/migrations/20261116070000_three_universes_stock_owner_publications.sql` : tables de publication Pharmacie et Parapharmacie, RLS, RPC de gestion des destinations, catalogue public multi-propriétaire, réservations pharmacie dans le ledger ERP, extension de réservation partenaire B&M et RPC de commande B&M multi-propriétaires.
+- Migration de données non destructive prévue : reprise des anciennes publications B&M pharmacie vers la nouvelle table de destinations, sans créer de nouveau stock.
+- `get_universe_catalog_v2` expose `owner_type`, `owner_id`, les identifiants historiques vendeur et les données d’offre. L’univers Pharmacie n’expose que le stock ERP Pharmacie ; Parapharmacie et B&M peuvent exposer les deux propriétaires selon les destinations actives.
+- Espace Gestionnaire Stock Pharmacie : formulaire de publication dans B&M ou Parapharmacie ; tableau de stock affiche les univers supplémentaires publiés.
+- Espace Gestionnaire Parapharmacie : publication d’une fiche Parapharmacie existante vers B&M, sans création d’une deuxième fiche ni d’un deuxième stock.
+- Catalogue, cartes et panier : vendeur/propriétaire explicite, clé de panier différenciée par propriétaire, quantité et prix associés à l’offre du propriétaire.
+- Checkout B&M : groupes par propriétaire ; les pharmacies passent par `creer_reservations_bebe_maman_client`/`private.reserve_stock`, les parapharmacies par `reserve_universe_products`. Le retour contient le type et l’identifiant propriétaire ; les reçus nettoient le bon groupe du panier.
+- Supervision Admin B&M : agrège désormais les publications pharmacie et parapharmacie, leurs offres disponibles et leurs réservations, sans donner de droit de validation de fiche à l’Admin.
+- L’ancienne table `pharmacie_bebe_maman_produits` reste synchronisée pour compatibilité du flux pharmacie existant ; les anciennes tables et le moteur financier partenaire sont conservés.
+
+**Commits applicatifs vérifiés sur `main` :**
+- Migration d’architecture : `441ef8269eecd718726d9438c01869020ba099ee` (après correction des motifs SQL d’éligibilité et documentation des tables de publication).
+- Catalogue et réservation propriétaire : `015b01e1bd1f90ccb822f11c47b358c794023749`, `354a20e5a02764cfee259ab45e6e4b185413f941`, `01130f4fa71b2812fd4e0f071739c93dff80bfaf`.
+- Gestion Pharmacie : `cee7da5dd00d5b302e977a07c11fe97f669ae98e`, `931cd4fd46ce87dbf062bee574549cd4ad39d489`, `4b1b5e2f20d6e91882a5c7b123fb2608016af028`.
+- Gestion Parapharmacie : `499414262d3ad6d940387ff9a5bf89a2b948258f`, `4da048e930b610b36455b80fe19a5d67c82ae63d`.
+- Checkout, panier et reçus : `c9f04da6d9fe134f245121cd1b4ad968e4b2cbae`, `a9c7a48868ee30a7930d8d3a25173172b670936e`, `b3c1fca5256f1b4808317be32850697c4366c480`, `2039d33e3f4f55485f077c9fc4eafe2093088c6a`.
+- Supervision Admin et modèle de panier : `c5863ea559b6a68a2772fe183532bd6d05da577a`, `417f09248ba77deef42d9c9c7198fc43e3c245a6`.
+
+**Contrôles effectués — sans recette :**
+- Lecture des définitions SQL Replay en lecture seule : les fonctions de réservation ERP, de réservation partenaire, de catalogue, les helpers de périmètre et les fonctions de supervision antérieures ont été retrouvés ; signatures des helpers de scope et d’affectation confirmées.
+- Lecture des déclencheurs Replay : les blocages historiques du catalogue partenaire B&M et le déclencheur de synchronisation de l’ancien catalogue ont été identifiés. Le nouveau flux conserve `partner_products.universe_slug='parapharmacie'` et publie B&M uniquement via une table de liaison ; il ne réactive pas la création de fiches partenaires B&M.
+- Contrôle statique GitHub des fichiers mis à jour : appels `get_universe_catalog_v2`, `reserve_pharmacy_stock_in_universe`, `reserve_universe_products`, RPC B&M multi-propriétaires, types de propriétaire, actions de publication et composants de reçu présents.
+- Aucun build, TypeScript, lint, CI, navigateur, test SQL de migration, test unitaire, recette E2E, migration appliquée sur Replay, écriture Production ou déploiement n’a été exécuté dans cette passe.
+
+**Limites et points non verts :**
+- La migration `20261116070000` est versionnée mais pas encore appliquée ; ses fonctions et tables ne sont donc pas encore actives dans Replay ni Production.
+- Le code doit encore être compilé et les contrats SQL vérifiés sur Replay avant toute recette. La commande multi-propriétaires, les reçus, le débit FEFO ERP et les transitions de réservation partenaire n’ont pas de preuve d’exécution.
+- La supervision Admin a été mise à jour pour agréger les deux propriétaires ; le texte d’aide et les indicateurs ne constituent pas une preuve d’exécution.
+- L’IA de classification n’est pas encore branchée au classement des destinations. Le rapprochement IA déjà existant pour l’import Pharmacie ne décide pas les univers ; il faut ajouter une suggestion de catégorie/destination distincte, non bloquante, puis appliquer les autorisations serveur.
+- Les filtres d’éligibilité restent des garde-fous lexicaux et les règles métier existantes ; ils ne sont pas une certification réglementaire ni une validation automatique fiable de toutes les familles de produits. Les cas ambigus doivent rester à confirmer par le professionnel.
+
+**Point exact de reprise :** faire une revue SQL ciblée de la migration 20261116070000 (syntaxe, signatures, ACL/RLS, atomicité et transition des réservations), l’appliquer uniquement sur Replay après cette revue, puis compiler les sources et corriger les erreurs. Ensuite, effectuer les tests ciblés de disponibilité croisée et de réservation multi-propriétaire. Ne pas lancer de recette E2E ni de déploiement sans changement explicite de périmètre. Production demeure en lecture seule.
