@@ -122,17 +122,18 @@ const eligibleProducts = useMemo(() => products.filter(p => {
     const max = Math.min(10, Math.floor(Number(p.available_quantity)));
     if (max < 1) return;
     if (universe === "bebe-maman") {
-      if (!p.pharmacie_id) {
+      const pharmacyId = p.pharmacie_id ?? p.partner_id;
+      if (!pharmacyId) {
         setCartError("La pharmacie propriétaire de cet article n’est pas identifiée. Ajout impossible.");
         return;
       }
       const ok = ajouterAuPanierPrincipal({
-        produit_id: "bebe-maman:" + p.product_id,
+        produit_id: "bebe-maman:" + pharmacyId + ":" + p.product_id,
         nom: p.name,
         dosage: "",
         type_article: "bebe-maman",
         universe_product_id: p.product_id,
-        pharmacie_id: p.pharmacie_id,
+        pharmacie_id: pharmacyId,
         pharmacie_nom: p.partner_name,
         prix_unitaire_fcfa: Number(p.price_fcfa),
         photo_url: p.photo_url,
@@ -261,7 +262,7 @@ const eligibleProducts = useMemo(() => products.filter(p => {
         {visibleProducts.map(p => {
           const stock = Math.max(0, Math.floor(Number(p.available_quantity)));
           const selected = universe === "bebe-maman"
-            ? panierBebeMaman.find(line => line.universe_product_id === p.product_id)
+            ? panierBebeMaman.find(line => line.universe_product_id === p.product_id && line.pharmacie_id === (p.pharmacie_id ?? p.partner_id))
             : cart.find(x => x.productId === p.product_id);
           return (
             <article
