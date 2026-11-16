@@ -2899,3 +2899,35 @@ Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conse
 **JAUNE — navigateur réel et résultat terminal du job qualité global :** à confirmer. Ne pas annoncer un vert global navigateur/production avant les preuves correspondantes.
 
 **Point de reprise exact :** contrôler le résultat terminal du workflow GitHub NAXA quality après le commit de documentation, puis exécuter la recette navigateur Replay (auth Promoteur, Client, Pharmacien et trois profils de fonctions) avec upload réel sur les deux buckets privés. Production et déploiement demeurent hors périmètre.
+
+## 70. Finalisation POS crédit, récupération Caisse et diagnostic Web Push — 16/11/2026
+
+### Corrections SQL et E2E versionnées
+
+- **Cause POS crédit :** `vente_credit_finaliser` appelait un RPC qui insérait le paiement puis mettait à jour les champs de reçu. Le trigger `naxa_guard_pos_payment_write` refuse toute mise à jour directe des paiements, y compris cette écriture tardive exécutée dans le finaliseur autorisé. Le rollback préservait la vente, le solde crédit et le stock ; la vente ne passait pas à `payee`.
+- **Correction :** la migration `20261116010200_credit_pos_payment_insert_fields_fix.sql` remplace le RPC d'insertion pour écrire `montant_percu` et `monnaie_rendue=0` dès l'INSERT du paiement crédit. Le finaliseur vérifie ensuite les valeurs sans UPDATE de `vente_paiements`. Le trigger et les ACL strictes restent inchangés.
+- **Replay :** migration appliquée au seul projet `pwfftcsjyeibxxqhwysw`, résultat Supabase `success=true`. Le test SQL `supabase/tests/20261116010200_credit_pos_payment_insert_fields_fix.sql` a été exécuté sur Replay et retourne PASS. Il vérifie l'INSERT atomique, l'absence d'UPDATE dans le finaliseur, le maintien du refus de mutation directe et les ACL authentifiées.
+- **Récupération :** le harnais POS récupère désormais une demande déjà approuvée via le RPC métier, rembourse le crédit, clôture la session, puis restitue uniquement le stock consommé par cette vente via `gestionnaire_stock_quantite_ajuster` avec type `retour`. Il relit la quantité finale et exige le retour à 4 unités. Le navigateur expose le message métier de finalisation et l'état de la vente en cas d'échec.
+- **Tests statiques :** `scripts/test-credit-pos-payment-guard.cjs` verrouille le contrat d'insertion et la récupération de stock ; il est inclus dans `npm test` et le workflow Replay. Le chemin de la migration, du test SQL et du test Node est inclus dans les filtres du workflow.
+
+### Preuves et état au contrôle
+
+- **Qualité GitHub : SUCCESS** sur le SHA `bfc2659e53aceab5677e9841cf72e7c0bf17f9c3` : tests, TypeScript, lint, build et actionlint.
+- **SQL Replay : PASS** pour le test de paiement crédit atomique et le test structurel du quota Responsable / Push / dispatcher.
+- **Reprise de la tentative POS interrompue :** vente approuvée finalisée, demande crédit consommée, solde Client revenu à 0, session Caisse fermée et stock technique revenu à 4. L'historique de vente, les opérations et les mouvements de stock restent audités.
+- **Web Push : JAUNE.** Une souscription Chromium fraîche est créée puis le worker obtient HTTP 200, mais le fournisseur Google Push retourne encore `410 Gone` pour un endpoint. La purge ciblée des seules souscriptions des trois profils E2E est en place et ne supprime aucun endpoint réel. Une sonde directe du même endpoint, avant l'appel du worker, a été ajoutée pour distinguer un refus fournisseur de l'envoi par la route NAXA. Cette sonde est incluse dans le run Replay en file sur le SHA courant.
+- **Workflow Replay : non terminal au dernier contrôle.** Run `43784591493` sur le SHA `6d01fd4ac13f534c342dc3deafe22da76bd1098c` en build local ; run `43785073358` sur le SHA courant `bfc2659e53aceab5677e9841cf72e7c0bf17f9c3` en attente d'exécution. Aucun de ces deux statuts ne constitue encore un SUCCESS E2E terminal.
+
+### Paramètres comptables des pharmacies commerciales
+
+- Le scénario de configuration comptable navigateur est prévu via le compte Promoteur : création/validation des comptes, journaux et mappings, puis suppression des seules lignes synthétiques créées par le test.
+- **Aucun paramètre comptable réel n'est inventé ni écrit pour une pharmacie commerciale.** Le projet Replay contient des pharmacies démo et une pharmacie technique privée, pas une pharmacie commerciale réelle à configurer. Dans chaque pharmacie commerciale, le Promoteur/Comptable devra renseigner le plan de comptes, journaux, mappings et période réels propres à son activité avant l'utilisation comptable réelle.
+- Les comptes/journaux/mappings de recette ne doivent pas être conservés comme configuration d'exploitation. Contrôler leurs compteurs après le workflow final.
+
+### Verdict §70
+
+**VERT —** correction du finaliseur POS crédit appliquée sur Replay, test SQL PASS, récupération des tentatives interrompues testée, qualité complète SUCCESS sur le SHA courant.
+
+**JAUNE —** Web Push fournisseur / sonde directe et workflow navigateur POS–Marketplace–comptabilité–Storage non encore terminaux au dernier contrôle. Ne pas déclarer le chantier complet vert avant le run Replay terminal `SUCCESS` et le contrôle des résidus.
+
+**Périmètre préservé :** Supabase Production non modifié ; aucun déploiement Vercel ; aucune publication Play Store. Les pharmacies commerciales restent responsables de leur configuration comptable réelle.
