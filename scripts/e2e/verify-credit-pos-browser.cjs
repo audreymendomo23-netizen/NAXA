@@ -194,6 +194,8 @@ async function run(env = process.env) {
       "ventes?select=id,client_id&caisse_session_id=eq."
         + encodeURIComponent(open.id) + "&statut=eq.brouillon&limit=3"
     );
+    let stockToRestore = 0;
+    let stockBeforeRecovery = null;
     for (const draft of drafts) {
       const decisions = await rows(
         "client_credit_requests?select=id,statut,consumed_at&vente_id=eq."
@@ -201,6 +203,22 @@ async function run(env = process.env) {
       );
       const approved = decisions.find(item => item.statut === "approuvee" && item.consumed_at === null);
       if (approved) {
+        const saleLines = await rows(
+          "vente_lignes?select=produit_id,quantite&vente_id=eq." + encodeURIComponent(draft.id)
+        );
+        const restoreQuantity = saleLines
+          .filter(line => line.produit_id === PRODUCT_ID)
+          .reduce((sum, line) => sum + Number(line.quantite || 0), 0);
+        if (restoreQuantity > 0) {
+          if (stockBeforeRecovery === null) {
+            const stockRows = await rows(
+              "stocks?select=quantite&pharmacie_id=eq." + encodeURIComponent(PHARMACY_ID)
+                + "&produit_id=eq." + encodeURIComponent(PRODUCT_ID) + "&limit=2"
+            );
+            const stock = await ensureSingle(stockRows, "Stock avant récupération Caisse");
+            stockBeforeRecovery = Number(stock.quantite);
+          }
+        }
         const resumed = await rpc("vente_credit_finaliser", cashierToken, {
           p_vente: draft.id,
           p_reference: "NAXA-E2E-CREDIT-RECOVERY-" + crypto.randomUUID(),
@@ -209,6 +227,7 @@ async function run(env = process.env) {
         if (result?.resultat !== "finalisee") {
           throw new Error("Une demande approuvée ne peut pas être abandonnée ; reprise de la même vente impossible.");
         }
+        stockToRestore += restoreQuantity;
         continue;
       }
 
@@ -251,6 +270,30 @@ async function run(env = process.env) {
     }, "Clôture de récupération du poste Caisse");
     const result = Array.isArray(close) ? close[0] : close;
     if (!result || Number(result.ecart) !== 0) throw new Error("La session Caisse de récupération n'a pas été rapprochée à zéro.");
+
+    // Une vente approuvée récupérée est finalisée par le RPC métier et a donc
+    // légitimement consommé son stock. Restaurer uniquement cette quantité de
+    // fixture, via le RPC Gestionnaire Stock audité, pour laisser le prochain
+    // scénario POS repartir exactement de son stock initial.
+    if (stockToRestore > 0) {
+      const restored = await rpc("gestionnaire_stock_quantite_ajuster", cashierToken, {
+        p_pharmacie: PHARMACY_ID,
+        p_produit: PRODUCT_ID,
+        p_delta: stockToRestore,
+        p_type: "retour",
+        p_motif: "Restitution contrôlée du stock après récupération d'une recette POS interrompue",
+        p_lot: null,
+      }, "Restitution du stock de recette après récupération");
+      if (restored !== true) throw new Error("La restitution du stock de recette n'a pas été confirmée.");
+      const finalStock = await rows(
+        "stocks?select=quantite&pharmacie_id=eq." + encodeURIComponent(PHARMACY_ID)
+          + "&produit_id=eq." + encodeURIComponent(PRODUCT_ID) + "&limit=2"
+      );
+      const quantity = Number((await ensureSingle(finalStock, "Stock après récupération Caisse")).quantite);
+      if (quantity !== Number(stockBeforeRecovery) || quantity !== 4) {
+        throw new Error("Le stock de recette n'est pas revenu à la quantité cible quatre après récupération.");
+      }
+    }
   }
 
   try {
@@ -450,8 +493,21 @@ async function run(env = process.env) {
     }
 
     await cashierPage.reload();
-    await cashierPage.getByRole("button", { name: "Finaliser la vente à crédit", exact: true }).click();
-    await cashierPage.getByText(/Vente à crédit finalisée/).waitFor();
+    const finalizationButton = cashierPage.getByRole("button", { name: "Finaliser la vente à crédit", exact: true });
+    await finalizationButton.waitFor({ state: "visible" });
+    await finalizationButton.click();
+    try {
+      await cashierPage.getByText(/Vente à crédit finalisée/).waitFor({ timeout: 30000 });
+    } catch {
+      const notice = (await cashierPage.locator('[aria-live="polite"]').textContent().catch(() => ""))?.trim();
+      const state = await rows(
+        "ventes?select=statut,total_net,mode_paiement&id=eq."
+          + encodeURIComponent(saleId) + "&limit=1"
+      ).catch(() => []);
+      throw new Error("Finalisation POS refusée après approbation Promoteur ; message Caisse : "
+        + String(notice || "aucun message métier affiché").slice(0, 260)
+        + " ; état vente : " + JSON.stringify(state[0] || null));
+    }
 
     const paidRows = await rows(
       "ventes?select=id,total_net,statut,mode_paiement,client_id,caisse_session_id"
