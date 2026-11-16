@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§89)  
+**Dernière mise à jour :** 16 novembre 2026 (§90)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD documentaire :** `4c29ab22eade7e3793b949d07119e9a72eceec0d`  
+**HEAD documentaire :** `4d99919d963891ce352fd59607118bf2441c0561`  
 **État global :** 🟡 PARTIEL — le contrôle ciblé de navigation Chromium sur Replay est clôturé **VERT** au §86 (Promoteur desktop/mobile, 6 destinations Comptable, 2 accès Partenaire ; nettoyage Replay vérifié). La qualité complète est **SUCCESS** au run [43801594362](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801594362) : 549 PASS, 0 FAIL, 0 SKIP, TypeScript et build Next.js PASS, ESLint 0 erreur / 225 avertissements, actionlint PASS. Le code applicatif testé est `5b9f7e5aab72cacc61e7e0a72193c31232fd493a` ; les commits ultérieurs documentaires ne modifient pas l'application. **Le chantier E2E global n'est pas vert** : les parcours métier et appareils listés aux sections antérieures restent à exécuter/valider. Les campagnes bulk B1–B11 n'ont pas été lancées et restent soumises à une validation explicite distincte. Aucun compte Auth supplémentaire, aucune écriture Production, aucun déploiement Preview/Production et aucun envoi Play Store n'ont été effectués. Les 225 avertissements ESLint restent visibles et suivis, sans invalider le contrôle ciblé.
 
 
@@ -3955,3 +3955,57 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 7. Réviser les résultats Advisors après chaque correction, exécuter tests ciblés, consigner commits et preuves ; ne déclarer le socle vert qu'après fermeture de tous les critères obligatoires.
 
 **Point de reprise :** commencer par l'exposition Data API de `private`, puis audit systématique des RPC SECURITY DEFINER et de leurs ACL/guards. Pas de recette globale/E2E bulk, pas de Production en écriture, pas de déploiement.
+
+
+## 90. Fermeture des faux positifs et derniers blocages du socle — 16/11/2026
+
+### 90.1 Accès direct aux tables RLS sans policy — POINT CLOS
+- Requête SQL Replay sur l'ensemble des tables RLS des schémas `public` et `private` : `public` 257 tables RLS dont 64 sans policy ; `private` 7 tables RLS dont 7 sans policy.
+- Contrôle des privilèges effectifs pour chaque table sans policy : zéro privilège direct `SELECT`, `INSERT`, `UPDATE` ou `DELETE` pour `anon` et zéro pour `authenticated`, dans les deux schémas.
+- Interprétation : RLS sans policy = refus par défaut, et aucun GRANT direct ne permet de contourner ce refus. Le finding Advisor `rls_enabled_no_policy` (71, niveau INFO) est classé **contrôle interne fermé / non vulnérabilité** dans l'état actuel. Les accès nécessaires restent à travers les RPC et le rôle serveur autorisé. Ne pas ajouter de policies génériques.
+
+### 90.2 Schéma private — ne pas appliquer de révocation globale
+- SQL confirme `USAGE` accordé à `anon` et `authenticated` sur le schéma `private`.
+- Le schéma contient 102 fonctions : 87 `SECURITY DEFINER` et 15 `SECURITY INVOKER`. Plusieurs RPC publiques en `SECURITY INVOKER` appellent explicitement des fonctions `private.*` ; elles nécessitent donc ce chemin de privilèges. Révoquer globalement `USAGE` ou `EXECUTE` casserait des appels applicatifs et ne constitue pas une correction sûre.
+- La documentation Supabase confirme que seul `public` est exposé par défaut ; un schéma personnalisé n'est exposé que s'il est ajouté explicitement dans **Project Settings → API → Exposed schemas**. La session SQL ne permet pas de lire ce paramètre PostgREST et le connecteur ne fournit pas d'action de lecture/modification de ce réglage.
+- **Point externe restant :** confirmer dans le Dashboard que `private` n'est pas dans la liste Exposed schemas. Si absent, classer le risque d'exposition API fermé sans toucher aux grants. S'il est présent, retirer uniquement `private` de la liste exposée (ne pas révoquer les grants nécessaires aux wrappers internes), puis vérifier les RPC publiques requises.
+- Référence documentaire Supabase : `https://supabase.com/docs/guides/api/using-custom-schemas`.
+
+### 90.3 Inventaire des RPC SECURITY DEFINER — triage SQL réalisé, tests d'autorisation restant
+- Inventaire Replay : 242 fonctions `public SECURITY DEFINER` exécutables par `authenticated`, 2 exécutables par `anon`. Toutes les 468 fonctions SECURITY DEFINER contrôlées ont un `search_path` fixé.
+- Triage statique des 242 RPC authenticated : 233 définitions contiennent une vérification d'identité `auth.uid()`/`auth.jwt()`; 130 délèguent à des fonctions `private.*` ; trois cas sans motif générique ont été examinés individuellement :
+  - `assurance_import_simuler_mode` délègue à `assurance_import_simuler`, qui exige une session, contrôle les rôles Promoteur/Pharmacien/Responsable et le scope Pharmacie avant écriture.
+  - `set_garde` exige une pharmacie active via `my_pharmacie()` puis le privilège `manage_guard_status` via `authorize()`.
+  - `marketplace_produit_visible` est une lecture booléenne publique bornée aux stocks des pharmacies actives, visibles, non-démo et non-archivées.
+- Les deux RPC anonymes sont des lectures Marketplace :
+  - `marketplace_offre_stock_disponible` délègue à `private.marketplace_offre_stock_disponible_guarded`, qui vérifie pharmacie visible/active/non-démo/non-archivée, fraîcheur du stock (48 h) et quantité disponible après réservations.
+  - `marketplace_produit_visible` vérifie l'existence d'un stock dans une pharmacie visible/active/non-démo/non-archivée.
+- Conclusion : aucun défaut d'autorisation évident n'a été établi dans ce triage ; les deux RPC anon correspondent au besoin de lecture publique Marketplace. Les 242 RPC ne sont toutefois pas déclarées entièrement certifiées tant que les tests positifs/négatifs par rôle, périmètre et suspension ne sont pas exécutés. Finding Advisor `authenticated_security_definer_function_executable` classé **surface d'exposition à tester**, pas faille démontrée.
+- Référence Advisor : `https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable`.
+
+### 90.4 Dette performance — classée, non bloquante pour le vert fonctionnel
+- `multiple_permissive_policies` : 47 cas. Les policies sont combinées en OR par Postgres ; les exemples reflètent souvent des scopes distincts (Admin, Client, partenaire, salarié). Ne pas les fusionner sans démontrer l'équivalence de leur union logique. Classées dette de performance à optimiser par table après analyse des plans.
+- `auth_rls_initplan` : 11 policies. Optimisation connue possible en enveloppant les appels `auth.*` par `(select auth.*())`. À faire en migration dédiée avec comparaison stricte des expressions et tests d'isolation.
+- `unindexed_foreign_keys` : 246 relations sans index couvrant. Ne pas générer 246 index aveuglément : vérifier cardinalité, fréquence, doublons d'index, coût d'écriture et plans `EXPLAIN`; déployer ensuite avec stratégie adaptée à la taille de Production.
+- `unused_index` : 176 index non utilisés dans les statistiques observées. Ne pas supprimer sur Replay peu chargé ; les conserver jusqu'à observation représentative de Production et vérification des requêtes rares/maintenance.
+- Ces quatre catégories sont **dette performance classée**, pas défaut métier ou vulnérabilité avérée. Elles ne bloquent pas le vert fonctionnel transversal, mais doivent rester dans le plan de performance avant montée en charge.
+
+### 90.5 Blocages externes et produit toujours ouverts
+1. **Protection des mots de passe compromis : BLOQUANT sécurité avant ouverture publique.** Advisor Replay confirme `auth_leaked_password_protection` désactivé. Documentation Supabase actuelle : fonctionnalité disponible sur Pro et supérieur. Le projet Replay observé est sur un plan Free. Aucun changement de plan ni engagement financier n'a été autorisé. Pas de contournement maison présenté comme équivalent. Référence : `https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection`.
+2. **Exposition réelle du schéma private : vérification Dashboard requise.** Le connecteur ne peut pas lire le réglage Exposed schemas ; le SQL seul ne suffit pas.
+3. **Supervision Admin : défaut produit confirmé dans `src/app/admin/univers/page.tsx`.** Les partenaires et produits sont chargés avec `limit(100)`, le journal avec `limit(20)`; les compteurs dérivés des lignes chargées ne sont pas des totaux réseau. `src/app/admin/page.tsx` charge la liste pharmacies sans pagination et agrège certains indicateurs en mémoire. La supervision exhaustive, agrégats serveur et pagination/filtres fiables restent à implémenter.
+4. **Matrice de droits et suspension : non certifiée en exécution.** Le triage statique ne remplace pas les tests négatifs/positifs avec comptes de rôle et après révocation/suspension. Aucun compte de test n'a été créé dans cette passe.
+
+### 90.6 Décision architecturale
+- Les alertes Advisor INFO sur les 71 tables sans policy sont fermées par preuve de l'absence de GRANT direct et du refus RLS par défaut.
+- Les alertes de policies multiples, initplan, index FK et index inutilisés sont classées dette performance et ne sont pas traitées par modifications aveugles.
+- Les grants du schéma `private` sont conservés en raison des wrappers invoker ; la configuration API doit être vérifiée avant de conclure sur l'exposition.
+- Les deux RPC anon Marketplace sont conservées comme lecture publique explicitement bornée.
+- **Socle transversal : JAUNE / NON VERT pour le go-live.** Les derniers points ne peuvent pas être fermés entièrement par une migration SQL sûre : HIBP dépend d'un plan Supabase Pro, l'exposition API dépend d'un réglage Dashboard non accessible au connecteur, et la supervision Admin exige une modification applicative. Les tests par rôle sont encore requis.
+- Aucun code applicatif ni schéma n'a été modifié dans cette passe. Aucun changement de plan, aucun déploiement et aucune écriture Production.
+
+### 90.7 Point de reprise exact
+- Propriétaire NAXA : confirmer le schéma `private` absent de Project Settings → API → Exposed schemas et décider du passage au plan Pro pour activer HIBP.
+- Développement sur `main`, sans déploiement pendant audit : remplacer les compteurs limités par des agrégats SQL exacts et des listes paginées, puis exécuter tests build/typecheck ciblés.
+- Sur Replay : exécuter la matrice d'autorisation et suspension ; documenter chaque PASS/FAIL.
+- Une fois ces critères de sécurité et supervision clos, le socle pourra être déclaré vert selon les critères de mise en production ; reprendre ensuite l'univers Bébé & Maman dans l'ordre impératif.
