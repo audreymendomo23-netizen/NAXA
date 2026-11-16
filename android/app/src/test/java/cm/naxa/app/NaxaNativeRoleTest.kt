@@ -29,6 +29,25 @@ class NaxaNativeRoleTest {
     }
 
     @Test
+    fun allPharmacyProfessionalProfilesUseTheSameNativeWorkspace() {
+        listOf(
+            "promoteur", "responsable", "caisse", "comptable",
+            "pharmacien", "gestionnaire_stock", "magasinier", "livreur", "pharmacie"
+        ).forEach { role ->
+            assertTrue(
+                "Role $role must enter the Pharmacy workspace",
+                NaxaNativeRole.supportsPharmacyWorkspace(role, "pharmacy")
+            )
+            assertFalse(
+                "Role $role must not enter the Client workspace",
+                NaxaNativeRole.supportsClientWorkspace(role, "client")
+            )
+        }
+        assertFalse(NaxaNativeRole.supportsPharmacyWorkspace("client", "pharmacy"))
+        assertFalse(NaxaNativeRole.supportsPharmacyWorkspace("admin", "pharmacy"))
+    }
+
+    @Test
     fun adminWorkspaceRequiresBothAdminRoleAndAdminDomain() {
         assertTrue(NaxaNativeRole.supportsAdminWorkspace("admin", "admin"))
         assertFalse(NaxaNativeRole.supportsAdminWorkspace("client", "admin"))
