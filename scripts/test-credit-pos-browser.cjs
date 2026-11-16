@@ -22,7 +22,9 @@ test("la recette navigateur couvre refus avant décision, reprise du même broui
   assert.match(source, /Approuver le crédit comptoir/);
   assert.match(source, /Finaliser la vente à crédit/);
   assert.match(source, /getByText\("Achat à crédit", \{ exact: false \}\)\.first\(\)\.waitFor\(\)/);
-  assert.match(source, /getByRole\("heading", \{ name: "Mes reçus de remboursement" \}\)\.waitFor\(\)/);
+  assert.match(source, /name: "Mes reçus de remboursement"/);
+  assert.match(source, /refundReceiptHeading\.count\(\) !== 1/);
+  assert.match(source, /refundReceiptHeading\.waitFor\(\{ state: "visible" \}\)/);
   assert.match(source, /stockBeforeApproval/);
   assert.match(source, /stockAfterApproval/);
   assert.match(source, /stockAfterSale/);
