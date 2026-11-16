@@ -77,14 +77,14 @@ test("la recette purge les anciennes souscriptions uniquement sur les trois prof
   assert.match(webPushE2E, /remainingSubscriptions\.length !== 0/);
 });
 
-test("la recette vérifie directement l'endpoint et la souscription sauvegardée avant le worker NAXA", () => {
-  assert.ok(webPushE2E.includes("crypto.createHash(\"sha256\")"));
-  assert.ok(webPushE2E.includes("webpush.sendNotification(subscription.subscription"));
-  assert.ok(webPushE2E.includes("naxa_e2e_transport_probe"));
+test("la recette envoie une seule notification par souscription via le worker NAXA", () => {
   assert.ok(webPushE2E.includes("stored.subscription?.keys?.p256dh"));
   assert.ok(webPushE2E.includes("stored.subscription?.keys?.auth"));
   assert.ok(webPushE2E.includes("endpointFingerprint"));
   assert.ok(webPushE2E.includes("endpointUrl.hostname"));
+  assert.ok(webPushE2E.includes("Le worker NAXA n'a pas confirmé un envoi Web Push ciblé"));
+  assert.doesNotMatch(webPushE2E, /webpush\\.sendNotification\\(subscription\\.subscription/);
+  assert.doesNotMatch(webPushE2E, /naxa_e2e_transport_probe/);
 });
 
 test("la recette Web Push utilise des profils Chromium persistants, permission accordée et nettoyage garanti", () => {
