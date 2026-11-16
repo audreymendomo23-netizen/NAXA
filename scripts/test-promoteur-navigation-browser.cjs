@@ -55,3 +55,61 @@ test("la recette ferme explicitement la session navigateur", () => {
   assert.match(source, /Déconnexion/);
   assert.match(source, /logoutPassed, true/);
 });
+
+const runtime = fs.readFileSync(
+  path.join(__dirname, "..", ".github", "e2e", "naxa-navigation-runtime.cjs"),
+  "utf8"
+);
+
+test("la recette multi-rôles est strictement épinglée à Replay et exige un opt-in", () => {
+  assert.match(runtime, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
+  assert.match(runtime, /assert\.equal\(process\.env\.NAXA_E2E_ALLOW_TEMP_FIXTURES, "true"/);
+  assert.match(runtime, /assert\.equal\(new URL\(supabaseUrl\)\.origin, PROJECT_URL/);
+});
+
+test("la recette utilise trois identités E2E existantes et vérifie leurs marqueurs", () => {
+  assert.match(runtime, /naxa_e2e_promoteur/);
+  assert.match(runtime, /naxa_e2e_expiry_overflow/);
+  assert.match(runtime, /naxa_e2e_acheteur/);
+  assert.match(runtime, /naxa_e2e_fixture/);
+  assert.match(runtime, /admin\.auth\.admin\.generateLink/);
+  assert.match(runtime, /ssrClient\.auth\.verifyOtp/);
+  assert.doesNotMatch(runtime, /admin\.auth\.admin\.createUser/);
+});
+
+test("les écritures Replay temporaires disposent d'un nettoyage vérifié", () => {
+  assert.match(runtime, /naxa_professional_assignments/);
+  assert.match(runtime, /partner_members/);
+  assert.match(runtime, /from\("partners"\)/);
+  assert.match(runtime, /from\("naxa_profile_active_roles"\)/);
+  assert.match(runtime, /\.delete\(\)/);
+  assert.match(runtime, /le partenaire temporaire est toujours présent/);
+  assert.match(runtime, /l'affectation Comptable temporaire est toujours présente/);
+  assert.match(runtime, /les champs du profil Comptable n'ont pas été restaurés exactement/);
+  assert.match(runtime, /Fermeture de session Auth refusée/);
+});
+
+test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable et Partenaire", () => {
+  for (const route of [
+    "/pharmacie/promoteur/livraisons",
+    "/pharmacie/comptable/creances-bordereaux",
+    "/pharmacie/comptable/rejets-relances",
+    "/pharmacie/comptable/rapports-exports",
+    "/pharmacie/comptable/documents",
+    "/pharmacie/comptable/referentiels",
+    "/pharmacie/comptabilite/plan",
+    "/partenaire/examens",
+  ]) assert.ok(runtime.includes(route), "Route absente du scénario : " + route);
+  assert.match(runtime, /390, height: 844/);
+});
+
+test("le serveur reçoit ses secrets Replay avant d'être démarré et le nettoyage est garanti", () => {
+  const adminSecret = workflow.indexOf('export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"');
+  const rateSecret = workflow.indexOf('export NAXA_RATE_LIMIT_SECRET');
+  const serverStart = workflow.indexOf('npm start -- --hostname 127\.0\.0\.1');
+  assert.ok(adminSecret >= 0 && rateSecret >= 0 && serverStart >= 0);
+  assert.ok(adminSecret < serverStart && rateSecret < serverStart,
+    "Les variables doivent être exportées avant le processus Next.js.");
+  assert.match(workflow, /NAXA_E2E_ALLOW_TEMP_FIXTURES: "true"/);
+  assert.match(workflow, /if: always\(\)[\s\S]*naxa-navigation-runtime\.cjs --cleanup/);
+});
