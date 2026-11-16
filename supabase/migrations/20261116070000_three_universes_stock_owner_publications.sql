@@ -391,7 +391,7 @@ as $function$
 
   select p.id,'pharmacie'::text,ph.id,null::uuid,ph.id,ph.nom,
     p_universe_slug,p.nom,p.fabricant,coalesce(nullif(trim(p.categorie),''),'Autres'),
-    p.description,p.photo_url,s.prix,coalesce(offer.quantite,0)::numeric,
+    p.description,p.photo_url,coalesce(offer.prix,s.prix),coalesce(offer.quantite,0)::numeric,
     coalesce(nullif(trim(p.conditionnement),''),'unité')
   from public.stocks s
   join public.pharmacies ph on ph.id=s.pharmacie_id
@@ -893,9 +893,9 @@ begin
       ) available
     ),
     'reservations_a_traiter',(
-      select count(distinct all_reservations.id)
+      select count(*)
       from (
-        select r.id
+        select 'pharmacie'::text source_type,r.id
         from public.reservations r
         join public.reservation_items ri on ri.reservation_id=r.id
         join public.pharmacie_stock_univers_publications pub
@@ -904,8 +904,9 @@ begin
           and pub.universe_slug='bebe-maman'
         where r.mode='reservation' and r.statut in ('en_attente','confirmee')
           and r.expires_at>now()
+        group by r.id
         union all
-        select r.id
+        select 'parapharmacie'::text source_type,r.id
         from public.universe_reservations r
         join public.universe_reservation_items ri on ri.reservation_id=r.id
         join public.partner_product_univers_publications pub
@@ -915,6 +916,7 @@ begin
         where r.universe_slug='bebe-maman'
           and r.status in ('requested','confirmed','ready')
           and r.expires_at>now()
+        group by r.id
       ) all_reservations
     )
   ) into v_result;
