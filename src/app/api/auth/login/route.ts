@@ -111,10 +111,10 @@ export async function POST(request: NextRequest) {
         }
         const { data: pharmacies, error: pharmaciesError } = await admin
           .from("pharmacies")
-          .select("id")
+          .select("id,actif,archivee_le")
           .in("id", pharmacyIds)
           .eq("actif", true)
-          .eq("visible_recherche", true);
+          .is("archivee_le", null);
         if (pharmaciesError || !pharmacies?.length) {
           await supabase.auth.signOut();
           return NextResponse.json({ error: "Aucune pharmacie active n'est accessible à ce compte." }, { status: 403 });
@@ -127,10 +127,10 @@ export async function POST(request: NextRequest) {
         }
         const { data: pharmacy, error: pharmacyError } = await admin
           .from("pharmacies")
-          .select("id")
+          .select("id,actif,archivee_le")
           .eq("id", pharmacyId)
           .eq("actif", true)
-          .eq("visible_recherche", true)
+          .is("archivee_le", null)
           .maybeSingle();
         if (pharmacyError || !pharmacy) {
           await supabase.auth.signOut();
