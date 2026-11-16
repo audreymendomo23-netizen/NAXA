@@ -230,7 +230,7 @@ async function expectDenied(response, label) {
 }
 
 async function expectBytes(response, expected, label) {
-  if (!response.ok) throw new Error(label + " refusé (HTTP " + response.status + ").");
+  if (!response.ok) { const detail = (await response.text()).slice(0, 500); throw new Error(label + " refusé (HTTP " + response.status + ") : " + detail); }
   const received = Buffer.from(await response.arrayBuffer());
   if (!received.equals(expected)) throw new Error(label + " : contenu binaire différent.");
 }
