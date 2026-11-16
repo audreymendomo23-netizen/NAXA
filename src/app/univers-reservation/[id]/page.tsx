@@ -31,7 +31,7 @@ const statusText: Record<string, string> = {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ok?: string; erreur?: string; viderPanier?: string; univers?: string }>;
+  searchParams: Promise<{ ok?: string; erreur?: string; viderOwnerType?: "pharmacie" | "parapharmacie"; viderOwnerId?: string; viderPanier?: string; univers?: string }>;
 };
 
 export default async function ReservationUniversPage({ params, searchParams }: Props) {
@@ -47,7 +47,7 @@ export default async function ReservationUniversPage({ params, searchParams }: P
     && new Date(receipt.expires_at).getTime() > Date.now()
     && (receipt.payment_mode === null || receipt.payment_status === "awaiting_payment");
   const universe = receipt.universe_slug === "bebe-maman" ? "Bébé & Maman" : "Parapharmacie";
-  return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup partnerId={query.viderPanier} universeSlug={query.univers}/>
+  return <main className="mx-auto max-w-xl px-4 pb-12"><ClearReservedGroup ownerType={query.viderOwnerType} ownerId={query.viderOwnerId} partnerId={query.viderPanier} universeSlug={query.univers}/>
     <nav className="flex justify-end pt-3"><Link href={"/" + receipt.universe_slug} className="inline-flex min-h-10 items-center rounded-full border border-[#C8DDCF] px-4 text-sm font-bold text-[#0B3D26] underline-offset-2 hover:bg-[#EAF3ED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F6B3F]">Retour au catalogue</Link></nav>
     {query.ok && <p role="status" className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Réservation annulée.</p>}
     {query.erreur && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">L’annulation n’a pas abouti. Actualisez le statut avant de réessayer.</p>}
