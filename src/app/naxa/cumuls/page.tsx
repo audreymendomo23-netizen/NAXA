@@ -87,7 +87,7 @@ export default async function CumulNaxaPage({searchParams}:{
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statusLabel[approval.status]??approval.status}</span>
               </div>
-              {approval.status==="pending"&&(isAdmin||(!approval.is_admin_required&&approval.approver_id===auth.user.id))&&<form action={deciderCumulProfessionnel} className="mt-3 space-y-2">
+              {approval.status==="pending"&&((isAdmin&&approval.is_admin_required)||(!isAdmin&&!approval.is_admin_required&&approval.approver_id===auth.user.id))&&<form action={deciderCumulProfessionnel} className="mt-3 space-y-2">
                 <input type="hidden" name="approval_id" value={approval.id}/>
                 <label className="block text-xs font-semibold">Motif (obligatoire en cas de refus)
                   <textarea name="decision_reason" maxLength={500} rows={2} className="mt-1 w-full rounded-lg border p-2 text-sm"/>
