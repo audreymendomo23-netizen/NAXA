@@ -23,9 +23,9 @@ const universes: Record<UniverseKey, Universe> = {
   },
   "bebe-maman": {
     title: "Bébé & Maman", slogan: "Votre allié santé",
-    description: "Un espace dédié aux besoins de la maman et de l’enfant.",
+    description: "Un espace dédié aux besoins de la maman et de l’enfant, rattaché aux pharmacies participantes.",
     route: "/bebe-maman", color: "#C93774", soft: "#FDEEF4", border: "#F7CADC", icon: "♡",
-    bullets: ["Sélection dédiée à la maternité et à la petite enfance", "Informations produits claires", "Réservation et retrait auprès du partenaire"],
+    bullets: ["Sélection dédiée à la maternité et à la petite enfance", "Références, prix, stocks et lots gérés par la pharmacie", "Réservation et retrait auprès de la pharmacie"],
   },
   examens: {
     title: "Examens médicaux", slogan: "Votre allié santé",
