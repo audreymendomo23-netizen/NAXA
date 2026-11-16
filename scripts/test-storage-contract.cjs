@@ -70,6 +70,8 @@ test("le harnais binaire est limité au Replay, envoie des octets et nettoie les
   );
   assert.match(binaryE2E, /removeWithAdmin/);
   assert.match(binaryE2E, /NAXA_STORAGE_E2E_REQUIRE_ROLE_MATRIX/);
+  assert.match(binaryE2E, /async function optionalRoleLogin/);
+  assert.match(binaryE2E, /if \(requiredMatrix\) throw error/);
 });
 
 test("le contrat SQL couvre les accès privés et le propriétaire des justificatifs", () => {
