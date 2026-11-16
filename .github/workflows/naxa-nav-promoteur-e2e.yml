@@ -62,7 +62,7 @@ jobs:
           npm start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/naxa-nav-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/naxa-nav-server.pid"
           ready=0
-          for attempt in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             if curl --silent --show-error --fail http://127.0.0.1:3000/connexion >/dev/null; then
               ready=1
               break
