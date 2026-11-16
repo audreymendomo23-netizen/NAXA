@@ -76,3 +76,14 @@ test("les postes Comptable, Pharmacien et Gestionnaire Stock sont dirigés vers 
     "gestionnaire_stock:\"/pharmacie/gestionnaire-stock\"",
   ]) assert.ok(home.includes(path), path + " doit être routé");
 });
+
+test("la connexion Web route tous les profils selon le rôle métier actif, pas le rôle racine Client", () => {
+  const login = read("src/app/(auth)/connexion/page.tsx");
+  assert.ok(login.includes('sb.rpc("naxa_business_function")'));
+  assert.ok(login.includes('livreur: "/pharmacie/livreur"'));
+  assert.ok(login.includes('comptable: "/pharmacie/comptable"'));
+  assert.ok(login.includes('pharmacien: "/pharmacie/pharmacien"'));
+  assert.ok(login.includes('gestionnaire_stock: "/pharmacie/gestionnaire-stock"'));
+  assert.ok(login.includes('caisse: "/pharmacie/caisse"'));
+  assert.doesNotMatch(login, /profile\\?\\.role|profile\\.role/);
+});
