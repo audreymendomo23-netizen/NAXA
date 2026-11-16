@@ -2,54 +2,105 @@
 
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { excludedFromBabyUniverse, isMedicationProduct } from "@/lib/universe-product-rules";
 
 type ReservationItem = { product_id: string; quantity: number };
+type OwnerType = "pharmacie" | "parapharmacie";
 
-async function catalogItemsAllowed(sb: any, universe: string, partnerId: string, items: ReservationItem[]) {
-  const { data, error } = await sb.rpc("get_universe_catalog", { p_universe_slug: universe });
+function universePath(universe: string) {
+  return "/" + (universe === "bebe-maman" ? "bebe-maman" : "parapharmacie");
+}
+
+async function catalogItemsAllowed(
+  sb: ReturnType<typeof supabaseServer>,
+  universe: string,
+  ownerType: OwnerType,
+  ownerId: string,
+  items: ReservationItem[],
+) {
+  const { data, error } = await sb.rpc("get_universe_catalog_v2", { p_universe_slug: universe });
   if (error || !Array.isArray(data)) return false;
-  const products = new Map<string, any>(data.map((product: any) => [String(product.product_id), product] as [string, any]));
+  const products = new Map<string, any>(
+    data.map((product: any) => [String(product.product_id), product] as [string, any]),
+  );
   return items.every((item) => {
     const product = products.get(item.product_id);
-    if (!product || product.partner_id !== partnerId || product.universe_slug !== universe) return false;
-    if (universe === "parapharmacie" && isMedicationProduct(product)) return false;
-    if (universe === "bebe-maman" && excludedFromBabyUniverse(product)) return false;
-    return true;
+    return Boolean(
+      product
+      && product.owner_type === ownerType
+      && product.owner_id === ownerId
+      && product.universe_slug === universe
+    );
   });
 }
 
+async function reserveOwnedGroup(
+  sb: ReturnType<typeof supabaseServer>,
+  universe: string,
+  ownerType: OwnerType,
+  ownerId: string,
+  items: ReservationItem[],
+) {
+  if (ownerType === "pharmacie") {
+    const { data, error } = await sb.rpc("reserve_pharmacy_stock_in_universe", {
+      p_pharmacie: ownerId,
+      p_universe_slug: universe,
+      p_items: items,
+    });
+    if (error || !data || typeof data.id !== "string") return null;
+    return { id: data.id as string, receipt: "pharmacy" as const };
+  }
+  const { data, error } = await sb.rpc("reserve_universe_products", {
+    p_partner_id: ownerId,
+    p_universe_slug: universe,
+    p_items: items,
+    p_note: null,
+  });
+  if (error || typeof data !== "string") return null;
+  return { id: data, receipt: "partner" as const };
+}
+
+async function requireClient(sb: ReturnType<typeof supabaseServer>, universe: string) {
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=" + encodeURIComponent(universePath(universe)));
+  const { data: profile, error } = await sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle();
+  if (error || profile?.role !== "client" || profile.actif !== true) {
+    redirect(universePath(universe) + "?erreur=compte");
+  }
+}
+
+const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+const ownerTypeValue = (value: string): OwnerType | null =>
+  value === "pharmacie" || value === "parapharmacie" ? value : null;
 
 export async function reserverProduit(form: FormData) {
   const universe = String(form.get("universe_slug") ?? "");
-  const partnerId = String(form.get("partner_id") ?? "");
+  const ownerType = ownerTypeValue(String(form.get("owner_type") ?? ""));
+  const ownerId = String(form.get("owner_id") ?? form.get("partner_id") ?? "");
   const productId = String(form.get("product_id") ?? "");
   const quantity = Number(form.get("quantity") ?? 1);
-  if (!["parapharmacie", "bebe-maman"].includes(universe) ||
-      !/^[0-9a-f-]{36}$/i.test(partnerId) ||
-      !/^[0-9a-f-]{36}$/i.test(productId) ||
-      !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
-    redirect("/" + (universe === "bebe-maman" ? "bebe-maman" : "parapharmacie") + "?erreur=reservation");
+  if (!["parapharmacie", "bebe-maman"].includes(universe) || !ownerType
+      || !uuid(ownerId) || !uuid(productId)
+      || !Number.isInteger(quantity) || quantity < 1 || quantity > 10
+      || (ownerType === "parapharmacie" && universe === "pharmacie")) {
+    redirect(universePath(universe) + "?erreur=reservation");
   }
   const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/" + universe);
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "client") redirect("/" + universe + "?erreur=compte");
-  if (!(await catalogItemsAllowed(sb, universe, partnerId, [{ product_id: productId, quantity }]))) redirect("/" + universe + "?erreur=stock");
-  const { data, error } = await sb.rpc("reserve_universe_products", {
-    p_partner_id: partnerId,
-    p_universe_slug: universe,
-    p_items: [{ product_id: productId, quantity }],
-    p_note: null,
-  });
-  if (error || !data) redirect("/" + universe + "?erreur=stock");
-  redirect("/univers-reservation/" + String(data));
+  await requireClient(sb, universe);
+  const items = [{ product_id: productId, quantity }];
+  if (!(await catalogItemsAllowed(sb, universe, ownerType, ownerId, items))) {
+    redirect(universePath(universe) + "?erreur=stock");
+  }
+  const reservation = await reserveOwnedGroup(sb, universe, ownerType, ownerId, items);
+  if (!reservation) redirect(universePath(universe) + "?erreur=stock");
+  if (reservation.receipt === "pharmacy") {
+    redirect("/reservation/" + reservation.id + "?viderOwnerType=" + ownerType + "&viderOwnerId=" + ownerId + "&univers=" + universe);
+  }
+  redirect("/univers-reservation/" + reservation.id + "?viderOwnerType=" + ownerType + "&viderOwnerId=" + ownerId + "&univers=" + universe);
 }
 
 export async function annulerReservationUnivers(form: FormData) {
   const id = String(form.get("reservation_id") ?? "");
-  if (!/^[0-9a-f-]{36}$/i.test(id)) redirect("/?erreur=reservation");
+  if (!uuid(id)) redirect("/?erreur=reservation");
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/univers-reservation/" + id);
@@ -61,11 +112,11 @@ export async function annulerReservationUnivers(form: FormData) {
   redirect("/univers-reservation/" + id + "?ok=annulation");
 }
 
-
 export async function reserverGroupeProduits(form: FormData) {
   const universe = String(form.get("universe_slug") ?? "");
-  const partnerId = String(form.get("partner_id") ?? "");
-  let items: { product_id: string; quantity: number }[] = [];
+  const ownerType = ownerTypeValue(String(form.get("owner_type") ?? ""));
+  const ownerId = String(form.get("owner_id") ?? form.get("partner_id") ?? "");
+  let items: ReservationItem[] = [];
   try {
     const parsed = JSON.parse(String(form.get("items") ?? "[]"));
     if (Array.isArray(parsed)) items = parsed.map((item) => ({
@@ -73,23 +124,21 @@ export async function reserverGroupeProduits(form: FormData) {
       quantity: Number(item.quantity),
     }));
   } catch {
-    redirect("/" + (universe === "bebe-maman" ? "bebe-maman" : "parapharmacie") + "?erreur=panier");
+    redirect(universePath(universe) + "?erreur=panier");
   }
-  if (!["parapharmacie", "bebe-maman"].includes(universe) ||
-      !/^[0-9a-f-]{36}$/i.test(partnerId) || items.length < 1 || items.length > 20 ||
-      items.some((item) => !/^[0-9a-f-]{36}$/i.test(item.product_id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) ||
-      new Set(items.map((item) => item.product_id)).size !== items.length) {
-    redirect("/" + (universe === "bebe-maman" ? "bebe-maman" : "parapharmacie") + "?erreur=panier");
+  if (!["parapharmacie", "bebe-maman"].includes(universe) || !ownerType
+      || !uuid(ownerId) || items.length < 1 || items.length > 20
+      || items.some((item) => !uuid(item.product_id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10)
+      || new Set(items.map((item) => item.product_id)).size !== items.length) {
+    redirect(universePath(universe) + "?erreur=panier");
   }
   const sb = supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) redirect("/connexion?retour=/" + universe);
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
-  if (profile?.role !== "client") redirect("/" + universe + "?erreur=compte");
-  if (!(await catalogItemsAllowed(sb, universe, partnerId, items))) redirect("/" + universe + "?erreur=stock");
-  const { data, error } = await sb.rpc("reserve_universe_products", {
-    p_partner_id: partnerId, p_universe_slug: universe, p_items: items, p_note: null,
-  });
-  if (error || !data) redirect("/" + universe + "?erreur=stock");
-  redirect("/univers-reservation/" + String(data) + "?viderPanier=" + partnerId + "&univers=" + universe);
+  await requireClient(sb, universe);
+  if (!(await catalogItemsAllowed(sb, universe, ownerType, ownerId, items))) {
+    redirect(universePath(universe) + "?erreur=stock");
+  }
+  const reservation = await reserveOwnedGroup(sb, universe, ownerType, ownerId, items);
+  if (!reservation) redirect(universePath(universe) + "?erreur=stock");
+  const receiptPath = reservation.receipt === "pharmacy" ? "/reservation/" : "/univers-reservation/";
+  redirect(receiptPath + reservation.id + "?viderOwnerType=" + ownerType + "&viderOwnerId=" + ownerId + "&univers=" + universe);
 }
