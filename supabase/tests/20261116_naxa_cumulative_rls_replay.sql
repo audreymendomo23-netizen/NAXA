@@ -58,8 +58,18 @@ begin
   end;
   if not v_denied then raise exception 'Unrelated Client was able to approve a cumulative request'; end if;
 
-  -- Only the named Promoteur sees the durable notification and can decide.
+  -- The named Promoteur cannot decide while the Client workspace is active.
   perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform public.naxa_select_active_role('client',null,null);
+  v_denied:=false;
+  begin
+    perform public.naxa_decide_cumulative_activity(v_approval,'approve',null);
+  exception when insufficient_privilege then v_denied:=true;
+  end;
+  if not v_denied then raise exception 'Promoteur approved while Client workspace was active'; end if;
+
+  -- Only the named Promoteur sees the durable notification and can decide.
+  perform public.naxa_select_active_role('promoteur',null,null);
   select count(*) into v_count from public.notifications
   where user_id=auth.uid() and type='cumulative_activity_request' and related_entity_id=v_request;
   if v_count<>1 then raise exception 'Promoter notification is missing or visible to wrong recipient'; end if;
