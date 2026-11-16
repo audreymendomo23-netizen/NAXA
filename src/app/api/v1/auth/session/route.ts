@@ -133,12 +133,14 @@ export async function GET(request: Request) {
   if (activeWorkspace === "unresolved") {
     if (activeRole === "client" && profile.role === "client") {
       activeWorkspace = "client";
+    } else if (activeRole === "livreur") {
+      activeWorkspace = "livreur";
     } else if (PHARMACY_ROLE_CODES.has(activeRole)) {
       activeWorkspace = "pharmacy";
     }
   }
 
-  if (activeWorkspace === "pharmacy" && activeRole !== "promoteur") {
+  if ((activeWorkspace === "pharmacy" || activeWorkspace === "livreur") && activeRole !== "promoteur") {
     const { data: pharmacyId, error: pharmacyScopeError } =
       await auth.supabase.rpc("naxa_active_role_pharmacy");
     if (pharmacyScopeError) {
