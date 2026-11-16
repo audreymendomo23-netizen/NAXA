@@ -30,6 +30,10 @@ create table if not exists public.partner_product_univers_publications (
 create index if not exists partner_product_univers_publications_lookup_idx
   on public.partner_product_univers_publications(universe_slug,partner_id,product_id)
   where active=true;
+comment on table public.pharmacie_stock_univers_publications is
+  'Destinations de publication des lignes de stock ERP Pharmacie. Cette table ne porte aucune quantité et ne crée aucun second stock.';
+comment on table public.partner_product_univers_publications is
+  'Destination Bébé & Maman des produits du catalogue Parapharmacie. Les quantités restent exclusivement dans partner_products.';
 
 alter table public.pharmacie_stock_univers_publications enable row level security;
 alter table public.partner_product_univers_publications enable row level security;
@@ -88,7 +92,7 @@ as $function$
     where p.id=p_produit
       and coalesce(p.sur_ordonnance,false)=false
       and lower(extensions.unaccent(concat_ws(' ',p.nom,p.categorie,p.description,p.fabricant)))
-        !~ '\\y(medicaments?|medicinal products?|pharmaceuticals?|drugs?|antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|anti[- ]inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|paracetamol|acetaminophen|doliprane|efferalgan|dafalgan|panadol|calpol|ibuprofen|ibuprofene|aspirin|aspirine|amoxicillin|amoxicilline|amoxil|augmentin|coartem|nivaquine|artemether|lumefantrine|quinine|chloroquine|hydroxychloroquine|metronidazole|flagyl|ciprofloxacin|ciprofloxacine|azithromycin|azithromycine|ceftriaxone|doxycycline|metformin|metformine|diclofenac|voltaren|brufen|nurofen|omeprazole|maalox|gaviscon|smecta|cetirizine|zyrtec|loratadine|aerius|ventoline|prednisolone|prednisone|dexamethasone|tramadol|suppositoires?|sirop medicamenteux|medicinal syrup)\\y'
+        !~ '\y(medicaments?|medicinal products?|pharmaceuticals?|drugs?|antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|anti[- ]inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|paracetamol|acetaminophen|doliprane|efferalgan|dafalgan|panadol|calpol|ibuprofen|ibuprofene|aspirin|aspirine|amoxicillin|amoxicilline|amoxil|augmentin|coartem|nivaquine|artemether|lumefantrine|quinine|chloroquine|hydroxychloroquine|metronidazole|flagyl|ciprofloxacin|ciprofloxacine|azithromycin|azithromycine|ceftriaxone|doxycycline|metformin|metformine|diclofenac|voltaren|brufen|nurofen|omeprazole|maalox|gaviscon|smecta|cetirizine|zyrtec|loratadine|aerius|ventoline|prednisolone|prednisone|dexamethasone|tramadol|suppositoires?|sirop medicamenteux|medicinal syrup)\y'
   );
 $function$;
 revoke all on function private.naxa_pharmacie_parapharmacie_product_allowed(uuid)
@@ -106,9 +110,9 @@ as $function$
     where pp.id=p_product
       and pp.universe_slug='parapharmacie'
       and lower(extensions.unaccent(concat_ws(' ',pp.name,pp.category,pp.description,pp.brand)))
-        !~ '\\y(laits?\\s+(infantiles?|de croissance|pour nourrissons?|maternel|(?:1er|premier|2e|deuxieme|second)\\s+age)|preparations?\\s+infantiles?|substituts?\\s+(du\\s+)?lait\\s+maternel|cereales?\\s+infantiles?|farines?\\s+infantiles?|biberons?|tetines?|sucettes?|infant\\s+formula|baby\\s+formula|baby\\s+milks?|follow[- ]on\\s+(milk|formulas?)|growing[- ]up\\s+milks?|baby\\s+bottles?|feeding\\s+bottles?|bottles?|teats?|pacifiers?|dummies?|baby\\s+cereals?|infant\\s+(cereals?|flours?))\\y'
+        !~ '\y(laits?\s+(infantiles?|de croissance|pour nourrissons?|maternel|(?:1er|premier|2e|deuxieme|second)\s+age)|preparations?\s+infantiles?|substituts?\s+(du\s+)?lait\s+maternel|cereales?\s+infantiles?|farines?\s+infantiles?|biberons?|tetines?|sucettes?|infant\s+formula|baby\s+formula|baby\s+milks?|follow[- ]on\s+(milk|formulas?)|growing[- ]up\s+milks?|baby\s+bottles?|feeding\s+bottles?|bottles?|teats?|pacifiers?|dummies?|baby\s+cereals?|infant\s+(cereals?|flours?))\y'
       and lower(extensions.unaccent(concat_ws(' ',pp.name,pp.category,pp.description,pp.brand)))
-        !~ '\\y(medicaments?|medicinal products?|pharmaceuticals?|drugs?|antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|anti[- ]inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|paracetamol|acetaminophen|doliprane|efferalgan|dafalgan|panadol|calpol|ibuprofen|ibuprofene|aspirin|aspirine|amoxicillin|amoxicilline|amoxil|augmentin|coartem|nivaquine|artemether|lumefantrine|quinine|chloroquine|hydroxychloroquine|metronidazole|flagyl|ciprofloxacin|ciprofloxacine|azithromycin|azithromycine|ceftriaxone|doxycycline|metformin|metformine|diclofenac|voltaren|brufen|nurofen|omeprazole|maalox|gaviscon|smecta|cetirizine|zyrtec|loratadine|aerius|ventoline|prednisolone|prednisone|dexamethasone|tramadol|suppositoires?|sirop medicamenteux|medicinal syrup)\\y'
+        !~ '\y(medicaments?|medicinal products?|pharmaceuticals?|drugs?|antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|anti[- ]inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|paracetamol|acetaminophen|doliprane|efferalgan|dafalgan|panadol|calpol|ibuprofen|ibuprofene|aspirin|aspirine|amoxicillin|amoxicilline|amoxil|augmentin|coartem|nivaquine|artemether|lumefantrine|quinine|chloroquine|hydroxychloroquine|metronidazole|flagyl|ciprofloxacin|ciprofloxacine|azithromycin|azithromycine|ceftriaxone|doxycycline|metformin|metformine|diclofenac|voltaren|brufen|nurofen|omeprazole|maalox|gaviscon|smecta|cetirizine|zyrtec|loratadine|aerius|ventoline|prednisolone|prednisone|dexamethasone|tramadol|suppositoires?|sirop medicamenteux|medicinal syrup)\y'
   );
 $function$;
 revoke all on function private.naxa_bebe_maman_partner_product_allowed(uuid)
