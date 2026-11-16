@@ -265,7 +265,7 @@ async function run(env = process.env) {
         .filter({ hasText: journalLabel }).last();
       await article.waitFor({ state: "visible", timeout: 30000 });
       await article.getByRole("button", { name: "Valider", exact: true }).click();
-      await article.getByText("Validé", { exact: true }).waitFor({ timeout: 30000 });
+      await article.getByText(/^Validé\\s*·/).waitFor({ timeout: 30000 });
     }
     await createAndValidateJournal("credit_octroi");
     await createAndValidateJournal("credit_remboursement");
@@ -285,7 +285,7 @@ async function run(env = process.env) {
         .filter({ hasText: accountCode }).last();
       await article.waitFor({ state: "visible", timeout: 30000 });
       await article.getByRole("button", { name: "Valider mapping", exact: true }).click();
-      await article.getByText("Validé", { exact: true }).waitFor({ timeout: 30000 });
+      await article.getByText(/^Validé\\s*·/).waitFor({ timeout: 30000 });
     }
     for (const event of ["credit_octroi", "credit_remboursement"]) {
       await createAndValidateMapping(event, "debit", debitAccount.id, debitCode);
