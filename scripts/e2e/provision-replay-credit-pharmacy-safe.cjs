@@ -14,6 +14,7 @@ const PRODUCT = {
   dosage: "1 unité",
   forme: "Unité",
   prix: 1000,
+  coutUnitaire: 500,
   emplacement: "Réserve interne de recette",
 };
 
@@ -178,6 +179,41 @@ async function run(env = process.env) {
     );
     if (stockRows.length !== 1 || Number(stockRows[0].prix) !== PRODUCT.prix) {
       throw new Error("La référence Stock propriétaire n'a pas été initialisée correctement.");
+    }
+
+    // Le coût d'achat est une donnée distincte du prix de vente et de la quantité.
+    // La fixture technique masquée doit la renseigner pour que la Caisse puisse
+    // calculer le coût/marge sans contourner le garde-fou métier.
+    const costQuery = "stocks_couts?select=cout_unitaire&pharmacie_id=eq."
+      + encodeURIComponent(PHARMACY_ID) + "&produit_id=eq." + encodeURIComponent(productId) + "&limit=2";
+    const existingCosts = await rows(costQuery);
+    if (existingCosts.length === 0) {
+      await call("/rest/v1/stocks_couts?on_conflict=pharmacie_id,produit_id", {
+        admin: true,
+        method: "POST",
+        body: {
+          pharmacie_id: PHARMACY_ID,
+          produit_id: productId,
+          cout_unitaire: PRODUCT.coutUnitaire,
+        },
+        prefer: "resolution=ignore-duplicates,return=minimal",
+        label: "Initialisation du coût d'achat de la fixture Replay",
+      });
+    } else if (existingCosts.length !== 1) {
+      throw new Error("Plusieurs coûts d'achat existent pour le produit technique.");
+    } else if (Number(existingCosts[0].cout_unitaire) <= 0) {
+      await call("/rest/v1/stocks_couts?pharmacie_id=eq." + encodeURIComponent(PHARMACY_ID)
+        + "&produit_id=eq." + encodeURIComponent(productId), {
+        admin: true,
+        method: "PATCH",
+        body: { cout_unitaire: PRODUCT.coutUnitaire },
+        prefer: "return=minimal",
+        label: "Initialisation du coût d'achat absent de la fixture Replay",
+      });
+    }
+    const verifiedCosts = await rows(costQuery);
+    if (verifiedCosts.length !== 1 || Number(verifiedCosts[0].cout_unitaire) <= 0) {
+      throw new Error("Le coût d'achat de la fixture est absent ou non positif.");
     }
 
     const lots = await rows(
