@@ -3612,7 +3612,7 @@ La voie techniquement adaptée est une recette Chromium dédiée, exécutée sur
 
 ### 84.6 Verdict
 
-- **VERT :** navigation source, routes compilées, guards relus, qualité CI et build sur le HEAD actuel.
+- **VERT :** navigation source, routes compilées, guards relus ; qualité CI et build PASS sur le HEAD applicatif contrôlé `99e13e77418c3e2306ddf973d268d6f581458db6` (§84.1). Le commit documentaire du présent §84 ne change aucun fichier applicatif.
 - **JAUNE :** clic réel Promoteur non encore exécuté dans cette passe ; clic réel Comptable et Partenaire impossible à prouver avec les fixtures présentes.
 - **BULK :** toujours non lancé et toujours en attente d’une validation ultérieure distincte.
 
