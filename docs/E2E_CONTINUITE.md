@@ -4284,3 +4284,37 @@ Contrôles SQL lecture seule après application :
 - Production est restée intacte ; aucun déploiement Vercel n'a été lancé.
 
 **Point exact de reprise :** ne pas retoucher les quatre blocs déjà passés. À la prochaine passe, si des identités Pharmacien et Comptable autorisées sont créées par le parcours métier, exécuter uniquement leur authentification réelle Web + Android et vérifier leurs écrans métier respectifs.
+
+
+## 98. Raccordement Livreur et création des profils Comptable / Pharmacien Replay (16/11/2026)
+
+**Architecture des espaces — correction appliquée sur `main` :**
+- Le Livreur n'est plus traité comme un simple sous-rôle de l'espace Pharmacie général. La session native renvoie désormais `activeWorkspace="livreur"` et le résolveur Android n'accepte le tableau de bord Livreur que pour le couple `role=livreur / workspace=livreur`.
+- La connexion Web ne déduit plus la destination du seul `profiles.role` racine, souvent `client` pour les collaborateurs. Elle appelle `naxa_business_function()` après authentification et route le rôle actif vers son espace : Promoteur, Caisse, Responsable, Gestionnaire de stock, Pharmacien, Comptable ou Livreur.
+- La page d'entrée Pharmacie redirige également les profils Livreur, Comptable, Pharmacien, Gestionnaire de stock et Magasinier vers leur espace métier respectif.
+- Tests de parité Web/native : `scripts/test-auth-workspace-parity.cjs`. Tests Android : `NaxaNativeRoleTest.kt`.
+
+**Comptes Replay créés depuis le Promoteur de test existant :**
+- `naxa_e2e_comptable` : profil Auth confirmé et actif, rôle racine Client conservé, affectation Comptable active à la pharmacie Replay `76dd4983-273a-4a83-ae3d-9a7838d3aa35`. Le Promoteur a explicitement accordé le droit d'écriture comptable ; `compta_scope_autorise` renvoie true.
+- `naxa_e2e_pharmacien` : profil Auth confirmé et actif, rôle racine Client conservé. Le Promoteur a déposé un justificatif **fictif E2E uniquement**, proposé puis approuvé le dossier. L'agrément est `approved_promoteur`, l'affectation Pharmacien est active et le résolveur donne le bon périmètre pharmacie. Le document de 677 octets porte explicitement la mention « NOT A REAL LICENSE » ; il ne constitue ni une pièce réglementaire ni une validation d'une personne réelle.
+- Ces identités ont été créées/reprises par le provisionneur Auth Replay, puis affectées via les RPC métier du Promoteur. Aucun rôle racine n'a été forcé directement.
+
+**Correction RLS du justificatif Pharmacien :**
+- Cause racine : la policy Storage lisait directement `profiles.target`; le RLS masquait ce profil au Promoteur et rejetait l'upload.
+- Migration `20261116003500_pharmacien_credential_storage_rls_definer.sql` : helper `private.naxa_pharmacien_credential_upload_allowed(text,text)` en SECURITY DEFINER, limité à `auth.uid()`, au réseau du Promoteur, à la pharmacie active et au profil cible actif.
+- Migration `20261116004000_pharmacien_credential_storage_mimetype_fallback.sql` : accepte le suffixe PDF/JPEG/PNG sûr lorsque le client Storage ne renseigne pas `metadata.mimetype`, tout en conservant la liste MIME autorisée du bucket.
+- Les deux migrations sont appliquées sur Replay. Recette SQL RLS : **3/3 PASS** (upload Promoteur, refus hors réseau, fallback MIME). L'upload Storage réel via le compte Promoteur a réussi.
+
+**Recette de rôles Replay :**
+- Provisionnement E2E des cinq profils Caisse, Stock, Client, Comptable et Pharmacien : étape 9 du workflow `43870154759` **SUCCESS**. Le workflow a ensuite poursuivi les étapes de recette générale.
+- Contrôle SQL sous rôle PostgreSQL `authenticated`, avec sélection du rôle actif et vérification du périmètre : **9/9 PASS** — Promoteur, deux comptes Caisse, Responsable, deux Gestionnaires de stock, Livreur, Comptable et Pharmacien.
+- Le Livreur existant `naxa_e2e_livreur` est actif et affecté à la pharmacie Replay ; le contexte authentifié résout `livreur` et le bon `pharmacie_id`.
+- Le Comptable et le Pharmacien se connectent par le provisionneur E2E, sélectionnent leur poste et résolvent le bon périmètre. Le droit comptable est vérifié explicitement.
+
+**Preuves de non-régression :**
+- Workflow qualité `43870154780` : **SUCCESS**, 556/556 tests, TypeScript sans erreur, lint 0 erreur (225 avertissements), build Next.js réussi, 153/153 pages générées, actionlint réussi.
+- Workflow Android `43866621863` : **SUCCESS**, tests de routage Compose et matrice des profils incluant le Livreur.
+- Workflow Replay `43870154759` : provisionnement rôles (étape 9), pharmacie technique (étape 10) et stock/caisse (étape 11) réussis ; les étapes complémentaires du workflow sont encore en cours au point de cette mise à jour.
+- Aucune donnée Production consultée ou modifiée. Aucun déploiement Vercel lancé.
+
+**Point exact de reprise :** laisser terminer le workflow Replay `43870154759` et noter son résultat global sans confondre les étapes métier déjà vertes avec les étapes générales restantes. Ne pas remplacer le justificatif Pharmacien E2E fictif par une vraie pièce ; il reste strictement réservé à Replay.
