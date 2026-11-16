@@ -133,10 +133,6 @@ export function EspaceNaxaSwitcher({ current }: Props) {
             // Server-side eligibility includes active SPD status and confirmed subscription.
             sb.rpc("naxa_list_accessible_spd_workspaces"),
           ]);
-          const enabledSpdPartnerIds = new Set(
-            (spdWorkspaces ?? []).map((workspace: { partner_id: string }) => String(workspace.partner_id)),
-          );
-
           for (const membership of partnerMemberships ?? []) {
             const partner = membership.partners as { name?: string; status?: string; partner_type?: string } | { name?: string; status?: string; partner_type?: string }[] | null;
             const detail = Array.isArray(partner) ? partner[0] : partner;
