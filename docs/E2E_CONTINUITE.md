@@ -3022,3 +3022,38 @@ Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conse
 **Run de validation courant :** `43790136584`, SHA `c2cd3f8acd3517d5698fee1153801b9b2b1c2441`. Dernier relevé : provisionnement Replay PASS, build du worker de notifications en cours. Les résultats terminaux Web Push, remboursement, POS/Marketplace et Storage doivent être lus avant tout verdict vert global.
 
 **Périmètre :** Replay uniquement ; aucun changement Supabase Production et aucun déploiement Vercel.
+
+
+## 73. Correction du contrôle comptable navigateur et reprise Replay — 16/11/2026
+
+### Cause racine confirmée
+
+- Le run `43791195947`, SHA `c102f862ff2cd4f0bba1be438cd919d3023a87ad`, a confirmé POS PASS, Marketplace PASS et Storage **17 PASS, 0 SKIP**.
+- Son seul scénario navigateur en échec était la recette comptable crédit. La trace Playwright montre précisément l'attente de `getByText("Validé", { exact: true })` dans la carte du journal `Octroi de crédit client`.
+- Le composant `ComptaPlanManager.tsx` affiche pour les journaux et mappings le statut composé `Validé · date de début → date de fin`. L'attente stricte sur le seul mot `Validé` était donc incorrecte ; il ne s'agissait pas d'un échec de validation comptable métier.
+
+### Correction versionnée
+
+- Sur `main`, `scripts/e2e/verify-credit-accounting-browser.cjs` attend désormais `/^Validé\s*·/` pour les journaux et les mappings, où l'interface affiche le statut avec sa période.
+- Les lignes de comptes simples conservent l'attente exacte `Validé`, correspondant à leur rendu réel.
+- `scripts/test-credit-accounting-browser.cjs` verrouille par test statique les deux attentes avec période et interdit le retour à l'ancien sélecteur strict.
+- Tête source testée : `f58a9373d4144b2259c1ed8e93758a90a3e87de5`.
+- Qualité GitHub, run `43791964638`, sur ce SHA : **SUCCESS** (actionlint, tests, TypeScript, lint et build).
+
+### Preuves du nouveau Replay
+
+- Run `43791964746`, SHA `f58a9373d4144b2259c1ed8e93758a90a3e87de5`.
+- Étape 15 — Web Push Chromium via le worker NAXA : **SUCCESS**.
+- Étape 16 — remboursement crédit avec vrai JWT Caisse Replay : **SUCCESS**.
+- Étape 17 — recette navigateur POS / Marketplace / comptabilité : **EN COURS** au dernier relevé.
+- Étape 18 — Storage E2E : pas encore exécutée au dernier relevé.
+- Étape 19 — nettoyage : pas encore exécutée au dernier relevé.
+- Aucun verdict terminal de ce run n'est disponible à ce relevé ; le chantier ne peut pas être déclaré vert global.
+
+### Point de reprise exact
+
+Lire le run `43791964746` jusqu'à son état terminal, en particulier les étapes 17 à 20. Si l'étape 17 échoue encore, récupérer sa trace exacte et corriger uniquement le nouveau sélecteur défaillant. Si elle passe, vérifier Storage et le nettoyage avant le verdict global.
+
+### Périmètre préservé
+
+Replay exclusivement (`pwfftcsjyeibxxqhwysw`). Aucune écriture Supabase Production, aucun déploiement Vercel, aucune publication Play Store.
