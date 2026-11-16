@@ -30,11 +30,11 @@ as $function$
     where p.id=p_produit
       and coalesce(p.sur_ordonnance,false)=false
       and not (
-        lower(public.unaccent(concat_ws(' ',p.nom,p.categorie,p.description,p.fabricant)))
+        lower(extensions.unaccent(concat_ws(' ',p.nom,p.categorie,p.description,p.fabricant)))
         ~ '\y(laits?\s+(infantiles?|de croissance|pour nourrissons?|maternel|(?:1er|premier|2e|deuxieme|second)\s+age)|preparations?\s+infantiles?|substituts?\s+(du\s+)?lait\s+maternel|cereales?\s+infantiles?|farines?\s+infantiles?|biberons?|tetines?|sucettes?|infant\s+formula|baby\s+formula|baby\s+milks?|follow[- ]on\s+(milk|formulas?)|growing[- ]up\s+milks?|baby\s+bottles?|feeding\s+bottles?|bottles?|teats?|pacifiers?|dummies?|baby\s+cereals?|infant\s+(cereals?|flours?))\y'
       )
       and not (
-        lower(public.unaccent(concat_ws(' ',p.nom,p.categorie,p.description,p.fabricant)))
+        lower(extensions.unaccent(concat_ws(' ',p.nom,p.categorie,p.description,p.fabricant)))
         ~ '\y(medicaments?|medicinal products?|pharmaceuticals?|drugs?|antibiotiques?|antipaludiques?|antitussifs?|antalgiques?|anti[- ]inflammatoires?|antihistaminiques?|antipyretiques?|antidiarrheiques?|paracetamol|acetaminophen|doliprane|efferalgan|dafalgan|panadol|calpol|ibuprofen|ibuprofene|aspirin|aspirine|amoxicillin|amoxicilline|amoxil|augmentin|coartem|nivaquine|artemether|lumefantrine|quinine|chloroquine|hydroxychloroquine|metronidazole|flagyl|ciprofloxacin|ciprofloxacine|azithromycin|azithromycine|ceftriaxone|doxycycline|metformin|metformine|diclofenac|voltaren|brufen|nurofen|omeprazole|maalox|gaviscon|smecta|cetirizine|zyrtec|loratadine|aerius|ventoline|prednisolone|prednisone|dexamethasone|tramadol|suppositoires?|sirop medicamenteux|medicinal syrup)\y'
       )
   );
