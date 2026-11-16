@@ -778,4 +778,126 @@ revoke all on function public.creer_reservations_bebe_maman_multi_proprietaires_
 grant execute on function public.creer_reservations_bebe_maman_multi_proprietaires_client(jsonb)
   to authenticated;
 
+
+-- Superviser les deux propriétaires de stock de B&M sans additionner deux fois un même lien.
+create or replace function public.admin_bebe_maman_supervision()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path=''
+as $function$
+declare
+  v_result jsonb;
+begin
+  if auth.uid() is null or not public.is_admin() then
+    raise exception 'Consultation réservée à l’Administrateur actif';
+  end if;
+
+  select jsonb_build_object(
+    'pharmacies_service_actif',(
+      select count(*)
+      from public.pharmacie_services ps
+      join public.pharmacies ph on ph.id=ps.pharmacie_id
+      where ps.service_slug='bebe-maman' and ps.status='active'
+        and ph.actif=true and ph.archivee_le is null
+    ),
+    'references_publiees',(
+      select count(*)
+      from (
+        select pub.pharmacie_id as owner_id,pub.produit_id
+        from public.pharmacie_stock_univers_publications pub
+        join public.pharmacies ph on ph.id=pub.pharmacie_id
+          and ph.actif=true and ph.visible_recherche=true
+          and ph.est_demo=false and ph.archivee_le is null
+        join public.pharmacie_services ps on ps.pharmacie_id=ph.id
+          and ps.service_slug='bebe-maman' and ps.status='active'
+        join public.stocks s on s.pharmacie_id=pub.pharmacie_id
+          and s.produit_id=pub.produit_id
+        where pub.universe_slug='bebe-maman' and pub.active=true
+          and private.naxa_bebe_maman_product_allowed(pub.produit_id)
+        union all
+        select pub.partner_id as owner_id,pub.product_id
+        from public.partner_product_univers_publications pub
+        join public.partner_products pp on pp.id=pub.product_id
+          and pp.partner_id=pub.partner_id and pp.universe_slug='parapharmacie'
+          and pp.status='active'
+          and (pp.expires_at is null or pp.expires_at>=current_date)
+        join public.partners pa on pa.id=pub.partner_id
+          and pa.partner_type='parapharmacie' and pa.status='active'
+        where pub.universe_slug='bebe-maman' and pub.active=true
+          and private.naxa_bebe_maman_partner_product_allowed(pp.id)
+      ) publications
+    ),
+    'offres_disponibles',(
+      select count(*)
+      from (
+        select pub.pharmacie_id as owner_id,pub.produit_id
+        from public.pharmacie_stock_univers_publications pub
+        join public.pharmacies ph on ph.id=pub.pharmacie_id
+          and ph.actif=true and ph.visible_recherche=true
+          and ph.est_demo=false and ph.archivee_le is null
+        join public.pharmacie_services ps on ps.pharmacie_id=ph.id
+          and ps.service_slug='bebe-maman' and ps.status='active'
+        cross join lateral private.marketplace_offre_stock_disponible_guarded(
+          pub.pharmacie_id,pub.produit_id
+        ) offer
+        where pub.universe_slug='bebe-maman' and pub.active=true
+          and private.naxa_bebe_maman_product_allowed(pub.produit_id)
+          and offer.quantite>0
+        union all
+        select pub.partner_id as owner_id,pub.product_id
+        from public.partner_product_univers_publications pub
+        join public.partner_products pp on pp.id=pub.product_id
+          and pp.partner_id=pub.partner_id and pp.universe_slug='parapharmacie'
+          and pp.status='active'
+          and (pp.expires_at is null or pp.expires_at>=current_date)
+        join public.partners pa on pa.id=pub.partner_id
+          and pa.partner_type='parapharmacie' and pa.status='active'
+        left join lateral (
+          select coalesce(sum(ri.quantity),0)::numeric quantity_reserved
+          from public.universe_reservation_items ri
+          join public.universe_reservations r on r.id=ri.reservation_id
+          where ri.product_id=pp.id
+            and r.status in ('requested','confirmed','ready')
+            and r.expires_at>now()
+        ) reserved on true
+        where pub.universe_slug='bebe-maman' and pub.active=true
+          and private.naxa_bebe_maman_partner_product_allowed(pp.id)
+          and pp.stock_quantity-coalesce(reserved.quantity_reserved,0)>0
+      ) available
+    ),
+    'reservations_a_traiter',(
+      select count(distinct all_reservations.id)
+      from (
+        select r.id
+        from public.reservations r
+        join public.reservation_items ri on ri.reservation_id=r.id
+        join public.pharmacie_stock_univers_publications pub
+          on pub.pharmacie_id=r.pharmacie_id
+          and pub.produit_id=ri.produit_id
+          and pub.universe_slug='bebe-maman'
+        where r.mode='reservation' and r.statut in ('en_attente','confirmee')
+          and r.expires_at>now()
+        union all
+        select r.id
+        from public.universe_reservations r
+        join public.universe_reservation_items ri on ri.reservation_id=r.id
+        join public.partner_product_univers_publications pub
+          on pub.partner_id=r.partner_id
+          and pub.product_id=ri.product_id
+          and pub.universe_slug='bebe-maman'
+        where r.universe_slug='bebe-maman'
+          and r.status in ('requested','confirmed','ready')
+          and r.expires_at>now()
+      ) all_reservations
+    )
+  ) into v_result;
+
+  return v_result;
+end;
+$function$;
+revoke all on function public.admin_bebe_maman_supervision() from public,anon;
+grant execute on function public.admin_bebe_maman_supervision() to authenticated;
+
 commit;
