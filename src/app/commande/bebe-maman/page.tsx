@@ -8,15 +8,24 @@ import { usePanier } from "@/lib/panier";
 import { Logo } from "@/components/Logo";
 import { BoutonNotifications } from "@/components/BoutonNotifications";
 
-type Created = { id: string; mode: "reservation"; pharmacie_id: string; expires_at: string };
+type OwnerType = "pharmacie" | "parapharmacie";
+type Created = {
+  id: string;
+  mode: "reservation" | "partner";
+  owner_type: OwnerType;
+  owner_id: string;
+  expires_at: string;
+};
 type Group = {
-  pharmacie_id: string;
-  pharmacie_nom: string;
+  owner_type: OwnerType;
+  owner_id: string;
+  owner_name: string;
   lines: ReturnType<typeof usePanier>["lignes"];
 };
 
 const money = (value: number) =>
   new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
+const ownerLabel = (owner: OwnerType) => owner === "pharmacie" ? "Pharmacie" : "Parapharmacie";
 
 export default function FinaliserBebeMamanPage() {
   const router = useRouter();
@@ -32,17 +41,22 @@ export default function FinaliserBebeMamanPage() {
   const groups = useMemo<Group[]>(() => {
     const grouped = new Map<string, Group>();
     for (const line of bebeMaman) {
-      if (!line.pharmacie_id || !line.universe_product_id) continue;
-      const current = grouped.get(line.pharmacie_id);
+      const ownerType: OwnerType | null = line.owner_type
+        ?? (line.pharmacie_id ? "pharmacie" : line.partner_id ? "parapharmacie" : null);
+      const ownerId = line.owner_id ?? line.pharmacie_id ?? line.partner_id;
+      if (!ownerType || !ownerId || !line.universe_product_id) continue;
+      const key = ownerType + ":" + ownerId;
+      const current = grouped.get(key);
       if (current) current.lines.push(line);
-      else grouped.set(line.pharmacie_id, {
-        pharmacie_id: line.pharmacie_id,
-        pharmacie_nom: line.pharmacie_nom || "Pharmacie",
+      else grouped.set(key, {
+        owner_type: ownerType,
+        owner_id: ownerId,
+        owner_name: line.pharmacie_nom || ownerLabel(ownerType),
         lines: [line],
       });
     }
     return Array.from(grouped.values()).sort((a, b) =>
-      a.pharmacie_nom.localeCompare(b.pharmacie_nom, "fr"),
+      a.owner_name.localeCompare(b.owner_name, "fr"),
     );
   }, [bebeMaman]);
 
@@ -66,22 +80,23 @@ export default function FinaliserBebeMamanPage() {
         return;
       }
       const p_groups = groups.map(group => ({
-        pharmacie_id: group.pharmacie_id,
+        owner_type: group.owner_type,
+        owner_id: group.owner_id,
         items: group.lines.map(line => ({
           produit_id: line.universe_product_id,
           quantite: line.quantite,
         })),
       }));
       const { data, error: rpcError } = await supabaseBrowser().rpc(
-        "creer_reservations_bebe_maman_client",
+        "creer_reservations_bebe_maman_multi_proprietaires_client",
         { p_groups },
       );
       if (rpcError) {
         throw new Error(
-          rpcError.message.includes("Stock disponible insuffisant")
+          rpcError.message.includes("Stock disponible insuffisant") || rpcError.message.includes("Stock insuffisant")
             ? "Le stock vient de changer. Actualisez le catalogue avant de réessayer."
             : rpcError.message.includes("48 heures")
-              ? "La pharmacie doit actualiser son stock avant de recevoir cette réservation."
+              ? "L’établissement doit actualiser son stock avant de recevoir cette réservation."
               : "La réservation a été refusée par le contrôle serveur. Vérifiez les disponibilités et réessayez.",
         );
       }
@@ -89,7 +104,12 @@ export default function FinaliserBebeMamanPage() {
         throw new Error("La confirmation serveur des réservations est incomplète.");
       }
       const reservations = data as Created[];
-      if (reservations.some(item => !item.id || item.mode !== "reservation")) {
+      if (reservations.some(item =>
+        !item.id
+        || !["reservation", "partner"].includes(item.mode)
+        || !["pharmacie", "parapharmacie"].includes(item.owner_type)
+        || !item.owner_id
+      )) {
         throw new Error("Réponse serveur de réservation invalide.");
       }
       setCreated(reservations);
@@ -112,13 +132,15 @@ export default function FinaliserBebeMamanPage() {
         <section className="carte mt-5">
           <h2 className="text-2xl font-black">Demandes enregistrées</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Chaque demande est enregistrée dans l’ERP de la pharmacie concernée.
-            Le stock est réservé temporairement ; aucun paiement n’est encaissé par NAXA.
+            Chaque réservation a été envoyée au système de stock de son établissement propriétaire.
+            Le paiement reste traité directement par le vendeur.
           </p>
           <div className="mt-4 space-y-3">
             {created.map(item => (
-              <Link key={item.id} href={"/reservation/" + item.id} className="block rounded-xl border p-4">
-                <strong>Réservation · {item.id.slice(0, 8).toUpperCase()}</strong>
+              <Link key={item.id}
+                href={(item.mode === "partner" ? "/univers-reservation/" : "/reservation/") + item.id}
+                className="block rounded-xl border p-4">
+                <strong>{ownerLabel(item.owner_type)} · Réservation {item.id.slice(0, 8).toUpperCase()}</strong>
                 <span className="mt-1 block text-sm text-slate-600">
                   Expire le {new Date(item.expires_at).toLocaleString("fr-FR")}
                 </span>
@@ -147,15 +169,14 @@ export default function FinaliserBebeMamanPage() {
       ) : (
         <>
           <section className="carte mt-5">
-            <h2 className="text-xl font-black">Réservations par pharmacie</h2>
+            <h2 className="text-xl font-black">Réservations par établissement propriétaire</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Les articles sont séparés par pharmacie. Chaque demande utilise le stock, les lots,
-              les règles de disponibilité et le suivi de réservation de l’ERP Pharmacie.
+              Les demandes sont groupées par propriétaire. Une pharmacie utilise son ERP ; une parapharmacie utilise son catalogue et son stock propres.
             </p>
             <div className="mt-4 space-y-4">
               {groups.map(group => (
-                <article key={group.pharmacie_id} className="rounded-xl border border-rose-200 p-3">
-                  <h3 className="font-extrabold text-rose-800">{group.pharmacie_nom}</h3>
+                <article key={group.owner_type + ":" + group.owner_id} className="rounded-xl border border-rose-200 p-3">
+                  <h3 className="font-extrabold text-rose-800">{ownerLabel(group.owner_type)} · {group.owner_name}</h3>
                   <ul className="mt-2 space-y-2">
                     {group.lines.map(line => (
                       <li key={line.produit_id} className="flex justify-between gap-3 border-t border-rose-100 pt-2 text-sm">
@@ -181,17 +202,12 @@ export default function FinaliserBebeMamanPage() {
               <strong>{bebeMaman.every(line => typeof line.prix_unitaire_fcfa === "number") ? money(total) : "À confirmer"}</strong>
             </div>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Les prix et quantités définitifs sont revérifiés par le serveur au moment de la réservation.
-              La pharmacie confirme ensuite la disponibilité et traite le paiement directement avec le client.
+              Les prix et disponibilités sont revérifiés par le serveur. Chaque réservation est transmise au système d’inventaire de son propriétaire. NAXA n’encaisse aucun paiement.
             </p>
           </section>
           {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">{error}</p>}
-          <button
-            type="button"
-            disabled={busy || !valid}
-            onClick={() => void submit()}
-            className="btn btn-vert mt-4 w-full disabled:opacity-50"
-          >
+          <button type="button" disabled={busy || !valid} onClick={() => void submit()}
+            className="btn btn-vert mt-4 w-full disabled:opacity-50">
             {busy ? "Enregistrement sécurisé…" : "Envoyer les réservations"}
           </button>
           <Link href="/panier" className="mt-3 block text-center text-sm font-bold underline">Retour au panier</Link>
