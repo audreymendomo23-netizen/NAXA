@@ -101,6 +101,7 @@ export default async function AffectationsPage({
   ]));
   const errorMessages:Record<string,string>={
     validation:"Vérifiez le nom d’utilisateur, la pharmacie, la fonction, le type de période et le motif.",
+    cumul:"Une approbation SPD est requise avant l’activation. Consultez les demandes de cumul.",
     recherche:"La recherche du compte a échoué. Réessayez.",
     cible:"Aucun compte actif unique ne correspond à ce nom d’utilisateur.",
     autorisation:"Attribution refusée par les contrôles serveur : vérifiez le périmètre, le privilège et la période.",
@@ -130,7 +131,10 @@ export default async function AffectationsPage({
           <h1 className="text-2xl font-black">Affectations professionnelles</h1>
           <p className="mt-1 text-sm text-emerald-50">Un Promoteur peut gérer plusieurs pharmacies. Chaque pharmacie a au plus un Responsable ; plusieurs comptes peuvent exercer les fonctions Caisse, Gestionnaire de stock, Comptable et Livreur. Le nombre de collaborateurs ne crée pas de caisses physiques et ne change pas l’architecture.</p>
         </div>
-        <Link href={isPromoteur?"/pharmacie/promoteur":"/pharmacie"} className="underline">{isPromoteur?"← Espace Promoteur":"← Espace Pharmacie"}</Link>
+        <nav className="flex flex-wrap items-center gap-3 text-sm font-bold">
+          <Link href="/naxa/cumuls" className="underline">Demandes de cumul</Link>
+          <Link href={isPromoteur?"/pharmacie/promoteur":"/pharmacie"} className="underline">{isPromoteur?"← Espace Promoteur":"← Espace Pharmacie"}</Link>
+        </nav>
       </header>
 
       {filters.ok&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-emerald-900">{
