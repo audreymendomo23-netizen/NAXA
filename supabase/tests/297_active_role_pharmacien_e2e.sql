@@ -68,18 +68,18 @@ begin
     'Pharmacie générale',v_credential_path,current_date+365,'Proposition E2E soumise par le Promoteur'
   );
   if not exists(select 1 from public.naxa_pharmacien_accreditations
-    where id=v_accreditation and status='pending_admin' and proposed_by=v_promoter
+    where id=v_accreditation and status='pending_promoter' and proposed_by=v_promoter
       and profile_id=v_pharmacist and pharmacie_id=v_pharmacy) then
-    raise exception 'La proposition Pharmacien n''a pas été enregistrée en attente Admin';
+    raise exception 'La proposition Pharmacien n''a pas été enregistrée en attente du Promoteur';
   end if;
   if exists(select 1 from public.naxa_professional_assignments
     where profile_id=v_pharmacist and pharmacie_id=v_pharmacy and role_code='pharmacien' and statut='active') then
     raise exception 'Le Promoteur a activé le Pharmacien avant la validation Admin';
   end if;
   insert into naxa_role_297_results values('proposition_promoteur_sans_activation',true,
-    'Le dossier est proposé par le Promoteur et demeure inactif avant décision Admin');
+    'Le dossier est proposé par le Promoteur et demeure inactif avant décision du Promoteur');
 
-  -- Le sélecteur ne doit pas contourner le statut pending_admin.
+  -- Le sélecteur ne doit pas contourner le statut pending_promoter.
   perform set_config('request.jwt.claim.sub',v_pharmacist::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_pharmacist::text,'role','authenticated')::text,true);
   v_rejected:=false;
@@ -90,19 +90,32 @@ begin
   end;
   if not v_rejected then raise exception 'Un Pharmacien non approuvé a pu activer son poste'; end if;
   insert into naxa_role_297_results values('blocage_avant_approbation_admin',true,
-    'Le sélecteur universel refuse un agrément pending_admin');
+    'Le sélecteur universel refuse un agrément pending_promoter');
 
-  -- L'Admin approuve ; la fonction crée atomiquement l'affectation traçable.
-  perform set_config('request.jwt.claim.sub',v_admin::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
-  v_assignment:=public.naxa_admin_decider_accreditation_pharmacien(v_accreditation,'approved',null);
+  -- NAXA Admin n'est pas un décideur : aucun compte authentifié ne peut approuver ce dossier.
+  if has_function_privilege(
+    'authenticated',
+    'public.naxa_admin_decider_accreditation_pharmacien(uuid,text,text)'::regprocedure,
+    'EXECUTE'
+  ) then
+    raise exception 'Le rôle authenticated conserve à tort le droit de validation Admin';
+  end if;
+  insert into naxa_role_297_results values('absence_validation_admin_naxa',true,
+    'Aucune fonction d''approbation Admin n''est exécutable par les comptes authentifiés');
+
+  -- Le Promoteur valide ; la fonction crée atomiquement l'affectation traçable.
+  perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoter::text,'role','authenticated')::text,true);
+  v_assignment:=public.naxa_promoteur_decider_accreditation_pharmacien(v_accreditation,'approve',null);
   if not exists(select 1 from public.naxa_professional_assignments
     where id=v_assignment and profile_id=v_pharmacist and pharmacie_id=v_pharmacy
-      and role_code='pharmacien' and statut='active' and accorde_par=v_promoter) then
-    raise exception 'L''approbation Admin n''a pas activé l''affectation issue de la proposition';
+      and role_code='pharmacien' and statut='active' and accorde_par=v_promoter)
+     or not exists(select 1 from public.naxa_pharmacien_accreditations
+      where id=v_accreditation and status='approved_promoteur' and reviewed_by=v_promoter) then
+    raise exception 'La décision du Promoteur n''a pas activé l''affectation issue de sa proposition';
   end if;
-  insert into naxa_role_297_results values('validation_admin_et_activation',true,
-    'La décision Admin approuve le justificatif et crée l''affectation Pharmacien');
+  insert into naxa_role_297_results values('validation_promoteur_et_activation',true,
+    'Le Promoteur valide le justificatif et crée l''affectation Pharmacien de sa pharmacie');
 
   v_rejected:=false;
   begin
@@ -112,7 +125,7 @@ begin
   exception when others then
     v_rejected:=true;
   end;
-  if not v_rejected then raise exception 'Le RPC générique a contourné le circuit d''agrément Admin'; end if;
+  if not v_rejected then raise exception 'Le RPC générique a contourné le circuit d''agrément du Promoteur'; end if;
   insert into naxa_role_297_results values('blocage_affectation_generique',true,
     'Le RPC générique refuse toute création directe du rôle Pharmacien');
 
@@ -243,11 +256,11 @@ begin
   insert into naxa_role_297_results values('validation_pharmacien_vue_client',true,
     'La préparation et la décision Pharmacien reviennent dans le suivi Client');
 
-  -- Le statut d'agrément est l'autorité : son retrait neutralise immédiatement le poste.
-  perform set_config('request.jwt.claim.sub',v_admin::text,true);
-  perform set_config('request.jwt.claims',json_build_object('sub',v_admin::text,'role','authenticated')::text,true);
-  perform public.naxa_admin_decider_accreditation_pharmacien(
-    v_accreditation,'revoked','Retrait de recette après validation E2E'
+  -- Le Promoteur peut retirer son propre agrément et désactiver le poste.
+  perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoter::text,'role','authenticated')::text,true);
+  perform public.naxa_promoteur_decider_accreditation_pharmacien(
+    v_accreditation,'revoke','Retrait de recette après validation E2E'
   );
   perform set_config('request.jwt.claim.sub',v_pharmacist::text,true);
   perform set_config('request.jwt.claims',json_build_object('sub',v_pharmacist::text,'role','authenticated')::text,true);
