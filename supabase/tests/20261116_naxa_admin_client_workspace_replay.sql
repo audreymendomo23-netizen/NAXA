@@ -19,7 +19,10 @@ begin
 
   if public.is_admin() then raise exception 'Admin capability remains active in Client context'; end if;
 
-  if not public.naxa_select_active_role('admin',null,null) or not public.is_admin() then
+  if not public.naxa_select_active_role('admin',null,null) then
+    raise exception 'Admin context could not be selected again';
+  end if;
+  if not public.is_admin() then
     raise exception 'Admin authority was not restored after switching back';
   end if;
   raise notice 'PASS: Client identity and Admin workspace coexist; active context controls Admin capability';
