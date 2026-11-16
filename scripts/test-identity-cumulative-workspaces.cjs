@@ -36,6 +36,8 @@ test("Cumulative approvals and notifications use the active workspace context", 
   const notifications = read("src/app/notifications/page.tsx");
   assert.match(page, /sb\.rpc\("naxa_business_function"\)/);
   assert.match(page, /const isAdmin=activeRole==="admin"/);
+  assert.match(page, /sb\.rpc\("naxa_active_role_partner"\)/);
+  assert.match(page, /activeRole==="prestations"&&activePartner===approval\.organization_id/);
   assert.match(notifications, /cumulative_activity_request/);
   assert.match(notifications, /href="\/naxa\/cumuls"/);
 });
@@ -54,12 +56,15 @@ test("Replay migrations include reconciliation, SPD switcher and Client privacy 
     "supabase/migrations/20261116195526_naxa_admin_client_context_resolution.sql",
     "supabase/migrations/20261116195628_naxa_list_authorized_spd_workspaces.sql",
     "supabase/migrations/20261116200105_naxa_client_personal_data_workspace_isolation.sql",
+    "supabase/migrations/20261116200725_naxa_cumulative_decision_context_mismatch_is_denied.sql",
   ];
   for (const file of migrations) assert.ok(exists(file), `Missing migration: ${file}`);
   assert.match(read(migrations[0]), /naxa_cumulative_source_change_trigger/);
   assert.match(read(migrations[3]), /naxa_list_accessible_spd_workspaces/);
   assert.match(read(migrations[4]), /naxa_client_identity_is_staff_of_pharmacy/);
   assert.match(read(migrations[4]), /naxa_client_identity_is_partner_member/);
+  assert.match(read(migrations[5]), /Active le contexte Promoteur/);
+  assert.match(read(migrations[5]), /naxa_active_role_partner/);
 });
 
 test("Replay SQL E2E suites cover identity, approvals, RLS, Admin context and personal data", () => {
