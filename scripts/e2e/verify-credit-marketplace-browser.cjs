@@ -289,9 +289,18 @@ async function run(env = process.env) {
     promoterPage.setDefaultTimeout(30000);
     await pageLogin(promoterPage, PROMOTER_USERNAME, promoterPassword, "pharmacie", "/pharmacie/promoteur/credits");
     await promoterPage.getByRole("heading", { name: /Crédits clients/ }).waitFor();
-    const requestCard = promoterPage.locator("article").filter({ hasText: PRODUCT_NAME }).last();
+    // Les demandes sont triées de la plus récente à la plus ancienne.
+    // Cibler explicitement la demande encore en attente évite une ancienne carte rejetée.
+    const requestCard = promoterPage.locator("article")
+      .filter({ hasText: PRODUCT_NAME })
+      .filter({ hasText: "en_attente" })
+      .first();
     await requestCard.waitFor({ state: "visible", timeout: 60000 });
-    await requestCard.getByRole("button", { name: "Refuser", exact: true }).click();
+    const refuseButton = requestCard.getByRole("button", { name: "Refuser", exact: true });
+    if (await refuseButton.count() !== 1) {
+      throw new Error("La demande Marketplace en attente doit exposer un unique bouton Refuser.");
+    }
+    await refuseButton.click();
     await promoterPage.waitForURL(url => url.pathname === "/pharmacie/promoteur/credits"
       && url.searchParams.get("ok") === "rejetee", { timeout: 60000 });
     await promoterPage.getByText("Demande refusée ; aucun stock n’a été débité.", { exact: true }).waitFor();
