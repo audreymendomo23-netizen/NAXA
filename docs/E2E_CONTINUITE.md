@@ -4324,3 +4324,36 @@ Contrôles SQL lecture seule après application :
 **Conclusion du lot :** 🟢 CONSTRUCTION VERTE — TEST UTILISATEUR POSSIBLE pour le raccordement des espaces Livreur/Web/natif et le provisionnement des profils de test Comptable/Pharmacien sur Replay. Cela ne certifie pas à lui seul la recette complète de toutes les fonctionnalités métier ni les campagnes E2E globales.
 
 **Point exact de reprise :** réaliser la recette interactive Web et Android des comptes Livreur, Comptable et Pharmacien, en utilisant les secrets éphémères dans le workflow (ne jamais les inscrire dans Git ni les envoyer dans la conversation). Pour le Pharmacien, conserver exclusivement le justificatif fictif « NOT A REAL LICENSE » sur Replay ; ne jamais le réutiliser comme pièce réelle ou réglementaire. Ne pas toucher à Production.
+
+
+## 99. Identité unique et cumul inter-univers pharmacie ↔ SPD
+
+**Date :** 16 novembre 2026.  
+**HEAD avant ajout :** `aed409ae73134ddf18518fa917fb1337e9622deb`.  
+**Spécification versionnée :** [docs/IDENTITE_UNIQUE_CUMUL_ESPACES_SPEC_E2E.md](IDENTITE_UNIQUE_CUMUL_ESPACES_SPEC_E2E.md).
+
+### Audit statique initial
+
+Lecture de `main` confirmée au commit `b21d89927f4f894289f3463162ce342b6f6ec394` :
+- `src/components/EspaceNaxaSwitcher.tsx` : aucun espace SPD ; l'entrée Client dépend encore de `profiles.role === "client"` et `profiles.actif === true`.
+- `src/app/api/auth/login/route.ts` : le contrôle global `profile.actif` intervient avant le choix Client/professionnel ; à dissocier des états d'affectation.
+- `src/app/admin/creation-univers-actions.ts` : création d'une identité Auth par `auth.admin.createUser()` au provisionnement d'un dossier d'univers ; contradiction avec l'identité unique.
+- `src/app/pharmacie/affectations/actions.ts` : attribution directe par RPC d'affectation, sans orchestration préalable du cumul SPD.
+- `src/app/partenaire/affectations/actions.ts` : attribution directe partenaire, sans contrôle transversal des affectations pharmacie.
+- `docs/AVANT_PROJET_IDENTITE_UNIQUE_ESPACES_NAXA.md` : documente la limite du modèle mono-rôle historique.
+
+### Actions GitHub réalisées
+
+- Création sur `main` de `docs/IDENTITE_UNIQUE_CUMUL_ESPACES_SPEC_E2E.md`, commit `aed409ae73134ddf18518fa917fb1337e9622deb`.
+- Le document formalise les règles approuvées, les deux sens du cumul, l'approbation de toutes les organisations concernées, l'arbitrage Admin, la révocation, l'identité Client permanente, le cloisonnement, la séquence technique et 16 scénarios E2E Replay.
+
+### État réel — ne pas confondre spécification et implémentation
+
+- Audit de code statique : **partiel effectué**.
+- Spécification métier/technique : **versionnée**.
+- Migration, RPC et policies cumul : **non implémentées**.
+- Sélecteur/login/admin dossier : **non corrigés**.
+- Recette E2E Replay de ce chantier : **non exécutée**.
+- Production / déploiement : **non touchés**.
+
+**Point exact de reprise : Lot A — inventaire SQL.** Lire les migrations existantes, tables, contraintes, triggers, RPC et policies RLS avant toute migration. Ne pas créer de tables en doublon, ne pas provisionner de compte SPD réel et ne pas déclarer vert.
