@@ -4056,3 +4056,36 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Le contrôle SQL de `current_setting('pgrst.db_schemas', true)` retourne NULL : il ne permet pas de conclure sur la configuration effective PostgREST. Le nombre de fonctions `private` (102) et leur présence ne prouvent pas que le schéma est exposé. Seul le réglage Dashboard **Project Settings → API → Exposed schemas** tranche ce point ; aucun GRANT interne n'a été modifié.
 - Les commits de supervision Admin existent sur `main`, mais aucun build/typecheck/navigation n'est prouvé dans cette passe. Le contrôle de statut GitHub du commit documentaire courant ne fournit aucun status check. Ne pas déclarer le point 3 vert sur la seule base de la modification source.
 - Aucun changement de base n'a été effectué dans cette vérification. Replay consulté en lecture seule ; Production et déploiements non touchés.
+
+## 92. Bébé & Maman — unification ERP Pharmacie et fermeture du circuit partenaire parallèle (16 novembre 2026)
+
+### Décision et périmètre appliqués
+
+- Bébé & Maman est une extension des pharmacies participantes, jamais un partenaire ou établissement autonome.
+- Les fiches restent dans `public.produits`, les prix et quantités dans `public.stocks`, les lots et péremptions dans `public.stocks_lots`, et les demandes dans `public.reservations` / `public.reservation_items`.
+- La table `public.pharmacie_bebe_maman_produits` ne porte que le classement d’une fiche ERP dans l’univers ; elle ne contient ni prix, ni quantité, ni lot, ni réservation.
+- La publication d’une référence exige une ligne de stock ERP, une pharmacie active et dans le périmètre de l’acteur, le service Bébé & Maman actif au dossier pharmacie, et le respect des exclusions médicaments / laits infantiles / céréales infantiles / biberons / tétines / sucettes.
+- La pharmacie demeure responsable de sa fiche, de son prix, de ses quantités, de ses lots, des dates de péremption et de sa publication. Aucune validation Admin de fiche n’est ajoutée.
+- Les articles Bébé & Maman sont présentés même à quantité vendable nulle si une référence de stock existe ; ils ne sont ajoutables au panier que si le stock vendable calculé par le moteur Marketplace est positif.
+- Les réservations sont créées en une transaction serveur atomique, groupées par pharmacie, via `private.reserve_stock`. Elles réutilisent les holds, la fraîcheur du stock, les lots, les péremptions, les délais, les notifications et le poste Stock de l’ERP. Paiement direct pharmacie/client ; aucun encaissement NAXA.
+- Le service reste activé ou désactivé par l’Admin dans le dossier individuel de la pharmacie (`admin_set_pharmacie_bebe_maman_service`). L’Admin Univers dispose désormais d’indicateurs de supervision en lecture seule.
+
+### Corrections de code sur `main`
+
+- Migration `20261116053019_bebe_maman_pharmacie_erp_unification.sql` — commit source final [817b2cdbe75b5a578d2d58fcfb7e5fc73a2afc78](https://github.com/audreymendomo23-netizen/NAXA/commit/817b2cdbe75b5a578d2d58fcfb7e5fc73a2afc78) : crée le classement ERP, le contrôle d’éligibilité, la projection catalogue B&M depuis les stocks Pharmacie, la RPC de publication, la RPC de réservation groupée et la supervision Admin.
+- Migration `20261116053153_bebe_maman_disable_legacy_partner_flow.sql` — commit source final [c8fb6b8a09158ee7a47e968c8832afdc9cd81e3c](https://github.com/audreymendomo23-netizen/NAXA/commit/c8fb6b8a09158ee7a47e968c8832afdc9cd81e3c) : bloque les nouvelles fiches et réservations B&M via `partner_products` / `universe_reservations`. Les anciennes fiches partenaires peuvent uniquement être archivées ; les anciennes réservations ne sont pas altérées.
+- `src/components/universes/UniverseProductGrid.tsx` : panier identifié par pharmacie + produit ERP, sans collision entre deux offres de pharmacies différentes.
+- `src/app/panier/page.tsx` et `src/app/commande/bebe-maman/page.tsx` : ajout du parcours de finalisation B&M, regroupement multi-pharmacies, réservation atomique et liens vers les réservations ERP.
+- `src/app/pharmacie/gestionnaire-stock/actions.ts` et `src/components/pharmacie/GestionnaireStockEspace.tsx` : la pharmacie peut publier ou retirer une référence déjà initialisée dans son stock ERP.
+- `src/app/admin/univers/actions.ts` et `src/app/admin/univers/page.tsx` : le catalogue partenaire Admin est limité à Parapharmacie ; B&M dispose de ses propres compteurs de supervision, sans édition ni approbation Admin.
+- `src/components/universes/UniverseCatalog.tsx` et `src/components/universes/UniverseLanding.tsx` : libellés alignés sur le rattachement Pharmacie et les références ERP.
+- Commits applicatifs principaux : `5438e050cc13db157d2386628576ce1d32dcc7c7`, `0c7a5e1119c92ec18d13d5f6287588e6d080cdda`, `b98461a12d483aef1212775c59b91642551ed0a2`, `0d7353339b731ecbb562229c9e442d1aaeb4849d`, `1105926c56d181de0e677fe6e6c3cb50d5aefc17`, `8044c8d6c7d2ebce6c39cef33dcd0aa25f08f176`, `8ef8bd363d1af441ee6b99b44140a02f1124adcb`, `65adcea4e33b922a6c353aaef3254517b5ad24a5`, `10b1fbbf67dbe8708744644bfe568c457ef00f18`, `34971d1772512b05931410180f438fc0a78fffd2`.
+
+### État Replay — contrôle de schéma uniquement
+
+- Migration `20261116053019` appliquée sur Replay `pwfftcsjyeibxxqhwysw).
+- Migration `20261116053153` appliquée sur Replay `pwfftcsjyeibxxqhwysw).
+- Vérification SQL en lecture seule : table `pharmacie_bebe_maman_produits` présente avec RLS activé ; RPC de publication, de réservation et de supervision présentes.
+- ACL vérifiées : RPC de publication et de réservation exécutables par `authenticated`, non exécutables par `anon` ; RPC catalogue accessible à `anon` et `authenticated` via la façade existante.
+- Le registre Replay ne contient actuellement aucune ligne `partner_products`, `universe_reservations` ou `pharmacie_services` pour Bébé & Maman. Aucun transfert automatique de données historiques n’a donc été effectué ; aucune donnée de Production n’a été consultée ou modifiée.
+- **Aucune recette E2E, aucun scénario navigateur, aucun build/CI et aucun déploiement n’ont été lancés**, conformément à la consigne de ne pas lancer la recette. La correction du schéma et des sources est enregistrée ; la clôture par recette reste volontairement non déclarée.
