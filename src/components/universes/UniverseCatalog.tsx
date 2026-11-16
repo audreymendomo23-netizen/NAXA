@@ -5,7 +5,7 @@ import { ProductImageLibrary } from "@/components/universes/ProductImageLibrary"
 
 type UniverseKey = "parapharmacie" | "bebe-maman";
 type CatalogProduct = {
-  product_id: string; partner_id: string | null; pharmacie_id: string | null; partner_name: string; universe_slug: string;
+  product_id: string; owner_type: "pharmacie" | "parapharmacie"; owner_id: string; partner_id: string | null; pharmacie_id: string | null; partner_name: string; universe_slug: string;
   name: string; brand: string | null; category: string; description: string | null;
   photo_url: string | null; price_fcfa: number; available_quantity: number; unit_label: string;
 };
