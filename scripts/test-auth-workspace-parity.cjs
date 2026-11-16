@@ -62,8 +62,8 @@ test("le Livreur dispose d'un espace dédié et du même périmètre pharmacie s
   assert.match(nativeSession, /activeWorkspace === "livreur"[\\s\\S]*?naxa_active_role_pharmacy/);
   assert.match(nativeRouting, /role == "livreur" && workspace == "livreur"/);
   assert.match(nativeActivity, /supportsCourierWorkspace\\(currentProfile\\.effectiveRole, currentProfile\\.activeWorkspace\\)/);
-  assert.match(webPharmacyHome, /livreur:"\\/pharmacie\\/livreur"/);
-  assert.match(webPharmacyHome, /if\\(roleDestination\\)\\{window\\.location\\.replace\\(roleDestination\\);return\\}/);
+  assert.ok(webPharmacyHome.includes('livreur:"/pharmacie/livreur"'));
+  assert.ok(webPharmacyHome.includes("if(roleDestination){window.location.replace(roleDestination);return}"));
 });
 
 test("les postes Comptable, Pharmacien et Gestionnaire Stock sont dirigés vers leur espace Web métier", () => {
