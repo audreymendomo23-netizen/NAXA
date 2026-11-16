@@ -5010,3 +5010,26 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Aucun changement de logique métier, aucun secret, aucune donnée Replay, aucune migration ni environnement Production/Vercel/Play Store touchés.
 
 **Verdict Lot A : PARTIEL jusqu'aux résultats du nouveau run.**
+
+
+## 126. Vérification après correction — qualité verte, E2E Replay en attente (16/11/2026)
+
+**État vérifié sur le commit `082b385cd486141a1b28d94233eede7e1196a7ae`**
+- Run **NAXA quality #3810** — ID `43965871749` : `completed / success`. La validation de qualité a donc accepté le workflow et les corrections ShellCheck/JavaScript précédentes.
+- Run **NAXA Replay Promoteur E2E #258** — ID `43965871815` : statut `pending`, conclusion absente. La lecture GitHub Actions retourne encore une liste de jobs vide. Aucun log, résultat d'étape ou artefact E2E n'est donc disponible à ce contrôle.
+- Le run E2E n'a pas encore fourni de preuve d'exécution. Son état `pending` ne révèle pas, à lui seul, une nouvelle erreur du script ou du workflow ; il ne faut ni le déclarer réussi ni inventer une cause précise à l'attente.
+
+**Décision / suite exacte**
+- Le défaut de parsing JavaScript et le défaut ShellCheck littéral `\\n` sont corrigés sur `main`; le run qualité réussi en apporte la preuve.
+- Garder le Lot A **PARTIEL** jusqu'à ce que le run `43965871815` démarre et fournisse ses jobs/logs. À sa reprise : contrôler le provisionnement Replay, le build, la recette navigateur Auth (connexion UI, cookie SSR, rotation/rejeu refresh, révocation globale), puis les autres étapes E2E et les artefacts.
+- Ne pas relancer ni modifier le code sur la seule base d'un statut `pending` sans diagnostic de job ; reprendre la lecture du même run.
+- Limites inchangées : expiration naturelle du JWT non attendue par le script ; Leaked Password Protection indisponible sur Supabase Free et classée exception de forfait, jamais PASS sans décision explicite.
+
+**Périmètre inchangé :** branche `main`, Replay uniquement. Aucune action Production, migration Production, Vercel ou Play Store.
+
+Liens de preuve :
+- Qualité : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43965871749
+- E2E Replay : https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43965871815
+- Commit contrôlé : https://github.com/audreymendomo23-netizen/NAXA/commit/082b385cd486141a1b28d94233eede7e1196a7ae
+
+**Verdict Lot A : PARTIEL — corrections statiques validées par NAXA quality ; recette E2E Replay toujours sans preuve d'exécution.**
