@@ -3665,3 +3665,72 @@ La voie techniquement adaptée est une recette Chromium dédiée, exécutée sur
 - Le run navigateur antérieur `43800814848` et le run qualité correspondant restent en cours/à terminer sur le commit qui précède le dernier ajustement Comptable. Le run complet corrigé `43801016091` est en attente derrière cette exécution.
 - Les vérifications CI `actionlint` du run qualité précédent sont PASS ; le contrôle complet tests/TypeScript/lint doit être confirmé sur le dernier commit après le run corrigé.
 - Statut de la gate : JAUNE. Les clics Promoteur desktop/mobile et le premier accès Comptable ont des preuves positives, mais les six accès Comptable et les deux entrées Partenaire ne sont pas encore tous validés sur une exécution réussie.
+
+
+## 85. Résultats qualité et contrôle navigateur des menus — 16 novembre 2026
+
+**Branche :** `main`  
+**SHA applicatif contrôlé :** `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`  
+**Projet de test :** Supabase Replay `pwfftcsjyeibxxqhwysw` uniquement.
+
+### 85.1 Qualité technique
+
+Le run [NAXA quality — 43801108894](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801108894), exécuté sur le SHA applicatif ci-dessus, est terminé avec succès :
+
+- Tests, TypeScript et lint : PASS.
+- Build Next.js : PASS.
+- Validation `actionlint` des workflows actifs : PASS.
+
+**Verdict qualité / compilation / CI : VERT sur le SHA applicatif contrôlé.**
+
+### 85.2 Preuves interactives déjà obtenues
+
+Le run [Chromium Replay — 43800814848](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43800814848) a réussi le build local, le démarrage du serveur et la session des profils Replay existants. Les étapes navigateur consignent les preuves suivantes :
+
+- Promoteur desktop, sous-navigation « Livraisons du réseau » : navigation et rendu PASS.
+- Promoteur desktop, navigation latérale « Livraisons du réseau » : navigation et rendu PASS.
+- Promoteur mobile : navigation vers « Livraisons du réseau » PASS.
+- Comptable : ouverture du tableau de bord et rendu PASS.
+- Comptable : clic vers « Créances & bordereaux » et rendu PASS.
+
+Le run s’est toutefois terminé en échec sur l’attente du lien « Rejets & relances ». Les autres destinations Comptable et Partenaire n’ont donc pas encore de preuve de clic validée par ce run. L’échec est intervenu dans le sélecteur du test navigateur ; le composant source déclare bien les treize entrées de la sidebar, dont les six destinations ajoutées au §80.
+
+### 85.3 Correction du harnais et exécution suivante
+
+Le harnais Chromium a été corrigé sur `main` pour isoler la sidebar réelle du layout :
+- ciblage de `aside` contenant « Compte Comptable » ;
+- ciblage du `nav[aria-label="Navigation Comptable"]` de cette sidebar ;
+- ciblage de chaque lien par son `href` ;
+- journalisation des liens rendus (URL, libellé et visibilité) avant le clic.
+
+Le run corrigé [Chromium Replay — 43801108827](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801108827) a démarré sur le SHA `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`. À l’heure de la présente mise à jour, l’installation de Playwright/Chromium est encore en cours ; le test navigateur n’a donc pas commencé. Ne pas considérer ce run comme PASS tant que le job complet n’est pas terminé avec succès.
+
+### 85.4 Nettoyage et sûreté Replay
+
+Après les runs navigateur qui ont effectivement créé les fixtures temporaires, l’étape `finally` et l’étape de secours `always()` ont réussi. Une lecture SQL indépendante de Replay a confirmé :
+
+| Contrôle après nettoyage | Résultat |
+|---|---:|
+| Affectations Comptable temporaires | 0 |
+| Rôles actifs temporaires | 0 |
+| Partenaires temporaires | 0 |
+| Adhésions partenaires temporaires | 0 |
+| Profil Client utilisé pour la recette restauré à ses champs initiaux | 1 |
+
+Aucun utilisateur Auth n’a été créé. Les sessions sont ouvertes au moyen de liens ponctuels pour les profils existants. Les fixtures métier temporaires sont strictement limitées à Replay, identifiées par exécution et supprimées en fin de scénario.
+
+### 85.5 Déploiement, Production et campagnes métier
+
+- Aucun déploiement Production ou Preview n’a été déclenché.
+- Aucune mutation Supabase Production n’a été effectuée.
+- Aucun parcours bulk B1–B11 n’a été lancé.
+- Les tests ci-dessus ne sont pas les recettes métier Stock, Client/Marketplace, Livraison, Caisse ou Assurance.
+
+### 85.6 Verdict à ce checkpoint
+
+- **VERT :** qualité, TypeScript, lint, build Next.js et syntaxe CI sur le SHA applicatif `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`.
+- **VERT PARTIEL :** navigation Promoteur desktop/mobile, accès Comptable et première destination Comptable effectivement cliquée et rendue.
+- **JAUNE :** preuve de clic Comptable restante et accès Partenaire non encore certifiés ; run Chromium corrigé en cours d’installation.
+- **BULK :** bloqué jusqu’au vert du contrôle navigateur, puis validation explicite distincte de l’utilisateur.
+
+**Conclusion :** l’application est verte en qualité et compilation, mais le volet « clics réels » reste jaune. Ne pas demander encore la validation des recettes bulk.
