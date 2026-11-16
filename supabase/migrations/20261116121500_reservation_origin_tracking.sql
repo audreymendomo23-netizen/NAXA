@@ -285,8 +285,7 @@ begin
   end loop;
   return v_result;
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.admin_bebe_maman_supervision()
  RETURNS jsonb
