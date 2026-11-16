@@ -3215,3 +3215,103 @@ La campagne Replay crédit comptoir/POS, Marketplace (scénario de refus), confi
 Les autres domaines comportent des tests, contrats et/ou preuves SQL ciblées, mais les éléments examinés ne permettent pas de conclure que tous leurs parcours utilisateur sont exécutés intégralement de bout en bout. La liste D constitue le backlog de recette à poursuivre.
 
 **Limites de cet audit :** audit documentaire/code et inspection des runs GitHub identifiés ; aucune nouvelle exécution fonctionnelle, aucun accès aux appareils physiques et aucune modification applicative effectués lors de cet audit.
+
+## 77. Stratégie des campagnes E2E en bulk — décision du 16/11/2026
+
+### Objectif
+
+Privilégier des campagnes bulk cohérentes qui enchaînent plusieurs variantes et rôles métier, tout en conservant un résultat et une preuve distincts par scénario. Réutiliser exclusivement les comptes de recette déjà présents dans Supabase Replay, sous réserve de vérifier leur état et leurs affectations au démarrage de chaque campagne. Ne pas recréer de comptes par défaut.
+
+### Matrice des campagnes
+
+| ID | Campagne bulk | Scénarios à grouper | Dépendances / précautions | Priorité |
+|---|---|---|---|---|
+| B1 | Stock & inventaire | Réceptions, lots, prix, péremptions, inventaire, écarts, corrections, réservations, préparation | Données stock isolées par pharmacie ; contrôler stock disponible/réservé et FEFO | P0 |
+| B2 | Client & Marketplace | Recherche, filtres, offre, favori, panier, commande positive, refus, annulation, indisponibilité, historique | Conserver le scénario de refus déjà prouvé ; ajouter uniquement les variantes non couvertes | P0 |
+| B3 | Livraison | Commande, préparation Stock, proposition de mission, acceptation/refus Livreur, prise en charge, suivi Client, livraison, échec, réaffectation et clôture | Dépend de B1/B2 ; tester les transitions et la cohérence de stock/commande | P0 |
+| B4 | Caisse & comptabilité | Ouverture, ventes, paiements, tickets, retraits, retours, annulations, remboursements, clôtures, rapprochements, écritures | Réutiliser les preuves crédit comptoir/remboursement et configuration comptable ; ne pas les rejouer sans motif | P1 |
+| B5 | Personnel & permissions | Promoteur, Responsable, Gestionnaire Stock, Caisse, Pharmacien, Livreur ; création/affectation, invitation, rôle actif, délégation, limites, révocation, suspension | Isoler les scénarios qui changent les droits ; vérifier les effets multi-pharmacies | P1 |
+| B6 | Assurance | Import/actualisation droits, vérification, proposition, réponse Client, partage de paiement, ticket, remboursement, comptabilisation | Dépend de B1/B4 ; séparer les cas de couverture, refus et paiements fractionnés | P1 |
+| B7 | Administration 360 | Dossiers, pharmacies, comptes, sécurité, abonnements, opérations, messagerie, rapports, exports et journal | Privilégier lectures en parallèle ; actions mutantes isolées et tracées | P1 |
+| B8 | Authentification & sécurité | Connexion, récupération, sessions, changement de rôle, appareils, suspension, révocation, cloisonnement | Éviter de révoquer le compte partagé servant à d'autres scénarios ; réserver les mutations à la fin | P1 |
+| B9 | Paiements & abonnements | Déclaration, justificatifs, contrôles automatiques disponibles, décision Admin, reçu, expiration, suspension/réactivation | Replay uniquement pour les simulations ; transaction MTN/Orange réelle et téléphone physique dans une campagne distincte | P2 |
+| B10 | Univers professionnels | Parcours complet par univers activé : création, affectation, demande, traitement, résultat/service, paiement éventuel et historique | Un jeu de scénarios par univers ; ne pas tester comme actifs les univers volontairement bloqués | P2 |
+| B11 | PWA & périphériques | Offline/synchronisation, caméra, galerie, scanner, OCR/PDF, GPS, Bluetooth, push et Android | Campagne appareils physiques séparée du navigateur ; Chromium ne vaut pas preuve Android | P2 |
+
+### Ordre et parallélisation
+
+- **Première campagne prioritaire : B1 → B2 → B3**, une chaîne métier Stock → Client/Marketplace → Livraison. Les sous-scénarios indépendants peuvent être lancés en parallèle, mais les étapes qui consomment les données d'une étape précédente restent séquentielles.
+- **Deuxième campagne : B4**, en réutilisant les commandes et opérations issues de la chaîne précédente, sans répéter les scénarios déjà validés.
+- **Troisième vague : B5, B6, B7 et B8**, avec parallélisation seulement pour les lectures et les comptes/données indépendants. Les changements de rôles, suspensions et révocations sont séquencés.
+- **Dernière vague : B9, B10 et B11**, en isolant les paiements externes et les tests sur appareils physiques.
+
+### Exigences du lanceur bulk
+
+Avant toute exécution, vérifier les scripts et workflows existants. Réutiliser les lanceurs déjà présents lorsqu'ils couvrent le besoin ; ne pas présumer qu'un orchestrateur bulk complet existe déjà. Si un orchestrateur est nécessaire, le concevoir avec :
+- identifiant stable par scénario et données propres à chaque scénario ;
+- préconditions et dépendances explicites ;
+- exécution parallèle uniquement entre scénarios sans conflit de données ;
+- isolation des erreurs : un scénario en échec ne masque pas les résultats des autres ;
+- collecte par scénario des logs, assertions, preuves SQL/API/UI et statut ;
+- reprise ciblée des seuls scénarios incomplets ou en échec ;
+- nettoyage contrôlé et vérifiable des données temporaires ;
+- interdiction d'écrire en Production ou de déployer dans le cadre de la recette Replay.
+
+### Préservation des acquis
+
+Les scénarios déjà prouvés restent acquis : crédit comptoir/POS et remboursement JWT Caisse, scénario Marketplace de refus Promoteur, configuration comptable testée, Web Push Chromium 3/3 et Storage 17 PASS/0 SKIP, ainsi que les recettes SQL/JWT antérieures avec leur portée exacte. Ne les relancer qu'en cas de régression, de correction ou de dépendance d'intégration qui exige une vérification.
+
+### Condition de démarrage
+
+**Aucune campagne B1–B11 ne démarre avant :**
+1. la clôture de l'audit de navigation et d'accessibilité des pages ;
+2. le tri des boutons/commandes sans action ;
+3. la vérification des routes/pages sans chemin d'accès visible ;
+4. la correction et la preuve des défauts bloquants de navigation ;
+5. la validation du manifeste technique B1–B3 et de la réutilisabilité des comptes Replay.
+
+## 78. Audit préalable de navigation et d'accessibilité — état initial du 16/11/2026
+
+### Périmètre examiné
+
+- Tête GitHub `main` au début de l'audit : `99467b336bb66a36b0313fb9b9aaf10f4f382e87`.
+- Arbre du dépôt : 2 239 fichiers ; 158 fichiers de page Next.js sous `src/app/**/page.tsx` ; routes API exclues du comptage des pages d'interface.
+- Composants de navigation consultés : `BottomNav`, `NavigationPrincipale`, `AdminNavigation`, `NavPromoteur`, `EspaceNaxaSwitcher`, `CaisseSidebar`, `ComptableSidebar`, `GestionnaireStockSidebar`, `PharmacienWorkspaceSidebar`, `MenuUnivers`, `EnTeteClient`, `AccueilClient`, ainsi que les layouts Admin, Promoteur, Comptable et Centre d'examens.
+- Pages ciblées consultées : tableaux de bord Pharmacie, Client, Admin Promoteurs, Comptable, plusieurs sous-pages Comptable, Livreur Promoteur, pages Caisse, pages Partenaire et pages signalées ci-dessous.
+- L'analyse effectuée à ce stade est une inspection statique des routes, liens et handlers dans les fichiers consultés. Elle ne constitue pas encore un test interactif navigateur exhaustif des 158 pages.
+
+### Constats établis et points à vérifier
+
+| Zone / route | Constat du code | Qualification actuelle |
+|---|---|---|
+| Espace Comptable | `ComptableSidebar` expose 7 entrées ; le tableau de bord Comptable contient aussi des liens vers Créances & bordereaux, Rejets & relances, Rapports & exports, Documents, Plan comptable et Référentiels | Pages accessibles depuis le tableau de bord ; navigation persistante incomplète, à décider/corriger si ces modules doivent rester directement accessibles partout |
+| Administration / Pharmaciens | La page `/admin/pharmaciens` existe, mais n'apparaît pas dans la liste d'entrées de `AdminNavigation` examinée ; aucun lien entrant n'a été identifié dans les fichiers consultés | **Suspecte de page orpheline** ; recherche entrante globale et intention métier à confirmer |
+| Promoteur / Livraisons | La page `/pharmacie/promoteur/livraisons` existe ; elle expose un retour vers le tableau de bord Promoteur. Elle n'est pas dans les onglets du layout Promoteur ni dans les entrées NavPromoteur examinées ; aucun accès entrant n'a été identifié dans les fichiers consultés | **Suspecte de page orpheline** ; vérifier si elle doit être intégrée au parcours Promoteur ou retirée de la navigation produit |
+| Pharmacie / Assistant | La page `/pharmacie/assistant` existe ; aucun lien de navigation n'a été relevé dans le tableau de bord et composants examinés | **Suspecte de page orpheline** ; vérifier son rôle et ses conditions d'accès |
+| Caisse / maquette visuelle | Route `/pharmacie/caisse/maquette-visuelle` présente dans l'arbre, sans accès identifié dans les composants examinés | Probable page de maquette/interne, ne pas assimiler automatiquement à une page produit manquante |
+| Caisse / parcours UI | Route `/pharmacie/caisse/parcours-ui` présente ; son contenu expose un parcours UI de démonstration local avec boutons de navigation interne | Page de démonstration ; vérifier qu'elle n'est pas exposée comme entrée de production |
+| Pharmacien / validations | Route `/pharmacien/validations` présente ; aucun accès entrant identifié dans les éléments examinés | À vérifier : page orpheline ou accès conditionnel par un autre espace |
+| Univers volontairement bloqués | Le menu des univers et l'en-tête public affichent certains univers comme indisponibles/verrouillés | État volontaire, ne pas classifier comme bouton inactif défectueux si l'état désactivé est explicite et cohérent |
+| Navigation Centre d'examens | Le layout déclare des entrées Agenda, Personnel, Résultats, Équipements, Comptabilité, Sécurité, Messages et Actions IA | Les sous-routes ont une navigation structurée ; les capacités/permissions doivent être vérifiées par rôle |
+| Navigation Stock | Le Gestionnaire Stock dispose d'entrées pour tableau de bord, logistique, réservations, commandes, lots/péremptions, fournisseurs/réceptions, inventaires, rapports, service et profil | Couverture de navigation cohérente avec les routes stock examinées |
+| Navigation Client | L'en-tête propose des raccourcis de recherche vers profil, favoris, scanner, achats, notifications, univers et aide ; la navigation basse propose cinq entrées principales | Les routes secondaires doivent être croisées avec les liens internes et les conditions de session |
+| Navigation Pharmacien | La sidebar propose les sections d'activité, prescriptions, suivi patients, historique/rapports, profil et prise/fin de service ; les sections métier utilisent aussi une route dynamique `[section]` | Vérifier la correspondance de chaque section avec le rendu et les permissions, pas uniquement la présence de la route |
+
+### Boutons et commandes
+
+Les composants consultés montrent plusieurs contrôles correctement raccordés à une action explicite : bascule/fermeture des menus, liens de navigation, recherche client, filtres, navigation Pharmacien, actions Caisse et formulaires Promoteur. Les états verrouillés/désactivés des univers sont explicites.
+
+**Aucun constat global « tous les boutons fonctionnent » n'est autorisé à ce stade.** La vérification systématique de tous les boutons de toutes les pages doit encore identifier, pour chaque contrôle visible, son action attendue : navigation, mutation, soumission, ouverture/fermeture, filtre, impression/export, ou désactivation intentionnelle. Un bouton purement décoratif doit être non interactif ; un bouton interactif sans handler, sans action de formulaire ou sans destination doit être enregistré comme anomalie.
+
+### Étapes restantes de cet audit préalable
+
+1. Construire la matrice complète des 158 pages : route, layout, rôle/permission, lien entrant, accès conditionnel, liens sortants et statut d'accessibilité.
+2. Rechercher les références entrantes dynamiques et les accès depuis les tableaux de bord, notifications, actions serveur et composants partagés avant de déclarer une page orpheline.
+3. Examiner les contrôles interactifs page par page et distinguer les boutons sans action des contrôles dont l'action est portée par un formulaire, un composant enfant ou une fonction partagée.
+4. Vérifier les destinations des liens : route existante, route dynamique, query params, ancre, URL externe, ou route absente.
+5. Lorsque l'environnement Preview/Replay existant est accessible sans déploiement, tester les chemins d'accès et les permissions avec les comptes déjà présents ; sinon consigner explicitement la limite d'exécution.
+6. Établir les corrections minimales et les tests de non-régression de navigation ; ne pas lancer les campagnes bulk avant clôture de ces points.
+
+### Statut de l'audit préalable
+
+**EN COURS — aucun défaut de navigation n'a été corrigé dans cette étape ; aucune campagne E2E bulk n'a été exécutée.** Les pages suspectes ci-dessus sont des pistes étayées par les fichiers consultés, pas encore des défauts confirmés tant que les références entrantes dynamiques et les parcours conditionnels n'ont pas été éliminés.
