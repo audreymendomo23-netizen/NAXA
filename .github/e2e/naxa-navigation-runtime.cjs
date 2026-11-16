@@ -109,17 +109,20 @@ async function createExistingUserSession(profile) {
 }
 
 function browserCookies(session) {
+  const cookieDomain = new URL(BASE_URL).hostname;
   return session.cookies.map((cookie) => {
     const options = cookie.options || {};
     const rawSameSite = String(options.sameSite || "lax").toLowerCase();
     const sameSite = rawSameSite === "strict" ? "Strict" : rawSameSite === "none" ? "None" : "Lax";
+    assert.ok(cookie.name && typeof cookie.value === "string",
+      "Supabase SSR a émis un cookie sans nom ou valeur.");
     const result = {
       name: cookie.name,
       value: cookie.value,
-      url: BASE_URL,
-      path: options.path || "/",
+      domain: cookieDomain,
+      path: "/",
       httpOnly: Boolean(options.httpOnly),
-      secure: Boolean(options.secure),
+      secure: new URL(BASE_URL).protocol === "https:",
       sameSite,
     };
     if (options.expires instanceof Date) result.expires = options.expires.getTime() / 1000;
@@ -133,11 +136,16 @@ function browserCookies(session) {
 
 async function browserContext(browser, session, viewport) {
   const context = await browser.newContext({ viewport });
-  await context.addCookies(browserCookies(session));
+  const authCookies = browserCookies(session);
+  assert.ok(authCookies.length > 0, "Aucun cookie Auth SSR à injecter.");
+  for (const cookie of authCookies) {
+    assert.ok(cookie.domain && cookie.path, "Cookie Auth sans domaine/chemin valide.");
+  }
+  await context.addCookies(authCookies);
   await context.addCookies([{
     name: "naxa-age-status-v2",
     value: "adult",
-    url: BASE_URL,
+    domain: new URL(BASE_URL).hostname,
     path: "/",
     httpOnly: false,
     secure: false,
