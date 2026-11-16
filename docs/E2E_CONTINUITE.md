@@ -4814,3 +4814,25 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 **Verdict Lot A : PARTIEL.** Les recettes SQL identité, cumul, RLS, audit sessions et affectations sont PASS sur Replay. Le vert global est bloqué par la protection des mots de passe compromis désactivée, la revue des alertes sécurité Auth/RPC, et les preuves navigateur Auth de session/renouvellement/révocation non consolidées. Aucune donnée Production, aucun déploiement Vercel ou Play Store touchés.
 
 **Point exact de reprise :** activer la protection des mots de passe compromis sur le projet Replay ; auditer les 3 RPC accessibles à `anon` et les gardes des fonctions `SECURITY DEFINER` liées à l'identité ; exécuter le parcours Playwright Auth puis prouver refresh, expiration et révocation côté navigateur. Ne pas passer au vert avant ces preuves.
+
+
+## 116. Lot A — poursuite de l'audit sécurité et point de blocage Auth (16/11/2026)
+
+**État Replay recontrôlé**
+- Projet Supabase `naxa-ci-replay-2` / `pwfftcsjyeibxxqhwysw` : accessible via le connecteur. Les recettes SQL du §115 restent les dernières preuves disponibles ; aucune nouvelle fixture n'a été créée dans cette passe.
+- Security Advisors toujours à 4 catégories : `auth_leaked_password_protection` WARN (1), `anon_security_definer_function_executable` WARN (3), `authenticated_security_definer_function_executable` WARN (253), `rls_enabled_no_policy` INFO (72).
+
+**Tri initial des 3 fonctions SECURITY DEFINER exposées à anon**
+- `public.get_universe_catalog_v2(text)` : renvoie le catalogue public d'offres par univers et s'appuie sur des filtres d'activation, publication, stock disponible, pharmacie active/visible/non-démo/non-archivée. Une branche bébé/maman appelle des gardes privées métier. Surface probablement intentionnelle pour le catalogue public, mais aucun test de non-divulgation/limitation des lignes retournées n'a été exécuté dans cette passe.
+- `public.marketplace_offre_stock_disponible(uuid,uuid)` : façade SQL stable vers `private.marketplace_offre_stock_disponible_guarded`; elle retourne prix et quantité de l'offre. L'exposition anon peut être nécessaire à la lecture marketplace, mais doit être confirmée par tests d'identifiants hors périmètre, pharmacie masquée/inactive/démo et produit non publié.
+- `public.marketplace_produit_visible(uuid)` : ne renvoie qu'un booléen fondé sur l'existence d'un stock rattaché à une pharmacie active, visible, non-démo et non-archivée. Exposition anon à confirmer par test sur produit absent, stock privé et pharmacie masquée.
+- Ces 3 alertes sont donc classées **surface publique à valider**, pas vulnérabilités confirmées. Ne pas retirer les grants avant validation de l'usage client public.
+
+**Limites d'accès et preuves navigateur**
+- Les outils Supabase disponibles dans cette session n'exposent pas la modification des paramètres Auth du projet (notamment Leaked Password Protection). La valeur WARN ne peut pas être basculée depuis SQL ni corrigée sans accès au tableau de bord Auth. Aucune tentative de contournement SQL.
+- Aucun outil GitHub Actions dispatch n'est disponible dans cette session. Le workflow Replay existant comporte bien un parcours Playwright avec connexion Auth réelle Promoteur/Caisse/Client pour les recettes crédit, mais ne teste pas encore explicitement refresh/expiration/révocation de session. Aucun run navigateur post-correction n'est revendiqué.
+- Le workflow est déclenchable manuellement via `workflow_dispatch`, mais il lance un lot Replay large et provisionne plusieurs fixtures. Il ne doit pas être lancé à l'aveugle pour une preuve ciblée Lot A.
+
+**Verdict Lot A : PARTIEL, sans changement.** Les recettes SQL restent PASS. Le vert global attend : (1) activation de Leaked Password Protection dans Auth > Settings > Password Security sur Replay, (2) tests anon ciblés des 3 RPC publiques, (3) parcours navigateur Auth démontrant refresh, expiration et révocation, (4) tri de la liste des fonctions SECURITY DEFINER accessibles à authenticated, en ciblant celles qui touchent identité, sessions et affectations.
+
+**Point exact de reprise :** obtenir l'accès aux réglages Auth du projet Replay pour activer la protection des mots de passe compromis ; ajouter/faire exécuter une recette Playwright dédiée aux sessions (connexion, refresh, expiration, révocation) ; compléter les tests de cloisonnement anon des 3 RPC marketplace avant toute modification de leurs grants. Production et Vercel restent hors périmètre.
