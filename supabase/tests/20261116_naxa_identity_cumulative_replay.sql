@@ -159,6 +159,9 @@ begin
   if v_space<>'prestations' or v_active_partner is distinct from v_partner then
     raise exception 'SPD workspace selection failed';
   end if;
+  if (select count(*) from public.naxa_list_accessible_spd_workspaces() where partner_id=v_partner)<>1 then
+    raise exception 'Authorized paid SPD workspace missing from switcher RPC';
+  end if;
 
   perform public.naxa_select_active_role('client',null,null);
   if public.naxa_business_function()<>'client' then
@@ -177,6 +180,9 @@ begin
   on conflict(promoteur_id) do update set is_active=true,lock_reason='initial_payment_required';
   if private.naxa_partner_has_confirmed_payment(v_partner) then
     raise exception 'SPD workspace remained paid after subscription lock';
+  end if;
+  if (select count(*) from public.naxa_list_accessible_spd_workspaces() where partner_id=v_partner)<>0 then
+    raise exception 'Unpaid SPD workspace remained visible in switcher RPC';
   end if;
   v_denied:=false;
   begin perform public.naxa_select_active_role('prestations',null,v_partner);
