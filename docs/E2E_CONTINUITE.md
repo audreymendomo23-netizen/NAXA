@@ -4081,12 +4081,14 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - `src/app/admin/univers/actions.ts` et `src/app/admin/univers/page.tsx` : le catalogue partenaire Admin est limité à Parapharmacie ; B&M dispose de ses propres compteurs de supervision, sans édition ni approbation Admin.
 - `src/components/universes/UniverseCatalog.tsx` et `src/components/universes/UniverseLanding.tsx` : libellés alignés sur le rattachement Pharmacie et les références ERP.
 - Le service reste administrable dans la fiche pharmacie `/admin/pharmacies/[id]` via `admin_set_pharmacie_bebe_maman_service` ; l’activation globale de l’univers reste contrôlée par le catalogue Admin.
+- Commit de la précision de supervision : `3c17e08b3b298658a9b2f56ae54e3cf8d2d22701`.
 - Commits applicatifs principaux : `5438e050cc13db157d2386628576ce1d32dcc7c7`, `0c7a5e1119c92ec18d13d5f6287588e6d080cdda`, `b98461a12d483aef1212775c59b91642551ed0a2`, `0d7353339b731ecbb562229c9e442d1aaeb4849d`, `1105926c56d181de0e677fe6e6c3cb50d5aefc17`, `8044c8d6c7d2ebce6c39cef33dcd0aa25f08f176`, `8ef8bd363d1af441ee6b99b44140a02f1124adcb`, `65adcea4e33b922a6c353aaef3254517b5ad24a5`, `10b1fbbf67dbe8708744644bfe568c457ef00f18`, `34971d1772512b05931410180f438fc0a78fffd2`.
 
 ### État Replay — contrôle de schéma uniquement
 
-- Migration `20261116053019` appliquée sur Replay `pwfftcsjyeibxxqhwysw).
-- Migration `20261116053153` appliquée sur Replay `pwfftcsjyeibxxqhwysw).
+- Migration `20261116053019` appliquée sur Replay (`pwfftcsjyeibxxqhwysw`).
+- Migration `20261116053153` appliquée sur Replay (`pwfftcsjyeibxxqhwysw`).
+- Migration `20261116053344` appliquée sur Replay (`pwfftcsjyeibxxqhwysw`).
 - Vérification SQL en lecture seule : table `pharmacie_bebe_maman_produits` présente avec RLS activé ; RPC de publication, de réservation et de supervision présentes.
 - ACL vérifiées : RPC de publication et de réservation exécutables par `authenticated`, non exécutables par `anon` ; RPC catalogue accessible à `anon` et `authenticated` via la façade existante.
 - Le registre Replay ne contient actuellement aucune ligne `partner_products`, `universe_reservations` ou `pharmacie_services` pour Bébé & Maman. Aucun transfert automatique de données historiques n’a donc été effectué ; aucune donnée de Production n’a été consultée ou modifiée.
