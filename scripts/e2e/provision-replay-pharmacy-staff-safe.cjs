@@ -309,6 +309,18 @@ async function provision(env = process.env) {
 
   try {
     const promoter = await login(promoterEmail, promoterPassword, "Promoteur E2E");
+    const promoterWorkspace = await rpc("naxa_select_active_role", promoter.token, {
+      p_role_code: "promoteur",
+      p_pharmacie_id: null,
+      p_partner_id: null,
+    });
+    if (!promoterWorkspace.ok || promoterWorkspace.data !== true) {
+      throw new Error("Activation de l'espace Promoteur E2E refusée (HTTP " + promoterWorkspace.status + ").");
+    }
+    const promoterBusinessFunction = await rpc("naxa_business_function", promoter.token, {});
+    if (!promoterBusinessFunction.ok || promoterBusinessFunction.data !== "promoteur") {
+      throw new Error("Le contexte actif du compte E2E n'est pas Promoteur.");
+    }
     const pharmacy = await restAdmin(
       "pharmacies?select=id,actif,archivee_le&id=eq." + encodeURIComponent(pharmacyId) + "&limit=1"
     );
