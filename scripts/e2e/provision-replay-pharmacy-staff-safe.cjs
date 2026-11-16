@@ -629,7 +629,6 @@ async function provision(env = process.env) {
         const pharmacy = encodeURIComponent(pharmacyId);
         for (const [endpoint, label] of [
           ["/rest/v1/prescription_preparations?prescription_id=eq." + id, "préparations"],
-          ["/rest/v1/pharmacien_audit_events?entity_id=eq." + id + "&pharmacie_id=eq." + pharmacy, "audit"],
           ["/rest/v1/prescription_items?prescription_id=eq." + id, "lignes"],
           ["/rest/v1/prescriptions?id=eq." + id, "ordonnance"],
         ]) {
@@ -660,7 +659,7 @@ async function provision(env = process.env) {
         else throw new Error(message);
       }
       if (!prescriptionCleanupErrors.length) {
-        process.stdout.write("PASS — nettoyage vérifié de l'ordonnance, ses lignes, son audit et son objet Storage.\n");
+        process.stdout.write("PASS — nettoyage vérifié de l'ordonnance, ses lignes et son objet Storage ; l'événement d'audit métier immuable est conservé comme preuve.\n");
       }
     }
 
