@@ -141,7 +141,7 @@ test("PDF d'ordonnance fictif et chemin Storage sont strictement marqués E2E", 
     ),
     "dcb2242b-50fb-46c8-8c90-e01d42fa4175/76dd4983-273a-4a83-ae3d-9a7838d3aa35/naxa-e2e-prescription-0123456789abcdef.pdf"
   );
-  assert.throws(() => buildClientPrescriptionObjectPath("client/other", "pharmacy", "nonce"), /Chemin Storage invalide/);
+  assert.throws(() => buildClientPrescriptionObjectPath("client/other", "pharmacy", "nonce"), /Composant de chemin Storage invalide/);
 });
 
 test("le harnais exécute upload Client, lecture Pharmacien, téléchargement, validation et nettoyage", () => {
