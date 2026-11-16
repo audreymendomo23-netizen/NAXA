@@ -2,10 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§98)  
+**Dernière mise à jour :** 16 novembre 2026 (§102)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `615cde577662f29f32cf46ca2a2330def14bf1a0`  
-**État global :** 🟡 PARTIEL — le lot du §98 est construit et contrôlé : le rôle actif Livreur possède son espace Web/natif dédié, distinct de l'espace Pharmacie ; les profils Comptable et Pharmacien de test sont créés sur Replay à partir du Promoteur E2E et leurs affectations sont établies par les RPC métier. Le workflow Replay `43872161057` est **SUCCESS** ; la qualité sur le HEAD `615cde577662f29f32cf46ca2a2330def14bf1a0` est **SUCCESS** au run `43872473001` (tests, TypeScript, lint, build Next.js et actionlint) ; la campagne Android `43866621863` est **SUCCESS**. **Le chantier E2E global reste partiel** : les autres parcours et recettes physiques des sections précédentes ne sont pas tous clôturés. Les campagnes bulk B1–B11 restent non lancées. Les comptes professionnels et Livreur créés ici sont exclusivement des fixtures Replay. Aucune donnée Production consultée ou modifiée, aucun déploiement Preview/Production et aucun envoi Play Store. Les avertissements ESLint restent distinctement suivis et ne sont pas confondus avec les erreurs bloquantes.
+**HEAD contrôlé avant cette mise à jour :** `80ad168ac37c45c3545de6d6559f326b834074e5`  
+**État global :** 🟡 PARTIEL — les identités Replay Livreur, Comptable et Pharmacien sont provisionnées et leurs résolveurs/périmètres métier sont contrôlés au §102, mais les parcours transactionnels restent bloqués par l'absence de commandes/stock et de données comptables/pharmaceutiques de recette sur la pharmacie technique. Le chantier identité unique Pharmacie↔SPD (§99–101) reste spécifié/audité mais non implémenté. Le workflow Replay `43872161057` est **SUCCESS** ; la qualité sur le HEAD `615cde577662f29f32cf46ca2a2330def14bf1a0` est **SUCCESS** au run `43872473001` (tests, TypeScript, lint, build Next.js et actionlint) ; la campagne Android `43866621863` est **SUCCESS**. **Le chantier E2E global reste partiel** : les parcours transactionnels Livreur, Comptable et Pharmacien, les recettes physiques, ainsi que le cumul Pharmacie↔SPD ne sont pas clôturés. Les campagnes bulk B1–B11 restent non lancées. Les comptes professionnels et Livreur créés ici sont exclusivement des fixtures Replay. Aucune donnée Production consultée ou modifiée, aucun déploiement Preview/Production et aucun envoi Play Store. Les avertissements ESLint restent distinctement suivis et ne sont pas confondus avec les erreurs bloquantes.
 
 
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
@@ -4385,3 +4385,43 @@ L'audit des politiques Replay confirme que le SPD utilise `partners.partner_type
 **Conséquence pour la suite :** le cumul doit agréger les affectations pharmacie et les memberships SPD ; il ne faut pas forcer le SPD dans le modèle Parapharmacie. Le sélecteur universel devra activer un rôle SPD explicite tout en gardant séparés membership opérationnel, convention indépendante et habilitation clinique.
 
 Aucune modification SQL/code ni recette fonctionnelle n'a été réalisée à ce stade.
+
+
+## 102. Recette ciblée des rôles Livreur, Comptable et Pharmacien — contrôle Replay (16/11/2026)
+
+**Périmètre :** projet Replay `pwfftcsjyeibxxqhwysw` ; aucune écriture métier, aucune modification de schéma, aucun déploiement et aucun accès Production.
+
+### Identités et autorisations contrôlées
+
+La pharmacie technique `76dd4983-273a-4a83-ae3d-9a7838d3aa35` (NAXA E2E — Pharmacie Mvan) conserve les trois affectations actives suivantes :
+- `naxa_e2e_livreur` : rôle `livreur`, périmètre pharmacie exact.
+- `naxa_e2e_comptable` : rôle `comptable`, périmètre pharmacie exact, `compta_scope_autorise=true` et `compta_ecriture_autorisee=true`.
+- `naxa_e2e_pharmacien` : rôle `pharmacien`, périmètre pharmacie exact, une accréditation `approved_promoteur` et une affectation active. Le justificatif associé demeure fictif et réservé à Replay.
+
+Les contrôles ont été exécutés en transaction `BEGIN … ROLLBACK`, sous le rôle PostgreSQL `authenticated`, avec `request.jwt.claim.sub` correspondant à chaque identité. Aucun état n'a été persisté.
+
+### Résultats exécutés
+
+| Parcours | Contrôle exécuté | Résultat |
+|---|---|---|
+| Livreur | Résolution `naxa_business_function()` + `naxa_active_role_pharmacy()` | **PASS** — `livreur` et pharmacie attendue |
+| Livreur | `naxa_delivery_my_missions(false)` + `naxa_delivery_my_performance(30)` | **PASS technique** — réponse valide, 0 mission et métriques nulles/à zéro |
+| Comptable | Résolution rôle et pharmacie | **PASS** — `comptable` et pharmacie attendue |
+| Comptable | `compta_scope_autorise()` + `compta_ecriture_autorisee()` | **PASS** — les deux valeurs sont `true` |
+| Comptable | `compta_config_lire()` | **PASS technique** — configuration vide (`journaux=[]`, `periodes=[]`) |
+| Pharmacien | Résolution rôle et pharmacie | **PASS** — `pharmacien` et pharmacie attendue |
+| Pharmacien | Accréditation Promoteur + affectation active | **PASS** — 1 accréditation approuvée et 1 affectation active |
+| Pharmacien | `pharmacien_prescriptions_recentes()` | **PASS technique** — réponse valide, 0 prescription |
+
+### Contradiction et cause du blocage transactionnel
+
+- La pharmacie technique ne contient **aucune réservation** et **aucune mission de livraison**. Le Livreur ne peut donc pas recevoir une mission créée après préparation, l'accepter, effectuer le retrait, signaler l'arrivée et confirmer la remise au client.
+- Aucun journal ni période comptable n'est configuré (`compta_config_lire()` retourne deux listes vides). Il n'existe donc pas de base de recette pour tester une écriture, la partie double, l'audit et la clôture d'une période.
+- Aucune prescription récente n'existe pour le Pharmacien. L'identité dispose uniquement d'un justificatif explicitement fictif E2E ; cela ne permet pas de valider un acte pharmaceutique réel ou une accréditation réglementaire.
+- Les trois appels métier de lecture ont répondu correctement, mais **une réponse vide n'est pas une recette fonctionnelle complète**. Aucun test de connexion interactive par mot de passe Web/Android n'est prouvé par ces requêtes SQL.
+
+### Conclusion
+
+**Statut du lot : 🟡 PARTIEL — contrôles d'identité, de rôle, de périmètre et de guards réussis ; parcours transactionnels non clôturés.** Ne pas déclarer Livreur, Comptable ou Pharmacien intégralement verts sur la seule base de ces contrôles.
+
+**Point exact de reprise :** préparer sur Replay des données de recette isolées et cohérentes via les parcours métier existants (commande client et stock réel de la pharmacie technique ; configuration comptable par le Promoteur ; dossier/prescription Pharmacien de démonstration non réglementaire), puis exécuter les transitions avec les JWT des comptes éphémères du workflow. Ajouter les preuves de connexion Web et Android via un runner navigateur/émulateur. Le cumul Pharmacie↔SPD reste un chantier distinct non implémenté (§99–101). Ne pas utiliser Production ni créer des écritures métier directes hors RPC.
