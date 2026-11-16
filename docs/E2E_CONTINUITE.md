@@ -4655,3 +4655,29 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Android relancé après épinglage Replay et URL NAXA locale ; exécution en cours au moment de la rédaction.
 
 **État :** PARTIEL. Le parcours Livraison reste validé (§103). Les recettes Web génériques, Storage générique, Web Push et build/emulator Android sont prouvées. La recette ordonnance spécifique, la publication/clôture comptable par worker et la connexion Android Auth ne sont pas encore déclarées vertes. Aucun déploiement Production.
+
+
+## 109. Ordonnance Client : parcours métier réellement passé, audit immuable et reprise des autres recettes (16/11/2026)
+
+**Preuve d'exécution observée dans GitHub Actions**
+- Sur le run 43947325556, le runner Replay a effectivement déposé un PDF fictif par le JWT Client dans le bucket privé naxa-client-prescriptions ; soumis le dossier par naxa_client_soumettre_ordonnance ; relu le dossier sous RLS avec le Client propriétaire puis le Pharmacien affecté ; téléchargé le PDF sous le JWT Pharmacien et comparé les octets ; accepté l'ordonnance par prescription_valider et vérifié le statut validee ainsi que l'identité du validateur.
+- Ces six contrôles métier ont affiché PASS. Le job était néanmoins en échec parce que le nettoyage tentait de supprimer une ligne pharmacien_audit_events protégée par le mécanisme d'audit immuable (HTTP 400 / P0001).
+- Correction : ne plus supprimer l'événement d'audit append-only. Il est conservé comme preuve métier ; l'ordonnance, ses lignes/préparations et le document Storage restent supprimés et vérifiés. Le test de nettoyage signale explicitement cette conservation attendue.
+
+**Fiabilité du runner**
+- Le même run montrait que l'échec du provisionnement empêchait le build Next.js, alors que les étapes navigateur déclarées always() tentaient ensuite de démarrer l'application sans artefact de build. Les tentatives de connexion à 127.0.0.1:3000 échouaient donc avant les recettes.
+- Correction : Chromium, les secrets éphémères et le build sont maintenant exécutés même si le provisionnement a échoué ; les recettes Web Push et navigateur ne démarrent que si le build a réellement réussi. Les recettes indépendantes ne sont donc plus artificiellement bloquées par l'ordre des étapes.
+
+**Android**
+- Le run 43946649980 a terminé avec succès après épinglage Replay et URL NAXA locale ; il valide build Compose, tests instrumentés et exécution sur émulateur API 35. Il ne valide pas encore une authentification interactive Auth dans l'application Android.
+
+**Comptabilité**
+- Le worker global et la clôture de période ne sont pas encore prouvés. Le run précédent a confirmé le remboursement crédit et l'émission idempotente d'un événement outbox, mais ce n'est pas une preuve de publication comptable par compta_worker_traiter_lot.
+- Les 28 événements en erreur de la pharmacie technique distincte ne sont pas modifiés. Aucun worker global n'a été lancé manuellement.
+
+**État après corrections**
+- Recette Ordonnance : étapes métier PASS observées ; statut global de la recette reste en attente du run qui vérifie le nettoyage corrigé.
+- Recettes navigateur indépendantes : nouveau garde de build en place ; résultat du nouveau run à contrôler.
+- Android : build/émulateur PASS ; Auth interactive PARTIEL.
+- Comptabilité : PARTIEL, publication et clôture non prouvées.
+- Aucune donnée Production, aucun déploiement Vercel et aucun Play Store touchés.
