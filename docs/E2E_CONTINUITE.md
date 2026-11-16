@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§107)  
+**Dernière mise à jour :** 16 novembre 2026 (§108)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `d1bc36e677d2b218f069098f3975cf7d7dd12319`  
+**HEAD contrôlé avant cette mise à jour :** `d57e0be9e1cdfa5d43cfae09548cb08e1991aa4d`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 
 
@@ -4619,3 +4619,39 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 **État de chantier :** développement et tests de base/RLS Replay réalisés. Ne pas déclarer la livraison globale verte avant résultats GitHub Actions et recette navigateur Replay.
 
 **Point exact de reprise :** vérifier les deux workflows GitHub déclenchés après les derniers commits. Corriger toute erreur de test, TypeScript, lint, build ou navigateur ; relancer les contrôles. Ensuite seulement, décider séparément d'une éventuelle migration Production et d'un déploiement, qui ne sont pas autorisés dans le présent périmètre.
+
+
+## 108. Réactivation des recettes par les runners sécurisés et correction du contexte Caisse (16/11/2026)
+
+**Audit du provisionnement historique**
+- L'historique Git confirme que l'ancienne route applicative de provisionnement acceptait un secret dans une URL GET et pilotait plusieurs fixtures Auth/profils avec rotation de mots de passe. Elle n'est pas réactivée.
+- La fonction Edge actuellement déployée `naxa-e2e-provision` reste un stub HTTP 404. Aucun secret historique n'a été réutilisé.
+- Décision : utiliser les scripts secret-safe versionnés et les workflows GitHub Actions existants, strictement épinglés au projet Replay.
+
+**Nouvelle recette Ordonnance Client → Storage → Pharmacien**
+- Extension de `scripts/e2e/provision-replay-pharmacy-staff-safe.cjs` : authentification réelle du Client E2E, dépôt d'un PDF fictif marqué dans `naxa-client-prescriptions`, soumission par `naxa_client_soumettre_ordonnance`, relecture Client par RLS, relecture Pharmacien affecté par RLS, téléchargement du document privé par le Pharmacien, décision `prescription_valider`, vérification du validateur et nettoyage des lignes, événements d'audit, ordonnance et objet Storage.
+- Ajout de tests de contrat dans `scripts/test-replay-pharmacy-staff-safe.cjs` pour le PDF fictif, le chemin isolé et la présence de chaque étape/du nettoyage.
+- Le harnais est intégré au workflow Replay existant par son étape de provisionnement du personnel. **Résultat d'exécution encore en attente** au moment de cette mise à jour ; aucun PASS n'est anticipé.
+
+**Cause racine du timeout POS navigateur**
+- Le run `43943563064` a échoué uniquement sur `verify-credit-pos-browser.cjs` : le navigateur ne trouvait pas le titre « Poste de caisse ».
+- Contradiction retrouvée dans `src/app/api/auth/login/route.ts` : `espace=client` appelle `naxa_select_active_role('client')` et remplace le rôle professionnel actif. Le test Caisse demandait à tort `espace=client`.
+- Correction : le test navigateur Caisse se connecte désormais avec `espace=pharmacie`, qui conserve le rôle Caisse déjà autorisé. Un test de contrat empêche la régression.
+- Les autres parcours du run en échec ont continué : Marketplace navigateur et configuration comptable PASS ; Storage générique 17 PASS / 0 SKIP ; Web Push réel PASS. Un run antérieur `43943534210` avait aussi passé l'ensemble du workflow.
+
+**Android**
+- Workflow Android épinglé à `NAXA_STORAGE_E2E_URL` / `NAXA_STORAGE_E2E_ANON_KEY`, avec assertion exacte du projet Replay.
+- `NAXA_BASE_URL` des builds de test est forcé à `http://10.0.2.2:3000` pour éviter d'embarquer l'URL NAXA Production dans les APK de recette.
+- Run `43945429291` : build Compose, variantes privées du compagnon et tests instrumentés Android API 35 PASS. Ces tests portent sur la file chiffrée Android Keystore et WorkManager, **pas sur la connexion interactive Auth**.
+- Nouveau run avec la configuration locale/Replay stricte en cours ; la connexion Android réelle reste à prouver.
+
+**Comptabilité**
+- Les tests navigateur valident le paramétrage plan/journaux/mappings, et le flux crédit POS/refund émet ses événements outbox.
+- Cela ne prouve toujours pas la publication d'une écriture comptable par le worker ni une clôture de période. Mvan ne possède toujours ni stock positif ni période comptable persistante.
+- Sur la pharmacie technique crédit `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`, le dernier relevé montre 2 événements `a_traiter` et 28 `erreur`. Aucun worker global n'a été lancé manuellement ; aucun événement de cette autre pharmacie n'a été modifié par une action SQL manuelle.
+
+**Exécutions déclenchées**
+- Workflow Replay relancé sur `main` ; les exécutions successives sont sérialisées par le runner. Le run antérieur `43945383490` ne contient pas encore le dernier correctif POS ni l'extension ordonnance. Le run suivant sur le HEAD incluant `d57e0be9` est attendu pour valider ces changements.
+- Android relancé après épinglage Replay et URL NAXA locale ; exécution en cours au moment de la rédaction.
+
+**État :** PARTIEL. Le parcours Livraison reste validé (§103). Les recettes Web génériques, Storage générique, Web Push et build/emulator Android sont prouvées. La recette ordonnance spécifique, la publication/clôture comptable par worker et la connexion Android Auth ne sont pas encore déclarées vertes. Aucun déploiement Production.
