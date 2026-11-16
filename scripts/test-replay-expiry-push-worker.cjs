@@ -87,8 +87,8 @@ test("la recette envoie une seule notification par souscription via le worker NA
   assert.ok(!webPushE2E.includes("naxa_e2e_transport_probe"));
 });
 
-test("la recette Web Push utilise des profils Chromium persistants, permission accordée et nettoyage garanti", () => {
-  assert.ok(webPushE2E.includes('channel: "chromium"'));
+test("la recette Web Push utilise des profils Chrome stable persistants, permission accordée et nettoyage garanti", () => {
+  assert.ok(webPushE2E.includes('channel: "chrome"'));
   assert.ok(webPushE2E.includes("chromium.launchPersistentContext"));
   assert.ok(!webPushE2E.includes("await browser.newContext("));
   assert.ok(webPushE2E.includes('Notification.permission'));

@@ -117,9 +117,8 @@ async function run(env = process.env) {
 
     // Supabase intentionally accepts the parent of the currently active refresh token,
     // even outside the reuse interval, to tolerate a lost response during rotation.
-    // Rotate once more so the first token becomes a grandparent, then replay it after
-    // the documented default 10-second reuse interval.
-    await new Promise(resolve => setTimeout(resolve, 15000));
+    // Rotate again so T1 becomes a grandparent. The replay must happen more than
+    // 10 seconds after this second rotation, not merely after the first one.
     const current = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: rotated.data.refresh_token,
     }, "second refresh rotation");
@@ -129,6 +128,10 @@ async function run(env = process.env) {
     }
     authTokens.push(current.data.access_token);
     process.stdout.write("PASS — deuxième rotation : le premier refresh token n'est plus le parent actif.\\n");
+
+    // T1 must be replayed outside the general reuse interval after the latest rotation.
+    await new Promise(resolve => setTimeout(resolve, 15000));
+    process.stdout.write("INFO — fenêtre de réutilisation expirée après la deuxième rotation.\\n");
 
     const replay = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: first.refresh_token,

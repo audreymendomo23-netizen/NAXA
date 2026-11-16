@@ -245,14 +245,14 @@ async function run(env = process.env) {
     }
 
     for (const identity of identities) {
-      // A non-persistent off-the-record context is denied Push subscriptions by Chromium.
+      // Un contexte privé non persistant ne permet pas de valider les Push ; utiliser Chrome stable avec un profil persistant.
       // Push subscriptions are denied in that profile mode even when Notifications
       // permission is granted. Give each test identity its own persistent temp profile.
       const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "naxa-webpush-profile-"));
       profileDirs.push(userDataDir);
       const context = await chromium.launchPersistentContext(userDataDir, {
         headless: true,
-        channel: "chromium",
+        channel: "chrome",
         args: ["--no-sandbox", "--disable-dev-shm-usage"],
       });
       contexts.push(context);
@@ -263,7 +263,7 @@ async function run(env = process.env) {
       const subscription = await page.evaluate(async (publicKey) => {
         const permission = Notification.permission;
         if (permission !== "granted") {
-          throw new Error("Permission Notifications non accordée dans Chromium (" + permission + ").");
+          throw new Error("Permission Notifications non accordée dans Chrome stable (" + permission + ").");
         }
         const permissionStatus = await navigator.permissions.query({ name: "notifications" });
         if (permissionStatus.state !== "granted") {
@@ -309,7 +309,7 @@ async function run(env = process.env) {
       if (!stored || stored.user_id !== identity.session.id
         || stored.subscription?.keys?.p256dh !== subscription.subscription.keys?.p256dh
         || stored.subscription?.keys?.auth !== subscription.subscription.keys?.auth) {
-        throw new Error("Souscription stockée différente de la souscription Chromium pour " + identity.label + ".");
+        throw new Error("Souscription stockée différente de la souscription Chrome pour " + identity.label + ".");
       }
       // Une seule livraison par souscription : le worker NAXA est le test réel.
       // La lecture REST ci-dessus confirme que l'endpoint et les clés stockées
@@ -317,7 +317,7 @@ async function run(env = process.env) {
       const endpointUrl = new URL(subscription.subscription.endpoint);
       const endpointFingerprint = crypto.createHash("sha256")
         .update(subscription.subscription.endpoint).digest("hex").slice(0, 12);
-      process.stdout.write("PASS — souscription Chromium persistée et relue pour " + identity.label
+      process.stdout.write("PASS — souscription Chrome stable persistée et relue pour " + identity.label
         + " (hôte " + endpointUrl.hostname + ", empreinte " + endpointFingerprint + ").\\n");
       subscriptions.push({ userId: identity.session.id, endpoint: subscription.subscription.endpoint, page, notification: identity.notification, label: identity.label });
     }
@@ -349,8 +349,8 @@ async function run(env = process.env) {
     }
 
     process.stdout.write("PASS — dispatcher J-3 : Promoteur, Gestionnaire Stock et Responsable.\n");
-    process.stdout.write("PASS — 3 souscriptions authentifiées créées par Chromium.\n");
-    process.stdout.write("PASS — worker NAXA : 3 envois Web Push ciblés et 3 notifications constatées dans le Service Worker Chromium.\n");
+    process.stdout.write("PASS — 3 souscriptions authentifiées créées par Chrome stable.\n");
+    process.stdout.write("PASS — worker NAXA : 3 envois Web Push ciblés et 3 notifications constatées dans le Service Worker Chrome.\n");
     process.stdout.write("PASS — réception navigateur Web Push réelle ; pas d'affirmation de reçu Android FCM physique.\n");
     process.stdout.write("EXPIRY_LOT_ID=" + lotId + "\n");
     process.stdout.write("EXPIRY_NOTIFICATION_IDS=" + identities.map(row => row.notification.id).join(",") + "\n");
