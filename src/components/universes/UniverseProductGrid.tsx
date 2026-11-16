@@ -266,7 +266,7 @@ const eligibleProducts = useMemo(() => products.filter(p => {
             : cart.find(x => x.productId === p.product_id);
           return (
             <article
-              key={p.product_id}
+              key={universe === "bebe-maman" ? (p.pharmacie_id ?? p.partner_id ?? "pharmacie") + ":" + p.product_id : p.product_id}
               className="group min-w-0 overflow-hidden rounded-3xl border bg-white shadow-sm transition-shadow hover:shadow-md"
               style={{ borderColor: palette.border, boxShadow: palette.shadow }}
             >
