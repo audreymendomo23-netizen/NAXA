@@ -3525,7 +3525,8 @@ Pour avancer sans prétendre à une preuve inexistante, la proposition est de la
 
 - Recherche exacte du SHA applicatif final des corrections de navigation (`7f43e103afd17c84960009b00668d312c48840e8`) : **0 déploiement Production et 0 Preview trouvé**.
 - Recherche exacte du commit documentaire courant au moment du contrôle (`d81e3e08809b8a671c3179a5e854133c419fc700`) : **0 déploiement Production et 0 Preview trouvé**.
-- Dans l’historique récent du projet, le déploiement le plus récent retourné est daté du **14 novembre 2026 à 16:39:29 UTC**, sur le SHA `8ed4d811f34518583185fdfe015f0e4a981c633d), antérieur aux corrections de navigation du 16 novembre.
+- Vérification complémentaire du HEAD documentaire final (`c65cd4b3d5fcbab2e777e7ba578d35e827df97a2`) : **0 déploiement Production et 0 Preview trouvé**.
+- Dans l’historique récent du projet, le déploiement le plus récent retourné est daté du **14 novembre 2026 à 16:39:29 UTC**, sur le SHA `8ed4d811f34518583185fdfe015f0e4a981c633d`, antérieur aux corrections de navigation du 16 novembre.
 
 **Conclusion :** aucun déploiement Vercel correspondant aux corrections de navigation ou aux mises à jour documentaires examinées n’a été trouvé. Cette vérification est une lecture de l’historique Vercel ; aucune action de déploiement n’a été effectuée par cette passe.
 
