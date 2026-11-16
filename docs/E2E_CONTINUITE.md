@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 16 novembre 2026 (§89)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD documentaire :** `3c0dffd585ef28014bc6eb699fb4f971ea8ef63a`  
+**HEAD documentaire :** `4c29ab22eade7e3793b949d07119e9a72eceec0d`  
 **État global :** 🟡 PARTIEL — le contrôle ciblé de navigation Chromium sur Replay est clôturé **VERT** au §86 (Promoteur desktop/mobile, 6 destinations Comptable, 2 accès Partenaire ; nettoyage Replay vérifié). La qualité complète est **SUCCESS** au run [43801594362](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801594362) : 549 PASS, 0 FAIL, 0 SKIP, TypeScript et build Next.js PASS, ESLint 0 erreur / 225 avertissements, actionlint PASS. Le code applicatif testé est `5b9f7e5aab72cacc61e7e0a72193c31232fd493a` ; les commits ultérieurs documentaires ne modifient pas l'application. **Le chantier E2E global n'est pas vert** : les parcours métier et appareils listés aux sections antérieures restent à exécuter/valider. Les campagnes bulk B1–B11 n'ont pas été lancées et restent soumises à une validation explicite distincte. Aucun compte Auth supplémentaire, aucune écriture Production, aucun déploiement Preview/Production et aucun envoi Play Store n'ont été effectués. Les 225 avertissements ESLint restent visibles et suivis, sans invalider le contrôle ciblé.
 
 
