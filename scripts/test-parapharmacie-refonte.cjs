@@ -14,7 +14,7 @@ test("les deux univers partagent le gabarit photo 4:3 et les cartes descriptives
   assert.match(grid, /object-contain p-3 sm:p-4/);
   assert.match(grid, /line-clamp-2 min-h-12/);
   assert.match(grid, /line-clamp-3 min-h-\[3\.75rem\]/);
-  assert.match(grid, /Prix renseigné par \{universe === "bebe-maman" \? "la pharmacie" : "le professionnel"\}/);
+  assert.match(grid, /Prix renseigné par \{ownerLabel\(p\.owner_type\)\.toLowerCase\(\)\}/);
 });
 
 test("Parapharmacie conserve son identité turquoise et Bébé & Maman sa palette rose", () => {
@@ -42,7 +42,8 @@ test("recherche, tri et effacement des filtres restent disponibles", () => {
 });
 
 test("les cartes affichent les informations factuelles utiles à la décision", () => {
-  assert.match(grid, /universe === "bebe-maman" \? "Pharmacie" : "Professionnel Parapharmacie"/);
+  assert.match(grid, /ownerLabel\(p\.owner_type\).*p\.partner_name/);
+  assert.match(grid, /const ownerLabel = \(ownerType: OwnerType\) => ownerType === "pharmacie" \? "Pharmacie" : "Parapharmacie"/);
   assert.match(grid, /p\.partner_name/);
   assert.match(grid, /money\(Number\(p\.price_fcfa\)\)/);
   assert.match(grid, /\{stock\} disponible\(s\)/);
@@ -53,13 +54,16 @@ test("l’exclusion des médicaments de Parapharmacie est conservée côté cata
   assert.match(grid, /return !isMedicationProduct\(p\)/);
   assert.match(rules, /export function isMedicationProduct/);
   assert.match(actions, /universe === "parapharmacie" && isMedicationProduct\(product\)/);
+  assert.match(actions, /get_universe_catalog_v2/);
 });
 
 test("les réservations restent groupées par partenaire et univers", () => {
-  assert.match(grid, /line\.partnerId \+ "\|" \+ line\.universe/);
+  assert.match(grid, /line\.ownerType \+ "\|" \+ line\.ownerId \+ "\|" \+ line\.universe/);
   assert.match(grid, /reserverGroupeProduits/);
   assert.match(actions, /reserve_universe_products/);
-  assert.match(catalog, /get_universe_catalog/);
+  assert.match(catalog, /get_universe_catalog_v2/);
+  assert.match(catalog, /owner_type: "pharmacie" \| "parapharmacie"/);
+  assert.match(catalog, /owner_id: string/);
 });
 
 test("l’affichage Bébé & Maman reste strictement neutre, sans publicité ni promotion", () => {
