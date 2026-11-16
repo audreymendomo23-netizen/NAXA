@@ -300,11 +300,11 @@ const eligibleProducts = useMemo(() => products.filter(p => {
                 <button
                   type="button"
                   onClick={() => add(p)}
-                  disabled={stock < 1 || (universe === "bebe-maman" && !p.pharmacie_id)}
+                  disabled={stock < 1 || (universe === "bebe-maman" && !(p.pharmacie_id ?? p.partner_id))}
                   className="mt-1 min-h-11 w-full rounded-xl px-2 py-2 text-xs font-bold text-white transition hover:brightness-95 sm:text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ backgroundColor: palette.accent }}
                 >
-                  {stock < 1 ? "Indisponible" : universe === "bebe-maman" && !p.pharmacie_id ? "Pharmacie non identifiée" : selected ? "Ajouter un autre" : "Ajouter au panier"}
+                  {stock < 1 ? "Indisponible" : universe === "bebe-maman" && !(p.pharmacie_id ?? p.partner_id) ? "Pharmacie non identifiée" : selected ? "Ajouter un autre" : "Ajouter au panier"}
                 </button>
               </div>
             </article>
