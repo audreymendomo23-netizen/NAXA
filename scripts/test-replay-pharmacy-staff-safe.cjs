@@ -20,10 +20,13 @@ test("provisionnement d'équipe strictement épinglé à Replay", () => {
 });
 
 test("les trois identités métier sont distinctes et le profil racine reste Client", () => {
-  assert.equal(PERSONAS.length, 3);
+  assert.equal(PERSONAS.length, 5);
   assert.equal(new Set(PERSONAS.map(row => row.email)).size, 3);
   assert.equal(new Set(PERSONAS.map(row => row.username)).size, 3);
-  assert.ok(PERSONAS.every(row => row.role === "client" || ["gestionnaire_stock", "caisse"].includes(row.role)));
+  assert.deepEqual(
+    PERSONAS.map(row => row.role).sort(),
+    ["client", "caisse", "comptable", "gestionnaire_stock", "pharmacien"].sort()
+  );
 });
 
 test("métadonnées E2E complètes, majeures et sans secret", () => {
@@ -89,7 +92,17 @@ test("refuse une identité Auth ou un profil non conforme", () => {
   assert.throws(() => assertFixture({ ...user, email_confirmed_at: null }, profile, persona), /Adresse non confirmée/);
 });
 
-test("mot de passe éphémère distinct et robuste", () => {
+
+test("le compte Pharmacien exige un dossier validé par le Promoteur et un justificatif E2E fictif", () => {
+  const pharmacist = PERSONAS.find(row => row.role === "pharmacien");
+  const accountant = PERSONAS.find(row => row.role === "comptable");
+  assert.ok(pharmacist);
+  assert.ok(accountant);
+  assert.equal(pharmacist.email, "naxa.e2e.pharmacien@example.invalid");
+  assert.equal(accountant.email, "naxa.e2e.comptable@example.invalid");
+  assert.notEqual(pharmacist.phone, accountant.phone);
+});
+\ntest("mot de passe éphémère distinct et robuste", () => {
   const first = generateEphemeralPassword();
   const second = generateEphemeralPassword();
   assert.notEqual(first, second);
