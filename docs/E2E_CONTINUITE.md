@@ -3765,3 +3765,70 @@ Aucun utilisateur Auth n’a été créé. Les sessions sont ouvertes au moyen d
 - Qualité / intégration source : VERT, avec 225 avertissements ESLint documentés.
 - Navigation réelle des trois espaces : JAUNE jusqu'au SUCCESS du run `43801108827` et à la requête SQL finale sans résidu.
 - Aucun bulk B1–B11 lancé. L'autorisation utilisateur sur les campagnes bulk reste à recueillir **après** clôture verte du présent contrôle.
+
+## 86. Clôture du scénario de navigation — VERT — 16 novembre 2026
+
+Cette section **remplace les statuts provisoires** du §85.3 et du §85.6, qui avaient été rédigés alors que le runner était encore en build. Le run a depuis terminé avec succès.
+
+### 86.1 Exécution Chromium / Replay terminée
+- Run GitHub Actions : [43801108827 — SUCCESS](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801108827).
+- SHA testé : `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`.
+- Préparation : secrets confirmés Replay, dépendances installées, Playwright + Chromium installés.
+- Build local Next.js avec configuration Replay : PASS.
+- Serveur local de test : démarré et contrôle HTTP initial réussi après le délai de démarrage.
+- Scénario Chromium : PASS.
+- Nettoyage de secours `always()` : PASS ; aucune fixture résiduelle à nettoyer après le nettoyage principal.
+- Arrêt du serveur : PASS.
+- Le commit testé est identique côté application au HEAD documentaire courant : la comparaison `5b9f7e5...` → `91e8b0f...` ne contient que deux commits et un seul fichier modifié, `docs/E2E_CONTINUITE.md`.
+
+### 86.2 Détail des preuves de navigation
+**Promoteur**
+- Sous-navigation vers « Livraisons du réseau » : clic et rendu PASS.
+- Navigation latérale vers « Livraisons du réseau » : clic et rendu PASS.
+- Navigation mobile vers « Livraisons du réseau » : clic PASS.
+
+**Comptable**
+- Ouverture de l'espace et rendu du tableau de bord : PASS.
+- Six destinations ajoutées au menu : clic, URL attendue, libellé sidebar et rendu PASS :
+  1. Créances & bordereaux ;
+  2. Rejets & relances ;
+  3. Rapports & exports ;
+  4. Documents ;
+  5. Assureurs & fournisseurs ;
+  6. Plan comptable & mappings.
+- Le scénario revient au tableau de bord entre chaque destination et vérifie la présence du lien dans la vraie sidebar avant le clic.
+
+**Partenaire**
+- Depuis Catalogue partenaire → « Centres et examens » : clic et rendu PASS.
+- Depuis Réservations partenaire → « Centres et examens » : clic PASS.
+
+L'assertion finale du runner est : **`RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Partenaire depuis Catalogue et Réservations.`**
+
+### 86.3 Nettoyage et intégrité Replay
+Le nettoyage dans le `finally` a supprimé l'affectation Comptable temporaire, le rôle actif temporaire, le partenaire et l'adhésion temporaires. L'étape de secours `--cleanup` a ensuite confirmé qu'il ne restait aucune fixture.
+
+Contrôle SQL indépendant après le run :
+- partenaires temporaires : 0 ;
+- adhésions temporaires : 0 ;
+- affectations Comptable temporaires : 0 ;
+- rôles actifs temporaires : 0 ;
+- profil Client existant toujours avec rôle `client` : 1.
+
+Aucun compte Auth n'a été créé. Aucune donnée Production n'a été touchée.
+
+### 86.4 Qualité complète sur le HEAD documentaire courant
+Run [43801594362 — SUCCESS](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801594362), SHA `91e8b0f888d9d8b3994adadc8b7f31b318664d31) :
+- tests Node : **549 PASS / 0 FAIL / 0 SKIP** ;
+- TypeScript : PASS ;
+- ESLint : 0 erreur, 225 avertissements ;
+- build Next.js : PASS, 152/152 pages statiques générées ;
+- validation `actionlint` : PASS.
+
+### 86.5 Verdict
+- **VERT :** navigation réelle Promoteur desktop/mobile, six entrées Comptable, deux points d'accès Partenaire.
+- **VERT :** nettoyage Replay et intégrité des fixtures contrôlés.
+- **VERT :** tests, TypeScript, ESLint sans erreur, build et workflows CI.
+- **À surveiller sans bloquer ce scénario :** 225 avertissements ESLint.
+- **Hors périmètre :** recettes métier bulk B1–B11, déploiement Preview/Production et tests des opérations métier Stock/Marketplace/Livraison/Caisse.
+
+**Conclusion senior QA : le scénario de navigation ciblé est clôturé VERT sur Replay. Cela ne vaut pas validation des campagnes bulk : aucune campagne B1–B11 n'a été lancée et leur autorisation explicite reste à demander séparément.**
