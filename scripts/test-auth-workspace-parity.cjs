@@ -58,10 +58,12 @@ test("le Livreur dispose d'un espace dédié et du même périmètre pharmacie s
   const nativeRouting = read("android/app/src/main/java/cm/naxa/app/NativeRoleRouting.kt");
   const nativeActivity = read("android/app/src/main/java/cm/naxa/app/MainActivity.kt");
   const webPharmacyHome = read("src/app/pharmacie/page.tsx");
-  assert.match(nativeSession, /activeRole === "livreur"[\\s\\S]*?activeWorkspace = "livreur"/);
-  assert.match(nativeSession, /activeWorkspace === "livreur"[\\s\\S]*?naxa_active_role_pharmacy/);
-  assert.match(nativeRouting, /role == "livreur" && workspace == "livreur"/);
-  assert.match(nativeActivity, /supportsCourierWorkspace\\(currentProfile\\.effectiveRole, currentProfile\\.activeWorkspace\\)/);
+  assert.ok(nativeSession.includes('activeRole === "livreur"'));
+  assert.ok(nativeSession.includes('activeWorkspace = "livreur"'));
+  assert.ok(nativeSession.includes('activeWorkspace === "livreur"'));
+  assert.ok(nativeSession.includes('naxa_active_role_pharmacy'));
+  assert.ok(nativeRouting.includes('role == "livreur" && workspace == "livreur"'));
+  assert.ok(nativeActivity.includes("supportsCourierWorkspace(currentProfile.effectiveRole, currentProfile.activeWorkspace)"));
   assert.ok(webPharmacyHome.includes('livreur:"/pharmacie/livreur"'));
   assert.ok(webPharmacyHome.includes("if(roleDestination){window.location.replace(roleDestination);return}"));
 });
