@@ -21,8 +21,8 @@ test("provisionnement d'équipe strictement épinglé à Replay", () => {
 
 test("les trois identités métier sont distinctes et le profil racine reste Client", () => {
   assert.equal(PERSONAS.length, 5);
-  assert.equal(new Set(PERSONAS.map(row => row.email)).size, 3);
-  assert.equal(new Set(PERSONAS.map(row => row.username)).size, 3);
+  assert.equal(new Set(PERSONAS.map(row => row.email)).size, 5);
+  assert.equal(new Set(PERSONAS.map(row => row.username)).size, 5);
   assert.deepEqual(
     PERSONAS.map(row => row.role).sort(),
     ["client", "caisse", "comptable", "gestionnaire_stock", "pharmacien"].sort()
@@ -102,7 +102,8 @@ test("le compte Pharmacien exige un dossier validé par le Promoteur et un justi
   assert.equal(accountant.email, "naxa.e2e.comptable@example.invalid");
   assert.notEqual(pharmacist.phone, accountant.phone);
 });
-\ntest("mot de passe éphémère distinct et robuste", () => {
+
+test("mot de passe éphémère distinct et robuste", () => {
   const first = generateEphemeralPassword();
   const second = generateEphemeralPassword();
   assert.notEqual(first, second);
