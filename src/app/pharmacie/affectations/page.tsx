@@ -128,7 +128,7 @@ export default async function AffectationsPage({
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-100">NAXA · Équipe</p>
           <h1 className="text-2xl font-black">Affectations professionnelles</h1>
-          <p className="mt-1 text-sm text-emerald-50">Une identité peut recevoir plusieurs fonctions ; chaque affectation reste limitée à sa pharmacie.</p>
+          <p className="mt-1 text-sm text-emerald-50">Un Promoteur peut gérer plusieurs pharmacies. Chaque pharmacie a au plus un Responsable ; plusieurs comptes peuvent exercer les fonctions Caisse, Gestionnaire de stock, Comptable et Livreur. Le nombre de collaborateurs ne crée pas de caisses physiques et ne change pas l’architecture.</p>
         </div>
         <Link href={isPromoteur?"/pharmacie/promoteur":"/pharmacie"} className="underline">{isPromoteur?"← Espace Promoteur":"← Espace Pharmacie"}</Link>
       </header>
@@ -237,7 +237,7 @@ export default async function AffectationsPage({
           <label className="text-sm font-semibold sm:col-span-2">Motif de la proposition (5 à 500 caractères)
             <textarea name="motif" required minLength={5} maxLength={500} rows={3} className="mt-1 w-full rounded-lg border p-3" placeholder="Pourquoi ce compte doit-il recevoir le poste Pharmacien dans cette pharmacie ?"/>
           </label>
-          <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Soumettre au Promoteur pour ma décision</button>
+          <button className="rounded-xl bg-[#0B3D26] px-4 py-3 font-bold text-white sm:col-span-2">Enregistrer et soumettre à votre validation</button>
         </form>
         <div className="mt-5 border-t pt-4">
           <h3 className="font-bold">Suivi de vos propositions</h3>
