@@ -3057,3 +3057,29 @@ Lire le run `43791964746` jusqu'à son état terminal, en particulier les étape
 ### Périmètre préservé
 
 Replay exclusivement (`pwfftcsjyeibxxqhwysw`). Aucune écriture Supabase Production, aucun déploiement Vercel, aucune publication Play Store.
+
+
+## 74. Clôture des recettes Replay crédit, Web Push et Storage — 16/11/2026
+
+### Verdict terminal
+
+- Run Replay `43791964746`, SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5` : **SUCCESS**.
+- Étape 15 — Web Push via Chromium et worker NAXA : **PASS 3/3**. Trois souscriptions authentifiées ont été relues et trois notifications ont été constatées dans les Service Workers Chromium. Cela ne prétend pas démontrer une livraison Android FCM physique.
+- Étape 16 — remboursement crédit via vrai JWT Caisse Replay : **PASS**. Solde diminué de 250 FCFA, opération espèces liée à la session, outbox émise une fois, dépassement refusé sans mutation et clôture rapprochée à zéro.
+- Étape 17 — recettes navigateur : **PASS**. Crédit comptoir (demande, approbation Promoteur, débit unitaire, remboursement et clôture), Marketplace (soumission, refus Promoteur, stock inchangé) et comptabilité (2 comptes, 2 journaux, 4 mappings validés via l'interface) démontrés.
+- La recette comptable a nettoyé uniquement ses lignes synthétiques : 2 comptes, 2 journaux et 4 mappings. Les traces fonctionnelles d'audit restent conservées.
+- Étape 18 — Storage E2E : **17 PASS, 0 SKIP**. Les contrôles couvrent notamment les accès Admin/Promoteur, les refus inter-utilisateurs et inter-pharmacies, les fichiers privés/signés, les types MIME et les suppressions autorisées.
+- Étape 19 — nettoyage : **PASS**. Fichiers de mots de passe éphémères supprimés, sessions métier fermées, sessions temporaires révoquées et comptes temporaires supprimés.
+- Étape 20 — verdict final Web Push : **SUCCESS** ; le contrôle d'échec différé n'a pas signalé de panne.
+
+### Qualité
+
+- Le SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5` a son run Qualité `43791964638` : **SUCCESS** (actionlint, tests, TypeScript, lint et build Next.js).
+- Le présent complément documentaire est postérieur au SHA applicatif et ne modifie pas le code produit. Son contrôle qualité déclenché sur le commit documentaire doit être lu séparément avant de considérer la tête de `main` entièrement validée.
+
+### Périmètre et limites de preuve
+
+- Recettes réalisées sur Supabase Replay uniquement (`pwfftcsjyeibxxqhwysw`).
+- Aucune écriture Supabase Production, aucun déploiement Vercel et aucune publication Play Store.
+- La preuve Web Push concerne le navigateur Chromium et le worker NAXA ; elle n'est pas une preuve de notification Android FCM physique.
+- Le run Replay est **VERT**. Ne pas étendre ce résultat à une validation générale de domaines fonctionnels qui ne faisaient pas partie de cette campagne E2E.
