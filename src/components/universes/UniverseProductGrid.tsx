@@ -27,6 +27,7 @@ type Product = {
 };
 type Line = {
   productId: string;
+  catalogProductId: string;
   ownerType: OwnerType;
   ownerId: string;
   ownerName: string;
@@ -93,7 +94,8 @@ export function UniverseProductGrid({ products, universe }: { products: Product[
               if (!ownerType || typeof ownerId !== "string" || typeof item?.productId !== "string"
                   || !Number.isInteger(item?.quantity) || item.quantity < 1 || item.quantity > 10) return [];
               return [{
-                productId: item.productId,
+                productId: item.productId.includes(":") ? item.productId : ownerType + ":" + ownerId + ":" + item.productId,
+                catalogProductId: item.productId.includes(":") ? item.productId.split(":").slice(2).join(":") : item.productId,
                 ownerType,
                 ownerId,
                 ownerName: String(item.ownerName ?? item.partnerName ?? "Établissement"),
@@ -189,6 +191,7 @@ export function UniverseProductGrid({ products, universe }: { products: Product[
           : x)
         : [...old, {
             productId: productCartId,
+            catalogProductId: p.product_id,
             ownerType: p.owner_type,
             ownerId: p.owner_id,
             ownerName: p.partner_name,
