@@ -2,10 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§102)  
+**Dernière mise à jour :** 16 novembre 2026 (§103)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `80ad168ac37c45c3545de6d6559f326b834074e5`  
-**État global :** 🟡 PARTIEL — les identités Replay Livreur, Comptable et Pharmacien sont provisionnées et leurs résolveurs/périmètres métier sont contrôlés au §102, mais les parcours transactionnels restent bloqués par l'absence de commandes/stock et de données comptables/pharmaceutiques de recette sur la pharmacie technique. Le chantier identité unique Pharmacie↔SPD (§99–101) reste spécifié/audité mais non implémenté. Le workflow Replay `43872161057` est **SUCCESS** ; la qualité sur le HEAD `615cde577662f29f32cf46ca2a2330def14bf1a0` est **SUCCESS** au run `43872473001` (tests, TypeScript, lint, build Next.js et actionlint) ; la campagne Android `43866621863` est **SUCCESS**. **Le chantier E2E global reste partiel** : les parcours transactionnels Livreur, Comptable et Pharmacien, les recettes physiques, ainsi que le cumul Pharmacie↔SPD ne sont pas clôturés. Les campagnes bulk B1–B11 restent non lancées. Les comptes professionnels et Livreur créés ici sont exclusivement des fixtures Replay. Aucune donnée Production consultée ou modifiée, aucun déploiement Preview/Production et aucun envoi Play Store. Les avertissements ESLint restent distinctement suivis et ne sont pas confondus avec les erreurs bloquantes.
+**HEAD contrôlé avant cette mise à jour :** `40755ba6f14a04a727de7ff99aa9bc4eb53ffee8`  
+**État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, mais le dépôt d'une ordonnance Client depuis Storage et sa validation par Pharmacien restent à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 
 
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
@@ -4425,3 +4425,56 @@ Les contrôles ont été exécutés en transaction `BEGIN … ROLLBACK`, sous le
 **Statut du lot : 🟡 PARTIEL — contrôles d'identité, de rôle, de périmètre et de guards réussis ; parcours transactionnels non clôturés.** Ne pas déclarer Livreur, Comptable ou Pharmacien intégralement verts sur la seule base de ces contrôles.
 
 **Point exact de reprise :** préparer sur Replay des données de recette isolées et cohérentes via les parcours métier existants (commande client et stock réel de la pharmacie technique ; configuration comptable par le Promoteur ; dossier/prescription Pharmacien de démonstration non réglementaire), puis exécuter les transitions avec les JWT des comptes éphémères du workflow. Ajouter les preuves de connexion Web et Android via un runner navigateur/émulateur. Le cumul Pharmacie↔SPD reste un chantier distinct non implémenté (§99–101). Ne pas utiliser Production ni créer des écritures métier directes hors RPC.
+
+
+## 103. Clôture ciblée Replay — Livreur, Comptable, Pharmacien (16/11/2026)
+
+**Périmètre :** projet Supabase Replay `pwfftcsjyeibxxqhwysw`, pharmacie technique Mvan `76dd4983-273a-4a83-ae3d-9a7838d3aa35`. Toutes les recettes transactionnelles ci-dessous utilisent des fixtures synthétiques identifiées E2E dans une transaction annulée (`BEGIN/ROLLBACK`). Aucune commande, mission, vente, session de caisse, prescription, configuration comptable ou activation livraison n'a été conservée.
+
+### Corrections livrées sur `main` et appliquées à Replay
+
+| Migration | Commit GitHub | Correction |
+|---|---|---|
+| `20261116193000_fix_delivery_stock_confirmation_before_dispatch.sql` | `f99fda2d975741463266447ea6ce5b4a2c9ca6c1` | La confirmation Stock n'essaie plus de publier la mission avant la préparation physique. |
+| `20261116194000_fix_delivery_pos_returning_ambiguity.sql` | `8618accdc988ffc9fdf7527a4ba8c793e576dbc2` | Qualification de `ventes.id` et `ventes.numero_vente` pour lever l'ambiguïté PL/pgSQL du POS livraison. |
+| `20261116195000_fix_delivery_pos_reservation_settlement.sql` | `702ab62a815fcf211403ce0d1d636e4ae3c3bfde` | L'acceptation Stock confirme aussi la réservation ; le contrôle POS inclut les frais de livraison dans le total attendu. |
+| `20261116195500_allow_delivery_confirmation_events.sql` | `3f9e070e7b8396adec552d46d021e58b6c57364a` | Autorisation des événements `client_confirmed` et `courier_confirmed` dans la contrainte des événements Livraison. |
+
+Les quatre migrations sont enregistrées dans `supabase_migrations.schema_migrations` sur Replay (versions `20261116192010`, `20261116192200`, `20261116192308`, `20261116192342`).
+
+### Livreur — parcours transactionnel complet
+
+**PASS Replay, transaction annulée :**
+1. Promoteur active le service Livraison pour la pharmacie E2E.
+2. Gestionnaire Stock confirme la demande ; assertion explicite : aucune mission n'existe à ce stade.
+3. Client choisit `especes_livraison`.
+4. Stock passe par `en_preparation`, puis `prete_au_retrait` ; la mission n'est créée qu'à cette seconde transition.
+5. Livreur voit la mission, l'accepte, retire la commande et signale son arrivée.
+6. Livreur déclare 2 500 FCFA ; Caisse ouvre sa session et valide le rapprochement POS (1 000 FCFA commande + 1 500 FCFA livraison).
+7. Client confirme la réception et Livreur confirme la remise ; assertions finales : mission `delivered`, commande `livree`.
+
+Une seconde exécution ciblée confirme séparément l'absence de dispatch prématuré et la création après préparation. Les deux transactions ont été annulées ; vérification post-test : 0 commande, 0 mission, 0 prescription de démonstration et `livraison_active=false` sur la pharmacie E2E.
+
+### Comptable — configuration, plan et sécurité
+
+**PASS Replay, transaction annulée :** création/validation d'un journal `vente_encaissee`, ouverture d'une période de test, création/validation de deux comptes, validation des mappings débit/crédit, relecture de configuration et `compta_verifier_audit=true`.
+
+**Garde PASS :** `compta_poster_ecriture` et `compta_cloturer_periode` ne sont pas exécutables par la session `authenticated` (permission denied), conformément à leur restriction serveur. Le cron `naxa-compta-worker` est actif (`*/5 * * * *`) et ses cinq dernières exécutions observées sont `succeeded`.
+
+**Reste comptable :** la publication réelle d'une écriture et la clôture réelle d'une période par le worker `service_role` ne sont pas prouvées dans ce lot. Le worker a 28 événements en état `erreur` sur une autre pharmacie Replay (`1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`) : 14 `credit_octroi` et 14 `credit_remboursement`, code `worker_P0001`. Le Promoteur E2E possède un périmètre sur cette pharmacie mais le Comptable E2E n'y est pas affecté ; ces événements n'ont donc pas été modifiés.
+
+### Pharmacien — consultation et prescription
+
+**PASS Replay, transaction annulée :** création d'une consultation de démonstration et d'une prescription explicitement fictive/non thérapeutique par `pharmacien_creer_consultation` et `pharmacien_creer_prescription`, statut `validee`, puis présence vérifiée via `pharmacien_prescriptions_recentes`.
+
+**Reste Pharmacien :** le parcours Client `naxa-client-prescriptions` exige un véritable objet PDF/JPEG/PNG dans Storage avant `naxa_client_soumettre_ordonnance`. Aucun upload Storage de fichier de test n'a été effectué ; le dépôt Client puis la validation d'une ordonnance entrante par le Pharmacien ne sont donc pas déclarés verts. Aucun justificatif fictif n'est présenté comme document clinique réel.
+
+### Limites de recette interactive et statut final
+
+- Connexion interactive des comptes Web et Android non exécutée : les outils disponibles dans cette session permettent les RPC SQL Replay et la lecture des workflows, mais pas de piloter un navigateur/émulateur ni d'authentifier les comptes par leurs mots de passe éphémères.
+- Les tests CI/Android historiques restent ceux des runs du §98 ; aucune nouvelle campagne CI n'a été déclenchée par ces migrations.
+- Aucun déploiement Preview/Production, aucune écriture Production, aucun envoi Play Store.
+
+**Statut : 🟢 Livreur — recette RPC métier complète sur Replay (fixtures annulées) ; 🟡 Comptable — configuration/plan/audit validés, worker d'écriture et clôture non prouvés ; 🟡 Pharmacien — création/lecture interne validées, dépôt Client et validation entrante non prouvés ; 🟡 global — connexions Web/Android interactives non prouvées.**
+
+**Point exact de reprise :** vérifier le worker comptable sur un événement E2E réellement émis par une vente Replay et clôturer une période de test via le service serveur ; fournir un objet fichier E2E dans Storage pour exécuter le dépôt Client puis la validation Pharmacien ; utiliser un runner navigateur/émulateur pour les logins Web/Android. Ne pas traiter les 28 événements d'une autre pharmacie sans vérifier son lot de recette et son périmètre dédié.
