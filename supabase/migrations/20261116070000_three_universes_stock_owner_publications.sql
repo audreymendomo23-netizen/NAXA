@@ -730,7 +730,14 @@ begin
     from jsonb_array_elements(p_groups) g
     where g->>'owner_type'='pharmacie';
     v_pharmacy_result:=public.creer_reservations_bebe_maman_client(v_pharmacy_groups);
-    v_result:=v_result||v_pharmacy_result;
+    select coalesce(jsonb_agg(
+      value || jsonb_build_object(
+        'owner_type','pharmacie',
+        'owner_id',value->>'pharmacie_id'
+      )
+    ),'[]'::jsonb)
+    into v_result
+    from jsonb_array_elements(v_pharmacy_result) as x(value);
   end if;
 
   for v_group in
