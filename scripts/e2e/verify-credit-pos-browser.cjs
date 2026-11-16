@@ -196,6 +196,7 @@ async function run(env = process.env) {
     );
     let stockToRestore = 0;
     let stockBeforeRecovery = null;
+    const finalizedDraftIds = new Set();
     for (const draft of drafts) {
       const decisions = await rows(
         "client_credit_requests?select=id,statut,consumed_at&vente_id=eq."
@@ -228,6 +229,7 @@ async function run(env = process.env) {
           throw new Error("Une demande approuvée ne peut pas être abandonnée ; reprise de la même vente impossible.");
         }
         stockToRestore += restoreQuantity;
+        finalizedDraftIds.add(draft.id);
         continue;
       }
 
@@ -240,6 +242,44 @@ async function run(env = process.env) {
         p_vente: draft.id,
       }, "Abandon du panier incomplet");
     }
+
+    // Le navigateur peut avoir finalisé la vente avant une erreur d'affichage
+    // Client. Dans ce cas le brouillon a disparu : retrouver uniquement les
+    // ventes crédit du Client, du Caissier et de la session E2E courante.
+    const completedSales = await rows(
+      "ventes?select=id,total_net,statut,mode_paiement,client_id,caisse_session_id,created_by"
+        + "&caisse_session_id=eq." + encodeURIComponent(open.id)
+        + "&created_by=eq." + encodeURIComponent(cashierUserId)
+        + "&client_id=eq." + encodeURIComponent(clientUserId || "")
+        + "&statut=eq.payee&mode_paiement=eq.credit&total_net=eq." + SALE_AMOUNT + "&limit=10"
+    );
+    for (const sale of completedSales) {
+      if (finalizedDraftIds.has(sale.id)) continue;
+      const decisions = await rows(
+        "client_credit_requests?select=id,statut,consumed_at&vente_id=eq."
+          + encodeURIComponent(sale.id) + "&limit=5"
+      );
+      if (!decisions.some(item => item.statut === "approuvee" && item.consumed_at !== null)) {
+        throw new Error("Vente crédit de récupération sans demande Promoteur approuvée et consommée ; stock non modifié.");
+      }
+      const saleLines = await rows(
+        "vente_lignes?select=produit_id,quantite&vente_id=eq." + encodeURIComponent(sale.id)
+      );
+      const restoreQuantity = saleLines
+        .filter(line => line.produit_id === PRODUCT_ID)
+        .reduce((sum, line) => sum + Number(line.quantite || 0), 0);
+      if (restoreQuantity > 0) {
+        if (stockBeforeRecovery === null) {
+          const stockRows = await rows(
+            "stocks?select=quantite&pharmacie_id=eq." + encodeURIComponent(PHARMACY_ID)
+              + "&produit_id=eq." + encodeURIComponent(PRODUCT_ID) + "&limit=2"
+          );
+          stockBeforeRecovery = Number((await ensureSingle(stockRows, "Stock avant récupération vente finalisée")).quantite);
+        }
+        stockToRestore += restoreQuantity;
+      }
+    }
+
     if (!creditId && clientUserId) {
       const accounts = await rows(
         "client_credits?select=id,solde&client_id=eq." + encodeURIComponent(clientUserId)
@@ -276,6 +316,9 @@ async function run(env = process.env) {
     // fixture, via le RPC Gestionnaire Stock audité, pour laisser le prochain
     // scénario POS repartir exactement de son stock initial.
     if (stockToRestore > 0) {
+      if (Number(stockBeforeRecovery) + stockToRestore !== 4) {
+        throw new Error("La récupération ne correspond pas exactement au stock initial de quatre unités ; restitution bloquée.");
+      }
       const restored = await rpc("gestionnaire_stock_quantite_ajuster", cashierToken, {
         p_pharmacie: PHARMACY_ID,
         p_produit: PRODUCT_ID,
@@ -290,7 +333,7 @@ async function run(env = process.env) {
           + "&produit_id=eq." + encodeURIComponent(PRODUCT_ID) + "&limit=2"
       );
       const quantity = Number((await ensureSingle(finalStock, "Stock après récupération Caisse")).quantite);
-      if (quantity !== Number(stockBeforeRecovery) || quantity !== 4) {
+      if (quantity !== 4) {
         throw new Error("Le stock de recette n'est pas revenu à la quantité cible quatre après récupération.");
       }
     }
