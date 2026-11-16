@@ -24,9 +24,9 @@ export const revalidate = 0;
 /**
  * Native/API session bootstrap.
  *
- * Uses the canonical active-business-role resolver plus self-scoped reads for
- * medical-centre staff and partner membership. No direct read of protected
- * active-role tables and no service-role bypass are used.
+ * Web and native channels share the same auth.uid()-scoped business-role and
+ * pharmacy-scope resolvers. No direct read of protected active-role tables
+ * and no service-role bypass are used.
  */
 export async function GET(request: Request) {
   const auth = await authenticateSupabaseBearer(request);
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
   const { data: profile, error: profileError } = await auth.supabase
     .from("profiles")
-    .select("id,role,actif,age_verified,pharmacie_id")
+    .select("id,role,actif,age_verified")
     .eq("id", auth.user.id)
     .maybeSingle();
 
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     );
   }
 
-  let activeRole =
+  const activeRole =
     typeof resolvedRole === "string" && resolvedRole.trim()
       ? resolvedRole.trim()
       : "active_role_unresolved";
@@ -113,20 +113,19 @@ export async function GET(request: Request) {
     if (activeExamAssignments.length > 1) {
       // More than one active centre role conflicts with NAXA's single active
       // workspace rule. Do not pick the first database row arbitrarily.
-      activeRole = "exam_scope_ambiguous";
+      activeWorkspace = "unresolved";
     } else if (activeExamAssignments.length === 1) {
       if (activeRole !== "client" && activeRole !== "active_role_unresolved") {
-        activeRole = "active_role_conflict";
+        activeWorkspace = "unresolved";
       } else {
         const assignment = activeExamAssignments[0];
-        activeRole = assignment.role_key;
-        activeCenterId = assignment.center_id;
         activeWorkspace = "medical_exams";
+        activeCenterId = assignment.center_id;
       }
     } else if (memberships && memberships.length > 0 && activeRole === "client") {
       // Membership alone does not prove an active Partner role. Production
       // currently lacks the partner-scope resolver, so do not route as Client.
-      activeRole = "partner_context_unresolved";
+      activeWorkspace = "unresolved";
     }
   }
 
@@ -138,11 +137,22 @@ export async function GET(request: Request) {
     }
   }
 
-  if (
-    activeWorkspace === "pharmacy" &&
-    typeof profile.pharmacie_id === "string"
-  ) {
-    activePharmacyId = profile.pharmacie_id;
+  if (activeWorkspace === "pharmacy" && activeRole !== "promoteur") {
+    const { data: pharmacyId, error: pharmacyScopeError } =
+      await auth.supabase.rpc("naxa_active_role_pharmacy");
+    if (pharmacyScopeError) {
+      return NextResponse.json(
+        { ok: false, code: "PROFILE_CONTEXT_UNAVAILABLE" },
+        { status: 503, headers: NO_STORE_HEADERS }
+      );
+    }
+    if (typeof pharmacyId !== "string" || !pharmacyId) {
+      return NextResponse.json(
+        { ok: false, code: "PHARMACY_SCOPE_UNRESOLVED" },
+        { status: 403, headers: NO_STORE_HEADERS }
+      );
+    }
+    activePharmacyId = pharmacyId;
   }
 
   return NextResponse.json(
