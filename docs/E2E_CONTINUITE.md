@@ -4521,3 +4521,37 @@ Aucun navigateur pilotable, émulateur Android ni action d'authentification inte
 **Toujours PARTIEL, pas vert global.** Livreur reste vert sur son parcours RPC transactionnel (§103). Comptable : cron technique confirmé, mais écriture et clôture par worker non prouvées ; les 28 erreurs d'une autre pharmacie restent intactes. Pharmacien : guards Storage vérifiés, mais upload réel et soumission positive non prouvés. Web/Android : logins interactifs non prouvés.
 
 **Reprise exacte :** (1) préparer une vente réelle E2E Mvan via POS et tracer son événement comptable ; (2) traiter uniquement cet événement Mvan par worker serveur puis tester la clôture de période ; (3) effectuer l'upload d'un document neutre via Storage avec le Client E2E puis la soumission et la revue Pharmacien ; (4) exécuter les logins Web et Android avec un runner navigateur/émulateur. Ne pas traiter les 28 erreurs de l'autre pharmacie sans mandat et diagnostic dédiés.
+
+
+## 106. Tentative simultanée des trois clôtures restantes — état Replay (16/11/2026)
+
+Demande : exécuter en parallèle les trois chantiers de clôture (Comptable, Storage Pharmacien/Client, connexions Web/Android). Vérifications menées en parallèle sur Replay ; aucune écriture durable, aucun objet Storage créé, aucune modification Production.
+
+### 1) Comptable — blocage de précondition confirmé
+
+- Pharmacie Mvan : caisse principale active (`c3194cf5-7de3-4b90-9412-416b50e7ccbf`) et profil Caisse E2E actif, fonction métier `caisse`, périmètre Mvan.
+- **Aucun produit en stock positif avec prix positif n'est disponible** dans `public.stocks` pour Mvan. Une vente POS réelle ne peut donc pas être constituée avec l'inventaire actuel sans créer une fiche/entrée de stock artificielle.
+- Aucune période comptable n'est actuellement enregistrée pour Mvan (`compta_periodes` vide pour cette pharmacie). Les configurations précédentes avaient été créées dans une transaction annulée ; elles ne persistent pas.
+- Le déclencheur `compta_outbox_vente_encaissee` est bien installé sur le changement de statut des ventes : le parcours normal POS doit produire l'événement. Aucun événement métier ne doit être inventé directement pour prétendre prouver le parcours.
+- Le worker cron est toujours actif et ses dernières exécutions sont techniquement `succeeded` (§105). Pas d'appel global du worker : les 28 événements terminaux d'une autre pharmacie doivent rester intacts.
+- **Résultat :** recette de publication et clôture non exécutable de manière probante tant qu'un produit/stock de test légitime et une période de recette Mvan ne sont pas provisionnés selon le parcours prévu. Aucun stock ni période n'a été créé.
+
+### 2) Pharmacien / Client — blocage de l'upload réel
+
+- Les deux profils Client et Pharmacien E2E sont actifs ; le Pharmacien est affecté à Mvan.
+- Bucket `naxa-client-prescriptions` privé, règles de type et de taille conformes aux constats §105.
+- Contrôle postérieur : **0 objet** dans ce bucket.
+- Les outils de cette session n'exposent ni upload Storage via API authentifiée, ni session Auth client utilisable. Insérer directement une ligne `storage.objects` par SQL contournerait la politique d'upload et ne constituerait pas une preuve.
+- **Résultat :** pas de téléversement ni soumission positive. Les guards SQL déjà testés restent la seule preuve disponible.
+
+### 3) Connexions Web / Android — environnement d'exécution absent
+
+- Inventaire des outils de la session : pas de navigateur pilotable, Playwright, émulateur Android, ni action de login Auth interactive.
+- Les profils E2E sont actifs dans la base, mais cela ne prouve pas que leurs identifiants permettent une connexion Web ou Android.
+- **Résultat :** aucune connexion interactive exécutée ; ne pas convertir l'existence des profils en preuve de login.
+
+### Clôture de cette tentative
+
+**PARTIEL — aucun des trois points n'est entièrement clôturé.** Le travail simultané a permis de confirmer les préconditions manquantes et d'éviter les contournements : pas de faux événement comptable, pas de faux upload par SQL, pas de faux login. Aucun changement de données durable. 
+
+**Reprise opérationnelle précise :** provisionner par les workflows normaux un produit et un stock de recette Mvan, puis ouvrir une période comptable de test avec les cinq contrôles requis et mappings/journal validés ; utiliser ensuite le POS normal et le worker serveur. Pour le second point, fournir une session Auth Client E2E et une voie d'upload Storage authentifiée. Pour le troisième, connecter un navigateur/runner et un émulateur Android à cette session.
