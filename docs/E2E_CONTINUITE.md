@@ -3734,3 +3734,34 @@ Aucun utilisateur Auth n’a été créé. Les sessions sont ouvertes au moyen d
 - **BULK :** bloqué jusqu’au vert du contrôle navigateur, puis validation explicite distincte de l’utilisateur.
 
 **Conclusion :** l’application est verte en qualité et compilation, mais le volet « clics réels » reste jaune. Ne pas demander encore la validation des recettes bulk.
+
+## 85. État consolidé avant validation des recettes bulk — 16 novembre 2026
+
+### HEAD et qualité complète
+- HEAD applicatif/test contrôlé : `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`.
+- Run qualité GitHub Actions : `43801108894` — SUCCESS sur ce SHA.
+- Tests Node : **549 PASS / 0 FAIL**.
+- TypeScript : PASS.
+- ESLint : 0 erreur, **225 avertissements** résiduels (hooks React, expressions impures au rendu, éléments `img`, dépendances de hooks notamment). Ils restent visibles et ne sont pas masqués par le statut réussi.
+- Build Next.js : PASS.
+- `actionlint` : PASS, tous les workflows actifs validés.
+
+### Recette navigateur réelle
+- Workflow : `43801108827`, SHA `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`.
+- Installation npm et Playwright/Chromium : PASS.
+- Construction locale avec secrets Replay : en cours au dernier relevé ; le serveur local et les clics ne sont pas encore attestés sur cette exécution.
+- L'exécution précédente `43800814848` a confirmé Promoteur sous-navigation, Promoteur sidebar, Promoteur mobile et première entrée Comptable. Elle a échoué ensuite parce que l'ancien script cherchait la sidebar Comptable après avoir quitté le tableau de bord.
+- Correction présente dans le HEAD courant : retour au dashboard avant chaque destination, ciblage du vrai conteneur sidebar, sélection par href et vérification du libellé normalisé. Le test final doit encore certifier six destinations Comptable, les deux entrées Partenaire et les déconnexions.
+- Les anciens runs non verts ont tous exécuté le nettoyage. Requêtes SQL Replay après ces runs : 0 partenaire temporaire, 0 adhésion, 0 affectation Comptable temporaire, 0 rôle actif temporaire.
+- Dernière requête de contrôle en lecture seule pendant l'attente du run courant : mêmes quatre compteurs à zéro.
+
+### Sécurité et environnements
+- Le workflow navigateur s'exécute sur serveur local GitHub Actions et projet Supabase Replay `pwfftcsjyeibxxqhwysw`.
+- Aucun utilisateur Auth additionnel n'est créé ; seules les trois identités E2E existantes et marquées sont réutilisées.
+- Aucun déploiement Preview ou Production n'a été déclenché. La recherche Vercel par SHA `5b9f7e5...` retourne zéro déploiement.
+- Aucune écriture Production, transaction, commande, livraison ou stock n'a été touché.
+
+### Gate de lancement
+- Qualité / intégration source : VERT, avec 225 avertissements ESLint documentés.
+- Navigation réelle des trois espaces : JAUNE jusqu'au SUCCESS du run `43801108827` et à la requête SQL finale sans résidu.
+- Aucun bulk B1–B11 lancé. L'autorisation utilisateur sur les campagnes bulk reste à recueillir **après** clôture verte du présent contrôle.
