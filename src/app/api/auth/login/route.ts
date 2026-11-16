@@ -83,8 +83,14 @@ export async function POST(request: NextRequest) {
     const activeRole = typeof resolvedRole === "string" ? resolvedRole.trim() : "";
     const espacePharmacie = requestedSpace === "pharmacie"
       || (requestedSpace === "auto" && PHARMACY_ROLE_CODES.has(activeRole));
+    // A user whose last selected professional context is SPD must still be able
+    // to authenticate into the permanent Client space. The workspace switcher
+    // can then activate the already-authorized SPD membership without a second Auth identity.
     const espaceClient = requestedSpace === "client"
-      || (requestedSpace === "auto" && activeRole === "client");
+      || (requestedSpace === "auto" && (
+        activeRole === "client"
+        || (activeRole !== "admin" && !PHARMACY_ROLE_CODES.has(activeRole) && hasClientIdentity)
+      ));
 
     if (espacePharmacie) {
       if (!PHARMACY_ROLE_CODES.has(activeRole)) {
