@@ -204,7 +204,6 @@ async function provision(env = process.env) {
           apikey: anonKey,
           Authorization: "Bearer " + accessToken,
           "Content-Type": "application/pdf",
-          "x-upsert": "true",
         },
         body: buildTestCredentialPdf(),
       }
