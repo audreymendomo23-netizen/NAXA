@@ -232,7 +232,43 @@ begin
     raise exception 'Les affectations de personnel ont modifié une écriture, un droit comptable ou une vente';
   end if;
   insert into naxa_team_capacity_results values('comptabilite_et_chiffres_isoles',true,
-    'Aucune écriture, ligne, événement comptable, droit d''écriture, vente ou ligne de vente n''est créée par les affectations');
+    'Les affectations ne créent aucune écriture, ligne, événement, droit d''écriture ni vente');
+
+  -- L'accès en écriture est une délégation explicite et séparée pour chacun des Comptables.
+  perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform set_config('request.jwt.claims',json_build_object('sub',v_promoter::text,'role','authenticated')::text,true);
+  select count(*) into v_count from public.compta_promoteur_lister_comptables(v_pharmacy_a) c
+    where c.comptable_id=any(v_accountants);
+  if v_count<>3 then raise exception 'Le Promoteur ne retrouve pas ses trois Comptables dans le gestionnaire de droits'; end if;
+  for v_i in 1..3 loop
+    perform public.compta_promoteur_configurer_ecriture(v_pharmacy_a,v_accountants[v_i],true);
+  end loop;
+  if (select count(*) from public.compta_droits_ecriture
+      where pharmacie_id=v_pharmacy_a and comptable_id=any(v_accountants) and autorise)<>3 then
+    raise exception 'Les trois droits d''écriture Comptable n''ont pas été créés individuellement';
+  end if;
+
+  for v_i in 1..3 loop
+    perform set_config('request.jwt.claim.sub',v_accountants[v_i]::text,true);
+    perform set_config('request.jwt.claims',json_build_object('sub',v_accountants[v_i],'role','authenticated')::text,true);
+    perform public.naxa_select_active_role('comptable',v_pharmacy_a);
+    if public.naxa_business_function(v_accountants[v_i])<>'comptable'
+       or not public.naxa_has_privilege('MANAGE_ACCOUNTING',v_pharmacy_a,'PHARMACIE') then
+      raise exception 'Le Comptable % ne reçoit pas son droit d''écriture sur son poste actif',v_i;
+    end if;
+  end loop;
+  insert into naxa_team_capacity_results values('trois_droits_comptables_individuels',true,
+    'Le Promoteur délègue séparément les droits d''écriture et chacun des trois comptes les reçoit sur son périmètre');
+
+  if (select count(*) from public.compta_ecriture)<>v_compta_ecriture_before
+     or (select count(*) from public.compta_ligne)<>v_compta_ligne_before
+     or (select count(*) from public.compta_evenement)<>v_compta_evenement_before
+     or (select count(*) from public.ventes)<>v_ventes_before
+     or (select count(*) from public.vente_lignes)<>v_vente_lignes_before then
+    raise exception 'Le partage du droit d''écriture a créé une opération ou une écriture financière';
+  end if;
+  insert into naxa_team_capacity_results values('droits_comptables_sans_ecriture_financiere',true,
+    'Le partage des droits laisse intacts le journal, les événements financiers et les ventes');
 
 end;
 $test$;
