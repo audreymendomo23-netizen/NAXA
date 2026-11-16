@@ -109,7 +109,7 @@ function generateEphemeralPassword() {
 }
 
 function buildTestCredentialPdf() {
-  const content = "BT /F1 12 Tf 24 110 Td (NAXA E2E TEST CREDENTIAL - NOT A REAL LICENSE) Tj 0 -22 Td (Replay-only pharmacist workflow validation) Tj ET";
+  const content = "BT /F1 12 Tf 24 110 Td (NAXA E2E TEST DOCUMENT - NOT A REAL LICENSE OR PRESCRIPTION) Tj 0 -22 Td (Replay-only staff and client prescription workflow validation) Tj ET";
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -128,6 +128,15 @@ function buildTestCredentialPdf() {
   for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, "0") + " 00000 n \n";
   pdf += "trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF";
   return Buffer.from(pdf, "utf8");
+}
+
+function buildClientPrescriptionObjectPath(clientId, pharmacyId, nonce) {
+  for (const [label, value] of [["Client", clientId], ["pharmacie", pharmacyId], ["nonce", nonce]]) {
+    if (!/^[a-zA-Z0-9-]+$/.test(String(value || ""))) {
+      throw new Error("Composant de chemin Storage invalide : " + label + ".");
+    }
+  }
+  return clientId + "/" + pharmacyId + "/naxa-e2e-prescription-" + nonce + ".pdf";
 }
 
 async function provision(env = process.env) {
@@ -474,6 +483,175 @@ async function provision(env = process.env) {
       results.push({ persona: persona.key, role: persona.role, profileId: session.id });
     }
 
+
+    // Véritable recette Client → Storage privé → Pharmacien → décision.
+    const prescriptionClient = await login(
+      "naxa.e2e.client-acheteur@example.invalid", fixtures.client.password, "Client ordonnance E2E"
+    );
+    const prescriptionPharmacist = await login(
+      "naxa.e2e.pharmacien@example.invalid", fixtures.pharmacien.password, "Pharmacien ordonnance E2E"
+    );
+    const clientBusinessRole = await rpc("naxa_business_function", prescriptionClient.token, {});
+    if (!clientBusinessRole.ok || clientBusinessRole.data !== "client") {
+      throw new Error("Le compte de dépôt n'est pas dans l'espace Client.");
+    }
+    const selectedPharmacist = await rpc("naxa_select_active_role", prescriptionPharmacist.token, {
+      p_role_code: "pharmacien", p_pharmacie_id: pharmacyId,
+    });
+    const pharmacistBusinessRole = await rpc("naxa_business_function", prescriptionPharmacist.token, {});
+    const pharmacistActivePharmacy = await rpc("naxa_active_role_pharmacy", prescriptionPharmacist.token, {});
+    if (!selectedPharmacist.ok || selectedPharmacist.data !== true
+      || !pharmacistBusinessRole.ok || pharmacistBusinessRole.data !== "pharmacien"
+      || !pharmacistActivePharmacy.ok || pharmacistActivePharmacy.data !== pharmacyId) {
+      throw new Error("Le Pharmacien n'a pas de contexte actif sur la pharmacie E2E.");
+    }
+
+    const prescriptionNonce = randomBytes(12).toString("hex");
+    const prescriptionObjectPath = buildClientPrescriptionObjectPath(
+      prescriptionClient.id, pharmacyId, prescriptionNonce
+    );
+    const encodedPrescriptionPath = prescriptionObjectPath.split("/").map(encodeURIComponent).join("/");
+    const prescriptionPdf = buildTestCredentialPdf();
+    let prescriptionUploaded = false;
+    let submittedPrescriptionId = null;
+    let prescriptionPrimaryError = null;
+    try {
+      const upload = await fetch(
+        baseUrl + "/storage/v1/object/naxa-client-prescriptions/" + encodedPrescriptionPath,
+        {
+          method: "POST",
+          headers: {
+            apikey: anonKey,
+            Authorization: "Bearer " + prescriptionClient.token,
+            "Content-Type": "application/pdf",
+            "x-upsert": "false",
+          },
+          body: prescriptionPdf,
+        }
+      );
+      if (!upload.ok) {
+        throw new Error("Upload ordonnance Client refusé (HTTP " + upload.status + ").");
+      }
+      prescriptionUploaded = true;
+      process.stdout.write("PASS — upload PDF réel dans naxa-client-prescriptions par le Client authentifié.\n");
+
+      const submitted = await rpc("naxa_client_soumettre_ordonnance", prescriptionClient.token, {
+        p_pharmacie: pharmacyId,
+        p_document_path: prescriptionObjectPath,
+        p_note: "Document fictif de recette E2E Replay ; ne constitue pas une ordonnance médicale.",
+      });
+      if (!submitted.ok || typeof submitted.data !== "string" || !submitted.data) {
+        throw new Error("Soumission Client de l'ordonnance refusée (HTTP " + submitted.status + ").");
+      }
+      submittedPrescriptionId = submitted.data;
+      process.stdout.write("PASS — soumission Client via RPC métier et dossier en attente créé.\n");
+
+      const clientRead = await request(
+        "/rest/v1/prescriptions?select=id,client_id,pharmacie_id,source,document_ref,statut&id=eq."
+          + encodeURIComponent(submittedPrescriptionId),
+        { accessToken: prescriptionClient.token }
+      );
+      if (!clientRead.ok || !Array.isArray(clientRead.data) || clientRead.data.length !== 1
+        || clientRead.data[0].client_id !== prescriptionClient.id
+        || clientRead.data[0].pharmacie_id !== pharmacyId
+        || clientRead.data[0].source !== "client"
+        || clientRead.data[0].document_ref !== prescriptionObjectPath
+        || clientRead.data[0].statut !== "en_attente") {
+        throw new Error("Le Client ne relit pas son dossier d'ordonnance via RLS.");
+      }
+      process.stdout.write("PASS — lecture RLS de son ordonnance par le Client propriétaire.\n");
+
+      const pharmacistRead = await request(
+        "/rest/v1/prescriptions?select=id,client_id,pharmacie_id,source,document_ref,statut&id=eq."
+          + encodeURIComponent(submittedPrescriptionId),
+        { accessToken: prescriptionPharmacist.token }
+      );
+      if (!pharmacistRead.ok || !Array.isArray(pharmacistRead.data) || pharmacistRead.data.length !== 1
+        || pharmacistRead.data[0].document_ref !== prescriptionObjectPath
+        || pharmacistRead.data[0].statut !== "en_attente") {
+        throw new Error("Le Pharmacien affecté ne lit pas l'ordonnance Client via RLS (HTTP "
+          + pharmacistRead.status + ").");
+      }
+      process.stdout.write("PASS — lecture RLS de l'ordonnance reçue par le Pharmacien affecté.\n");
+
+      const download = await fetch(
+        baseUrl + "/storage/v1/object/authenticated/naxa-client-prescriptions/" + encodedPrescriptionPath,
+        {
+          headers: {
+            apikey: anonKey,
+            Authorization: "Bearer " + prescriptionPharmacist.token,
+          },
+        }
+      );
+      if (!download.ok) throw new Error("Téléchargement Pharmacien refusé (HTTP " + download.status + ").");
+      const downloadedBytes = Buffer.from(await download.arrayBuffer());
+      if (!downloadedBytes.equals(prescriptionPdf)) {
+        throw new Error("Le PDF téléchargé par le Pharmacien diffère du fichier déposé.");
+      }
+      process.stdout.write("PASS — téléchargement du document original privé par le Pharmacien, octet par octet.\n");
+
+      const decision = await rpc("prescription_valider", prescriptionPharmacist.token, {
+        p_prescription: submittedPrescriptionId, p_accepter: true, p_motif: null,
+      });
+      if (!decision.ok || decision.data !== "validee") {
+        throw new Error("Décision Pharmacien d'acceptation refusée (HTTP " + decision.status + ").");
+      }
+      const finalPrescription = await restAdmin(
+        "prescriptions?select=id,statut,validateur_id,document_ref&id=eq."
+          + encodeURIComponent(submittedPrescriptionId) + "&limit=2"
+      );
+      if (!Array.isArray(finalPrescription) || finalPrescription.length !== 1
+        || finalPrescription[0].statut !== "validee"
+        || finalPrescription[0].validateur_id !== prescriptionPharmacist.id
+        || finalPrescription[0].document_ref !== prescriptionObjectPath) {
+        throw new Error("La validation Pharmacien n'est pas persistée avec le bon validateur.");
+      }
+      process.stdout.write("PASS — décision Pharmacien et identité du validateur vérifiées côté serveur.\n");
+    } catch (error) {
+      prescriptionPrimaryError = error;
+      throw error;
+    } finally {
+      const prescriptionCleanupErrors = [];
+      if (submittedPrescriptionId) {
+        const id = encodeURIComponent(submittedPrescriptionId);
+        const pharmacy = encodeURIComponent(pharmacyId);
+        for (const [endpoint, label] of [
+          ["/rest/v1/prescription_preparations?prescription_id=eq." + id, "préparations"],
+          ["/rest/v1/pharmacien_audit_events?entity_id=eq." + id + "&pharmacie_id=eq." + pharmacy, "audit"],
+          ["/rest/v1/prescription_items?prescription_id=eq." + id, "lignes"],
+          ["/rest/v1/prescriptions?id=eq." + id, "ordonnance"],
+        ]) {
+          try { await adminRequest(endpoint, "DELETE"); }
+          catch (error) { prescriptionCleanupErrors.push(label + " : " + (error?.message || "erreur inconnue")); }
+        }
+      }
+      if (prescriptionUploaded) {
+        try {
+          await adminRequest("/storage/v1/object/naxa-client-prescriptions", "DELETE", {
+            prefixes: [prescriptionObjectPath],
+          });
+        } catch (error) {
+          prescriptionCleanupErrors.push("objet Storage : " + (error?.message || "erreur inconnue"));
+        }
+      }
+      if (submittedPrescriptionId) {
+        try {
+          const remaining = await restAdmin(
+            "prescriptions?select=id&id=eq." + encodeURIComponent(submittedPrescriptionId) + "&limit=2"
+          );
+          if (remaining.length) prescriptionCleanupErrors.push("ordonnance toujours présente après nettoyage");
+        } catch (error) { prescriptionCleanupErrors.push(error?.message || "vérification de nettoyage impossible"); }
+      }
+      if (prescriptionCleanupErrors.length) {
+        const message = "Nettoyage ordonnance E2E incomplet : " + prescriptionCleanupErrors.join(" ; ");
+        if (prescriptionPrimaryError) process.stderr.write(message + "\n");
+        else throw new Error(message);
+      }
+      if (!prescriptionCleanupErrors.length) {
+        process.stdout.write("PASS — nettoyage vérifié de l'ordonnance, ses lignes, son audit et son objet Storage.\n");
+      }
+    }
+
     const courierPasswordFile = String(env.NAXA_STORAGE_E2E_LIVREUR_PASSWORD_FILE || "").trim();
     if (!courierPasswordFile || !fs.existsSync(courierPasswordFile)) {
       throw new Error("Fichier secret du Livreur créé par le parcours d'invitation absent.");
@@ -549,4 +727,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assertReplayUrl, buildMetadata, assertFixture, generateEphemeralPassword, PERSONAS };
+module.exports = { assertReplayUrl, buildMetadata, assertFixture, generateEphemeralPassword, buildTestCredentialPdf, buildClientPrescriptionObjectPath, PERSONAS };
