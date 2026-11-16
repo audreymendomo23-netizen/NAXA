@@ -4763,3 +4763,23 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - À actualiser : assertions du contrat 225 pour refléter le verrou advisory au lieu de rechercher `FOR UPDATE`.
 - NON PROUVÉ : parcours navigateur Auth réel, expiration/renouvellement de session dans navigateur et révocation visible côté client. Le workflow navigateur existant est épinglé Replay mais son déclenchement manuel n'est pas disponible par l'interface d'exécution utilisée pendant cette passe ; aucun run navigateur n'est donc revendiqué.
 - Aucun accès Production, aucune migration, aucun déploiement Vercel ou Play Store.
+
+
+## 114. Lot A — correction du cloisonnement RLS audit sessions Promoteur (16/11/2026)
+
+**Reproduction et cause racine confirmées sur Replay**
+- Projet ciblé : `naxa-ci-replay-2` / `pwfftcsjyeibxxqhwysw`, état `ACTIVE_HEALTHY`.
+- La policy `naxa_session_audit_read_scope` appelait directement `private.naxa_promoteur_valide(auth.uid())`. L'ACL confirme `authenticated EXECUTE = false` sur cette fonction privée, alors que la façade `public.naxa_promoteur_valide(uuid)` est exécutable par `authenticated` et contrôle que l'identité demandée correspond au JWT (ou à un Admin).
+- Exécution du test 036 avant correction : FAIL reproductible, SQLSTATE 42501 « permission denied for function naxa_promoteur_valide » lors de la lecture sous JWT Promoteur.
+- Le test 036 avait en plus un fixture incomplet : le Promoteur était déclaré actif mais n'avait ni convention, ni abonnement valide, ni architecture active ; il ne pouvait donc pas satisfaire la règle métier de validité.
+
+**Corrections versionnées**
+- Migration additive : la policy RLS appelle la façade publique contrôlée `public.naxa_promoteur_valide(auth.uid())`, sans exposer EXECUTE sur le schéma privé.
+- Test 036 : fixture Promoteur complète (convention active, abonnement actif, architecture HYBRIDE) pour tester le périmètre métier réellement autorisé.
+- Test 225 : assertion de contrat alignée sur l'implémentation active : comparaison normalisée de l'auto-affectation et présence de `pg_advisory_xact_lock` plutôt que d'exiger à tort `FOR UPDATE`.
+
+**Vérification**
+- À compléter après application de la migration sur Replay : relecture des ACL/policy, test 036 sous rôle `authenticated`, test 225, suites 034/035/188/195 et contrôles de nettoyage.
+- Aucun accès Production, aucun déploiement Vercel ou Play Store.
+
+**État Lot A :** PARTIEL jusqu'au passage de tous les tests et à la preuve navigateur Auth interactive.
