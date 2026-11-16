@@ -395,17 +395,29 @@ async function run() {
       { label: "Plan comptable & mappings", href: "/pharmacie/comptabilite/plan" },
     ];
     for (const item of comptableLinks) {
-      // Le composant de navigation Comptable est monté sur le tableau de bord ;
-      // chaque cible est donc testée depuis ce point d'entrée, sans supposer
-      // que la sidebar reste présente sur les pages métier.
+      // Cibler explicitement la sidebar du layout, pas la navigation de cartes
+      // rendue aussi dans le dashboard. Vérifier le texte et le href réels.
       await comptablePage.goto(BASE_URL + "/pharmacie/comptable", { waitUntil: "domcontentloaded" });
       await expectPath(comptablePage, "/pharmacie/comptable", "Retour au tableau de bord Comptable");
-      const link = comptablePage.getByRole("navigation", { name: "Navigation Comptable" })
-        .getByRole("link", { name: item.label, exact: true });
-      await link.waitFor({ state: "visible" });
-      await link.click();
+      const sidebar = comptablePage.locator("aside").filter({ hasText: "Compte Comptable" });
+      const sidebarNav = sidebar.locator('nav[aria-label="Navigation Comptable"]');
+      await sidebarNav.waitFor({ state: "visible" });
+      const entries = await sidebarNav.locator("a").evaluateAll((nodes) => nodes.map((node) => ({
+        href: node.getAttribute("href"),
+        label: (node.textContent || "").replace(/\\s+/g, " ").trim(),
+        visible: node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden",
+      })));
+      console.log("INFO sidebar Comptable — " + JSON.stringify(entries));
+      const link = sidebarNav.locator("a").filter({ has: comptablePage.locator("text=" + item.label) });
+      // Le href reste l'identifiant stable ; l'intitulé est vérifié séparément.
+      const targetLink = sidebarNav.locator("a[href='" + item.href + "']");
+      await targetLink.waitFor({ state: "visible" });
+      const actualLabel = (await targetLink.innerText()).replace(/\\s+/g, " ").trim();
+      assert.equal(actualLabel, item.label, "Intitulé incorrect pour " + item.href);
+      await targetLink.click();
       await expectPath(comptablePage, item.href, "Comptable → " + item.label);
       await expectPageHeading(comptablePage, "Comptable → " + item.label);
+      console.log("PASS sidebar Comptable — " + item.label);
     }
     await comptableContext.close();
 
