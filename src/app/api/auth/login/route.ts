@@ -6,6 +6,7 @@ import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-ra
 const PROFESSIONAL_ROLES = ["pharmacie", "promoteur", "caisse"] as const;
 
 export async function POST(request: NextRequest) {
+  let phase = "request_body";
   try {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
@@ -18,11 +19,14 @@ export async function POST(request: NextRequest) {
 
     const loginIp = trustedRequestIp(request);
     const loginKey = "login:" + username;
+    phase = "rate_limit_ip";
     const ipGate = await rateLimit("ip_login", loginIp, "attempt", 5, 600, 30, 900);
     if (!ipGate.allowed) return tooManyAttempts(ipGate.retryAfter);
+    phase = "rate_limit_user";
     const userGate = await rateLimit("login_user", loginKey, "attempt", 20, 3600, 900, 900);
     if (!userGate.allowed) return tooManyAttempts(userGate.retryAfter);
 
+    phase = "profile_lookup";
     const admin = supabaseAdmin();
     const { data: matchingProfiles, error: profileLookupError } = await admin
       .from("profiles")
@@ -97,6 +101,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Aucun espace autorisé n'est associé à ce compte." }, { status: 403 });
     }
 
+    phase = "auth_user_lookup";
     const { data: userData, error: userError } = await admin.auth.admin.getUserById(String(profile.id));
     const email = userData.user?.email;
     if (userError || !email || !userData.user
@@ -104,13 +109,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
+    phase = "password_sign_in";
     const { error: signInError } = await supabaseServer().auth.signInWithPassword({ email, password });
     if (signInError) return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
 
+    phase = "rate_limit_success_ip";
     await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
+    phase = "rate_limit_success_user";
     await rateLimit("login_user", loginKey, "success", 20, 3600, 900, 900);
     return NextResponse.json({ ok: true, espace: espacePharmacie ? "pharmacie" : espaceClient ? "client" : "admin" });
-  } catch {
+  } catch (error) {
+    const errorCode = typeof error === "object" && error !== null
+      && "code" in error && typeof error.code === "string"
+      ? error.code
+      : undefined;
+    console.error("NAXA_AUTH_LOGIN_FAILURE", {
+      phase,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      ...(errorCode ? { errorCode } : {}),
+    });
     return NextResponse.json({ error: "Connexion momentanément indisponible." }, { status: 500 });
   }
 }
