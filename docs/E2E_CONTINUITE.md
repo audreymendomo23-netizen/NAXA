@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§104)  
+**Dernière mise à jour :** 16 novembre 2026 (§107)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `40755ba6f14a04a727de7ff99aa9bc4eb53ffee8`  
+**HEAD contrôlé avant cette mise à jour :** `d1bc36e677d2b218f069098f3975cf7d7dd12319`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 
 
@@ -4555,3 +4555,18 @@ Demande : exécuter en parallèle les trois chantiers de clôture (Comptable, St
 **PARTIEL — aucun des trois points n'est entièrement clôturé.** Le travail simultané a permis de confirmer les préconditions manquantes et d'éviter les contournements : pas de faux événement comptable, pas de faux upload par SQL, pas de faux login. Aucun changement de données durable. 
 
 **Reprise opérationnelle précise :** provisionner par les workflows normaux un produit et un stock de recette Mvan, puis ouvrir une période comptable de test avec les cinq contrôles requis et mappings/journal validés ; utiliser ensuite le POS normal et le worker serveur. Pour le second point, fournir une session Auth Client E2E et une voie d'upload Storage authentifiée. Pour le troisième, connecter un navigateur/runner et un émulateur Android à cette session.
+
+
+## 107. Vérification du canal de provisionnement E2E Replay (16/11/2026)
+
+**Périmètre :** Edge Functions du projet Replay uniquement. Aucun appel d'exécution, aucune écriture métier, aucune modification de fonction.
+
+- L'inventaire Supabase confirme une fonction active `naxa-e2e-provision`, version 4, avec vérification JWT activée.
+- Lecture de son code déployé : le handler renvoie systématiquement HTTP 404 avec le message `Provisionnement E2E désactivé après tentative à usage unique.`
+- **Conclusion :** cette fonction n'est pas un canal utilisable pour provisionner le stock Mvan, la période comptable, une session Auth Client ou les logins Web/Android. Son statut Supabase `ACTIVE` indique seulement que le runtime de fonction est déployé ; le code applicatif désactive explicitement le provisionnement.
+- La fonction n'a pas été appelée. Aucun secret, jeton ou identifiant d'accès n'a été utilisé.
+- Aucun autre canal Auth Admin, Storage upload ou navigateur/émulateur n'a été découvert dans les outils disponibles.
+
+**Résultat :** le blocage des trois clôtures §106 est confirmé ; aucune des recettes Comptable, Pharmacien/Storage ou login Web/Android ne peut être déclarée verte sur cette seule découverte.
+
+**Reprise opérationnelle :** rétablir un canal de provisionnement E2E explicitement contrôlé et limité à Replay (avec authentification, autorisations, journalisation et nettoyage), ou fournir un runner de test externe déjà autorisé. Ne pas réactiver cette fonction sans audit de son ancien usage à usage unique et de ses contrôles d'accès.
