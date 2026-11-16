@@ -58,6 +58,17 @@ export async function accorderAffectationProfessionnelle(formData:FormData){
     redirect("/pharmacie/affectations?erreur=cible");
   }
 
+  const {data:cumulativeRequest,error:cumulativeError}=await sb.rpc("naxa_request_cumulative_activity",{
+    p_target_profile_id:matches[0].id,
+    p_direction:"SPD_VERS_PHARMACIE",
+    p_destination_pharmacy_id:pharmacie,
+    p_destination_partner_id:null,
+    p_destination_role_code:fonction,
+    p_reason:motif,
+  });
+  if(cumulativeError)redirect("/pharmacie/affectations?erreur=cumul");
+  if(cumulativeRequest)redirect("/naxa/cumuls?ok=demande_envoyee");
+
   const {error}=fonction==="livreur"
     ?await sb.rpc("naxa_grant_livreur_assignment",{
       p_target:matches[0].id,p_pharmacie:pharmacie,
