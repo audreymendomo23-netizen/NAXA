@@ -100,13 +100,23 @@ export default async function CaissesPage({ searchParams }: Props) {
   });
   const caissesError = assignmentError ?? targetProfilesError;
 
-  const { data: architectureRows, error: architectureError } = await sb.from("pharmacie_architectures")
-    .select("pharmacie_id,architecture_code,max_caisses")
-    .in("pharmacie_id", pharmacyIds)
-    .eq("active", true);
+  const [
+    { data: architectureRows, error: architectureError },
+    { data: physicalRegisterRows, error: physicalRegistersError },
+  ] = await Promise.all([
+    sb.from("pharmacie_architectures")
+      .select("pharmacie_id,architecture_code,max_caisses")
+      .in("pharmacie_id", pharmacyIds)
+      .eq("active", true),
+    sb.from("caisses")
+      .select("id,pharmacie_id,actif")
+      .in("pharmacie_id", pharmacyIds)
+      .eq("actif", true),
+  ]);
   const pharmacyById = new Map((pharmacies ?? []).map((p) => [p.id, p] as const));
   const archById = new Map((architectureRows ?? []).map((a) => [a.pharmacie_id, a] as const));
-  const countActive = (id: string) => (caisses ?? []).filter((c) => c.pharmacie_id === id && c.actif).length;
+  const physicalRegisterCount = (id: string) =>
+    (physicalRegisterRows ?? []).filter((row) => row.pharmacie_id === id).length;
   const champ = "champ mt-1";
 
   const errors: Record<string, string> = {
@@ -137,7 +147,7 @@ export default async function CaissesPage({ searchParams }: Props) {
 
       {filters.ok && <p role="status" className="carte">Opération terminée : {filters.ok === "creation" ? "Caisse créée et provisionnée." : filters.ok === "blocage" ? "Caisse bloquée." : "Caisse réactivée."}</p>}
       {filters.erreur && <p role="alert" className="carte text-red-700">{errors[filters.erreur] ?? "Impossible d'effectuer cette opération."}</p>}
-      {(linksError || caissesError || architectureError) && <p role="alert" className="carte text-red-700">Impossible de charger le réseau, les comptes Caisse ou les quotas d’architecture. La liste et la création sont suspendues pour éviter d’afficher un réseau vide ou un quota erroné. Réessayez après vérification de la connexion.</p>}
+      {(linksError || caissesError || architectureError) && <p role="alert" className="carte text-red-700">Impossible de charger le réseau, les comptes Caisse ou les capacités physiques d’architecture. La liste et la création sont suspendues pour éviter d’afficher un réseau vide ou un quota erroné. Réessayez après vérification de la connexion.</p>}
 
       <section className="carte space-y-3">
         <h2 className="text-lg font-bold">Comptes existants</h2>
@@ -169,11 +179,12 @@ export default async function CaissesPage({ searchParams }: Props) {
               {(pharmacies ?? []).filter((p) => creatablePharmacyIds.includes(p.id)).map((p) => {
                 const a = archById.get(p.id);
                 const max = a?.max_caisses;
-                const active = countActive(p.id);
-                const reached = max != null && active >= max;
-                 const unavailable = !a;
-                 const quotaLabel = unavailable ? "architecture indisponible" : String(active) + "/" + (max ?? "∞") + " Caisse(s) active(s)";
-                return <option key={p.id} value={p.id} disabled={reached || unavailable || Boolean(caissesError || architectureError)}>{p.nom} — {p.ville ?? "Ville non renseignée"} · {quotaLabel}{reached ? " · quota atteint" : ""}</option>;
+                const physicalCount = physicalRegisterCount(p.id);
+                const unavailable = !a;
+                const capacityLabel = unavailable
+                  ? "architecture indisponible"
+                  : "caisse(s) physique(s) " + physicalCount + "/" + (max ?? "∞") + " · collaborateurs non plafonnés";
+                return <option key={p.id} value={p.id} disabled={unavailable || Boolean(caissesError || architectureError)}>{p.nom} — {p.ville ?? "Ville non renseignée"} · {capacityLabel}</option>;
               })}
             </select>
           </label>
