@@ -23,7 +23,11 @@ test("le filtre Admin reprend les mêmes marqueurs que la migration qui masque l
 });
 
 test("le tableau de bord compte les pharmacies opérationnelles hors démos", () => {
-  assert.match(home, /toutesLesPharmacies=pharmacies\?\?\[\]/);
+  assert.match(home, /let toutesLesPharmacies:any\[\]=\[\]/);
+  assert.match(home, /while\(true\)/);
+  assert.match(home, /toutesLesPharmacies\.push\(\.\.\.lignes\)/);
+  assert.match(home, /count:"exact",head:true/);
+  assert.match(home, /totalPharmacies!==toutesLesPharmacies\.length/);
   assert.match(home, /select\("id,nom,ville,quartier,stock_updated_at,actif,visible_recherche,est_demo"\)/);
   assert.match(home, /listePharmacies=toutesLesPharmacies\.filter\(x=>!isDemoPharmacy\(x\.nom,x\.est_demo\)\)/);
   assert.match(home, /stocksHorodates=listePharmacies\.filter/);
