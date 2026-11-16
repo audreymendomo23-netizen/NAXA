@@ -4249,7 +4249,38 @@ Contrôles SQL lecture seule après application :
 **Limites réelles — pas de faux vert :**
 - Le rejeu contient actuellement des identités Auth/profils Promoteur, Responsable, Caisse, Gestionnaire de stock, Livreur et Client. Il ne contient **aucun compte Pharmacien ni Comptable** et aucune accréditation Pharmacien. Ces deux parcours ne peuvent donc pas être déclarés validés avec les seuls comptes existants.
 - La recette SQL prouve la résolution du rôle et du périmètre sous le rôle PostgreSQL `authenticated`, mais ne remplace pas une connexion par mot de passe ni une recette navigateur réelle. Aucun mot de passe ou secret des comptes existants n'a été lu, réinitialisé ou exposé.
-- Le correctif Web/native est en attente du résultat du workflow GitHub Actions déclenché par le dernier commit de test ; le statut final devra être reporté après exécution.
-- Aucun compte supplémentaire n'a été créé. Aucune donnée Production n'a été consultée ou modifiée. Aucun déploiement n'a été lancé.
+- Le correctif Web/native a été validé ensuite par le workflow qualité et les tests Android du HEAD `d272d59c9076972907ed70216a812c02589b2966` (détails section 97).
+- Les recettes transactionnelles Pharmacien/Comptable ont utilisé des profils éphémères dans des transactions annulées ; le contrôle après rollback confirme zéro profil, agrément ou affectation persistant. Aucune donnée Production n'a été consultée ou modifiée. Aucun déploiement n'a été lancé.
 
 **Point exact de reprise :** vérifier le workflow qualité du HEAD après l'ajout du test de parité. Puis exécuter, avec les identifiants de recette déjà autorisés lorsqu'ils sont disponibles, la connexion Web et native des profils existants. Ne pas créer ni convertir un compte pour simuler Pharmacien ou Comptable ; ces deux profils restent bloquants pour le vert intégral tant qu'une identité métier existante et autorisée n'est pas disponible.
+
+
+## 97. Résultats consolidés — profils Pharmacie, capacité équipe et parité des canaux (16/11/2026)
+
+**Les quatre blocs métier contrôlés sur Replay :**
+1. **Caissières** : trois comptes métier distincts peuvent être affectés alors que `max_caisses=1` continue de limiter la ressource physique ; aucune caisse physique supplémentaire n'est créée.
+2. **Effectifs Stock/Comptabilité/Livraison** : plusieurs Gestionnaires de stock, Comptables et Livreurs sont autorisés indépendamment des niveaux d'architecture. Les droits d'écriture Comptable sont délégués individuellement par le Promoteur ; l'affectation ne crée aucune écriture ni vente.
+3. **Responsable et Promoteur** : un seul Responsable actif par pharmacie et par période ; le même Promoteur peut gérer plusieurs pharmacies indépendantes.
+4. **Pharmacien** : proposition par Promoteur, justificatif rattaché au compte et à la pharmacie, validation Promoteur, activation du poste sur le bon périmètre, puis révocation complète. La décision métier applicable est celle du Promoteur ; aucun rôle Pharmacien ne peut être attribué par la RPC générique.
+
+**Recettes Replay exécutées et résultats :**
+- Test SQL `20261116003000_promoter_validates_pharmacists_and_staff_capacity_e2e.sql` : **13/13 PASS**. Il réutilise le Promoteur Replay actuel et crée les profils techniques uniquement dans la transaction de test, annulée par `ROLLBACK`.
+- Recette transactionnelle Pharmacien : **4/4 PASS** — proposition, validation Promoteur, sélection du rôle et périmètre pharmacie, révocation. Le profil cible et le faux objet Storage sont temporaires et annulés.
+- Résolveur authentifié sur les comptes Replay présents : **7/7 PASS** — Promoteur, Caisse, Responsable, deux Gestionnaires de stock, Livreur et Client ; rôle et pharmacie attendus.
+- Contrôle après rollback : **0** profil `naxateam*`, **0** profil `naxapharmrecipe*`, **0** agrément de recette, **0** affectation Pharmacien active. Aucun profil Pharmacien ou Comptable n'a été conservé ou créé dans Replay.
+- Workflow E2E Replay `43863121060` : **SUCCESS**. Le navigateur a réellement appelé `/api/auth/login` ; les parcours Promoteur, Caisse/Stock et Client ont été authentifiés. La recette crédit comptoir, le remboursement par JWT Caisse, Web Push et Storage ont réussi ; Storage affiche **17 PASS, 0 SKIP** et le nettoyage des sessions/fichiers/comptes temporaires est passé.
+- Workflow qualité `43864157337` : **SUCCESS** — **552/552 tests**, TypeScript sans erreur, build Next.js réussi, **153/153 pages** générées, actionlint réussi. Lint : 0 erreur, 225 avertissements préexistants.
+- Workflow Android `43864157838` : **SUCCESS** — tests Compose et nouvelle matrice de rôles native réussis, intégration émulateur réussie, variantes du compagnon de paiement réussies.
+
+**Parité Web / Android :**
+- Web et session native appellent tous deux `naxa_business_function()` et `naxa_active_role_pharmacy()` dans le contexte authentifié.
+- Le Web ne dépend plus de `profiles.role` racine pour reconnaître les profils internes ; il résout le rôle actif après authentification, comme le canal natif.
+- Les rôles Pharmacie reconnus sont identiques sur les deux canaux : Promoteur, Pharmacie, Caissière/Caisse, Responsable, Comptable, Pharmacien, Gestionnaire de stock et Magasinier. Livreur conserve son routage métier dédié.
+- Tests de non-régression ajoutés : `scripts/test-auth-workspace-parity.cjs` et `NaxaNativeRoleTest.kt`.
+
+**Limite à conserver — comptes métier manquants :**
+- Les comptes Auth/profils réels Pharmacien et Comptable sont toujours absents du Replay courant. Leur logique métier et leur sélection de rôle ont été testées dans des transactions annulées, mais leur connexion réelle par mot de passe ne peut pas être validée sans identité existante.
+- Le vert est donc acquis pour les quatre blocs métier, les profils réellement présents, la parité de routage et les validations techniques. La matrice d'authentification réelle n'est pas intégralement verte pour Pharmacien et Comptable tant que ces deux comptes n'existent pas. Aucun compte n'a été créé ou converti pour masquer ce manque.
+- Production est restée intacte ; aucun déploiement Vercel n'a été lancé.
+
+**Point exact de reprise :** ne pas retoucher les quatre blocs déjà passés. À la prochaine passe, si des identités Pharmacien et Comptable autorisées sont créées par le parcours métier, exécuter uniquement leur authentification réelle Web + Android et vérifier leurs écrans métier respectifs.
