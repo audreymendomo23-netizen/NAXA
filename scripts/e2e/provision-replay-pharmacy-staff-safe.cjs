@@ -474,6 +474,33 @@ async function provision(env = process.env) {
       results.push({ persona: persona.key, role: persona.role, profileId: session.id });
     }
 
+    const courierPasswordFile = String(env.NAXA_STORAGE_E2E_LIVREUR_PASSWORD_FILE || "").trim();
+    if (!courierPasswordFile || !fs.existsSync(courierPasswordFile)) {
+      throw new Error("Fichier secret du Livreur créé par le parcours d'invitation absent.");
+    }
+    const courierPassword = fs.readFileSync(courierPasswordFile, "utf8");
+    if (!courierPassword) throw new Error("Secret Livreur vide.");
+    const courier = await login("naxa.e2e.livreur@example.invalid", courierPassword, "livreur");
+    const courierAssignment = await rpc("naxa_has_active_professional_assignment", courier.token, {
+      p_profile: courier.id,
+      p_pharmacie: pharmacyId,
+      p_fonction: "livreur",
+    });
+    if (!courierAssignment.ok || courierAssignment.data !== true) {
+      throw new Error("L'affectation Livreur issue de l'invitation n'est pas active sur la pharmacie cible.");
+    }
+    const courierRole = await rpc("naxa_select_active_role", courier.token, {
+      p_role_code: "livreur",
+      p_pharmacie_id: pharmacyId,
+    });
+    const courierBusinessRole = await rpc("naxa_business_function", courier.token, {});
+    const courierActivePharmacy = await rpc("naxa_active_role_pharmacy", courier.token, {});
+    if (!courierRole.ok || courierRole.data !== true
+      || !courierBusinessRole.ok || courierBusinessRole.data !== "livreur"
+      || !courierActivePharmacy.ok || courierActivePharmacy.data !== pharmacyId) {
+      throw new Error("Le compte Livreur ne résout pas son espace métier et sa pharmacie active.");
+    }
+
     const serviceRows = await restAdmin(
       "gestionnaire_stock_sessions?select=id,ended_at&user_id=eq." + encodeURIComponent(fixtures.stock.id) + "&limit=10"
     );
@@ -494,6 +521,7 @@ async function provision(env = process.env) {
     process.stdout.write("PASS — une Caisse physique active créée et visible par son compte via RLS.\n");
     process.stdout.write("PASS — lecture RLS du stock par le Gestionnaire Stock ; aucune quantité, réservation, vente ou mission modifiée.\n");
     process.stdout.write("PASS — Pharmacien approuvé par le Promoteur, dossier E2E fictif lié au profil et à la pharmacie.\n");
+    process.stdout.write("PASS — Livreur issu du parcours invitation : affectation active, connexion réelle et rôle/pharmacie actifs vérifiés par JWT.\n");
     process.stdout.write("PASS — aucune session Stock ou Caisse ouverte par ce harnais.\n");
     process.stdout.write("INFO — comptes E2E conservés sur Replay ; aucun mot de passe n'est écrit dans les journaux.\n");
     process.stdout.write("RESULT=" + JSON.stringify(results.map(row => ({ persona: row.persona, role: row.role })) ) + "\n");
