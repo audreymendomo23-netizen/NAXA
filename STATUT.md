@@ -1588,3 +1588,12 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 - **Limites :** recettes Playwright navigateur POS/Marketplace/comptabilité et remboursement Auth non exécutées dans cette session; elles requièrent Chromium, serveur Next.js et secrets/fichiers temporaires du workflow Replay. Aucun statut terminal SUCCESS courant n'est disponible. Le miroir GitLab `87443849` est en retard sur le `main` GitHub et son pipeline historique ne valide pas cette tête. Aucun paramétrage de comptes/journaux/mappings n'a été conservé pour les pharmacies commerciales.
 - **Statut du sous-chantier : VERT backend Replay / JAUNE navigateur et CI globale.** Consigner un PASS navigateur seulement après succès terminal du workflow Replay. La continuité détaillée et la liste des 16 tests figurent dans `docs/E2E_CONTINUITE.md`, §68.
 - Documentation actualisée sur `main`; le commit de documentation ne modifie pas le code applicatif. `vercel.json` maintient `git.deploymentEnabled.main=false`.
+
+## POS crédit et Replay E2E — mise à jour 16/11/2026
+
+- Correctif versionné et appliqué sur Replay : les champs du paiement crédit sont insérés atomiquement ; le finaliseur les vérifie sans UPDATE POS protégé. Test SQL Replay PASS ; les ACL et le trigger strict restent en place.
+- Récupération E2E renforcée : vente approuvée reprise par RPC, solde crédit remboursé, session Caisse clôturée et stock de fixture restauré par RPC audité.
+- Qualité GitHub du SHA `bfc2659e53aceab5677e9841cf72e7c0bf17f9c3` : SUCCESS.
+- Réserve : Web Push renvoie encore HTTP 410 sur une nouvelle souscription Google dans un run intermédiaire. Une sonde directe est versionnée et le run final Replay associé au SHA courant est en attente. Le workflow navigateur complet n'a pas encore un statut terminal SUCCESS.
+- Les paramètres comptables de démonstration créés par le scénario Promoteur sont nettoyés ; les valeurs comptables réelles restent à saisir par le Promoteur/Comptable de chaque pharmacie commerciale, sans données inventées.
+- Pas d'écriture Supabase Production, pas de déploiement Vercel, pas de publication Play Store. Référence détaillée : `docs/E2E_CONTINUITE.md`, §70.
