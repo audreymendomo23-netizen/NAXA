@@ -115,18 +115,18 @@ function buildTestCredentialPdf() {
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 160] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Length " + Buffer.byteLength(content, "utf8") + " >>\\nstream\\n" + content + "\\nendstream",
+    "<< /Length " + Buffer.byteLength(content, "utf8") + " >>\nstream\n" + content + "\nendstream",
   ];
-  let pdf = "%PDF-1.4\\n";
+  let pdf = "%PDF-1.4\n";
   const offsets = [0];
   for (let i = 0; i < objects.length; i += 1) {
     offsets.push(Buffer.byteLength(pdf, "utf8"));
-    pdf += (i + 1) + " 0 obj\\n" + objects[i] + "\\nendobj\\n";
+    pdf += (i + 1) + " 0 obj\n" + objects[i] + "\nendobj\n";
   }
   const xref = Buffer.byteLength(pdf, "utf8");
-  pdf += "xref\\n0 " + (objects.length + 1) + "\\n0000000000 65535 f \\n";
-  for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, "0") + " 00000 n \\n";
-  pdf += "trailer\\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\\nstartxref\\n" + xref + "\\n%%EOF";
+  pdf += "xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n";
+  for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, "0") + " 00000 n \n";
+  pdf += "trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF";
   return Buffer.from(pdf, "utf8");
 }
 
@@ -345,7 +345,7 @@ async function provision(env = process.env) {
         );
         if (!Array.isArray(accreditationRows)) throw new Error("Lecture du dossier Pharmacien impossible.");
         const approved = accreditationRows.find(row =>
-          row.status === "approved_promoteur" && row.assignment_id
+          row.status === "approved_promoteur" && row.assignment_id === existing?.id
           && (!row.valid_until || new Date(row.valid_until + "T23:59:59Z").getTime() >= Date.now())
         );
         if (!approved) {
@@ -386,6 +386,22 @@ async function provision(env = process.env) {
           throw new Error("Affectation " + persona.role + " refusée (HTTP " + provisioned.status + ").");
         }
       }
+    }
+
+    const accountantWrite = await rpc("compta_promoteur_configurer_ecriture", promoter.token, {
+      p_pharmacie: pharmacyId,
+      p_comptable: fixtures.comptable.id,
+      p_autorise: true,
+    });
+    if (!accountantWrite.ok) {
+      throw new Error("Délégation comptable explicite par le Promoteur refusée (HTTP " + accountantWrite.status + ").");
+    }
+    const accountantList = await rpc("compta_promoteur_lister_comptables", promoter.token, {
+      p_pharmacie: pharmacyId,
+    });
+    if (!accountantList.ok || !Array.isArray(accountantList.data)
+      || !accountantList.data.some(row => row.comptable_id === fixtures.comptable.id && row.ecriture_autorisee === true)) {
+      throw new Error("Le Promoteur ne retrouve pas son Comptable avec le droit d'écriture délégué.");
     }
 
     const cashRegisters = await restAdmin(
@@ -462,9 +478,10 @@ async function provision(env = process.env) {
     process.stdout.write("PASS — 5 identités Replay vérifiées : Gestionnaire Stock, Caisse, Client, Comptable et Pharmacien.\n");
     process.stdout.write("PASS — Comptable affecté par le Promoteur ; Pharmacien proposé puis validé par le Promoteur avec justificatif fictif E2E.\n");
     process.stdout.write("PASS — les cinq profils se connectent et résolvent leur poste actif sur la pharmacie attendue.\n");
-    process.stdout.write("PASS — affectations Stock/Caisse actives, comptes racine Client et postes exclusifs.\n");
+    process.stdout.write("PASS — affectations Stock/Caisse/Comptabilité actives, Comptable délégué en écriture par le Promoteur.\n");
     process.stdout.write("PASS — une Caisse physique active créée et visible par son compte via RLS.\n");
     process.stdout.write("PASS — lecture RLS du stock par le Gestionnaire Stock ; aucune quantité, réservation, vente ou mission modifiée.\n");
+    process.stdout.write("PASS — Pharmacien approuvé par le Promoteur, dossier E2E fictif lié au profil et à la pharmacie.\n");
     process.stdout.write("PASS — aucune session Stock ou Caisse ouverte par ce harnais.\n");
     process.stdout.write("INFO — comptes E2E conservés sur Replay ; aucun mot de passe n'est écrit dans les journaux.\n");
     process.stdout.write("RESULT=" + JSON.stringify(results.map(row => ({ persona: row.persona, role: row.role })) ) + "\n");
