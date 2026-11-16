@@ -32,6 +32,8 @@ declare
   v_max_cashiers_before integer;
   v_max_responsables_before integer;
   v_level_count_before integer;
+  v_physical_registers_before integer;
+  v_physical_registers_after integer;
   v_compta_ecriture_before bigint;
   v_compta_ligne_before bigint;
   v_compta_evenement_before bigint;
@@ -68,6 +70,8 @@ begin
   where pharmacie_id=v_pharmacy_a and active=true;
   select count(*) into v_level_count_before
   from public.naxa_architecture_niveaux where architecture_code=v_architecture_before;
+  select count(*) into v_physical_registers_before
+  from public.caisses where pharmacie_id=v_pharmacy_a and actif=true;
 
   select count(*) into v_compta_ecriture_before from public.compta_ecriture;
   select count(*) into v_compta_ligne_before from public.compta_ligne;
@@ -111,11 +115,16 @@ begin
       insert into public.profiles(id,role,username,actif)
       values(v_staff,'client','naxateam'||substr(replace(v_staff::text,'-',''),1,12),true);
 
-      v_assignment:=public.naxa_grant_professional_assignment(
-        v_staff,v_pharmacy_a,v_role,v_now,null,
-        'Recette multiplicité effectifs '||v_role||' numéro '||v_i
-      );
-      if v_assignment is null then raise exception 'Aucune affectation créée pour %',v_role; end if;
+      if v_role='caisse' then
+        -- L'UI Caisse provisionne un poste humain et réutilise la ressource physique partagée.
+        perform public.naxa_provision_caisse(v_staff,v_pharmacy_a);
+      else
+        v_assignment:=public.naxa_grant_professional_assignment(
+          v_staff,v_pharmacy_a,v_role,v_now,null,
+          'Recette multiplicité effectifs '||v_role||' numéro '||v_i
+        );
+        if v_assignment is null then raise exception 'Aucune affectation créée pour %',v_role; end if;
+      end if;
 
       if v_role='caisse' then v_cashiers:=array_append(v_cashiers,v_staff); end if;
       if v_role='gestionnaire_stock' then v_stock:=array_append(v_stock,v_staff); end if;
@@ -135,6 +144,24 @@ begin
   if v_count<>3 then raise exception 'Trois Caissières indépendantes ne sont pas affectées'; end if;
   insert into naxa_team_capacity_results values('trois_caissieres',true,
     'Trois comptes distincts portent le poste Caisse dans une pharmacie disposant de max_caisses=1');
+
+  select count(*) into v_physical_registers_after
+  from public.caisses where pharmacie_id=v_pharmacy_a and actif=true;
+  if v_physical_registers_after<>v_physical_registers_before then
+    raise exception 'L''affectation de plusieurs Caissières a multiplié les caisses physiques';
+  end if;
+  v_rejected:=false;
+  begin
+    insert into public.caisses(pharmacie_id,nom,actif)
+    values(v_pharmacy_a,'Caisse physique E2E supplémentaire',true);
+  exception when others then
+    v_rejected:=true;
+  end;
+  if not v_rejected then
+    raise exception 'La deuxième caisse physique a dépassé max_caisses=1';
+  end if;
+  insert into naxa_team_capacity_results values('capacite_physique_caisse_preservee',true,
+    'Les trois Caissières partagent une seule ressource et la création d''une deuxième caisse physique est refusée');
 
   select count(*) into v_count from public.naxa_professional_assignments
   where profile_id=any(v_stock) and pharmacie_id=v_pharmacy_a
