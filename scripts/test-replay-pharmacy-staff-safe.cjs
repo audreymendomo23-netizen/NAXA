@@ -19,7 +19,7 @@ test("provisionnement d'équipe strictement épinglé à Replay", () => {
   assert.throws(() => assertReplayUrl("https://pwfftcsjyeibxxqhwysw.supabase.co.evil.invalid"), /limitées au projet Replay/);
 });
 
-test("les trois identités métier sont distinctes et le profil racine reste Client", () => {
+test("les cinq identités métier sont distinctes et le profil racine reste Client", () => {
   assert.equal(PERSONAS.length, 5);
   assert.equal(new Set(PERSONAS.map(row => row.email)).size, 5);
   assert.equal(new Set(PERSONAS.map(row => row.username)).size, 5);
