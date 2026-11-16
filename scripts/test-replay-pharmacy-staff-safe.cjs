@@ -113,3 +113,16 @@ test("mot de passe éphémère distinct et robuste", () => {
   assert.match(first, /[0-9]/);
   assert.match(first, /[^A-Za-z0-9]/);
 });
+
+test("le Livreur invité est connecté à la pharmacie et validé par un JWT réel", () => {
+  const source = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "e2e/provision-replay-pharmacy-staff-safe.cjs"),
+    "utf8"
+  );
+  assert.ok(source.includes("NAXA_STORAGE_E2E_LIVREUR_PASSWORD_FILE"));
+  assert.ok(source.includes('login("naxa.e2e.livreur@example.invalid"'));
+  assert.ok(source.includes('p_fonction: "livreur"'));
+  assert.ok(source.includes('p_role_code: "livreur"'));
+  assert.ok(source.includes('courierBusinessRole.data !== "livreur"'));
+  assert.ok(source.includes("courierActivePharmacy.data !== pharmacyId"));
+});
