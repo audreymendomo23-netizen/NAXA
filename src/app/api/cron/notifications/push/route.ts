@@ -88,6 +88,7 @@ export async function GET(request: Request) {
   const items = (data ?? []) as OutboxItem[];
   let sent = 0, noDevice = 0, retried = 0, failed = 0, fcmSent = 0, webPushSent = 0, webPushFailures = 0;
   const webPushErrorCodes = new Set<string>();
+  const webPushFailureDetails: Array<{ statusCode: number | string; providerHost: string }> = [];
 
   for (const item of items) {
     let hasDevice = false;
@@ -145,8 +146,18 @@ export async function GET(request: Request) {
             webPushSent++;
           } catch (error) {
             const status = (error as { statusCode?: number }).statusCode;
+            let providerHost = "invalid_endpoint";
+            try { providerHost = new URL(sub.endpoint).hostname; } catch { /* endpoint secret deliberately not logged */ }
             webPushFailures++;
             webPushErrorCodes.add(typeof status === "number" && Number.isInteger(status) ? String(status) : "network_error");
+            // Diagnostic non sensible, exposé uniquement hors Production :
+            // ne jamais retourner l'endpoint ni les clés d'abonnement.
+            if (process.env.VERCEL_ENV !== "production") {
+              webPushFailureDetails.push({
+                statusCode: typeof status === "number" && Number.isInteger(status) ? status : "network_error",
+                providerHost,
+              });
+            }
             if (status === 404 || status === 410) {
               await db.from("naxa_push_subscriptions").delete()
                 .eq("endpoint", sub.endpoint).eq("user_id", item.user_id);
@@ -176,6 +187,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true, claimed: items.length, sent, noDevice, retried, failed, webPushSent, fcmSent,
     webPushFailures, webPushErrorCodes: [...webPushErrorCodes],
+    ...(process.env.VERCEL_ENV === "production" ? {} : { webPushFailureDetails }),
     notificationId: notificationId ?? null,
     at: new Date().toISOString(),
   });
