@@ -127,7 +127,8 @@ async function run(env = process.env) {
 
     // Independent session for explicit server-side revocation.
     const second = await passwordLogin();
-    // Global signout revokes every refresh token for this isolated test identity.\n    const logoutResponse = await fetch(supabaseUrl + "/auth/v1/logout?scope=global", {
+    // Global signout revokes every refresh token for this isolated test identity.
+    const logoutResponse = await fetch(supabaseUrl + "/auth/v1/logout?scope=global", {
       method: "POST",
       headers: { apikey: anonKey, Authorization: "Bearer " + second.access_token },
     });

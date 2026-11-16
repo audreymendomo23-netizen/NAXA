@@ -4979,3 +4979,23 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Cette exigence doit rester marquée `EXCEPTION DE FORFAIT — NON ACTIVABLE SUR FREE` et non PASS. Son acceptation comme risque hors périmètre relève d'une décision explicite du propriétaire NAXA ; aucune acceptation n'est présumée.
 
 **Verdict Lot A : PARTIEL — aucun faux vert.** La revue des RPC et la recette stock sont clôturées. La preuve navigateur reste à récupérer sur le run GitHub Actions déclenché par le commit `c714d93d2cf540a6d2fed7a9ab594898dc0b5ff6`. La protection native des mots de passe compromis reste une exception de forfait. Aucun accès Production, aucune migration Production, aucun déploiement Vercel ou Play Store.
+
+
+## 124. Correction du run GitHub Actions — lint du harnais Auth (16/11/2026)
+
+**Diagnostic sur le run 43964640655**
+- Le workflow a atteint l'étape ESLint ; l'échec n'était donc pas un défaut d'indentation YAML.
+- Erreur bloquante exacte : `scripts/e2e/verify-auth-session-lifecycle.cjs:132:14 — Parsing error: Unexpected token :`.
+- Cause racine : une séquence littérale `\\n` avait été insérée à la fin d'un commentaire JavaScript. La déclaration `const logoutResponse` était ainsi absorbée par le commentaire, laissant l'objet `headers` orphelin et provoquant l'erreur de parsing.
+- Défaut distinct de déclenchement : la liste `paths` du workflow contenait également les caractères littéraux `\\n` entre deux chemins, au lieu d'un vrai saut de ligne YAML. Correction en séparant les deux entrées.
+
+**Corrections appliquées sur main**
+- `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` : chemins déclencheurs rétablis en deux éléments YAML distincts.
+- `scripts/e2e/verify-auth-session-lifecycle.cjs` : commentaire et déclaration `logoutResponse` séparés sur deux lignes JavaScript valides.
+- Aucun secret modifié, aucune migration, aucun changement Supabase, aucune action Production/Vercel/Play Store.
+
+**Preuve attendue**
+- Le commit de correction déclenche un nouveau run puisque le workflow et le script sont dans les chemins surveillés.
+- Le run précédent reste en échec historique. Le correctif n'est pas déclaré PASS avant le résultat d'un nouveau run, notamment ESLint, build et recette Auth Replay.
+
+**Verdict Lot A : PARTIEL inchangé jusqu'au nouveau run.**
