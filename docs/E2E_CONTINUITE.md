@@ -4681,3 +4681,17 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Android : build/émulateur PASS ; Auth interactive PARTIEL.
 - Comptabilité : PARTIEL, publication et clôture non prouvées.
 - Aucune donnée Production, aucun déploiement Vercel et aucun Play Store touchés.
+
+
+## 110. Worker comptable et clôture : preuve transactionnelle isolée sur Replay (16/11/2026)
+
+- Une recette SQL transactionnelle a été exécutée sur Mvan (pharmacie E2E 76dd4983-273a-4a83-ae3d-9a7838d3aa35), en utilisant le Comptable E2E actif de cette pharmacie comme acteur de clôture.
+- Le test a créé dans la transaction une période de novembre, deux comptes validés, les deux mappings vente_encaissee, un journal JVE2E et un événement de vente fictif de 2 500 FCFA.
+- Pour protéger les deux événements a_traiter de l'autre pharmacie technique, leur prochaine_tentative a été temporairement repoussée dans la transaction uniquement. Le worker global n'a réclamé qu'un seul événement : résultat {ok:true, reclames:1, traite:1, erreurs:0, a_traiter:0}.
+- Assertions : événement passé à traite ; écriture générée avec deux lignes ; débit = crédit = 2 500 FCFA ; période clôturée ; cinq contrôles de clôture vérifiés (dotations, paie, TVA, stock, rapprochements).
+- Le test s'est terminé par ROLLBACK : aucune période, écriture, ligne, configuration, événement de test ou modification des deux événements de l'autre pharmacie n'a été conservé. Les 28 événements en erreur et les 2 événements en attente de l'autre pharmacie restent hors périmètre.
+
+**Portée exacte de la preuve**
+- PASS : exécution réelle de la fonction worker interne, publication équilibrée d'une écriture, vérification d'audit et fonction de clôture sous service_role dans une transaction Replay isolée.
+- PARTIEL : l'événement source était synthétique, inséré dans la transaction ; la chaîne complète vente POS réelle → trigger outbox → worker planifié → écriture persistée → clôture persistée n'a pas encore été exécutée dans un même parcours durable.
+- Le cron n'a pas été forcé manuellement et les événements d'une autre pharmacie n'ont pas été traités.
