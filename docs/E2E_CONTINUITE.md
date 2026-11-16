@@ -4738,3 +4738,28 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 **Limite de preuve**
 - Ces résultats prouvent les cinq scénarios SQL transactionnels sur l'état Replay du 16/11/2026. Ils ne remplacent pas une recette navigateur/Auth interactive, ni un test durable multi-session sur données persistées.
 - Statut Lot A : PASS pour ces cinq suites SQL ; lot global non déclaré vert tant que les contrôles complémentaires identité/sécurité (sessions réelles, parcours navigateur et contrôles d'exploitation) ne sont pas consolidés.
+
+
+## 113. Lot A — contrôles sessions Auth et sécurité des affectations (16/11/2026)
+
+**Cible : Replay `pwfftcsjyeibxxqhwysw` uniquement.**
+
+**Suites complémentaires**
+- PASS — `034_promoteur_session_audit.sql` : 6/6 assertions structurelles ; table d'audit, policy de lecture, triggers Auth, absence de colonnes de secrets et droits service_role.
+- PASS — `035_promoteur_session_audit_behavior.sql` : 6/6 assertions ; limite à quatre sessions, refus de la cinquième, événement de rejet et révocation des sessions journalisée. Transaction annulée.
+- PASS — `188_pharmacien_service_sessions.sql` : structure des pointages Pharmacien, RPC, unicité d'une session ouverte et RLS.
+- PASS — `195_suivi_explicit_null_identity_deny.sql` : une identité NULL est explicitement refusée.
+- PASS — diagnostic ciblé de `naxa_grant_professional_assignment` : garde ASSIGN_USER_TO_PHARMACY, interdiction d'auto-affectation, verrou transactionnel advisory et contrôle de chevauchement confirmés par lecture de la définition active.
+- Contrôle de nettoyage après les essais : zéro utilisateur Auth `naxa035_*` ou `naxa036*` résiduel et zéro pharmacie de fixture 036 résiduelle.
+
+**Échecs / contradictions révélés**
+- FAIL — `036_promoteur_session_audit_rls.sql` : sous le rôle `authenticated`, la lecture RLS échoue avec `permission denied for function naxa_promoteur_valide`. Cause racine identifiée : la policy `naxa_session_audit_read_scope` appelle directement `private.naxa_promoteur_valide(auth.uid())`, dont l'ACL ne donne EXECUTE qu'à `postgres`. La fonction homonyme publique autorise bien `authenticated`, mais la policy n'utilise pas cette fonction. Correction à définir sans ouvrir inutilement l'accès à l'espace `private`.
+- FAIL de contrat obsolète — `225_professional_assignments_security.sql` : le test cherche des fragments textuels exacts avec espaces et exige `FOR UPDATE`. Le code actif exprime l'auto-affectation sans espaces (`p_target=v_actor`) et utilise `pg_advisory_xact_lock` pour sérialiser l'opération. Un diagnostic sémantique normalisé confirme les quatre contrôles attendus (privilège, auto-affectation, verrou, chevauchement). Le test 225 doit être modernisé ; cet échec ne prouve pas une faille fonctionnelle.
+- Les tests 036 et 225 n'ont provoqué aucune donnée résiduelle. Aucun correctif de schéma ou ACL n'a été appliqué durant cette passe.
+
+**État Lot A**
+- PASS : cinq suites SQL du §112 ; plus 034, 035, 188, 195 et diagnostic ciblé des affectations.
+- BLOQUANT : RLS de l'audit des sessions Promoteur (036) ; correction et re-test requis.
+- À actualiser : assertions du contrat 225 pour refléter le verrou advisory au lieu de rechercher `FOR UPDATE`.
+- NON PROUVÉ : parcours navigateur Auth réel, expiration/renouvellement de session dans navigateur et révocation visible côté client. Le workflow navigateur existant est épinglé Replay mais son déclenchement manuel n'est pas disponible par l'interface d'exécution utilisée pendant cette passe ; aucun run navigateur n'est donc revendiqué.
+- Aucun accès Production, aucune migration, aucun déploiement Vercel ou Play Store.
