@@ -93,6 +93,15 @@ export default function PanneauPharmacie(){
   const activeRole=typeof activeFunction==="string"?activeFunction:"";
   if(activeFunctionError||selectedPharmacyError||!p||p.actif!==true){setMsg("Impossible de vérifier le profil et le poste actif.");return}
   if(activeRole==="promoteur"&&(new URLSearchParams(window.location.search).get("vue")!=="operation")){window.location.replace("/pharmacie/promoteur");return}
+  const roleDestinations:Record<string,string>={
+   livreur:"/pharmacie/livreur",
+   comptable:"/pharmacie/comptable",
+   pharmacien:"/pharmacie/pharmacien",
+   gestionnaire_stock:"/pharmacie/gestionnaire-stock",
+   magasinier:"/pharmacie/gestionnaire-stock",
+  };
+  const roleDestination=roleDestinations[activeRole];
+  if(roleDestination){window.location.replace(roleDestination);return}
   if(!["pharmacie","promoteur","caisse","responsable"].includes(activeRole)||(activeRole!=="promoteur"&&typeof selectedPharmacyId!=="string")){setMsg("Ce compte n’a pas sélectionné un poste autorisé pour cet espace ou n’est pas lié à une pharmacie.");return}
   let targetPharmacyId=activeRole==="promoteur"?null:selectedPharmacyId;
   if(activeRole==="promoteur"){
