@@ -2,11 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§108)  
+**Dernière mise à jour :** 16 novembre 2026 (§115)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `d57e0be9e1cdfa5d43cfae09548cb08e1991aa4d`  
+**HEAD contrôlé avant cette mise à jour :** `bb84cf916fd4db1615760cc1e68256023cab577f`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
-
 
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -4783,3 +4782,35 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Aucun accès Production, aucun déploiement Vercel ou Play Store.
 
 **État Lot A :** PARTIEL jusqu'au passage de tous les tests et à la preuve navigateur Auth interactive.
+
+
+## 115. Lot A — re-tests SQL après correction RLS et audit sécurité Replay (16/11/2026)
+
+**Cible / migration**
+- Projet confirmé : Supabase `naxa-ci-replay-2`, ref `pwfftcsjyeibxxqhwysw`, `ACTIVE_HEALTHY`.
+- Migration `20261116222600_fix_promoteur_session_audit_rls_facade.sql` appliquée avec succès sur Replay. La policy `naxa_session_audit_read_scope` appelle la façade `public.naxa_promoteur_valide(auth.uid())` ; l'ACL privée reste fermée à `authenticated`.
+- Commit de la migration : `2aef2a54516880929e4913b3c88f62514f1f8ba9`.
+
+**Résultats SQL consolidés**
+- PASS — `036_promoteur_session_audit_rls.sql` : 3/3 assertions, après fixture complet du Promoteur (convention active, abonnement actif, architecture HYBRIDE). Le test avait auparavant reproduit le SQLSTATE 42501.
+- PASS — `034_promoteur_session_audit.sql` : 6/6 assertions structurelles.
+- PASS — `035_promoteur_session_audit_behavior.sql` : limite de sessions, rejet et révocation journalisée.
+- PASS — `188_pharmacien_service_sessions.sql` : structure, RPC, unicité de session et RLS.
+- PASS — `195_suivi_explicit_null_identity_deny.sql` : identité NULL refusée.
+- PASS — `225_professional_assignments_security.sql` : contrat de sécurité exécuté sans exception après alignement des assertions sur le verrou advisory, le moteur d'autorisations et le scope canonique.
+- PASS — les cinq suites du §112 ont été rejouées après la correction : identité/cumul, arbitrage multi-Promoteurs, RLS cumul, bascule Admin/Client et confidentialité Client, 5/5 sans erreur.
+
+**Nettoyage et ACL**
+- Contrôle post-recette : zéro utilisateur Auth, zéro pharmacie et zéro événement d'audit résiduel des fixtures 036.
+- `authenticated` n'a toujours pas `EXECUTE` sur `private.naxa_promoteur_valide(uuid)` ; la façade publique contrôlée reste exécutable ; une seule policy de lecture attendue est active sur `naxa_session_audit`.
+- Les suites transactionnelles ont été annulées par `ROLLBACK` ; aucune fixture métier persistante issue de ces tests.
+
+**Contrôles d'exploitation / réserves restantes**
+- Supabase Security Advisors Replay : avertissement Auth `auth_leaked_password_protection` toujours présent (protection des mots de passe compromis désactivée) ; 3 fonctions `SECURITY DEFINER` exécutables par `anon` signalées (`get_universe_catalog_v2`, `marketplace_offre_stock_disponible`, `marketplace_produit_visible)) ; 72 tables RLS sans policy (avis INFO, à classifier selon exposition et accès service_role) et 253 fonctions `SECURITY DEFINER` exécutables par `authenticated` signalées pour revue de leurs gardes métier. Ces alertes ne sont pas toutes des vulnérabilités avérées, mais elles ne sont pas clôturées par le Lot A.
+- Le code du parcours Playwright existant réalise une connexion Auth réelle Promoteur/Caisse/Client, mais aucun run navigateur récent n'a été vérifié après cette correction. Le renouvellement/expiration de session et la révocation observée dans le navigateur restent à prouver.
+- Le contrôle de protection contre les mots de passe compromis doit être activé dans les paramètres Auth du projet Replay ; aucun outil disponible dans cette passe ne permet de modifier ce réglage de projet.
+- Les exécutions GitHub Actions post-commit (qualité et navigateur) ne sont pas confirmées par un identifiant de run dans cette passe.
+
+**Verdict Lot A : PARTIEL.** Les recettes SQL identité, cumul, RLS, audit sessions et affectations sont PASS sur Replay. Le vert global est bloqué par la protection des mots de passe compromis désactivée, la revue des alertes sécurité Auth/RPC, et les preuves navigateur Auth de session/renouvellement/révocation non consolidées. Aucune donnée Production, aucun déploiement Vercel ou Play Store touchés.
+
+**Point exact de reprise :** activer la protection des mots de passe compromis sur le projet Replay ; auditer les 3 RPC accessibles à `anon` et les gardes des fonctions `SECURITY DEFINER` liées à l'identité ; exécuter le parcours Playwright Auth puis prouver refresh, expiration et révocation côté navigateur. Ne pas passer au vert avant ces preuves.
