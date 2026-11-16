@@ -132,6 +132,32 @@ async function run(env = process.env) {
     if (stock.id !== expectedIds.stock || responsable.id !== expectedIds.responsable) {
       throw new Error("Les sessions Auth ne correspondent pas aux profils provisionnés.");
     }
+    const e2eUserIds = [promoter.id, stock.id, responsable.id];
+    if (new Set(e2eUserIds).size !== 3) {
+      throw new Error("Les trois identités Web Push E2E doivent être distinctes.");
+    }
+    // Ces profils sont exclusivement des comptes de recette example.invalid.
+    // Purger leurs endpoints résiduels avant le nouveau test évite qu'un ancien
+    // endpoint expiré (404/410) fasse échouer une souscription Chromium fraîche.
+    const e2eUserFilter = "user_id=in.(" + e2eUserIds.map(encodeURIComponent).join(",") + ")";
+    const staleSubscriptions = await admin(
+      "/rest/v1/naxa_push_subscriptions?select=user_id,endpoint&" + e2eUserFilter
+    );
+    if (!Array.isArray(staleSubscriptions)) {
+      throw new Error("Lecture des anciennes souscriptions Web Push E2E invalide.");
+    }
+    if (staleSubscriptions.length) {
+      await admin("/rest/v1/naxa_push_subscriptions?" + e2eUserFilter,
+        "DELETE", undefined, "return=minimal");
+    }
+    const remainingSubscriptions = await admin(
+      "/rest/v1/naxa_push_subscriptions?select=user_id&" + e2eUserFilter
+    );
+    if (!Array.isArray(remainingSubscriptions) || remainingSubscriptions.length !== 0) {
+      throw new Error("Des souscriptions Push résiduelles subsistent sur les seuls profils E2E.");
+    }
+    process.stdout.write("INFO — purge ciblée des anciennes souscriptions des trois profils E2E : "
+      + staleSubscriptions.length + " supprimée(s).\\n");
 
     const products = await admin("/rest/v1/produits?select=id,nom&nom=eq." + encodeURIComponent(PRODUCT_NAME) + "&limit=2");
     if (!Array.isArray(products) || products.length !== 1) throw new Error("Produit technique existant introuvable ou ambigu.");
