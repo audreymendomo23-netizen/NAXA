@@ -4776,7 +4776,7 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 **Corrections versionnées**
 - Migration additive : la policy RLS appelle la façade publique contrôlée `public.naxa_promoteur_valide(auth.uid())`, sans exposer EXECUTE sur le schéma privé.
 - Test 036 : fixture Promoteur complète (convention active, abonnement actif, architecture HYBRIDE) pour tester le périmètre métier réellement autorisé.
-- Test 225 : assertion de contrat alignée sur l'implémentation active : comparaison normalisée de l'auto-affectation et du chevauchement, présence de `pg_advisory_xact_lock` plutôt que d'exiger à tort `FOR UPDATE`. Le contrôle de synchronisation offline vérifie désormais le moteur d'autorisations (`naxa_has_privilege`, `VIEW_STOCK`, `EDIT_STOCK_QUANTITY`) au lieu d'exiger un appel direct à l'ancien helper d'affectation.
+- Test 225 : assertion de contrat alignée sur l'implémentation active : comparaison normalisée de l'auto-affectation et du chevauchement, présence de `pg_advisory_xact_lock` plutôt que d'exiger à tort `FOR UPDATE`. Le contrôle de synchronisation offline vérifie désormais le moteur d'autorisations (`naxa_has_privilege`, `VIEW_STOCK`, `EDIT_STOCK_QUANTITY`) au lieu d'exiger un appel direct à l'ancien helper d'affectation ; le helper Stock vérifie le périmètre canonique `naxa_scope_allows`.
 
 **Vérification**
 - À compléter après application de la migration sur Replay : relecture des ACL/policy, test 036 sous rôle `authenticated`, test 225, suites 034/035/188/195 et contrôles de nettoyage.
