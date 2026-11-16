@@ -155,3 +155,12 @@ test("le harnais exécute upload Client, lecture Pharmacien, téléchargement, v
   assert.ok(source.includes("object/authenticated/naxa-client-prescriptions/"));
   assert.ok(source.includes("Nettoyage ordonnance E2E incomplet"));
 });
+
+test("la connexion navigateur Caisse conserve le rôle professionnel actif", () => {
+  const source = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "e2e/verify-credit-pos-browser.cjs"),
+    "utf8"
+  );
+  assert.ok(source.includes('pageLogin(cashierPage, CASHIER_USERNAME, cashierPassword, "pharmacie", "/pharmacie/caisse")'));
+  assert.ok(!source.includes('pageLogin(cashierPage, CASHIER_USERNAME, cashierPassword, "client", "/pharmacie/caisse")'));
+});
