@@ -3653,3 +3653,15 @@ La voie techniquement adaptée est une recette Chromium dédiée, exécutée sur
 ### Gate
 - Statut global de ce contrôle : JAUNE tant que le workflow navigateur corrigé n'est pas terminé en SUCCESS.
 - Aucun bulk B1–B11 lancé. Aucun compte Auth créé. Aucun déploiement Preview ou Production effectué.
+
+### Complément de contrôle — deuxième exécution Chromium et correction du parcours Comptable
+
+- Le run `43800566264` a confirmé les interactions suivantes : Promoteur desktop vers `/pharmacie/promoteur/livraisons` (PASS), Promoteur mobile vers la même page (PASS), ouverture du tableau de bord Comptable (PASS), clic sur « Créances & bordereaux » et rendu cible (PASS).
+- Le blocage suivant était une hypothèse erronée du harnais : après le clic sur une destination Comptable, le test recherchait encore une sidebar qui n'est montée que sur le tableau de bord. Il ne s'agit pas d'une panne de la route suivante.
+- Correction du harnais : retour explicite au tableau de bord avant chaque nouvelle destination, puis vérification du clic et du rendu des six liens. Aucune modification de code métier n'a été faite pour contourner l'accès.
+- Extension ajoutée au même scénario : clic distinct sur la sous-navigation Promoteur en plus du menu latéral et du menu mobile.
+- Chaque exécution partielle terminée a exécuté le nettoyage ; les contrôles SQL Replay post-run ont confirmé 0 partenaire temporaire, 0 adhésion, 0 affectation Comptable et 0 rôle actif temporaire.
+- Dernier commit de code/test avant cette mise à jour documentaire : `b26628f48345eb13e9d0cf1e5cda1843f734f2e9`.
+- Le run navigateur antérieur `43800814848` et le run qualité correspondant restent en cours/à terminer sur le commit qui précède le dernier ajustement Comptable. Le run complet corrigé `43801016091` est en attente derrière cette exécution.
+- Les vérifications CI `actionlint` du run qualité précédent sont PASS ; le contrôle complet tests/TypeScript/lint doit être confirmé sur le dernier commit après le run corrigé.
+- Statut de la gate : JAUNE. Les clics Promoteur desktop/mobile et le premier accès Comptable ont des preuves positives, mais les six accès Comptable et les deux entrées Partenaire ne sont pas encore tous validés sur une exécution réussie.
