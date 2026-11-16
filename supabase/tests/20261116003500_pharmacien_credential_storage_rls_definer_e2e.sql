@@ -38,6 +38,16 @@ begin
     'promoteur_upload_authenticated',true,
     'Le Promoteur authentifié peut déposer un justificatif pour un compte actif de sa pharmacie'
   );
+
+  insert into storage.objects(bucket_id,name,owner,owner_id,metadata)
+  values('naxa-pharmacien-accreditations',
+    v_promoter::text||'/'||v_target::text||'/'||v_pharmacy::text||'/credential-mime-fallback.pdf',
+    v_promoter,v_promoter::text,null);
+  insert into naxa_pharmacien_storage_results values(
+    'mime_metadata_fallback',true,
+    'Le suffixe PDF contrôlé permet le dépôt lorsque le client Storage ne renseigne pas metadata.mimetype'
+  );
+
   insert into naxa_pharmacien_storage_results values(
     'hors_reseau_refuse',true,
     'Le helper SECURITY DEFINER refuse une pharmacie hors réseau'
