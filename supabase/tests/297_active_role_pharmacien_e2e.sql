@@ -74,7 +74,7 @@ begin
   end if;
   if exists(select 1 from public.naxa_professional_assignments
     where profile_id=v_pharmacist and pharmacie_id=v_pharmacy and role_code='pharmacien' and statut='active') then
-    raise exception 'Le Promoteur a activé le Pharmacien avant la validation Admin';
+    raise exception 'Le Promoteur a activé le Pharmacien avant sa décision';
   end if;
   insert into naxa_role_297_results values('proposition_promoteur_sans_activation',true,
     'Le dossier est proposé par le Promoteur et demeure inactif avant décision du Promoteur');
@@ -89,8 +89,8 @@ begin
     v_rejected:=true;
   end;
   if not v_rejected then raise exception 'Un Pharmacien non approuvé a pu activer son poste'; end if;
-  insert into naxa_role_297_results values('blocage_avant_approbation_admin',true,
-    'Le sélecteur universel refuse un agrément pending_promoter');
+  insert into naxa_role_297_results values('blocage_avant_validation_promoteur',true,
+    'Le sélecteur universel refuse une proposition pending_promoter avant décision du Promoteur');
 
   -- NAXA Admin n'est pas un décideur : aucun compte authentifié ne peut approuver ce dossier.
   if has_function_privilege(
@@ -120,7 +120,7 @@ begin
   v_rejected:=false;
   begin
     perform public.naxa_grant_professional_assignment(
-      v_pharmacist,v_pharmacy,'pharmacien',v_now,null,'Tentative de contournement direct'
+      v_pharmacist,v_pharmacy,'pharmacien',v_now,null,'Tentative d’activation directe sans décision du Promoteur'
     );
   exception when others then
     v_rejected:=true;
@@ -278,7 +278,7 @@ begin
   end;
   if not v_rejected then raise exception 'Le Pharmacien conserve des droits après retrait d''agrément'; end if;
   insert into naxa_role_297_results values('retrait_agrement_et_blocage_rpc',true,
-    'Le retrait Admin neutralise le poste et bloque les RPC cliniques');
+    'Le retrait du Promoteur neutralise le poste et bloque les RPC cliniques');
 
   -- Le client reste isolé des ordonnances d'un autre compte.
   perform set_config('request.jwt.claim.sub',v_client::text,true);
