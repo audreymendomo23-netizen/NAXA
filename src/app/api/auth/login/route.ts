@@ -3,7 +3,17 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
 import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
 
-const PROFESSIONAL_ROLES = ["pharmacie", "promoteur", "caisse"] as const;
+const PHARMACY_ROLE_CODES = new Set([
+  "pharmacie",
+  "promoteur",
+  "caisse",
+  "responsable",
+  "comptable",
+  "pharmacien",
+  "gestionnaire_stock",
+  "magasinier",
+  "livreur",
+]);
 
 export async function POST(request: NextRequest) {
   let phase = "request_body";
@@ -38,67 +48,15 @@ export async function POST(request: NextRequest) {
     }
 
     const profile = matchingProfiles[0] as Record<string, unknown>;
-    const role = String(profile.role ?? "");
+    const rootRole = String(profile.role ?? "");
     const active = profile.actif === true;
-    const espacePharmacie = requestedSpace === "pharmacie"
-      || (requestedSpace === "auto" && active && PROFESSIONAL_ROLES.includes(role as (typeof PROFESSIONAL_ROLES)[number]));
-    const espaceClient = requestedSpace === "client" || (requestedSpace === "auto" && role === "client");
     const hasClientIdentity = Boolean(
       profile.username && profile.first_name && profile.last_name && profile.phone
       && profile.date_of_birth && profile.age_verified === true && profile.consent_accepted_at,
     );
 
-    if (espacePharmacie) {
-      if (!active || !PROFESSIONAL_ROLES.includes(role as (typeof PROFESSIONAL_ROLES)[number])) {
-        return NextResponse.json({ error: "Accès professionnel suspendu ou non attribué." }, { status: 403 });
-      }
-
-      if (role === "promoteur") {
-        const { data: links, error: linksError } = await admin
-          .from("promoteur_pharmacies")
-          .select("pharmacie_id")
-          .eq("promoteur_id", String(profile.id))
-          .eq("actif", true);
-        const pharmacyIds = [...new Set((links ?? []).map((link) => link.pharmacie_id).filter(Boolean))];
-        if (linksError || pharmacyIds.length === 0) {
-          return NextResponse.json({ error: "Aucune pharmacie active n'est rattachée à ce compte." }, { status: 403 });
-        }
-        const { data: pharmacies, error: pharmaciesError } = await admin
-          .from("pharmacies")
-          .select("id")
-          .in("id", pharmacyIds)
-          .eq("actif", true)
-          .eq("visible_recherche", true);
-        if (pharmaciesError || !pharmacies?.length) {
-          return NextResponse.json({ error: "Aucune pharmacie active n'est accessible à ce compte." }, { status: 403 });
-        }
-      } else {
-        const pharmacyId = String(profile.pharmacie_id ?? "");
-        if (!pharmacyId) {
-          return NextResponse.json({ error: "Ce compte n'est lié à aucune pharmacie." }, { status: 403 });
-        }
-        const { data: pharmacy, error: pharmacyError } = await admin
-          .from("pharmacies")
-          .select("id")
-          .eq("id", pharmacyId)
-          .eq("actif", true)
-          .eq("visible_recherche", true)
-          .maybeSingle();
-        if (pharmacyError || !pharmacy) {
-          return NextResponse.json({ error: "Cette pharmacie est suspendue ou indisponible." }, { status: 403 });
-        }
-      }
-    } else if (espaceClient) {
-      // La révocation professionnelle ne désactive pas l'identité client d'un employé.
-      // Un compte client désactivé reste toutefois bloqué.
-      if (role === "client" && !active) {
-        return NextResponse.json({ error: "Ce compte utilisateur est désactivé." }, { status: 403 });
-      }
-      if (role !== "client" && !hasClientIdentity) {
-        return NextResponse.json({ error: "Cet identifiant ne dispose pas d'un espace client activé." }, { status: 403 });
-      }
-    } else if (!(requestedSpace === "auto" && role === "admin" && active)) {
-      return NextResponse.json({ error: "Aucun espace autorisé n'est associé à ce compte." }, { status: 403 });
+    if (!active) {
+      return NextResponse.json({ error: "Compte professionnel ou client suspendu." }, { status: 403 });
     }
 
     phase = "auth_user_lookup";
@@ -109,9 +67,85 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
+    // Resolve the active business function only after password authentication.
+    // This is the same auth.uid()-scoped resolver used by the native session API.
     phase = "password_sign_in";
-    const { error: signInError } = await supabaseServer().auth.signInWithPassword({ email, password });
+    const supabase = supabaseServer();
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+
+    phase = "active_role_resolution";
+    const { data: resolvedRole, error: roleError } = await supabase.rpc("naxa_business_function");
+    if (roleError) {
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "Contexte professionnel momentanément indisponible." }, { status: 503 });
+    }
+    const activeRole = typeof resolvedRole === "string" ? resolvedRole.trim() : "";
+    const espacePharmacie = requestedSpace === "pharmacie"
+      || (requestedSpace === "auto" && PHARMACY_ROLE_CODES.has(activeRole));
+    const espaceClient = requestedSpace === "client"
+      || (requestedSpace === "auto" && activeRole === "client");
+
+    if (espacePharmacie) {
+      if (!PHARMACY_ROLE_CODES.has(activeRole)) {
+        await supabase.auth.signOut();
+        return NextResponse.json({ error: "Accès professionnel suspendu ou non attribué." }, { status: 403 });
+      }
+
+      if (activeRole === "promoteur") {
+        const { data: links, error: linksError } = await admin
+          .from("promoteur_pharmacies")
+          .select("pharmacie_id")
+          .eq("promoteur_id", String(profile.id))
+          .eq("actif", true);
+        const pharmacyIds = [...new Set((links ?? []).map((link) => link.pharmacie_id).filter(Boolean))];
+        if (linksError || pharmacyIds.length === 0) {
+          await supabase.auth.signOut();
+          return NextResponse.json({ error: "Aucune pharmacie active n'est rattachée à ce compte." }, { status: 403 });
+        }
+        const { data: pharmacies, error: pharmaciesError } = await admin
+          .from("pharmacies")
+          .select("id")
+          .in("id", pharmacyIds)
+          .eq("actif", true)
+          .eq("visible_recherche", true);
+        if (pharmaciesError || !pharmacies?.length) {
+          await supabase.auth.signOut();
+          return NextResponse.json({ error: "Aucune pharmacie active n'est accessible à ce compte." }, { status: 403 });
+        }
+      } else {
+        const { data: pharmacyId, error: pharmacyScopeError } = await supabase.rpc("naxa_active_role_pharmacy");
+        if (pharmacyScopeError || typeof pharmacyId !== "string" || !pharmacyId) {
+          await supabase.auth.signOut();
+          return NextResponse.json({ error: "Aucune pharmacie active n'est liée à ce rôle." }, { status: 403 });
+        }
+        const { data: pharmacy, error: pharmacyError } = await admin
+          .from("pharmacies")
+          .select("id")
+          .eq("id", pharmacyId)
+          .eq("actif", true)
+          .eq("visible_recherche", true)
+          .maybeSingle();
+        if (pharmacyError || !pharmacy) {
+          await supabase.auth.signOut();
+          return NextResponse.json({ error: "Cette pharmacie est suspendue ou indisponible." }, { status: 403 });
+        }
+      }
+    } else if (espaceClient) {
+      // La révocation professionnelle ne désactive pas l'identité client d'un employé.
+      // Un compte client désactivé reste toutefois bloqué.
+      if (rootRole === "client" && !active) {
+        await supabase.auth.signOut();
+        return NextResponse.json({ error: "Ce compte utilisateur est désactivé." }, { status: 403 });
+      }
+      if (rootRole !== "client" && !hasClientIdentity) {
+        await supabase.auth.signOut();
+        return NextResponse.json({ error: "Cet identifiant ne dispose pas d'un espace client activé." }, { status: 403 });
+      }
+    } else if (!(requestedSpace === "auto" && activeRole === "admin" && rootRole === "admin")) {
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "Aucun espace autorisé n'est associé à ce compte." }, { status: 403 });
+    }
 
     phase = "rate_limit_success_ip";
     await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
