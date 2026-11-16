@@ -28,9 +28,3 @@ with check (
 );
 
 commit;
-
-    )
-  )
-);
-
-commit;
