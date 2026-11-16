@@ -210,7 +210,18 @@ async function provision(env = process.env) {
       }
     );
     if (!response.ok) {
-      throw new Error("Dépôt du justificatif Pharmacien E2E refusé (HTTP " + response.status + ").");
+      const raw = await response.text();
+      let detail = "";
+      try {
+        const payload = JSON.parse(raw);
+        detail = String(payload.message || payload.error || payload.statusCode || "");
+      } catch {
+        detail = raw.replace(/[\\r\\n]+/g, " ").slice(0, 180);
+      }
+      throw new Error(
+        "Dépôt du justificatif Pharmacien E2E refusé (HTTP " + response.status
+        + (detail ? " : " + detail : "") + ")."
+      );
     }
   }
 
