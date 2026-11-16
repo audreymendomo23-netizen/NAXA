@@ -19,9 +19,10 @@ export default async function CumulNaxaPage({searchParams}:{
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/naxa/cumuls");
-  const [{data:profile},{data:activeRole},{data:requests,error:requestError},{data:approvals,error:approvalError}]=await Promise.all([
+  const [{data:profile},{data:activeRole},{data:activePartner},{data:requests,error:requestError},{data:approvals,error:approvalError}]=await Promise.all([
     sb.from("profiles").select("actif").eq("id",auth.user.id).maybeSingle(),
     sb.rpc("naxa_business_function"),
+    sb.rpc("naxa_active_role_partner"),
     sb.from("naxa_cumulative_activity_requests")
       .select("id,target_profile_id,requested_by,direction,destination_pharmacy_id,destination_role_code,reason,target_display_name,status,created_at,updated_at,completed_at")
       .order("created_at",{ascending:false}).limit(100),
@@ -31,6 +32,13 @@ export default async function CumulNaxaPage({searchParams}:{
   ]);
   if(!profile||profile.actif!==true)redirect("/");
   const isAdmin=activeRole==="admin";
+  const canDecide=(approval:any)=> {
+    if(isAdmin) return approval.is_admin_required===true;
+    if(approval.is_admin_required||approval.approver_id!==auth.user.id) return false;
+    if(approval.organization_type==="pharmacie") return activeRole==="promoteur";
+    if(approval.organization_type==="spd") return activeRole==="prestations"&&activePartner===approval.organization_id;
+    return false;
+  };
   const requestRows=requests??[];
   const approvalRows=approvals??[];
   const approvalsByRequest=new Map<string,typeof approvalRows>();
@@ -88,7 +96,7 @@ export default async function CumulNaxaPage({searchParams}:{
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statusLabel[approval.status]??approval.status}</span>
               </div>
-              {approval.status==="pending"&&((isAdmin&&approval.is_admin_required)||(!isAdmin&&!approval.is_admin_required&&approval.approver_id===auth.user.id))&&<form action={deciderCumulProfessionnel} className="mt-3 space-y-2">
+              {approval.status==="pending"&&canDecide(approval)&&<form action={deciderCumulProfessionnel} className="mt-3 space-y-2">
                 <input type="hidden" name="approval_id" value={approval.id}/>
                 <label className="block text-xs font-semibold">Motif (obligatoire en cas de refus)
                   <textarea name="decision_reason" maxLength={500} rows={2} className="mt-1 w-full rounded-lg border p-2 text-sm"/>
