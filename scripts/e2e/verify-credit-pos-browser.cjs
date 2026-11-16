@@ -647,7 +647,14 @@ async function run(env = process.env) {
 
     await clientPage.reload();
     await clientPage.getByRole("heading", { name: "Mes crédits et remboursements" }).waitFor();
-    await clientPage.getByRole("heading", { name: "Mes reçus de remboursement" }).waitFor();
+    const refundReceiptHeading = clientPage.getByRole("heading", {
+      name: "Mes reçus de remboursement",
+      exact: true,
+    });
+    if (await refundReceiptHeading.count() !== 1) {
+      throw new Error("Le reçu de remboursement doit présenter un titre unique dans le suivi Client.");
+    }
+    await refundReceiptHeading.waitFor({ state: "visible" });
     await clientPage.getByText("0 FCFA", { exact: false }).first().waitFor();
 
     process.stdout.write("PASS — Client acheteur, Promoteur, Caisse/Stock authentifiés dans le navigateur NAXA.\n");
