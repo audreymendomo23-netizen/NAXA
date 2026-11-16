@@ -3617,3 +3617,39 @@ La voie techniquement adaptée est une recette Chromium dédiée, exécutée sur
 - **BULK :** toujours non lancé et toujours en attente d’une validation ultérieure distincte.
 
 **Conclusion :** ne pas déclarer le contrôle interactif global vert. La cause du blocage est désormais établie par l’état réel de Replay : les deux catégories de fixtures Comptable et Partenaire n’existent pas. La seule suite sûre est une recette navigateur locale avec réutilisation des comptes existants et fixtures de données temporaires autorisées puis nettoyées.
+
+## 84. Contrôle navigateur ciblé des accès Promoteur, Comptable et Partenaire — 16 novembre 2026
+
+### Objectif et périmètre
+- Fermer les trois constats de navigation statique avant toute recette bulk.
+- Scénarios navigateur Chromium sur un serveur Next.js local, relié exclusivement au projet Supabase Replay `pwfftcsjyeibxxqhwysw`.
+- Réutilisation des identités E2E déjà présentes : `naxa_e2e_promoteur`, `naxa_e2e_expiry_overflow`, `naxa_e2e_acheteur`. Aucun utilisateur Auth n'est créé.
+- Pour rendre Comptable et Partenaire accessibles durant le test, le scénario insère une affectation Comptable et un partenaire `centre_examen` avec une adhésion propriétaire temporaires dans Replay. Il les supprime en `finally` et par étape de secours `always()`, avec vérification des suppressions et de la restauration du profil.
+- Aucune donnée de stock, caisse, commande, livraison ou Production n'est écrite. Aucun déploiement n'est lancé.
+
+### Contrôles de sécurité du harnais
+- URL Supabase épinglée au projet Replay.
+- Marqueurs E2E Auth requis avant génération de liens de connexion ponctuels.
+- Opt-in explicite `NAXA_E2E_ALLOW_TEMP_FIXTURES=true` obligatoire.
+- Le script refuse toute fixture préexistante qui empêcherait un scénario réversible.
+- Déconnexion Auth vérifiée par le code HTTP et nettoyage vérifié pour l'affectation, le rôle actif, l'adhésion, le partenaire et les champs restaurés.
+- Le workflow secondaire dupliqué `.github/workflows/naxa-navigation-runtime.yml` a été supprimé afin d'éviter plusieurs recettes concurrentes sur les mêmes fixtures. Son exécution déjà engagée n'est pas une exécution à conserver.
+
+### Tentatives et causes racines
+1. Le premier workflow navigateur a atteint le serveur local mais l'API de connexion a répondu HTTP 500. Diagnostic source : le serveur local doit recevoir `SUPABASE_SECRET_KEY` et `NAXA_RATE_LIMIT_SECRET` (>=32 caractères). Le workflow a été aligné sur le modèle Replay déjà utilisé par les recettes existantes.
+2. Un premier run multi-rôles a passé le build, le préflight Replay, la création des trois sessions ponctuelles et la sélection du périmètre Comptable. Il a échoué à l'injection des cookies SSR dans Chromium : `browserContext.addCookies: Cookie should have either url or path`.
+3. Le nettoyage a réussi après cet échec. Les requêtes SQL de contrôle ont confirmé : 0 partenaire temporaire, 0 adhésion temporaire, 0 affectation Comptable temporaire, 0 rôle actif temporaire, et les tables partenaires/adhésions/affectations actives sont revenues à zéro.
+4. Correction appliquée : conversion des cookies SSR au format `domain + path`, validation des entrées cookie avant injection, et test de contrat correspondant.
+5. Correction de séquencement appliquée : les secrets Admin Replay et rate-limit sont exportés avant le démarrage du processus Next.js afin que le serveur enfant les hérite.
+
+### État au moment de cette mise à jour
+- HEAD contrôlé : `24d3e083f450e1beb49dff26faa39b04ba53d2fa`.
+- Validation `actionlint` du run qualité associé : SUCCESS.
+- Job qualité (tests, TypeScript, lint, build) : en cours.
+- Recette navigateur principale sur Replay : en cours ; aucun résultat fonctionnel final n'est encore revendiqué.
+- Dernière recette terminée : échec sur l'injection des cookies, avec nettoyage réussi et aucun résidu Replay.
+- Le contrôle ne devient vert qu'après PASS navigateur sur les trois rôles, les liens desktop/mobile, les six entrées Comptable, les deux points d'entrée Partenaire et fermeture des sessions, puis contrôle SQL sans résidu.
+
+### Gate
+- Statut global de ce contrôle : JAUNE tant que le workflow navigateur corrigé n'est pas terminé en SUCCESS.
+- Aucun bulk B1–B11 lancé. Aucun compte Auth créé. Aucun déploiement Preview ou Production effectué.
