@@ -28,3 +28,14 @@ test("la Caisse continue d'exiger le rôle authentifié et son périmètre pharm
   assert.match(page, /naxa_active_role_pharmacy/);
   assert.match(page, /naxa_business_function/);
 });
+
+const loginRoute = fs.readFileSync(
+  path.join(root, "src/app/api/auth/login/route.ts"),
+  "utf8",
+);
+
+test("la connexion professionnelle autorise une pharmacie masquée mais active", () => {
+  assert.match(loginRoute, /select\("id,actif,archivee_le"\)/);
+  assert.match(loginRoute, /\.is\("archivee_le", null\)/);
+  assert.doesNotMatch(loginRoute, /\.eq\("visible_recherche",\s*true\)/);
+});
