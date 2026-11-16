@@ -439,29 +439,33 @@ export async function modifierFicheProduitPharmacie(formData: FormData) {
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=fiche_modifiee");
 }
 
-export async function definirProduitUniversBebeMaman(formData: FormData) {
+export async function definirDestinationStockPharmacie(formData: FormData) {
   const sb = supabaseServer();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
 
   const pharmacie = String(formData.get("pharmacie_id") ?? "");
   const produit = String(formData.get("produit_id") ?? "");
+  const univers = String(formData.get("univers") ?? "");
   const active = String(formData.get("active") ?? "") === "true";
-  if (!safeUuid(pharmacie) || !safeUuid(produit)) {
-    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=bebe_maman");
+  if (!safeUuid(pharmacie) || !safeUuid(produit)
+      || !["bebe-maman", "parapharmacie"].includes(univers)) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=destination");
   }
 
-  const { data, error } = await sb.rpc("pharmacie_bebe_maman_produit_definir", {
+  const { data, error } = await sb.rpc("pharmacie_stock_destination_definir", {
     p_pharmacie: pharmacie,
     p_produit: produit,
+    p_univers: univers,
     p_active: active,
   });
   if (error || data !== true) {
-    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=bebe_maman");
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=destination");
   }
 
   revalidatePath("/pharmacie/gestionnaire-stock");
   revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
   revalidatePath("/bebe-maman");
-  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=" + (active ? "bebe_maman_active" : "bebe_maman_inactive"));
+  revalidatePath("/parapharmacie");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=destination_" + (active ? "active" : "inactive"));
 }
