@@ -19,8 +19,9 @@ export default async function CumulNaxaPage({searchParams}:{
   const sb=supabaseServer();
   const {data:auth}=await sb.auth.getUser();
   if(!auth.user)redirect("/connexion?retour=/naxa/cumuls");
-  const [{data:profile},{data:requests,error:requestError},{data:approvals,error:approvalError}]=await Promise.all([
-    sb.from("profiles").select("role,actif").eq("id",auth.user.id).maybeSingle(),
+  const [{data:profile},{data:activeRole},{data:requests,error:requestError},{data:approvals,error:approvalError}]=await Promise.all([
+    sb.from("profiles").select("actif").eq("id",auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
     sb.from("naxa_cumulative_activity_requests")
       .select("id,target_profile_id,requested_by,direction,destination_pharmacy_id,destination_role_code,reason,target_display_name,status,created_at,updated_at,completed_at")
       .order("created_at",{ascending:false}).limit(100),
@@ -29,7 +30,7 @@ export default async function CumulNaxaPage({searchParams}:{
       .order("created_at",{ascending:false}).limit(200),
   ]);
   if(!profile||profile.actif!==true)redirect("/");
-  const isAdmin=profile.role==="admin";
+  const isAdmin=activeRole==="admin";
   const requestRows=requests??[];
   const approvalRows=approvals??[];
   const approvalsByRequest=new Map<string,typeof approvalRows>();
