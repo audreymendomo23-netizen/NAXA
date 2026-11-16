@@ -395,6 +395,11 @@ async function run() {
       { label: "Plan comptable & mappings", href: "/pharmacie/comptabilite/plan" },
     ];
     for (const item of comptableLinks) {
+      // Le composant de navigation Comptable est monté sur le tableau de bord ;
+      // chaque cible est donc testée depuis ce point d'entrée, sans supposer
+      // que la sidebar reste présente sur les pages métier.
+      await comptablePage.goto(BASE_URL + "/pharmacie/comptable", { waitUntil: "domcontentloaded" });
+      await expectPath(comptablePage, "/pharmacie/comptable", "Retour au tableau de bord Comptable");
       const link = comptablePage.getByRole("navigation", { name: "Navigation Comptable" })
         .getByRole("link", { name: item.label, exact: true });
       await link.waitFor({ state: "visible" });
