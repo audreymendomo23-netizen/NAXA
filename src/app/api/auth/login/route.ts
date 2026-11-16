@@ -148,6 +148,17 @@ export async function POST(request: NextRequest) {
         await supabase.auth.signOut();
         return NextResponse.json({ error: "Cet identifiant ne dispose pas d'un espace client activé." }, { status: 403 });
       }
+      // Do not only redirect to Client: activate its independent workspace context
+      // so server guards and RLS no longer inherit the previously selected SPD/pharmacy role.
+      const { error: clientContextError } = await supabase.rpc("naxa_select_active_role", {
+        p_role_code: "client",
+        p_pharmacie_id: null,
+        p_partner_id: null,
+      });
+      if (clientContextError) {
+        await supabase.auth.signOut();
+        return NextResponse.json({ error: "Espace Client momentanément indisponible." }, { status: 503 });
+      }
     } else if (!(requestedSpace === "auto" && activeRole === "admin" && rootRole === "admin")) {
       await supabase.auth.signOut();
       return NextResponse.json({ error: "Aucun espace autorisé n'est associé à ce compte." }, { status: 403 });
