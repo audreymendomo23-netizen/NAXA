@@ -4009,3 +4009,36 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Développement sur `main`, sans déploiement pendant audit : remplacer les compteurs limités par des agrégats SQL exacts et des listes paginées, puis exécuter tests build/typecheck ciblés.
 - Sur Replay : exécuter la matrice d'autorisation et suspension ; documenter chaque PASS/FAIL.
 - Une fois ces critères de sécurité et supervision clos, le socle pourra être déclaré vert selon les critères de mise en production ; reprendre ensuite l'univers Bébé & Maman dans l'ordre impératif.
+
+## 91. Corrections supervision Admin et matrice d'accès Replay — 16/11/2026
+
+### 91.1 Supervision Admin — correction de code sur main
+- src/app/admin/page.tsx : chargement des pharmacies par pages de 500 lignes (range) jusqu'à épuisement ; comparaison avec le count exact de la base pour détecter toute page manquante. Les indicateurs du réseau continuent d'exclure les pharmacies démo via isDemoPharmacy ; les nombres de pharmacies, stocks horodatés, stocks à actualiser, quartiers et progression sont calculés sur l'ensemble des lignes récupérées, pas sur une fenêtre de 100.
+- src/app/admin/univers/page.tsx : partenaires et produits paginés par 25 ; journal paginé par 20 ; filtres partenaire/produit appliqués à la requête Supabase avant pagination ; totaux exacts chargés séparément pour partenaires actifs/en attente, produits publiés/brouillons, associations ouvertes, événements d'audit et professionnels de suivi.
+- Les sélecteurs de partenaires actifs du formulaire produit chargent leur propre liste paginée complète, indépendamment de la page visible des partenaires. En cas d'erreur d'un compteur ou d'une source, l'écran signale des données partielles et évite de présenter un total incomplet comme exact.
+- Commits main : 830f7d2028fb5941d7d487c82cb59bf0130eef3d, de70adf8de45077677348dccd04ed1194af10cb1, 3f79836e6f715864f0e83dcd79ce7f25397fd565, 456c5ef35a8a1f358f88b1db3bf8ea801eb3eb07 et 4914a832e88e9021c26e8a28433365e52d164fbc.
+- Limite de validation : les fichiers ont été relus après écriture GitHub ; aucun build Next.js, TypeScript ou test navigateur n'a été exécuté dans cette passe. La correction source est commitée, mais le résultat de compilation reste À TESTER.
+
+### 91.2 Matrice d'accès exécutée sur Replay
+- En contexte JWT authenticated, public.naxa_scope_allows a été exécutée sur des affectations actives réelles de Replay :
+  - caisse : pharmacie affectée autorisée = true ; autre pharmacie = false.
+  - gestionnaire_stock : affectée = true ; autre = false.
+  - livreur : affectée = true ; autre = false.
+  - responsable : affectée = true ; autre = false.
+- Promoteur : pharmacie présente dans promoteur_pharmacies et active autorisée = true ; pharmacie non affectée = false.
+- Client : accès au scope pharmacie testé = false.
+- Suspension : dans une transaction Replay, le profil Gestionnaire stock a été temporairement passé à actif=false ; naxa_scope_allows a renvoyé false ; transaction annulée par ROLLBACK. Contrôle post-transaction : profiles.actif=true, aucune suspension persistante.
+- Ces résultats confirment les chemins de scope testés, pas l'intégralité des permissions de toutes les RPC métier.
+
+### 91.3 Limites de la matrice — ne pas déclarer le point entièrement vert
+- Les comptes Replay présents couvrent Admin, Promoteur, Client, Caisse, Gestionnaire stock, Livreur et Responsable. Aucun profil/affectation actif Pharmacien ou Comptable n'a été identifié dans la matrice actuelle ; ces rôles ne sont donc pas certifiés en exécution.
+- Les opérations sensibles (vente caisse, mutation de stock, validation de réservation/livraison, lecture/export comptable) n'ont pas toutes été exécutées avec des tests d'écriture positifs et négatifs.
+- L'expiration d'une affectation et la révocation explicite par action métier ne sont pas encore validées séparément. Les tests de suspension du profil et de scope hors périmètre sont PASS.
+- Le point 4 est donc PARTIELLEMENT FERMÉ — JAUNE, avec 5 catégories de rôles/scopes contrôlées, mais pas une matrice complète de tous les rôles et actions.
+
+### 91.4 Décision et sécurité d'exécution
+- Environnement utilisé : Supabase Replay pwfftcsjyeibxxqhwysw uniquement.
+- Les tests de suspension ont été exécutés dans une transaction annulée ; l'état de profil a été vérifié actif après rollback.
+- Aucune migration, aucune écriture persistante, aucune modification Production, aucun déploiement.
+- La supervision Admin est corrigée au niveau source, mais reste À TESTER par build et navigation réelle.
+- État global : JAUNE / NON VERT jusqu'au build/typecheck, aux tests de navigation/pagination, à la matrice des actions sensibles et à la clôture des points externes HIBP / exposition API private.
