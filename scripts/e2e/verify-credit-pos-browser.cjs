@@ -647,7 +647,7 @@ async function run(env = process.env) {
 
     await clientPage.reload();
     await clientPage.getByRole("heading", { name: "Mes crédits et remboursements" }).waitFor();
-    await clientPage.getByText("Remboursement", { exact: false }).waitFor();
+    await clientPage.getByRole("heading", { name: "Mes reçus de remboursement" }).waitFor();
     await clientPage.getByText("0 FCFA", { exact: false }).first().waitFor();
 
     process.stdout.write("PASS — Client acheteur, Promoteur, Caisse/Stock authentifiés dans le navigateur NAXA.\n");
