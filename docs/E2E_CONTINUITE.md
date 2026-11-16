@@ -3315,3 +3315,73 @@ Les composants consultés montrent plusieurs contrôles correctement raccordés 
 ### Statut de l'audit préalable
 
 **EN COURS — aucun défaut de navigation n'a été corrigé dans cette étape ; aucune campagne E2E bulk n'a été exécutée.** Les pages suspectes ci-dessus sont des pistes étayées par les fichiers consultés, pas encore des défauts confirmés tant que les références entrantes dynamiques et les parcours conditionnels n'ont pas été éliminés.
+
+## 79. Résultat du balayage statique des 158 pages et contrôles UI — 16/11/2026
+
+### Méthode et couverture réellement effectuée
+
+- Relecture de l'arbre GitHub `main` : **158 fichiers `src/app/**/page.tsx`** recensés.
+- Inspection statique des 158 fichiers de page par lots : balises `button`, gestionnaires `onClick`, boutons `submit`, formulaires, liens `href` et appels de navigation explicites.
+- Croisement avec les composants/layouts de navigation communs cités en section 78 et avec les tableaux de bord Client, Pharmacie, Promoteur et Comptable.
+- Vérification directe du contenu des pages candidates pour distinguer les vraies pages des redirections historiques et des écrans de démonstration.
+
+Ce contrôle est une analyse du code source sur `main`. Il ne simule pas les clics dans un navigateur et ne prouve pas que les actions serveur aboutissent correctement avec chaque profil/donnée.
+
+### A. Pages réelles sans accès de navigation identifié
+
+| Page | Constat vérifié | Conclusion |
+|---|---|---|
+| `/pharmacie/promoteur/livraisons` | La page affiche un véritable rapport « Livraisons de mon réseau » et contrôle le rôle Promoteur. Elle ne figure ni dans les onglets du layout Promoteur ni dans les entrées du menu latéral Promoteur ; le tableau de bord Promoteur consulté ne la référence pas. La page ne propose qu'un retour vers le tableau de bord. | **Défaut de découvrabilité confirmé dans la navigation examinée** : accès direct par URL seulement, sauf éventuel lien dynamique externe non retrouvé. À ajouter à la navigation Promoteur ou à retirer si cette page n'est plus un module produit. |
+| `/partenaire/examens` | La page Partenaire existe et propose des formulaires métier ; elle contient des liens sortants vers `/centre-examens` et `/partenaire/reservations`, mais aucun lien entrant n'a été retrouvé dans les pages et navigations consultées. Aucun choix « examens » n'est défini dans le sélecteur d'espaces `EspaceNaxaSwitcher`. | **Page suspecte d'être orpheline** : son point d'entrée métier doit être confirmé et ajouté, ou la page doit être redirigée si elle est obsolète. |
+ 
+### B. Routes qui semblaient orphelines mais sont en réalité des redirections
+
+| Route | Code constaté | Qualification |
+|---|---|---|
+| `/admin/pharmaciens` | Redirige explicitement vers `/admin` | Route historique, pas une page métier isolée |
+| `/pharmacie/assistant` | Commentaire de code : ancienne URL conservée ; redirige vers `/pharmacie/pharmacien` car le poste Assistant pharmacien n'existe plus | Alias historique intentionnel |
+| `/pharmacien/validations` | Redirige vers `/pharmacie/pharmacien/ordonnances` | Alias historique intentionnel |
+| `/suivi/professionnel` | Redirige selon l'authentification, l'activation et la vérification professionnelle vers la demande ou l'espace patients | Route de dispatch conditionnelle |
+| `/suivi/professionnel/disponibilites` | Redirige vers la convention de prestations partenaire | Route de transition conditionnelle |
+
+Ces routes ne doivent pas être traitées comme des pages à ajouter au menu.
+
+### C. Routes internes, de démonstration ou d'accès contextuel
+
+- `/pharmacie/caisse/maquette-visuelle` et `/pharmacie/caisse/parcours-ui` : pages de maquette/démonstration, sans entrée dans la navigation Caisse de production consultée. Ne pas les ajouter au menu utilisateur sans décision produit explicite.
+- `/demo/otp` : route de démonstration ; ne pas l'exposer dans la navigation publique.
+- `/invitation/livreur` et `/invitation/personnel-examen` : parcours d'invitation à accès direct par lien, non destinés à un menu permanent.
+- `/verification-age`, `/completer-profil`, `/nouveau-mot-de-passe`, `/pharmacie/suspendue` et les reçus à identifiant : routes de garde, de reprise ou de lien contextuel.
+- Les sous-routes Comptable absentes de la sidebar sont néanmoins liées depuis le tableau de bord Comptable : elles ne sont donc pas inaccessibles, mais la navigation persistante est incomplète. Ajouter à la sidebar, si souhaité, Créances & bordereaux, Rejets & relances, Rapports & exports, Documents et Référentiels.
+- Les univers Parapharmacie et Bébé & Maman restent explicitement bloqués conformément à la décision produit ; leur état désactivé n'est pas une anomalie de clic.
+
+### D. Contrôle statique des boutons
+
+Le balayage des 158 pages n'a pas permis d'établir de bouton de page utilisateur clairement dépourvu de toute action. Les candidats repérés par l'absence de `onClick` sont, dans les fichiers vérifiés, majoritairement :
+- des boutons de soumission placés dans un `form` (soumission HTML ou Server Action) ;
+- des actions rendues explicitement indisponibles par `disabled` jusqu'à disponibilité des données/prérequis ;
+- des commandes natives d'impression/fermeture intégrées à du HTML de reçu.
+
+Les contrôles de navigation communs examinés disposent d'une destination, d'un gestionnaire d'ouverture/fermeture ou d'un état disabled explicite. Le menu Client expose des univers verrouillés sous forme de contrôles désactivés, ce qui est cohérent avec la décision de blocage.
+
+**Résultat : 0 bouton de page confirmé comme « décoratif mais présenté comme action sans aucun handler, formulaire ou destination » par ce contrôle statique.** Ce résultat n'est pas une certification runtime : les composants enfants partagés non inspectés ligne par ligne et les clics réels restent à valider dans le navigateur.
+
+### E. Navigation persistante : points d'amélioration
+
+1. Promoteur : ajouter un accès visible vers `/pharmacie/promoteur/livraisons` dans le menu Promoteur et/ou le tableau de bord si le rapport est toujours actif.
+2. Partenaire : décider et implémenter un accès clair vers `/partenaire/examens`, selon le rôle exact du partenaire et son articulation avec `/centre-examens`.
+3. Comptable : harmoniser la sidebar avec les pages déjà reliées depuis le tableau de bord, pour que l'utilisateur ne soit pas obligé de revenir à l'accueil du poste pour changer de module.
+4. Vérifier les actions UI en exécution réelle, en priorité sur les boutons de formulaire, les actions conditionnelles, les liens à paramètres dynamiques et les commandes des composants partagés.
+
+### F. Verdict et prérequis de recette
+
+**JAUNE — audit source de navigation avancé, validation interactive non réalisée.**
+
+- Les 158 fichiers de page ont fait l'objet du balayage statique décrit ci-dessus.
+- Deux pages métier ressortent avec un accès de navigation non retrouvé : Promoteur/Livraisons (défaut de découvrabilité confirmé dans les menus examinés) et Partenaire/Examens (page suspecte à confirmer).
+- Les anciennes routes de l'Assistant pharmacien, des validations Pharmacien et des Pharmaciens Admin sont des redirections intentionnelles, pas des pages orphelines.
+- Aucun bouton utilisateur de page n'a été confirmé comme no-op par l'inspection statique ; les contrôles de formulaire et disabled restent à tester dans un navigateur.
+
+**Avant la première campagne bulk :** corriger ou décider formellement du sort des deux pages suspectes, compléter si nécessaire la navigation Comptable, puis faire une passe interactive avec les comptes Replay existants sur chaque rôle et chaque menu. Si aucun Preview/Replay navigateur correspondant au SHA applicatif courant n'est disponible sans déploiement, ne pas en créer pendant cet audit : consigner le contrôle runtime comme bloqué et attendre une autorisation explicite.
+
+**Aucune correction applicative, aucune migration, aucune exécution bulk et aucun déploiement n'ont été effectués pendant ce balayage.**
