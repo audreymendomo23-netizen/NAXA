@@ -3075,7 +3075,8 @@ Replay exclusivement (`pwfftcsjyeibxxqhwysw`). Aucune écriture Supabase Product
 ### Qualité
 
 - Le SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5` a son run Qualité `43791964638` : **SUCCESS** (actionlint, tests, TypeScript, lint et build Next.js).
-- Le présent complément documentaire est postérieur au SHA applicatif et ne modifie pas le code produit. Son contrôle qualité déclenché sur le commit documentaire doit être lu séparément avant de considérer la tête de `main` entièrement validée.
+- Le présent complément documentaire est postérieur au SHA applicatif et ne modifie pas le code produit.
+- La tête documentaire `ff30cd524ffdcf93e887a109e8eaed9dacb52717` a elle-même son run Qualité `43792994708` : **SUCCESS** (actionlint et qualité complète + build Next.js). Les commits entre le SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5` et cette tête ne modifient que `docs/E2E_CONTINUITE.md`.
 
 ### Périmètre et limites de preuve
 
@@ -3083,3 +3084,34 @@ Replay exclusivement (`pwfftcsjyeibxxqhwysw`). Aucune écriture Supabase Product
 - Aucune écriture Supabase Production, aucun déploiement Vercel et aucune publication Play Store.
 - La preuve Web Push concerne le navigateur Chromium et le worker NAXA ; elle n'est pas une preuve de notification Android FCM physique.
 - Le run Replay est **VERT**. Ne pas étendre ce résultat à une validation générale de domaines fonctionnels qui ne faisaient pas partie de cette campagne E2E.
+
+
+## 75. Confirmation finale « parcours navigateur et Storage au vert » — 16/11/2026
+
+### État consolidé
+
+| Contrôle | État | Preuve terminale |
+|---|---|---|
+| Qualité applicative (tests, TypeScript, lint, build) | **VERT** | Run `43792994708` SUCCESS sur la tête documentaire `ff30cd524ffdcf93e887a109e8eaed9dacb52717` ; run applicatif `43791964638` SUCCESS sur `f58a9373d4144b2259c1ed8e93758a90a3e87de5` |
+| Provisionnement des comptes Replay | **PASS** | Run `43791964746`, étapes 5 à 11 SUCCESS : Promoteur, Admin, Client, Livreur, Gestionnaire Stock, Caisse, Responsable et deux pharmacies HYBRIDE liées |
+| Installation du navigateur | **PASS** | Run `43791964746`, étape 12 — installation Chromium SUCCESS |
+| Parcours navigateur complet | **PASS** | Run `43791964746`, étapes 15 à 17 : Web Push 3/3, crédit comptoir/POS, Marketplace et comptabilité |
+| Upload réel Storage | **PASS** | Run `43791964746`, étape 18 : **17 PASS, 0 SKIP**, matrice Admin et Promoteur obligatoire |
+| Nettoyage de la recette | **PASS** | Run `43791964746`, étape 19 : fichiers secrets éphémères supprimés, sessions fermées/révoquées et comptes temporaires supprimés |
+| Verdict final Web Push | **PASS** | Run `43791964746`, étape 20 SUCCESS |
+
+### Preuves fonctionnelles notables
+
+- Web Push : 3 souscriptions Chromium authentifiées ; le worker NAXA a envoyé 3 notifications ciblées, reçues dans les 3 Service Workers. Le résultat prouve la réception navigateur, pas une réception physique Android/FCM.
+- Crédit comptoir : demande au-dessus du plafond sans paiement ni débit initial ; approbation Promoteur ; même brouillon repris ; débit stock une seule fois ; remboursement réel via JWT Caisse ; solde nul et clôture rapprochée sans écart.
+- Marketplace : client authentifié, offre Replay temporaire, ajout panier, justificatif PDF, demande `en_attente`, refus Promoteur et stock inchangé.
+- Comptabilité : 2 comptes, 2 journaux et 4 mappings créés puis validés depuis l'interface ; seules les lignes de configuration synthétiques ont été nettoyées, l'audit fonctionnel est conservé.
+- Storage : dépôt et lecture réelle Admin/Promoteur, téléchargements privés/signés, isolement inter-utilisateurs et inter-pharmacies, accès anonyme et MIME interdits, suppression propriétaire ; 17 PASS et aucun SKIP.
+
+### Verdict CTO
+
+**AU VERT pour la campagne E2E Replay crédit / Marketplace / comptabilité / Web Push navigateur / Storage.** Le run final est `43791964746` SUCCESS sur le SHA applicatif `f58a9373d4144b2259c1ed8e93758a90a3e87de5`. La tête actuelle `main` est `ff30cd524ffdcf93e887a109e8eaed9dacb52717`, constituée depuis ce SHA uniquement de commits documentaires ; son contrôle qualité `43792994708` est SUCCESS.
+
+**Limite de portée :** ce vert ne signifie ni preuve de push Android FCM physique ni validation générale de tous les modules NAXA. Il certifie les parcours précisément nommés ci-dessus.
+
+**Périmètre :** Supabase Replay uniquement. Aucune modification Supabase Production, aucun déploiement Vercel et aucune publication Play Store.
