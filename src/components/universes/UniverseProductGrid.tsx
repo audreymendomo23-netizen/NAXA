@@ -360,7 +360,7 @@ export function UniverseProductGrid({ products, universe }: { products: Product[
                   <input type="hidden" name="owner_type" value={first.ownerType}/>
                   <input type="hidden" name="owner_id" value={first.ownerId}/>
                   <input type="hidden" name="universe_slug" value={first.universe}/>
-                  <input type="hidden" name="items" value={JSON.stringify(g.lines.map(x => ({ product_id: x.productId.split(":").slice(2).join(":"), quantity: x.quantity })))}/>
+                  <input type="hidden" name="items" value={JSON.stringify(g.lines.map(x => ({ product_id: x.catalogProductId, quantity: x.quantity })))}/>
                   <button className="min-h-11 w-full rounded-xl bg-[#064B2A] px-4 py-2 font-bold text-white">Réserver ce groupe pour retrait</button>
                 </form>
               </section>;
