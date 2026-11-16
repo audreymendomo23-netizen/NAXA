@@ -289,13 +289,22 @@ async function run(env = process.env) {
     promoterPage.setDefaultTimeout(30000);
     await pageLogin(promoterPage, PROMOTER_USERNAME, promoterPassword, "pharmacie", "/pharmacie/promoteur/credits");
     await promoterPage.getByRole("heading", { name: /Crédits clients/ }).waitFor();
-    // Les demandes sont triées de la plus récente à la plus ancienne.
-    // Cibler explicitement la demande encore en attente évite une ancienne carte rejetée.
-    const requestCard = promoterPage.locator("article")
-      .filter({ hasText: PRODUCT_NAME })
-      .filter({ hasText: "en_attente" })
-      .first();
-    await requestCard.waitFor({ state: "visible", timeout: 60000 });
+    // La référence affichée dans l'interface est dérivée de l'UUID de la demande.
+    // On cible cet identifiant exact, jamais le nom du produit ou une position de carte.
+    const requestReference = requestId.replace(/-/g, "").slice(0, 8).toUpperCase();
+    const requestHeading = promoterPage.getByRole("heading", {
+      name: "Demande #" + requestReference,
+      exact: true,
+    });
+    await requestHeading.waitFor({ state: "visible", timeout: 60000 });
+    const requestCard = promoterPage.locator("article").filter({ has: requestHeading });
+    if (await requestCard.count() !== 1) {
+      throw new Error("La référence exacte de la demande Marketplace doit identifier une seule carte.");
+    }
+    const requestCardText = await requestCard.innerText();
+    if (!requestCardText.includes("Source : Marketplace") || !requestCardText.includes("en_attente")) {
+      throw new Error("La carte ciblée n'est pas la demande Marketplace encore en attente.");
+    }
     const refuseButton = requestCard.getByRole("button", { name: "Refuser", exact: true });
     if (await refuseButton.count() !== 1) {
       throw new Error("La demande Marketplace en attente doit exposer un unique bouton Refuser.");
