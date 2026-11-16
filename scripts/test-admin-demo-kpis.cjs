@@ -30,7 +30,7 @@ test("le tableau de bord compte les pharmacies opérationnelles hors démos", ()
   assert.match(home, /totalPharmacies!==toutesLesPharmacies\.length/);
   assert.match(home, /select\("id,nom,ville,quartier,stock_updated_at,actif,visible_recherche,est_demo"\)/);
   assert.match(home, /listePharmacies=toutesLesPharmacies\.filter\(x=>!isDemoPharmacy\(x\.nom,x\.est_demo\)\)/);
-  assert.match(home, /stocksHorodates=listePharmacies\.filter/);
+  assert.match(home, /stocksHorodates=erreurPharmacies\?0:listePharmacies\.filter\(x=>x\.stock_updated_at\)\.length/);
   assert.match(home, /CatalogueCreation pharmacies=\{listePharmacies\.filter\(x=>x\.actif===true&&x\.visible_recherche===true\)/);
 });
 
