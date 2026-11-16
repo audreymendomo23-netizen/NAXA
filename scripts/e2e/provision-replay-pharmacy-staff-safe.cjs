@@ -36,6 +36,24 @@ const PERSONAS = [
     lastName: "Client Acheteur E2E",
     role: "client",
   },
+  {
+    key: "comptable",
+    email: "naxa.e2e.comptable@example.invalid",
+    username: "naxa_e2e_comptable",
+    phone: "+237600000093",
+    firstName: "Compte",
+    lastName: "Comptable E2E",
+    role: "comptable",
+  },
+  {
+    key: "pharmacien",
+    email: "naxa.e2e.pharmacien@example.invalid",
+    username: "naxa_e2e_pharmacien",
+    phone: "+237600000092",
+    firstName: "Compte",
+    lastName: "Pharmacien E2E",
+    role: "pharmacien",
+  },
 ];
 
 function assertReplayUrl(value) {
@@ -88,6 +106,28 @@ function assertFixture(user, profile, persona) {
 
 function generateEphemeralPassword() {
   return randomBytes(32).toString("base64url") + "Aa!9";
+}
+
+function buildTestCredentialPdf() {
+  const content = "BT /F1 12 Tf 24 110 Td (NAXA E2E TEST CREDENTIAL - NOT A REAL LICENSE) Tj 0 -22 Td (Replay-only pharmacist workflow validation) Tj ET";
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 160] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Length " + Buffer.byteLength(content, "utf8") + " >>\\nstream\\n" + content + "\\nendstream",
+  ];
+  let pdf = "%PDF-1.4\\n";
+  const offsets = [0];
+  for (let i = 0; i < objects.length; i += 1) {
+    offsets.push(Buffer.byteLength(pdf, "utf8"));
+    pdf += (i + 1) + " 0 obj\\n" + objects[i] + "\\nendobj\\n";
+  }
+  const xref = Buffer.byteLength(pdf, "utf8");
+  pdf += "xref\\n0 " + (objects.length + 1) + "\\n0000000000 65535 f \\n";
+  for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, "0") + " 00000 n \\n";
+  pdf += "trailer\\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\\nstartxref\\n" + xref + "\\n%%EOF";
+  return Buffer.from(pdf, "utf8");
 }
 
 async function provision(env = process.env) {
@@ -152,6 +192,26 @@ async function provision(env = process.env) {
     }
     roleSessions.push(result.data.access_token);
     return { id: result.data.user.id, token: result.data.access_token };
+  }
+
+  async function uploadPharmacistCredential(accessToken, objectPath) {
+    const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(
+      baseUrl + "/storage/v1/object/naxa-pharmacien-accreditations/" + encodedPath,
+      {
+        method: "POST",
+        headers: {
+          apikey: anonKey,
+          Authorization: "Bearer " + accessToken,
+          "Content-Type": "application/pdf",
+          "x-upsert": "true",
+        },
+        body: buildTestCredentialPdf(),
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Dépôt du justificatif Pharmacien E2E refusé (HTTP " + response.status + ").");
+    }
   }
 
   async function logout(accessToken) {
@@ -246,7 +306,7 @@ async function provision(env = process.env) {
     if (!env.GITHUB_ENV || !env.RUNNER_TEMP) {
       throw new Error("Export des secrets E2E autorisé uniquement depuis GitHub Actions.");
     }
-    for (const key of ["client", "caisse"]) {
+    for (const key of ["client", "caisse", "stock", "comptable", "pharmacien"]) {
       const passwordFile = env.RUNNER_TEMP + "/naxa-e2e-" + key + "-" + randomBytes(8).toString("hex") + ".secret";
       fs.writeFileSync(passwordFile, fixtures[key].password, { encoding: "utf8", flag: "wx", mode: 0o600 });
       const variable = "NAXA_STORAGE_E2E_" + key.toUpperCase() + "_PASSWORD_FILE";
@@ -275,6 +335,43 @@ async function provision(env = process.env) {
         });
         if (!provisioned.ok) {
           throw new Error("Provisionnement Caisse refusé (HTTP " + provisioned.status + ").");
+        }
+      } else if (persona.role === "pharmacien") {
+        const accreditationRows = await restAdmin(
+          "naxa_pharmacien_accreditations?select=id,status,assignment_id,valid_until"
+            + "&profile_id=eq." + encodeURIComponent(fixtures[persona.key].id)
+            + "&pharmacie_id=eq." + encodeURIComponent(pharmacyId)
+            + "&limit=10"
+        );
+        if (!Array.isArray(accreditationRows)) throw new Error("Lecture du dossier Pharmacien impossible.");
+        const approved = accreditationRows.find(row =>
+          row.status === "approved_promoteur" && row.assignment_id
+          && (!row.valid_until || new Date(row.valid_until + "T23:59:59Z").getTime() >= Date.now())
+        );
+        if (!approved) {
+          const objectPath = promoter.id + "/" + fixtures.pharmacien.id + "/" + pharmacyId + "/credential-e2e.pdf";
+          await uploadPharmacistCredential(promoter.token, objectPath);
+          const proposed = await rpc("naxa_proposer_accreditation_pharmacien", promoter.token, {
+            p_target: fixtures.pharmacien.id,
+            p_pharmacie: pharmacyId,
+            p_registration_number: "E2E-TEST-" + fixtures.pharmacien.id.slice(0, 8),
+            p_issuing_authority: "NAXA Replay - justificatif fictif de recette",
+            p_specialty: "Pharmacie",
+            p_credential_storage_path: objectPath,
+            p_valid_until: "2099-12-31",
+            p_motif: "Compte Pharmacien fictif exclusivement destiné à la recette Replay.",
+          });
+          if (!proposed.ok || typeof proposed.data !== "string") {
+            throw new Error("Proposition Pharmacien par le Promoteur refusée (HTTP " + proposed.status + ").");
+          }
+          const decision = await rpc("naxa_promoteur_decider_accreditation_pharmacien", promoter.token, {
+            p_accreditation: proposed.data,
+            p_decision: "approve",
+            p_note: "Validation fictive de recette Replay ; justificatif non réglementaire.",
+          });
+          if (!decision.ok || typeof decision.data !== "string") {
+            throw new Error("Validation Pharmacien par le Promoteur refusée (HTTP " + decision.status + ").");
+          }
         }
       } else if (!existing) {
         const provisioned = await rpc("naxa_grant_professional_assignment", promoter.token, {
@@ -362,7 +459,9 @@ async function provision(env = process.env) {
       throw new Error("Une session Caisse de test reste ouverte ; aucune caisse ne devait être ouverte.");
     }
 
-    process.stdout.write("PASS — 3 identités Replay vérifiées : Gestionnaire Stock, Caisse et Client acheteur distinct du Livreur.\n");
+    process.stdout.write("PASS — 5 identités Replay vérifiées : Gestionnaire Stock, Caisse, Client, Comptable et Pharmacien.\n");
+    process.stdout.write("PASS — Comptable affecté par le Promoteur ; Pharmacien proposé puis validé par le Promoteur avec justificatif fictif E2E.\n");
+    process.stdout.write("PASS — les cinq profils se connectent et résolvent leur poste actif sur la pharmacie attendue.\n");
     process.stdout.write("PASS — affectations Stock/Caisse actives, comptes racine Client et postes exclusifs.\n");
     process.stdout.write("PASS — une Caisse physique active créée et visible par son compte via RLS.\n");
     process.stdout.write("PASS — lecture RLS du stock par le Gestionnaire Stock ; aucune quantité, réservation, vente ou mission modifiée.\n");
