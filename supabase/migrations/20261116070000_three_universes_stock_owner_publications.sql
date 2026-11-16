@@ -330,9 +330,6 @@ as $function$
     and pu.universe_slug='parapharmacie' and pu.enabled=true
   join public.universes up on up.slug='parapharmacie' and up.enabled=true
   join public.feature_flags fp on fp.flag_key='universe.parapharmacie' and fp.enabled=true
-  left join public.partner_product_univers_publications pub
-    on pub.partner_id=pa.id and pub.product_id=pp.id
-    and pub.universe_slug='bebe-maman' and pub.active=true
   left join lateral (
     select coalesce(sum(ri.quantity),0)::numeric quantity_reserved
     from public.universe_reservation_items ri
@@ -345,7 +342,6 @@ as $function$
     and pp.universe_slug='parapharmacie'
     and pp.status='active'
     and (pp.expires_at is null or pp.expires_at>=current_date)
-    and not private.naxa_partner_actor_can(pp.partner_id,'__NO_CATALOG_AUTH__')
   ) and pp.stock_quantity-coalesce(reserved.quantity_reserved,0)>0
 
   union all
@@ -525,9 +521,6 @@ begin
       ) or not private.naxa_bebe_maman_partner_product_allowed(prod.id) then
         raise exception 'Produit non publié ou non éligible à Bébé & Maman';
       end if;
-    elsif not private.naxa_pharmacie_parapharmacie_product_allowed(prod.id)
-      and exists(select 1 from public.produits p where p.id=prod.id) then
-      raise exception 'Produit non éligible à Parapharmacie';
     end if;
 
     select coalesce(sum(ri.quantity),0) into reserved
