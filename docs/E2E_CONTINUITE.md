@@ -4034,7 +4034,7 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Les comptes Replay présents couvrent Admin, Promoteur, Client, Caisse, Gestionnaire stock, Livreur et Responsable. Aucun profil/affectation actif Pharmacien ou Comptable n'a été identifié dans la matrice actuelle ; ces rôles ne sont donc pas certifiés en exécution.
 - Les opérations sensibles (vente caisse, mutation de stock, validation de réservation/livraison, lecture/export comptable) n'ont pas toutes été exécutées avec des tests d'écriture positifs et négatifs.
 - L'expiration d'une affectation et la révocation explicite par action métier ne sont pas encore validées séparément. Les tests de suspension du profil et de scope hors périmètre sont PASS.
-- Le point 4 est donc PARTIELLEMENT FERMÉ — JAUNE, avec 5 catégories de rôles/scopes contrôlées, mais pas une matrice complète de tous les rôles et actions.
+- Le point 4 est donc PARTIELLEMENT FERMÉ — JAUNE, avec 6 catégories de rôles/scopes contrôlées, mais pas une matrice complète de tous les rôles et actions.
 
 ### 91.4 Décision et sécurité d'exécution
 - Environnement utilisé : Supabase Replay pwfftcsjyeibxxqhwysw uniquement.
