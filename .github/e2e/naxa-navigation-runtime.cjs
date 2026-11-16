@@ -353,11 +353,19 @@ async function run() {
     const promoterPage = await promoterContext.newPage();
     promoterPage.setDefaultTimeout(15000);
     await promoterPage.goto(BASE_URL + "/pharmacie/promoteur", { waitUntil: "domcontentloaded" });
-    const promoterLink = promoterPage.locator('a[href="/pharmacie/promoteur/livraisons"]').first();
+    const subNavigation = promoterPage.getByRole("navigation", { name: "Navigation des sous-pages Promoteur" });
+    const subNavigationLink = subNavigation.locator('a[href="/pharmacie/promoteur/livraisons"]');
+    await subNavigationLink.waitFor({ state: "visible" });
+    await subNavigationLink.click();
+    await expectPath(promoterPage, "/pharmacie/promoteur/livraisons", "Sous-navigation Promoteur → Livraisons du réseau");
+    await expectPageHeading(promoterPage, "Sous-navigation Promoteur → Livraisons du réseau");
+    await promoterPage.goto(BASE_URL + "/pharmacie/promoteur", { waitUntil: "domcontentloaded" });
+    const promoterNavigation = promoterPage.getByRole("navigation", { name: "Sections Promoteur" });
+    const promoterLink = promoterNavigation.locator('a[href="/pharmacie/promoteur/livraisons"]');
     await promoterLink.waitFor({ state: "visible" });
     await promoterLink.click();
-    await expectPath(promoterPage, "/pharmacie/promoteur/livraisons", "Promoteur → Livraisons du réseau");
-    await expectPageHeading(promoterPage, "Promoteur → Livraisons du réseau");
+    await expectPath(promoterPage, "/pharmacie/promoteur/livraisons", "Navigation latérale Promoteur → Livraisons du réseau");
+    await expectPageHeading(promoterPage, "Navigation latérale Promoteur → Livraisons du réseau");
     await promoterContext.close();
 
     const promoterMobileContext = await browserContext(browser, promoterSession, { width: 390, height: 844 });
