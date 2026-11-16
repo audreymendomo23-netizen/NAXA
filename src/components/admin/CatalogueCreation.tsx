@@ -47,6 +47,7 @@ const errorText: Record<string, string> = {
   abonnement: "L’abonnement n’a pas pu être créé.",
   reseau: "Le rattachement du Promoteur à la pharmacie a échoué.",
   dossier: "Le dossier n’a pas pu être créé. Le compte provisoire a été supprimé si la création métier a échoué.",
+  cumul: "Le cumul Pharmacie → SPD doit être approuvé par tous les Promoteurs concernés avant la création du dossier.",
   canal_unique: "La création initiale est centralisée dans le Catalogue NAXA. Utilisez le formulaire unique ci-dessous.",
   pharmacie_parrainage: "Choisissez une pharmacie partenaire active et visible dans la recherche.",
   service_bebe_maman: "Le service n’a pas pu être rattaché. Vérifiez que la migration de gestion des services est disponible.",
