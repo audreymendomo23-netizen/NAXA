@@ -53,7 +53,7 @@ begin
      or position('expire_at' in v_grant)=0
      or position('p_target=v_actor' in lower(replace(v_grant,' ','')))=0
      or position('pg_advisory_xact_lock' in lower(v_grant))=0
-     or position('a.commence_at < p_expire_at' in v_grant)=0 then
+     or position('a.commence_at<p_expire_at' in lower(replace(v_grant,' ','')))=0 then
     raise exception 'FAIL: garde de grant incomplète';
   end if;
 
