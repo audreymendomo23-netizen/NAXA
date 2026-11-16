@@ -34,7 +34,8 @@ export default function Panier() {
             <div className="mt-2 flex items-center gap-2"><button className="btn btn-clair !px-0 h-9 w-9" onClick={()=>changerQuantite(line.produit_id,line.quantite-1)} disabled={line.quantite<=1}>−</button><output className="w-6 text-center font-extrabold">{line.quantite}</output><button className="btn btn-clair !px-0 h-9 w-9" onClick={()=>changerQuantite(line.produit_id,line.quantite+1)} disabled={line.quantite>=Math.min(MAX_QTE,line.quantite_max ?? MAX_QTE)}>+</button><button className="ml-2 text-sm font-semibold text-red-700 underline" onClick={()=>retirer(line.produit_id)}>Retirer</button></div>
           </div>
         </li>)}</ul>
-        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Le transfert de ces articles vers les pharmacies sera activé après validation du parcours de réservation B&amp;M côté serveur. Aucun article ne sera envoyé par le circuit médicaments.</p>
+        <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs leading-5 text-rose-900">Chaque pharmacie reçoit une réservation ERP standard. Le stock est contrôlé et temporairement réservé côté serveur ; le paiement reste directement géré par la pharmacie.</p>
+        <Link href="/commande/bebe-maman" className="btn btn-vert mt-3 w-full">Finaliser les réservations Bébé &amp; Maman</Link>
       </section>}
       {pret && medicaments.length > 0 && <section className="mt-6"><h2 className="text-lg font-extrabold">Médicaments</h2><ul className="mt-3 space-y-3">{medicaments.map(line=><li key={line.produit_id} className="carte">
         <Link href={`/produit/${line.produit_id}`} className="font-bold underline">{line.nom}</Link>{line.dosage&&<p className="mt-1 text-sm text-slate-500">{line.dosage}</p>}
