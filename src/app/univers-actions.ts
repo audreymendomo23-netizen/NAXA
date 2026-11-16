@@ -128,6 +128,7 @@ export async function reserverGroupeProduits(form: FormData) {
   }
   if (!["parapharmacie", "bebe-maman"].includes(universe) || !ownerType
       || !uuid(ownerId) || items.length < 1 || items.length > 20
+      || (ownerType === "pharmacie" && items.length > 10)
       || items.some((item) => !uuid(item.product_id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10)
       || new Set(items.map((item) => item.product_id)).size !== items.length) {
     redirect(universePath(universe) + "?erreur=panier");
