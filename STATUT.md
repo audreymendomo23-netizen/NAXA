@@ -1591,9 +1591,11 @@ Migration additive 263 ajoutée sur `main` et appliquée uniquement au rejeu non
 
 ## POS crédit et Replay E2E — mise à jour 16/11/2026
 
-- Correctif versionné et appliqué sur Replay : les champs du paiement crédit sont insérés atomiquement ; le finaliseur les vérifie sans UPDATE POS protégé. Test SQL Replay PASS ; les ACL et le trigger strict restent en place.
-- Récupération E2E renforcée : vente approuvée reprise par RPC, solde crédit remboursé, session Caisse clôturée et stock de fixture restauré par RPC audité.
-- Qualité GitHub du SHA `bfc2659e53aceab5677e9841cf72e7c0bf17f9c3` : SUCCESS.
-- Réserve : Web Push renvoie encore HTTP 410 sur une nouvelle souscription Google dans un run intermédiaire. Une sonde directe est versionnée et le run final Replay associé au SHA courant est en attente. Le workflow navigateur complet n'a pas encore un statut terminal SUCCESS.
-- Les paramètres comptables de démonstration créés par le scénario Promoteur sont nettoyés ; les valeurs comptables réelles restent à saisir par le Promoteur/Comptable de chaque pharmacie commerciale, sans données inventées.
-- Pas d'écriture Supabase Production, pas de déploiement Vercel, pas de publication Play Store. Référence détaillée : `docs/E2E_CONTINUITE.md`, §70.
+- Migration POS crédit `20261116010200_credit_pos_payment_insert_fields_fix.sql` appliquée uniquement sur Replay ; test SQL structural PASS. Le paiement est inséré avec les champs complets, sans contourner le trigger POS.
+- Run Replay `43785073358` : Web Push réel **3/3 PASS**, remboursement via JWT Caisse **PASS**, mais run global **FAILURE** au contrôle Playwright Client : le sélecteur « Achat à crédit » correspondait à 3 éléments. La vente crédit avait déjà été finalisée ; le défaut se trouvait dans le sélecteur de recette.
+- Sélecteur corrigé avec `.first()` et assertion unitaire ajoutée. Cleanup durci pour repérer les ventes crédit déjà finalisées dans la session E2E, vérifier la demande Promoteur consommée, rembourser puis restituer le stock par RPC Gestionnaire Stock.
+- Un run qualité intermédiaire a échoué à cause d'une regex invalide dans le test Push ; corrigée par assertions textuelles simples. Le SHA courant au dernier relevé est `e1ff5e3e64e618df11dc5c3d98d6748b49bb8a81` ; qualité `43786934881` et Replay `43786934901` sont pending, sans résultat terminal.
+- Nettoyage Replay relu : 0 session Caisse ouverte, 0 FCFA de solde crédit, 0 demande crédit en attente, 0 événement comptable en attente/en cours ; stock technique restauré à 4 unités via RPC audité. Historique d'audit conservé.
+- Statut : **JAUNE global** jusqu'au SUCCESS terminal du workflow Replay et au passage de Storage. Les sous-parties SQL POS, Web Push et remboursement JWT sont vertes.
+- Pas de Production, pas de déploiement Vercel, pas de publication Play Store.
+- Continuité détaillée : `docs/E2E_CONTINUITE.md`, §70.
