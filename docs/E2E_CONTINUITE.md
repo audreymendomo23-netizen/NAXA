@@ -4695,3 +4695,27 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - PASS : exécution réelle de la fonction worker interne, publication équilibrée d'une écriture, vérification d'audit et fonction de clôture sous service_role dans une transaction Replay isolée.
 - PARTIEL : l'événement source était synthétique, inséré dans la transaction ; la chaîne complète vente POS réelle → trigger outbox → worker planifié → écriture persistée → clôture persistée n'a pas encore été exécutée dans un même parcours durable.
 - Le cron n'a pas été forcé manuellement et les événements d'une autre pharmacie n'ont pas été traités.
+
+
+## 111. Recette navigateur crédit : cause racine et correction de l'accès ERP masqué (16/11/2026)
+
+**Run 43948192865 — résultat vérifié**
+- Provisionnement Promoteur, Admin, Client/Livreur, personnel Pharmacie, pharmacie technique masquée, Caisse/stock : PASS.
+- Build Next.js : PASS ; Web Push Chromium : 3 souscriptions, 3 envois et 3 réceptions Service Worker, PASS.
+- Remboursement crédit par JWT Caisse : PASS ; diminution exacte de 250 FCFA, outbox idempotente et refus de dépassement.
+- Marketplace navigateur : PASS ; dépôt d'une demande, refus Promoteur et stock inchangé.
+- Paramétrage comptable navigateur : PASS ; deux comptes, deux journaux et quatre mappings validés puis nettoyage des seules lignes de configuration.
+- Storage E2E : 17 PASS, 0 SKIP ; matrices Admin/Promoteur, refus inter-utilisateurs et nettoyage PASS.
+- Seul échec : connexion navigateur Caisse à la pharmacie technique masquée, HTTP 403 « Cette pharmacie est suspendue ou indisponible ».
+
+**Cause racine prouvée**
+- La recette POS utilise volontairement une pharmacie active, non archivée et masquée du Marketplace (visible_recherche=false), conformément à la séparation ERP interne / publication publique.
+- La page Caisse appliquait déjà la bonne règle (actif + non archivée). En contradiction, POST /api/auth/login exigeait aussi visible_recherche=true pour Promoteur et rôles professionnels ; le serveur refusait donc un compte pourtant affecté à une pharmacie interne active.
+
+**Correction appliquée sur main**
+- Retrait du filtre Marketplace de la validation de connexion professionnelle.
+- Contrôle conservé : pharmacie active et non archivée, rôle professionnel actif et périmètre de l'affectation.
+- Ajout d'un test de contrat dans scripts/test-caisse-unpublished-pharmacy-access.cjs : une pharmacie masquée doit rester accessible à la connexion professionnelle, sans ouvrir l'accès aux pharmacies inactives ou archivées.
+- Nouveau run Replay déclenché par le changement ; résultat de la recette POS corrigée à contrôler avant clôture.
+
+**État** : le run 43948192865 reste en échec à cause de cette règle d'accès, mais tous ses parcours indépendants listés ci-dessus sont PASS. La correction est versionnée ; aucun déploiement Production ou Vercel.
