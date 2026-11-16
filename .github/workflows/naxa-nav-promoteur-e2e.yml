@@ -86,6 +86,13 @@ jobs:
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         run: node scripts/e2e/verify-promoteur-navigation-browser.cjs
+      - name: Logs serveur Next.js en cas d'échec
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::Logs serveur Next.js — diagnostic navigation"
+          tail -n 120 "$RUNNER_TEMP/naxa-nav-server.log" || true
+          echo "::endgroup::"
       - name: Arrêter le serveur local
         if: always()
         shell: bash
