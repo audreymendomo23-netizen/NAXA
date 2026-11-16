@@ -156,3 +156,29 @@ Pour chaque scénario, conserver la preuve du run, l'identité Auth (sans secret
 - Production et déploiement : **non touchés**.
 
 **Point exact de reprise : Lot A.** Inspecter les migrations et définitions SQL réellement présentes sur `main` pour les tables d'affectation, les notifications et les RPC de sélection/grant/revoke. Ne pas écrire de migration avant cet inventaire, ne pas activer de dossier SPD, et ne pas déclarer le chantier vert.
+
+
+## 7. Audit SQL Replay — constat de cause racine (16 novembre 2026)
+
+Lecture en base Replay `pwfftcsjyeibxxqhwysw` en lecture seule ; aucune ligne métier modifiée.
+
+### Schéma observé
+- `naxa_profile_active_roles` possède une clé par profil : le principe « un espace actif à la fois » est déjà matérialisé.
+- La contrainte de cette table permet les scopes `pharmacie_id` ou `partner_id`, mais le résolveur partenaire reste spécialisé.
+- `naxa_professional_account_domains.domain_code` est limité par CHECK à `PHARMACIE` et `PARAPHARMACIE`.
+- `naxa_roles` ne contient actuellement que les rôles système et les fonctions professionnelles Pharmacie ; aucun rôle SPD n'est déclaré.
+- `naxa_partner_professional_assignments` existe et référence `naxa_roles`.
+- `notifications` possède un destinataire `user_id`, un périmètre pharmacie et des outbox e-mail/push ; les alertes Promoteur peuvent donc être persistées par destinataire, sous réserve d'un événement métier et d'une politique d'accès adaptés.
+
+### Fonctions SQL vérifiées
+- `private.naxa_partner_business_function` joint explicitement `partners.partner_type='parapharmacie'`, le domaine `PARAPHARMACIE` et `naxa_partner_architectures`. Il ne résout aucun espace SPD.
+- `public.naxa_select_active_role` n'autorise `partner_id` que si le partenaire est de type Parapharmacie, avec architecture active et domaine `PARAPHARMACIE`.
+- `private.naxa_partner_scope_allows` applique la même restriction.
+- `public.naxa_grant_partner_professional_assignment` n'accepte que les partenaires de type Parapharmacie et appelle `naxa_ensure_professional_account_domain(...,'PARAPHARMACIE')`.
+- `public.admin_create_partner_dossier` exige une identité Client complète et confirmée. Pour un abonnement initial non courant, cette fonction exécute `update profiles set actif=false` : le verrou commercial peut ainsi rendre indisponibles tous les espaces de cette identité. Cette mutation doit être retirée du statut global d'identité et remplacée par des gardes d'accès propres au partenaire.
+- `public.naxa_grant_professional_assignment` crée directement l'affectation Pharmacie après les contrôles de périmètre et de privilège ; aucune orchestration transversale de cumul SPD n'est présente dans cette fonction.
+
+### Conclusion SQL
+Le sélecteur mono-espace est une base réutilisable, mais le modèle de domaine et les fonctions partenaires doivent être généralisés. La séparation identité active / abonnement partenaire est un prérequis de sécurité et de continuité Client. Aucun RPC de demande/approbation de cumul n'a été trouvé dans les fonctions inspectées.
+
+**Aucun test E2E de cumul n'a été lancé.** Les requêtes ci-dessus sont des lectures de catalogue SQL et de définitions de fonctions ; elles ne prouvent pas encore le comportement par des utilisateurs Replay.
