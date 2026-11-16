@@ -2831,12 +2831,13 @@ Aucune migration Production, aucun déploiement Vercel et aucune publication Pla
   - promoter_validates_pharmacists_and_staff_capacity
   - separate_cashier_staff_from_physical_register_capacity
   - one_active_promoter_per_pharmacy
-- Promoteur : formulaire de proposition, upload privé du justificatif, liste des dossiers, examen du document, approbation, refus et retrait dans /pharmacie/affectations.
+- Promoteur : formulaire de proposition, upload privé du justificatif avec la session Auth du Promoteur (policy Storage appliquée), liste des dossiers, examen du document, approbation, refus et retrait dans /pharmacie/affectations. La clé serveur ne sert qu'à rechercher le compte cible et supprimer un fichier orphelin après refus RPC.
 - Client : /client/ordonnances, dépôt privé PDF/JPEG/PNG (10 Mo max), choix de pharmacie, suivi du statut et des motifs de complément/refus.
 - Pharmacien : file canonique, ouverture sécurisée du document original, préparation, demande de complément, décision et retour du statut au Client. L'ancienne route /pharmacien/validations redirige vers la file ERP canonique.
 - Affectations : formulaire générique sans Pharmacien direct ; libellé réseau précisant la multiplicité des équipes et l'unicité du Responsable.
 - Caisse : /pharmacie/caisses distingue les collaborateurs de la ressource physique ; max_caisses ne désactive plus l'ajout d'un autre Caissier lorsqu'une caisse partagée existe déjà.
 - Comptabilité : écran de délégation par Comptable et par pharmacie conservé ; aucun droit d'écriture n'est créé automatiquement lors d'une affectation.
+- Admin / suivi-professionnels : le suivi Admin restant accessible concerne uniquement les professionnels indépendants « Prestations et soins à domicile » ; son texte exclut explicitement la validation des pharmaciens salariés d'une pharmacie.
 
 ### Recette E2E exécutée sur Supabase Replay
 
@@ -2886,7 +2887,7 @@ Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conse
 
 ### CI et limites — ne pas surdéclarer le vert
 
-- GitHub Actions NAXA quality, run 43781080647, commit d53a8eba18a7975c628f920ff101691fc5bc32d2 : le job de validation des workflows (actionlint) est SUCCESS. Le job npm test + TypeScript + lint + build Next.js était encore in_progress au dernier contrôle ; son résultat terminal doit être vérifié après la mise à jour documentaire.
+- GitHub Actions NAXA quality : actionlint avait réussi sur le run 43781080647, ensuite annulé par les pushes suivants. Au moment de cette note, le run 43781283860 sur le commit 71b7fc68677e825f12c367e4c6c271cb75b1ed7d était pending ; le job qualité terminal (npm test, TypeScript, lint et build Next.js) doit être vérifié sur le run déclenché par le présent commit documentaire.
 - Les 29 assertions ci-dessus sont des recettes SQL transactionnelles réellement exécutées sur Replay. Les lignes storage.objects y simulent les références de documents et les règles métier/rôles sont exécutées côté Postgres.
 - Une recette navigateur Playwright complète avec connexions réelles, upload HTTP Storage, rendu des formulaires et navigation entre comptes distincts n'a pas été exécutée dans cette session. Le statut navigateur reste JAUNE tant qu'un run browser terminal SUCCESS sur Replay n'est pas disponible.
 - Aucun changement ni test sur Supabase Production ; aucun déploiement Vercel ; aucune publication Play Store.
