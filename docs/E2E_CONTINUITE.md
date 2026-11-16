@@ -5061,3 +5061,47 @@ Liens de preuve :
 - Le résultat final attendu pour ce point est : connexion UI PASS ; cookie absent refusé ; rotations successives PASS ; rejeu de l'ancêtre refusé ; refresh courant refusé après détection (révocation de session) ; révocation globale indépendante PASS.
 
 **Verdict : PARTIEL — cause racine identifiée et correction versionnée ; validation E2E complète encore en cours.** Ne pas déclarer vert avant les logs terminaux du run #259. Leaked Password Protection reste une exception de forfait distincte et n'est pas modifiée par ce correctif.
+
+
+## 128. Résultat du lot Auth / Web Push / Crédit sur Replay (16/11/2026)
+
+**Périmètre strict :** branche `main`, projet Supabase Replay `pwfftcsjyeibxxqhwysw`. Aucun accès Production, migration Production, déploiement Vercel, Play Store ni extension de périmètre.
+
+### Corrections exécutées sur main
+
+- Commit [`fa0f497030c29c71b5d3cbf6560311adfd1a6e1a`](https://github.com/audreymendomo23-netizen/NAXA/commit/fa0f497030c29c71b5d3cbf6560311adfd1a6e1a) : déplacement de l'attente Auth après la deuxième rotation T2→T3 ; passage du test Push à Google Chrome stable ; séparation des compteurs de résultat Auth et Crédit.
+- Commit [`2e15449b4d77b71a6c3c66f3dafdd02832a2b4a3`](https://github.com/audreymendomo23-netizen/NAXA/commit/2e15449b4d77b71a6c3c66f3dafdd02832a2b4a3) : correction du test statique qui attendait encore l'ancien compteur combiné.
+- Aucun paramètre Supabase Auth n'a été modifié par SQL ou par le workflow ; aucune assertion de sécurité n'a été affaiblie.
+
+### Preuves vertes sur le commit `2e15449`
+
+**PASS — qualité**
+- [NAXA quality #3815](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43972075906), run `43972075906` : tests, TypeScript, lint, build Next.js et validation syntaxique GitHub Actions terminés avec succès.
+
+**PASS — Web Push réel**
+- [NAXA Replay E2E #261](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43972075922), run `43972075922` : build local PASS ; présence de Google Chrome stable PASS ; trois souscriptions authentifiées distinctes ; trois envois Web Push ciblés et trois notifications effectivement constatées dans les Service Workers Chrome.
+- Le HTTP 410 du précédent essai Chromium n'est plus observé. La preuve porte sur la réception navigateur Web Push ; elle ne prétend pas démontrer une réception physique FCM sur Android.
+
+**PASS — Crédit navigateur et runtime**
+- POS navigateur : PASS — demande Caisse au-dessus du plafond, validation Promoteur, débit unique du stock, suivi Client et remboursement.
+- Marketplace navigateur : PASS — dépôt de demande, statut en attente sans réservation/débit, refus Promoteur et stock inchangé.
+- Comptabilité navigateur : PASS — plan comptable, journaux et mappings de crédit créés puis validés dans l'interface.
+- Remboursement runtime via un vrai JWT Caisse Replay : PASS — diminution exacte de 250 FCFA, entrée espèces liée à la session, outbox unique et refus du dépassement de solde sans mutation.
+- Storage E2E : PASS ; nettoyage des objets et des sessions temporaires : PASS.
+
+### Auth — blocage résiduel prouvé, non vert
+
+- Le script corrigé exécute T1→T2→T3, attend 15 secondes après T3, puis rejoue T1. Le rejeu de l'ancêtre est bien refusé par Supabase Auth : journal `auth_logs` du 16/11/2026 à 22:46:23Z, erreur `refresh_token_already_used`, HTTP 400.
+- Immédiatement après, le refresh token courant T3 est encore accepté : appel `/token` en HTTP 200 et nouvelle ligne active dans `auth.refresh_tokens` pour la même session. L'assertion qui exige la révocation de la session entière échoue donc toujours.
+- La documentation Supabase [User sessions — refresh token reuse detection](https://supabase.com/docs/guides/auth/sessions) indique qu'un rejeu hors fenêtre de tolérance et hors exception du parent actif doit terminer la session et révoquer tous ses refresh tokens. Elle précise que ce comportement peut être désactivé dans les paramètres Auth avancés.
+- **Cause probable à confirmer dans le Dashboard Replay :** l'option de révocation globale/termination de session lors d'une réutilisation de refresh token est désactivée ou n'est pas appliquée par l'instance Replay. Le rejeu lui-même est bien détecté ; c'est l'action de révocation globale qui manque. L'état de ce commutateur n'est pas exposé par les outils Supabase connectés, donc il n'est pas déclaré directement vérifié et aucun changement n'a été tenté.
+- Réglage à contrôler/activer dans [Supabase Replay → Authentication → Sessions](https://supabase.com/dashboard/project/pwfftcsjyeibxxqhwysw/auth/sessions), section **Advanced Settings** : comportement qui termine toute la session et révoque tous les refresh tokens après une réutilisation hors exceptions. Ne pas réduire l'intervalle pour contourner ce défaut et ne pas assouplir l'assertion.
+- Après activation, relancer uniquement le workflow Replay E2E et vérifier le rejet de T3, puis la révocation globale indépendante de la seconde session.
+
+### Verdict contradictoire
+
+- **VERT :** qualité, Web Push réel, trois recettes Crédit navigateur, remboursement runtime, Storage et nettoyage.
+- **NON VERT :** Auth — révocation de toute la session après rejeu d'un ancêtre. Le rejeu est correctement refusé, mais T3 reste exploitable.
+- Run [Replay E2E #261](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43972075922) : `completed / failure`, uniquement à cause de l'assertion Auth. Aucun faux vert global.
+
+**Verdict des trois points : 2/3 verts ; Crédit est vert, Web Push est vert, Auth reste bloqué par le réglage de sécurité du projet Replay à contrôler.**
