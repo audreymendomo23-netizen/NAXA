@@ -401,7 +401,7 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().catch(error => {
-    process.stderr.write("RECETTE WEB PUSH PÉREMPTION E2E BLOQUÉE — " + (error?.message || "erreur inconnue") + "\n");
+    process.stderr.write("RECETTE WEB PUSH PÉREMPTION E2E BLOQUÉE — " + (error?.stack || error?.message || "erreur inconnue") + "\n");
     process.exitCode = 1;
   });
 }
