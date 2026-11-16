@@ -13,6 +13,7 @@ declare
   v_admin uuid := '5bff6417-ebd2-4c2f-b675-424632fa43a4';
   v_pharmacy uuid := '1a4f1ce5-cccf-477e-9a5b-474c8c9fc713';
   v_request uuid;
+  v_promoter_request uuid;
   v_approval record;
   v_partner uuid;
   v_assignment uuid;
@@ -60,6 +61,28 @@ begin
     raise exception 'Approved request was not idempotently reused';
   end if;
 
+  -- A Promoteur cannot authorize their own cumulative SPD registration.
+  -- Each of their pharmacies is sent to Admin arbitration.
+  perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  v_promoter_request:=public.naxa_request_cumulative_activity(
+    v_promoter,'PHARMACIE_VERS_SPD',null,null,null,'E2E Replay promoter self-arbitration'
+  );
+  if v_promoter_request is null then raise exception 'Promoter self-arbitration request missing'; end if;
+  if (select count(*) from public.naxa_cumulative_activity_approvals
+      where request_id=v_promoter_request and is_admin_required=true and status='pending')<1 then
+    raise exception 'Promoter self-approval was not routed to Admin';
+  end if;
+  for v_approval in
+    select id,is_admin_required from public.naxa_cumulative_activity_approvals
+    where request_id=v_promoter_request and status='pending'
+  loop
+    if not v_approval.is_admin_required then raise exception 'Promoter was allowed to approve their own request'; end if;
+    perform set_config('request.jwt.claim.sub',v_admin::text,true);
+    perform public.naxa_decide_cumulative_activity(v_approval.id,'approve',null);
+  end loop;
+  select status into v_status from public.naxa_cumulative_activity_requests where id=v_promoter_request;
+  if v_status<>'approved' then raise exception 'Admin arbitration for Promoteur did not complete'; end if;
+
   -- 2. SPD -> Pharmacy: a paid SPD owner must approve before a grant.
   insert into public.partners(name,partner_type,city,status,created_by)
   values('NAXA E2E paid SPD employer','professionnel_domicile','Yaoundé','active',v_promoter)
@@ -71,6 +94,9 @@ begin
   insert into public.admin_partner_dossiers(
     partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,documents_received,dossier_status,created_by
   ) values(v_partner,v_promoter,'prestations',1,'{"kyc":true}'::jsonb,'validated',v_promoter);
+  update public.naxa_cumulative_activity_requests
+  set status='completed',updated_at=now()
+  where id=v_promoter_request and status='approved';
 
   perform set_config('request.jwt.claim.sub',v_promoter::text,true);
   v_denied:=false;
@@ -97,34 +123,6 @@ begin
   select status into v_status from public.naxa_cumulative_activity_requests where id=v_request;
   if v_status<>'completed' then raise exception 'SPD-to-pharmacy request was not completed'; end if;
 
-  -- 3. Commercial lock blocks SPD but preserves the same user's Client space.
-  insert into public.partners(name,partner_type,city,status,created_by)
-  values('NAXA E2E locked partner','professionnel_domicile','Yaoundé','active',v_spd_operator)
-  returning id into v_partner;
-  insert into public.partner_universes(partner_id,universe_slug,enabled)
-  values(v_partner,'prestations',true);
-  insert into public.partner_members(partner_id,user_id,member_role)
-  values(v_partner,v_spd_operator,'owner');
-  insert into public.admin_partner_dossiers(
-    partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,documents_received,dossier_status,created_by
-  ) values(v_partner,v_spd_operator,'prestations',5000,'{"kyc":true}'::jsonb,'validated',v_spd_operator);
-  insert into public.naxa_subscription_access_locks(promoteur_id,is_active,lock_reason)
-  values(v_spd_operator,true,'initial_payment_required')
-  on conflict(promoteur_id) do update set is_active=true,lock_reason='initial_payment_required';
-
-  perform set_config('request.jwt.claim.sub',v_spd_operator::text,true);
-  if private.naxa_partner_has_confirmed_payment(v_partner) then
-    raise exception 'Locked SPD workspace unexpectedly has payment access';
-  end if;
-  v_denied:=false;
-  begin perform public.naxa_select_active_role('prestations',null,v_partner);
-  exception when others then v_denied:=true; end;
-  if not v_denied then raise exception 'Locked SPD workspace selection was not denied'; end if;
-  perform public.naxa_select_active_role('client',null,null);
-  select actif into v_profile_active from public.profiles where id=v_spd_operator;
-  v_client_ok:=public.naxa_business_function()='client' and v_profile_active;
-  if not v_client_ok then raise exception 'Client space was lost under professional subscription lock'; end if;
-
   -- 4. Accreditation revocation is not identity deletion/suspension.
   insert into public.profile_accreditations(grantor_profile_id,target_profile_id,pharmacie_id,niveau)
   values(v_promoter,v_target,v_pharmacy,2) returning id into v_approval;
@@ -137,8 +135,6 @@ begin
 end
 $test$;
 
-rollback;
-
 
 -- 5. Same Auth identity switches SPD -> Client -> SPD without re-authentication.
 do $test$
@@ -149,16 +145,10 @@ declare
   v_space text;
   v_active_partner uuid;
 begin
-  insert into public.partners(name,partner_type,city,status,created_by)
-  values('NAXA E2E workspace switch rollback','professionnel_domicile','Yaoundé','active',v_owner)
-  returning id into v_partner;
-  insert into public.partner_universes(partner_id,universe_slug,enabled)
-  values(v_partner,'prestations',true);
-  insert into public.partner_members(partner_id,user_id,member_role)
-  values(v_partner,v_owner,'owner'),(v_partner,v_target,'operator');
-  insert into public.admin_partner_dossiers(
-    partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,documents_received,dossier_status,created_by
-  ) values(v_partner,v_owner,'prestations',1,'{"kyc":true}'::jsonb,'validated',v_owner);
+  select id into v_partner from public.partners
+  where name='NAXA E2E paid SPD employer' and created_by=v_owner and status='active'
+  order by created_at desc limit 1;
+  if v_partner is null then raise exception 'Paid SPD workspace fixture missing'; end if;
 
   perform set_config('request.jwt.claim.sub',v_target::text,true);
   perform public.naxa_select_active_role('prestations',null,v_partner);
@@ -177,5 +167,25 @@ begin
   if public.naxa_business_function()<>'prestations' then
     raise exception 'Returning to SPD without new Auth failed';
   end if;
+
+  -- A subscription lock blocks only the professional workspace, not Client.
+  perform set_config('request.jwt.claim.sub',v_owner::text,true);
+  insert into public.naxa_subscription_access_locks(promoteur_id,is_active,lock_reason)
+  values(v_owner,true,'initial_payment_required')
+  on conflict(promoteur_id) do update set is_active=true,lock_reason='initial_payment_required';
+  if private.naxa_partner_has_confirmed_payment(v_partner) then
+    raise exception 'SPD workspace remained paid after subscription lock';
+  end if;
+  v_denied:=false;
+  begin perform public.naxa_select_active_role('prestations',null,v_partner);
+  exception when others then v_denied:=true; end;
+  if not v_denied then raise exception 'SPD workspace selection bypassed subscription lock'; end if;
+  perform public.naxa_select_active_role('client',null,null);
+  select actif into v_profile_active from public.profiles where id=v_owner;
+  if public.naxa_business_function()<>'client' or not v_profile_active then
+    raise exception 'Client space was disabled by professional subscription lock';
+  end if;
 end
 $test$;
+
+rollback;
