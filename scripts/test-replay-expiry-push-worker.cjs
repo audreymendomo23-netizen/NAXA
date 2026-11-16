@@ -39,6 +39,11 @@ test("le worker push accepte un identifiant UUID et conserve le mode batch histo
   assert.match(route, /webPushFailures/);
   assert.match(route, /webPushErrorCodes/);
   assert.match(route, /network_error/);
+  assert.match(route, /webPushFailureDetails/);
+  assert.match(route, /providerHost/);
+  assert.match(route, /new URL\(sub\.endpoint\)\.hostname/);
+  assert.match(route, /process\.env\.VERCEL_ENV !== "production"/);
+  assert.match(route, /process\.env\.VERCEL_ENV === "production" \? \{\} : \{ webPushFailureDetails \}/);
 });
 
 test("le claim push ciblé est réservé au service_role et verrouille une seule notification", () => {
