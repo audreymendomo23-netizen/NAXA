@@ -2944,3 +2944,33 @@ Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conse
 **JAUNE — chantier global :** le run navigateur s'est terminé en FAILURE sur le sélecteur Client ; le sélecteur et le cleanup ont été corrigés, mais le nouveau workflow au SHA courant est encore pending. Storage et parcours navigateur global restent à confirmer par un run Replay terminal SUCCESS.
 
 **Périmètre préservé :** aucune écriture Supabase Production ; aucun déploiement Vercel ; aucune publication Play Store. La pharmacie technique reste privée/non commerciale.
+
+
+## 71. Reprise navigateur Replay, isolation des scénarios et Web Push — 16/11/2026
+
+### Corrections versionnées sur `main`
+
+- `bd7f6162758b41f6d2e9d7c1deb6416009d7a057` : retrait de la sonde Web Push directe préalable ; le test n'envoie désormais qu'une notification par souscription, via le worker NAXA.
+- `16f7640ff0d49c185d6cfd2471eeeeab363cb1d1` : mise à jour du contrat statique correspondant.
+- `e1ff5e3e64e618df11dc5c3d98d6748b49bb8a81` : correction de l'assertion statique invalide.
+- `685ae719631ad71467b6eaaa71a97bb38b759644` : rétablissement du contrôle REST des clés `p256dh` et `auth` stockées ; conservation de l'import `web-push` corrigée ensuite.
+- `09d4951bbecd3b7269f9d1b9d90ba6a24eebddd9` : restauration de l'import `web-push`, nécessaire à l'initialisation VAPID du worker.
+- `22128e97e322d15e6524687cb179d7d9f5dff7ff` : les étapes remboursement JWT, POS navigateur et Storage E2E utilisent maintenant `always() && preflight`. Elles s'exécutent donc même si le contrôle Web Push précédent échoue ; le job conserve néanmoins le statut FAILURE tant qu'une étape échoue. Aucun faux vert n'est introduit.
+
+### Preuves observées
+
+- **Qualité GitHub : SUCCESS** sur `22128e97e322d15e6524687cb179d7d9f5dff7ff`, run `43787918115` : tests, TypeScript, lint, build Next.js et vérifications de syntaxe GitHub Actions.
+- **Provisionnement Replay : PASS** sur le run `43787374196` et de nouveau sur `43787918026` : comptes Promoteur/Admin/Client/Livreur/Stock/Caisse, pharmacie technique masquée, affectation Responsable, caisse et stock provisionnés.
+- **Web Push : FAILURE confirmé** sur le run `43787374196`, SHA `09d4951bbecd3b7269f9d1b9d90ba6a24eebddd9`. Chromium a créé trois souscriptions distinctes ; chacune a été relue dans Replay avec les mêmes clés. Le worker a toutefois reçu HTTP `410` de Google Push (`jmt17.google.com`) pour le Responsable : `claimed=1, sent=0, retried=1, webPushSent=0, webPushFailures=1`. La purge a supprimé une ancienne souscription E2E, sans toucher d'autres comptes.
+- Le retrait de la sonde supplémentaire n'a donc **pas** résolu le HTTP 410. Ne pas classer Web Push vert.
+- **Run courant à reprendre :** `43787918026`, SHA `22128e97e322d15e6524687cb179d7d9f5dff7ff`. Au dernier relevé, le build Next.js du worker est en cours ; les étapes remboursement JWT, POS navigateur et Storage E2E sont ensuite prévues avec `always()`. Aucun résultat de ces trois étapes n'est encore disponible sur ce run.
+
+### Verdict §71
+
+**VERT — qualité applicative** sur le SHA courant ; provisionnement Replay validé.
+
+**JAUNE — parcours navigateur complet :** Web Push reste bloqué par HTTP 410 sur l'endpoint Google du Responsable. Les scénarios POS, Marketplace, comptabilité et Storage n'ont pas encore fourni de résultat terminal sur le run courant ; ils ne doivent être déclarés verts qu'après lecture de leurs propres résultats.
+
+**Point de reprise exact :** contrôler le run `43787918026` jusqu'à son état terminal ; relever séparément remboursement JWT, POS navigateur et Storage. Ensuite diagnostiquer le 410 Google Push (endpoint du Responsable) sans supprimer ni modifier les souscriptions d'utilisateurs réels.
+
+**Périmètre préservé :** Replay uniquement ; aucune modification Supabase Production, aucun déploiement Vercel, aucune publication Play Store. Les fichiers de mots de passe éphémères sont nettoyés par le workflow.
