@@ -2748,3 +2748,65 @@ La pharmacie technique reste strictement non commerciale :
 **PARTIEL / NO-GO global.** La qualité du code est verte au SHA indiqué ; les preuves backend Web Push et remboursement JWT sont vertes ; la configuration comptable backend et worker est déjà vérifiée par SQL transactionnel. Les nouvelles recettes d'interface POS, Marketplace et paramétrage comptable attendent le résultat terminal du run Replay `43769591849`. La réussite du parcours Marketplace d'approbation et de l'interface comptable ne doit pas être extrapolée du seul test SQL.
 
 Aucune migration Production, aucun déploiement Vercel et aucune publication Play Store n'ont été effectués.
+
+
+## 68. Recette transactionnelle crédit Marketplace, Caisse et comptabilité sur Replay (16/11/2026)
+
+### Environnement et méthode
+
+- Projet exclusivement utilisé : `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`), état `ACTIVE_HEALTHY`, PostgreSQL 17. Les tests ont été lus depuis `main` puis exécutés via SQL sur Replay.
+- Les 16 fichiers SQL listés ci-dessous contiennent une transaction de test et un `ROLLBACK` final (le test 248 a également été rejoué avec un SELECT explicite de résultat). Aucun test n'a écrit en Production.
+- La pharmacie technique `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713` reste active, non archivée, `est_demo=false` et `visible_recherche=false` : elle demeure masquée et non commerciale.
+
+### Preuves exécutées — 16/16 PASS
+
+1. `supabase/tests/20261115224500_credit_cashier_client_identity_projection.sql` — projection d'identité minimale Caisse/Client et ACL.
+2. `supabase/tests/20261115230000_credit_accounting_configuration_contract.sql` — contrat de configuration des journaux et mappings octroi/remboursement.
+3. `supabase/tests/20261115230500_credit_accounting_worker_runtime.sql` — exécution du worker pour octroi et remboursement, deux écritures équilibrées, événements traités et rollback.
+4. `supabase/tests/20261115220000_credit_marketplace_pos_end_to_end.sql` — crédit Caisse au-dessus du plafond, demande, approbation, reprise de la même vente, débit unique du stock et crédit sous plafond.
+5. `supabase/tests/248_credit_repayment_cash_session.sql` — rattachement du remboursement à une session Caisse personnelle ouverte.
+6. `supabase/tests/249_credit_repayment_accounting.sql` — trigger, outbox idempotente et worker du remboursement.
+7. `supabase/tests/250_caisse_credit_repayment_reconciliation.sql` — remboursement réconcilié dans le théorique de clôture et dans la garde d'écriture de session.
+8. `supabase/tests/251_credit_hold_no_physical_decrement.sql` — hold Marketplace sans débit physique, allocation FEFO et refus de l'ancienne finalisation.
+9. `supabase/tests/252_marketplace_credit_withdrawal.sql` — contrat de retrait Marketplace à crédit.
+10. `supabase/tests/253_marketplace_credit_accounting.sql` — séparation vente à crédit / encaissement et outbox d'octroi idempotente.
+11. `supabase/tests/256_credit_withdrawal_reserved_lots.sql` — consommation des lots exacts affectés à la réservation, avec verrouillage.
+12. `supabase/tests/257_credit_withdrawal_five_scenarios.sql` — cinq scénarios allocation, lot bloqué, rapprochement et rollback/restauration.
+13. `supabase/tests/259_credit_withdrawal_inverse_order_e2e.sql` — deux retraits dans l'ordre inverse des réservations, lots précis, stocks agrégés et soldes Client.
+14. `supabase/tests/264_credit_marketplace_debit_on_approval_e2e.sql` — approbation Marketplace, délégation Responsable, périmètre multi-pharmacie, lot et révocation.
+15. `supabase/tests/299_active_role_responsable_comptable.sql` — quatre assertions : Responsable délégué, retrait de ses droits, service Comptable autorisé et retrait au changement de rôle.
+16. `supabase/tests/20261115130000_assurance_marketplace_pos_ticket_reimbursement_runtime.sql` — parcours runtime Assurance/Marketplace → Caisse POS → ticket → remboursements partiel/final → worker comptable.
+
+### Résultats comportementaux établis
+
+- Worker crédit : octroi et remboursement traités ; total du test **500 FCFA débit / 500 FCFA crédit** ; événements terminés ; rollback intégral.
+- Caisse crédit comptoir : demande au-dessus du plafond sans mouvement anticipé ; approbation ; reprise du même brouillon ; vente crédit finalisée ; stock débité une seule fois ; pas d'événement `vente_encaissee` pour l'octroi.
+- Marketplace : approbation avec privilège explicite Responsable dans la pharmacie autorisée ; refus hors périmètre ; lots consommés selon les allocations de réservation ; restitution contrôlée ; retrait de droits après révocation ou changement de rôle.
+- Comptable : le poste autonome `comptable` et le privilège `MANAGE_ACCOUNTING` ouvrent le service dans le seul scope autorisé ; le retour au rôle Client retire le scope et empêche la clôture du service.
+- Runtime Assurance/POS : vente **10 000 FCFA**, part Client **4 500 FCFA**, part assureur **5 500 FCFA**, espèces reçues **5 000 FCFA**, monnaie **500 FCFA**, remboursements **2 000 + 3 500 FCFA** ; quatre écritures ; créance assureur débitée et créditée à **5 500 FCFA** ; statut soldé.
+
+### Contrôle des résidus après exécution
+
+- Profils/Auth : 9 profils et 9 identités Auth conservés ; aucune création permanente de comptes par les tests exécutés.
+- Pharmacies : 10 conservées, dont la pharmacie technique toujours cachée et non commerciale ; aucune publication laissée active par la recette.
+- Caisses : 2 caisses ; 13 sessions historiques conservées ; **0 session ouverte**.
+- Crédit : 1 compte crédit préexistant conservé ; **0 nouvelle demande**, **0 opération de crédit/remboursement**.
+- Ventes : 1 vente préexistante conservée ; aucun produit ou vente technique ajouté par les tests transactionnels.
+- Comptabilité : **0 paramètre, compte de plan, mapping, période, événement, écriture ou ligne** résiduel ; **0 événement comptable en attente** ; aucune période courante ouverte.
+- Assurance : **0 règlement** résiduel ; les remboursements du scénario ont été annulés avec leurs fixtures.
+- Les données métier préexistantes (notamment le compte crédit et la vente déjà présents) n'ont pas été supprimées.
+
+### Limites restantes — ne pas surdéclarer le vert
+
+- Les tests backend SQL/runtime sont **VERTS** sur Replay. Ils ne prouvent pas à eux seuls une authentification réelle au navigateur, le rendu UI, ni la navigation entre comptes distincts.
+- Les scripts `scripts/e2e/verify-credit-pos-browser.cjs`, `scripts/e2e/verify-credit-marketplace-browser.cjs`, `scripts/e2e/verify-credit-accounting-browser.cjs` et `scripts/e2e/verify-credit-refund-runtime.cjs` n'ont pas été lancés dans cette session : ils requièrent Chromium/Playwright, un serveur Next.js, les secrets Replay et les fichiers temporaires de mots de passe du runner.
+- Le workflow GitHub Replay est versionné et contient ces étapes, mais aucun statut terminal vérifiable du run courant n'a été obtenu ici. Le miroir GitLab (`87443849`) reste sur le commit `1b3ec14a481f129cc517ed167d246e9ba9a5a676` du 14/11/2026, antérieur à la tête GitHub contrôlée ; son ancien pipeline vert ne valide donc pas cette version.
+- Les comptes, journaux, mappings et période créés dans le test comptable sont synthétiques et annulés. **Aucun paramétrage comptable réel n'a été conservé pour une pharmacie commerciale.** Chaque Promoteur/Comptable doit disposer de son plan, journaux, mappings et période légitimes avant une mise en service comptable réelle.
+
+### Verdict §68
+
+**VERT — backend transactionnel Replay : 16/16 PASS ; contrôle post-run sans résidu de recette.**
+
+**JAUNE — fermeture navigateur/Auth et CI globale : non confirmées.** Ne pas déclarer le parcours complet navigateur vert avant un run terminal SUCCESS de `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` ou une preuve Playwright équivalente.
+
+**Périmètre préservé :** aucune écriture, migration ou configuration Supabase Production ; aucun déploiement Vercel ; aucune publication Play Store. Aucun changement du code applicatif n'a été requis par ces tests ; seule la documentation de continuité est actualisée.
