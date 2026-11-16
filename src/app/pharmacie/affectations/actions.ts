@@ -233,6 +233,34 @@ export async function proposerAccreditationPharmacien(formData:FormData){
     redirect("/pharmacie/affectations?erreur=accreditation_rpc");
   }
   revalidatePath("/pharmacie/affectations");
-  revalidatePath("/admin/pharmaciens");
   redirect("/pharmacie/affectations?ok=accreditation_proposee");
+}
+
+
+export async function deciderAccreditationPharmacien(formData:FormData){
+  const sb=supabaseServer();
+  const {data:auth,error:authError}=await sb.auth.getUser();
+  if(authError||!auth.user)redirect("/connexion?retour=/pharmacie/affectations");
+
+  const accreditationId=value(formData,"accreditation_id");
+  const decision=value(formData,"decision");
+  const note=value(formData,"decision_note");
+  if(!uuid.test(accreditationId)||!["approve","reject","revoke"].includes(decision)
+    ||((decision==="reject"||decision==="revoke")&&note.length<5)
+    ||note.length>1000){
+    redirect("/pharmacie/affectations?erreur=accreditation_decision_validation");
+  }
+
+  const {error}=await sb.rpc("naxa_promoteur_decider_accreditation_pharmacien",{
+    p_accreditation:accreditationId,
+    p_decision:decision,
+    p_note:note||null,
+  });
+  if(error)redirect("/pharmacie/affectations?erreur=accreditation_decision_refusee");
+  revalidatePath("/pharmacie/affectations");
+  revalidatePath("/pharmacie/pharmacien");
+  revalidatePath("/pharmacien/validations");
+  redirect("/pharmacie/affectations?ok="+(
+    decision==="approve"?"accreditation_validee":decision==="reject"?"accreditation_refusee":"accreditation_retiree"
+  ));
 }
