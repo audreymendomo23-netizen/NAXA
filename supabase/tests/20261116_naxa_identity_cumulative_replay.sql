@@ -138,3 +138,44 @@ end
 $test$;
 
 rollback;
+
+
+-- 5. Same Auth identity switches SPD -> Client -> SPD without re-authentication.
+do $test$
+declare
+  v_target uuid := 'dcb2242b-50fb-46c8-8c90-e01d42fa4175';
+  v_owner uuid := 'b5b79627-46ac-4dea-8ea9-6f0464cb3404';
+  v_partner uuid;
+  v_space text;
+  v_active_partner uuid;
+begin
+  insert into public.partners(name,partner_type,city,status,created_by)
+  values('NAXA E2E workspace switch rollback','professionnel_domicile','Yaoundé','active',v_owner)
+  returning id into v_partner;
+  insert into public.partner_universes(partner_id,universe_slug,enabled)
+  values(v_partner,'prestations',true);
+  insert into public.partner_members(partner_id,user_id,member_role)
+  values(v_partner,v_owner,'owner'),(v_partner,v_target,'operator');
+  insert into public.admin_partner_dossiers(
+    partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,documents_received,dossier_status,created_by
+  ) values(v_partner,v_owner,'prestations',1,'{"kyc":true}'::jsonb,'validated',v_owner);
+
+  perform set_config('request.jwt.claim.sub',v_target::text,true);
+  perform public.naxa_select_active_role('prestations',null,v_partner);
+  v_space:=public.naxa_business_function();
+  v_active_partner:=public.naxa_active_role_partner();
+  if v_space<>'prestations' or v_active_partner is distinct from v_partner then
+    raise exception 'SPD workspace selection failed';
+  end if;
+
+  perform public.naxa_select_active_role('client',null,null);
+  if public.naxa_business_function()<>'client' then
+    raise exception 'Client workspace selection failed';
+  end if;
+
+  perform public.naxa_select_active_role('prestations',null,v_partner);
+  if public.naxa_business_function()<>'prestations' then
+    raise exception 'Returning to SPD without new Auth failed';
+  end if;
+end
+$test$;
