@@ -182,3 +182,21 @@ Lecture en base Replay `pwfftcsjyeibxxqhwysw` en lecture seule ; aucune ligne m�
 Le sélecteur mono-espace est une base réutilisable, mais le modèle de domaine et les fonctions partenaires doivent être généralisés. La séparation identité active / abonnement partenaire est un prérequis de sécurité et de continuité Client. Aucun RPC de demande/approbation de cumul n'a été trouvé dans les fonctions inspectées.
 
 **Aucun test E2E de cumul n'a été lancé.** Les requêtes ci-dessus sont des lectures de catalogue SQL et de définitions de fonctions ; elles ne prouvent pas encore le comportement par des utilisateurs Replay.
+
+
+## 8. Précision du modèle SPD existant
+
+Le SPD ne s'appuie pas actuellement sur `naxa_partner_professional_assignments` comme la Parapharmacie. Les espaces Soins à domicile sont construits autour de :
+- `partners.partner_type='professionnel_domicile'` ;
+- `partner_members` avec les rôles `owner`, `manager`, `operator` ;
+- `partner_independent_agreements` pour l'accord indépendant personnel du titulaire ;
+- `home_service_offers`, `home_service_requests`, `home_service_reminder_preferences` et leurs politiques RLS.
+
+La page `src/app/partenaire/prestations/page.tsx` retrouve les espaces par `partner_members` et le type de partenaire ; elle n'utilise pas le sélecteur actif NAXA pour déterminer ses membres. Les politiques RLS des offres et demandes vérifient le membership, le type `professionnel_domicile`, le statut du partenaire et `profiles.actif`.
+
+Conséquences :
+- le cumul pharmacie↔SPD doit considérer les memberships SPD (owner/manager/operator) en plus des affectations pharmacie ;
+- le rôle SPD actif doit être ajouté au résolveur universel sans confondre l'accord indépendant du titulaire et les droits opérationnels des membres ;
+- la validation Admin d'une convention indépendante reste distincte de l'accord Promoteur pharmacie ;
+- l'invalidation de l'identité globale `profiles.actif` est particulièrement dangereuse : elle coupe aussi les policies SPD et l'accès Client.
+
