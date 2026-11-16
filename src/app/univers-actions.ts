@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { isMedicationProduct } from "@/lib/universe-product-rules";
 
 type ReservationItem = { product_id: string; quantity: number };
 type OwnerType = "pharmacie" | "parapharmacie";
@@ -29,6 +30,7 @@ async function catalogItemsAllowed(
       && product.owner_type === ownerType
       && product.owner_id === ownerId
       && product.universe_slug === universe
+      && !(universe === "parapharmacie" && isMedicationProduct(product))
     );
   });
 }
