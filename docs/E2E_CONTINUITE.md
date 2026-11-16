@@ -4933,3 +4933,49 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Source : https://supabase.com/docs/guides/auth/password-security ; https://supabase.com/docs/guides/auth/auth-hooks/password-verification-hook.
 
 **État de l'exigence :** techniquement non activable sur Free ; aucun correctif NAXA n'est à appliquer pour faire croire à l'activation. La clôture du Lot A exige une décision explicite d'acceptation du risque / reclassement « hors capacité du forfait gratuit », ou un environnement de test disposant du plan Pro. L'utilisateur ne doit pas être invité à payer pour poursuivre les autres recettes.
+
+
+## 121. Lot A — audit comportemental des 5 SECURITY DEFINER sans garde directe (16/11/2026)
+
+- Inventaire confirmé : exactement 253 fonctions `SECURITY DEFINER` exécutables par `authenticated`.
+- 248/253 contiennent directement un contrôle d'identité, d'administration, de privilège, de capacité ou de périmètre dans leur définition.
+- Les cinq exceptions statiques sont maintenant nommées et triées :
+  1. `assurance_import_simuler_mode` : délègue à `assurance_import_simuler`, qui vérifie identité, fonction professionnelle et périmètre pharmacie.
+  2. `set_garde` : dérive la pharmacie de `my_pharmacie()`, puis exige `authorize('MANAGE_GUARD_STATUS', ...)`.
+  3. `get_universe_catalog_v2` : RPC catalogue public ; filtres de publication et tests positifs/négatifs §118.
+  4. `marketplace_offre_stock_disponible` : façade de `private.marketplace_offre_stock_disponible_guarded` ; tests positifs/négatifs §118.
+  5. `marketplace_produit_visible` : visibilité conditionnée par pharmacie active, publiée, non démo et non archivée ; tests positifs/négatifs §118.
+- Deux tests négatifs additionnels exécutés sur Replay sous rôle SQL `authenticated` et JWT simulé d'un profil Client sans affectation :
+  - `set_garde(true)` est refusée.
+  - `assurance_import_simuler_mode(...)` est refusée avant création d'import.
+  Les blocs SQL ont été exécutés dans une transaction terminée par `ROLLBACK`.
+- Aucun grant n'a été retiré. Aucun comportement d'une fonction métier n'a été modifié.
+- Verdict de cette revue : PASS pour le tri statique des 253 fonctions et les tests comportementaux des cinq exceptions. Limite : les 248 gardes directes n'ont pas chacune une matrice de tests dédiée ; cette revue ne prétend pas constituer 253 tests d'autorisation individuels.
+
+## 122. Lot A — ajout du harnais navigateur Auth Replay (16/11/2026)
+
+- Nouveau script `scripts/e2e/verify-auth-session-lifecycle.cjs` : navigateur Chromium, connexion UI avec le compte Gestionnaire de stock E2E, contrôle du cookie SSR Supabase, suppression/expiration simulée du cookie et vérification que le middleware refuse ensuite l'espace protégé.
+- Le même harnais teste par API Auth réelle Replay : connexion par mot de passe, rotation du refresh token, rejet de l'ancien refresh token après la fenêtre de réutilisation, puis révocation globale d'une seconde session et rejet de son refresh token.
+- Le script est strictement épinglé au projet Replay `pwfftcsjyeibxxqhwysw`; mot de passe lu depuis le fichier temporaire protégé généré par le provisionneur du personnel ; aucun secret n'est journalisé.
+- Workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` mis à jour : le script est inclus dans les chemins déclencheurs et dans les contrôles navigateur du job existant. Le push du workflow sur `main` est conçu pour déclencher la recette intégrée, qui réutilise le provisionnement Replay déjà présent.
+- Commits : script `f91cea495f048f6226ffbab063c8476a5015a222`, intégration workflow `c714d93d2cf540a6d2fed7a9ab594898dc0b5ff6`.
+- Limite de preuve actuelle : le connecteur GitHub expose les lectures/relances de jobs mais pas la liste des runs déclenchés par push ni `workflow_dispatch`. L'appel de lecture disponible sur le commit renvoie une liste vide car il ne retourne que les runs associés aux pull requests. Aucun run ID, résultat de job ou artefact n'est donc vérifiable ici ; ne pas annoncer le script PASS avant lecture d'un vrai run.
+- Limite technique du script : il teste l'expiration du cookie navigateur (middleware fail-closed), la rotation, le rejeu et la révocation. Il n'attend pas l'expiration cryptographique naturelle du JWT (durée configurée du projet). Ce dernier point reste explicitement distinct et ne doit pas être confondu avec l'expiration cookie simulée.
+
+## 123. Lot A — statut consolidé après corrections (16/11/2026)
+
+**PASS**
+- Création de stock et de lot via RPC métier sous identité Gestionnaire simulée, lecture RLS, refus Client et pharmacie hors périmètre (§119).
+- Trois RPC marketplace anon : tests positifs et négatifs avec stock/lot réels simulés en transaction (§118).
+- 72 tables RLS sans policy : absence de privilèges directs pour `anon` et `authenticated`, classées accès fermé par défaut (§119).
+- Revue statique des 253 fonctions SECURITY DEFINER et tests négatifs sur les cinq exceptions sans garde directe (§121).
+
+**En attente de preuve**
+- Le nouveau test navigateur Auth est intégré au workflow déclenché par push, mais aucun run ID ni résultat n'est accessible par les outils actuels. Le succès ne peut pas être présumé.
+- Expiration naturelle du JWT non attendue ; seule l'expiration/suppression du cookie navigateur est simulée par le script.
+
+**Limitation de forfait**
+- `Leaked Password Protection` est indisponible sur Supabase Free. Le Password Verification Hook ne remplace pas le contrôle du mot de passe candidat. Aucun contournement client/SQL non équivalent n'est accepté.
+- Cette exigence doit rester marquée `EXCEPTION DE FORFAIT — NON ACTIVABLE SUR FREE` et non PASS. Son acceptation comme risque hors périmètre relève d'une décision explicite du propriétaire NAXA ; aucune acceptation n'est présumée.
+
+**Verdict Lot A : PARTIEL — aucun faux vert.** La revue des RPC et la recette stock sont clôturées. La preuve navigateur reste à récupérer sur le run GitHub Actions déclenché par le commit `c714d93d2cf540a6d2fed7a9ab594898dc0b5ff6`. La protection native des mots de passe compromis reste une exception de forfait. Aucun accès Production, aucune migration Production, aucun déploiement Vercel ou Play Store.
