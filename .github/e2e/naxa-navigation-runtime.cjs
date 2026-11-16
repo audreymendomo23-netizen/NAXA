@@ -63,6 +63,10 @@ async function authUserForProfile(profile) {
   if (error) throw error;
   assert.ok(data.user && data.user.email, "Le profil existant ne possède pas d'identité Auth utilisable.");
   assert.ok(data.user.email_confirmed_at, "L'identité Auth de recette n'est pas confirmée.");
+  const promoterFixture = profile.username === "naxa_e2e_promoteur"
+    && data.user.user_metadata?.naxa_e2e_promoteur === true;
+  const namedFixture = String(data.user.user_metadata?.naxa_e2e_fixture || "").startsWith("NAXA-E2E-");
+  assert.ok(promoterFixture || namedFixture, "Marqueur de compte E2E absent : aucun lien magique ne sera émis.");
   return data.user;
 }
 
@@ -182,16 +186,15 @@ async function setActiveComptableRole(profile, accessToken) {
 
 async function signOutSession(session) {
   if (!session || !session.accessToken) return;
-  try {
-    await fetch(PROJECT_URL + "/auth/v1/logout?scope=local", {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: "Bearer " + session.accessToken,
-      },
-    });
-  } catch {
-    console.warn("WARN : fermeture de session Auth non confirmée ; le jeton reste à durée limitée.");
+  const response = await fetch(PROJECT_URL + "/auth/v1/logout?scope=local", {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      Authorization: "Bearer " + session.accessToken,
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Fermeture de session Auth refusée (HTTP " + response.status + ").");
   }
 }
 
@@ -206,6 +209,8 @@ async function cleanup() {
   if (state.partnerId) {
     const membershipDelete = await admin.from("partner_members").delete().eq("partner_id", state.partnerId);
     if (membershipDelete.error) failures.push("suppression de l'adhésion partenaire : " + membershipDelete.error.message);
+    const remainingMembership = await admin.from("partner_members").select("partner_id", { count: "exact", head: true }).eq("partner_id", state.partnerId);
+    if (remainingMembership.error || (remainingMembership.count || 0) !== 0) failures.push("l'adhésion partenaire temporaire est toujours présente.");
     const partnerDelete = await admin.from("partners").delete().eq("id", state.partnerId);
     if (partnerDelete.error) failures.push("suppression du partenaire temporaire : " + partnerDelete.error.message);
     const remainingPartner = await admin.from("partners").select("id", { count: "exact", head: true }).eq("id", state.partnerId);
@@ -215,11 +220,19 @@ async function cleanup() {
   if (state.comptableProfileId) {
     const activeRoleDelete = await admin.from("naxa_profile_active_roles").delete().eq("profile_id", state.comptableProfileId);
     if (activeRoleDelete.error) failures.push("suppression du rôle actif temporaire : " + activeRoleDelete.error.message);
+    const remainingActiveRole = await admin.from("naxa_profile_active_roles").select("profile_id", { count: "exact", head: true }).eq("profile_id", state.comptableProfileId);
+    if (remainingActiveRole.error || (remainingActiveRole.count || 0) !== 0) failures.push("le rôle actif temporaire est toujours présent.");
     const profileRestore = await admin.from("profiles").update({
       fonction_interne: state.originalFonctionInterne,
       pharmacie_id: state.originalPharmacieId,
     }).eq("id", state.comptableProfileId);
     if (profileRestore.error) failures.push("restauration du profil Comptable : " + profileRestore.error.message);
+    const restoredProfile = await admin.from("profiles").select("fonction_interne,pharmacie_id").eq("id", state.comptableProfileId).maybeSingle();
+    if (restoredProfile.error || !restoredProfile.data
+      || restoredProfile.data.fonction_interne !== state.originalFonctionInterne
+      || restoredProfile.data.pharmacie_id !== state.originalPharmacieId) {
+      failures.push("les champs du profil Comptable n'ont pas été restaurés exactement.");
+    }
   }
 
   if (state.assignmentId) {
@@ -240,6 +253,8 @@ async function cleanup() {
 }
 
 async function run() {
+  assert.equal(process.env.NAXA_E2E_ALLOW_TEMP_FIXTURES, "true",
+    "Création des fixtures temporaire refusée sans opt-in explicite NAXA_E2E_ALLOW_TEMP_FIXTURES=true.");
   const promoter = await profileByUsername("naxa_e2e_promoteur");
   const comptable = await profileByUsername("naxa_e2e_expiry_overflow");
   const partnerOwner = await profileByUsername("naxa_e2e_acheteur");
@@ -395,9 +410,20 @@ async function run() {
 
     console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Partenaire depuis Catalogue et Réservations.");
   } finally {
-    if (browser) await browser.close();
-    for (const session of sessions) await signOutSession(session);
+    const shutdownFailures = [];
+    try {
+      if (browser) await browser.close();
+    } catch (error) {
+      shutdownFailures.push("fermeture Chromium : " + String(error && error.message ? error.message : error));
+    }
+    const logoutResults = await Promise.allSettled(sessions.map(signOutSession));
+    for (const result of logoutResults) {
+      if (result.status === "rejected") {
+        shutdownFailures.push("fermeture Auth : " + String(result.reason && result.reason.message ? result.reason.message : result.reason));
+      }
+    }
     await cleanup();
+    if (shutdownFailures.length) throw new Error(shutdownFailures.join(" | "));
   }
 }
 
