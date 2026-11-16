@@ -309,7 +309,8 @@ async function run(env = process.env) {
       if (!sent.ok || sent.data?.claimed !== 1 || sent.data?.sent !== 1 || sent.data?.webPushSent !== 1) {
         const counters = ["claimed", "sent", "noDevice", "retried", "failed", "webPushSent", "fcmSent", "webPushFailures"]
           .map((key) => key + "=" + String(Number(sent.data?.[key] ?? 0))).join(", ")
-          + " ; webPushErrorCodes=" + JSON.stringify(sent.data?.webPushErrorCodes ?? []);
+          + " ; webPushErrorCodes=" + JSON.stringify(sent.data?.webPushErrorCodes ?? [])
+          + " ; webPushFailureDetails=" + JSON.stringify(sent.data?.webPushFailureDetails ?? []);
         const workerError = typeof sent.data?.error === "string" ? " · " + sent.data.error.slice(0, 120) : "";
         throw new Error(
           "Le worker NAXA n'a pas confirmé un envoi Web Push ciblé pour " + item.label
