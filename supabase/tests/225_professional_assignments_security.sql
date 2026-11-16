@@ -109,8 +109,9 @@ begin
 
   select pg_get_functiondef('public.offline_stock_set_quantity(uuid,uuid,uuid,integer,timestamptz)'::regprocedure)
     into v_offline;
-  if position('naxa_has_active_professional_assignment' in v_offline)=0
-     or position('v_assigned' in v_offline)=0
+  if position('naxa_has_privilege' in v_offline)=0
+     or position('VIEW_STOCK' in v_offline)=0
+     or position('EDIT_STOCK_QUANTITY' in v_offline)=0
      or position('created_by<>v_uid' in v_offline)=0
      or position('base_updated_at is distinct from p_base_updated_at' in lower(v_offline))=0
      or position('lotized_stock_requires_lot_operation' in v_offline)=0 then
