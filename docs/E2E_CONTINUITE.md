@@ -4308,13 +4308,16 @@ Contrôles SQL lecture seule après application :
 **Recette de rôles Replay :**
 - Provisionnement E2E des cinq profils Caisse, Stock, Client, Comptable et Pharmacien : étape 9 du workflow `43870154759` **SUCCESS**. Le workflow a ensuite poursuivi les étapes de recette générale.
 - Contrôle SQL sous rôle PostgreSQL `authenticated`, avec sélection du rôle actif et vérification du périmètre : **9/9 PASS** — Promoteur, deux comptes Caisse, Responsable, deux Gestionnaires de stock, Livreur, Comptable et Pharmacien.
-- Le Livreur existant `naxa_e2e_livreur` est actif et affecté à la pharmacie Replay ; le contexte authentifié résout `livreur` et le bon `pharmacie_id`.
-- Le Comptable et le Pharmacien se connectent par le provisionneur E2E, sélectionnent leur poste et résolvent le bon périmètre. Le droit comptable est vérifié explicitement.
+- Le Livreur existant `naxa_e2e_livreur` est actif et affecté à la pharmacie Replay. Le harnais se connecte désormais avec son mot de passe éphémère issu du parcours d'invitation, vérifie son affectation active, appelle `naxa_select_active_role('livreur')`, puis contrôle par JWT `naxa_business_function()='livreur'` et `naxa_active_role_pharmacy()=<pharmacie cible>`. Aucun rôle Livreur n'est créé par une affectation générique.
+- Le Comptable et le Pharmacien se connectent par le provisionneur E2E, sélectionnent leur poste et résolvent le bon périmètre. Le droit comptable est vérifié explicitement ; le dossier Pharmacien est proposé et approuvé par le Promoteur.
+- Test de non-régression ajouté au harnais : `scripts/test-replay-pharmacy-staff-safe.cjs` exige désormais la vérification JWT du Livreur invité.
 
 **Preuves de non-régression :**
 - Workflow qualité `43870154780` : **SUCCESS**, 556/556 tests, TypeScript sans erreur, lint 0 erreur (225 avertissements), build Next.js réussi, 153/153 pages générées, actionlint réussi.
 - Workflow Android `43866621863` : **SUCCESS**, tests de routage Compose et matrice des profils incluant le Livreur.
-- Workflow Replay `43870154759` : provisionnement rôles (étape 9), pharmacie technique (étape 10) et stock/caisse (étape 11) réussis ; les étapes complémentaires du workflow sont encore en cours au point de cette mise à jour.
+- Workflow Replay `43870154759` : **SUCCESS** global ; provisionnement rôles (étape 9), pharmacie technique (étape 10), stock/caisse (étape 11), Web Push, remboursement, parcours navigateur et Storage réussis.
+- Workflow Replay `43872161057` : la nouvelle recette renforcée du Livreur est passée à l'étape 9, ainsi que le provisionnement Comptable/Pharmacien et Responsable (étapes 9–10). Les étapes générales restantes du workflow sont encore en cours au point de cette mise à jour.
+- Workflow qualité `43872198768` : actionlint **SUCCESS** ; job tests/TypeScript/lint + build Next.js encore en cours après ajout du contrôle JWT Livreur.
 - Aucune donnée Production consultée ou modifiée. Aucun déploiement Vercel lancé.
 
-**Point exact de reprise :** laisser terminer le workflow Replay `43870154759` et noter son résultat global sans confondre les étapes métier déjà vertes avec les étapes générales restantes. Ne pas remplacer le justificatif Pharmacien E2E fictif par une vraie pièce ; il reste strictement réservé à Replay.
+**Point exact de reprise :** laisser terminer les workflows Replay `43872161057` et qualité `43872198768`, puis reporter leurs conclusions globales. Le contrôle JWT du Livreur est déjà passé dans l'étape de provisionnement. Ne pas remplacer le justificatif Pharmacien E2E fictif par une vraie pièce ; il reste strictement réservé à Replay.
