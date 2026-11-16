@@ -7,6 +7,8 @@ declare
   v_pharmacie_in uuid:=gen_random_uuid();
   v_pharmacie_out uuid:=gen_random_uuid();
   v_visible integer;
+  v_convention uuid:=gen_random_uuid();
+  v_abonnement uuid:=gen_random_uuid();
 begin
   set local session_replication_role=replica;
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -23,6 +25,14 @@ begin
   insert into public.pharmacies(id,nom,lat,lng) values
     (v_pharmacie_in,'NAXA TEST 036 IN',3.8667,11.5167),
     (v_pharmacie_out,'NAXA TEST 036 OUT',3.9000,11.5500);
+
+  insert into public.pharmacie_architectures(pharmacie_id,architecture_code,max_responsables,max_caisses)
+  values(v_pharmacie_in,'HYBRIDE',1,1);
+
+  insert into public.conventions_promoteurs(id,promoteur_id,montant_mensuel,date_expiration,statut,architecture_code)
+  values(v_convention,v_promoteur,1,current_date+30,'active','HYBRIDE');
+  insert into public.abonnements_promoteurs(id,promoteur_id,convention_id,montant_mensuel,echeance,statut)
+  values(v_abonnement,v_promoteur,v_convention,1,current_date+30,'actif');
 
   insert into public.promoteur_pharmacies(promoteur_id,pharmacie_id,actif)
   values(v_promoteur,v_pharmacie_in,true);
