@@ -49,6 +49,9 @@ begin
   loop
     perform set_config('request.jwt.claim.sub',
       case when v_approval.is_admin_required then v_admin::text else v_approval.approver_id::text end,true);
+    if not v_approval.is_admin_required then
+      perform public.naxa_select_active_role('promoteur',null,null);
+    end if;
     perform public.naxa_decide_cumulative_activity(v_approval.id,'approve',null);
   end loop;
   select status into v_status from public.naxa_cumulative_activity_requests where id=v_request;
@@ -99,6 +102,7 @@ begin
   where id=v_promoter_request and status='approved';
 
   perform set_config('request.jwt.claim.sub',v_promoter::text,true);
+  perform public.naxa_select_active_role('promoteur',null,null);
   v_denied:=false;
   begin
     perform public.naxa_grant_professional_assignment(
@@ -115,7 +119,9 @@ begin
   select id into v_approval from public.naxa_cumulative_activity_approvals
   where request_id=v_request and status='pending' limit 1;
   if v_approval.id is null then raise exception 'SPD owner approval missing'; end if;
+  perform public.naxa_select_active_role('prestations',null,v_partner);
   perform public.naxa_decide_cumulative_activity(v_approval.id,'approve',null);
+  perform public.naxa_select_active_role('promoteur',null,null);
   v_assignment:=public.naxa_grant_professional_assignment(
     v_spd_operator,v_pharmacy,'gestionnaire_stock',now(),now()+interval '30 days','E2E approved SPD cumulative role'
   );
