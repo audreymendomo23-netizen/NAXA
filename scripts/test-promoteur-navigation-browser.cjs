@@ -9,6 +9,10 @@ const source = fs.readFileSync(
   path.join(__dirname, "e2e", "verify-promoteur-navigation-browser.cjs"),
   "utf8"
 );
+const workflow = fs.readFileSync(
+  path.join(__dirname, "..", ".github", "workflows", "naxa-nav-promoteur-e2e.yml"),
+  "utf8"
+);
 
 test("la recette est limitée au projet Supabase Replay connu", () => {
   assert.match(source, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
@@ -22,6 +26,7 @@ test("la recette réutilise uniquement la fixture Promoteur existante et marqué
   assert.match(source, /profile\.role, "promoteur"/);
   assert.match(source, /profile\.actif, true/);
   assert.match(source, /authMatches\.length, 1/);
+  assert.match(source, /espace=pharmacie/);
 });
 
 test("aucun endpoint de création Auth ou de données métier n'est utilisé", () => {
@@ -38,6 +43,12 @@ test("la recette clique les deux navigations Promoteur et vérifie la destinatio
   assert.match(source, /Livraisons de mon réseau/);
   assert.match(source, /page\.waitForURL\(url => url\.pathname === TARGET_PATH/);
   assert.match(source, /390, height: 844/);
+});
+
+test("le serveur local possède ses variables Admin et rate-limit dédiées à Replay", () => {
+  assert.match(workflow, /SUPABASE_SECRET_KEY=\"\$NAXA_STORAGE_E2E_ADMIN_KEY\"/);
+  assert.match(workflow, /NAXA_RATE_LIMIT_SECRET=\"\$\(openssl rand -hex 32\)\"/);
+  assert.match(workflow, /test \"\$\{#NAXA_RATE_LIMIT_SECRET\}\" -ge 32/);
 });
 
 test("la recette ferme explicitement la session navigateur", () => {
