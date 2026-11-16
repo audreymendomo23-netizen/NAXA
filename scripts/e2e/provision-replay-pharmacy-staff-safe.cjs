@@ -40,7 +40,7 @@ const PERSONAS = [
     key: "comptable",
     email: "naxa.e2e.comptable@example.invalid",
     username: "naxa_e2e_comptable",
-    phone: "+237600000093",
+    phone: "+237600000090",
     firstName: "Compte",
     lastName: "Comptable E2E",
     role: "comptable",
@@ -49,7 +49,7 @@ const PERSONAS = [
     key: "pharmacien",
     email: "naxa.e2e.pharmacien@example.invalid",
     username: "naxa_e2e_pharmacien",
-    phone: "+237600000092",
+    phone: "+237600000089",
     firstName: "Compte",
     lastName: "Pharmacien E2E",
     role: "pharmacien",
@@ -301,8 +301,8 @@ async function provision(env = process.env) {
       fixtures[persona.key] = await provisionIdentity(persona);
     }
 
-    // Keep only the short-lived Client and Caisse passwords available to later
-    // Replay runtime/browser steps. They are files with mode 0600, never logs.
+    // Keep short-lived credentials for each role available to later Replay
+    // runtime/browser steps. They are files with mode 0600, never logs.
     if (!env.GITHUB_ENV || !env.RUNNER_TEMP) {
       throw new Error("Export des secrets E2E autorisé uniquement depuis GitHub Actions.");
     }
