@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§127)  
+**Dernière mise à jour :** 17 novembre 2026 (§129)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `0e0890d821e1c5062d360f6c9c19331e47e1f12c`  
+**HEAD contrôlé avant cette mise à jour :** `1916357a3e3eeebdf1e9f0468a133f5b2a716fa6`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5105,3 +5105,33 @@ Liens de preuve :
 - Run [Replay E2E #261](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43972075922) : `completed / failure`, uniquement à cause de l'assertion Auth. Aucun faux vert global.
 
 **Verdict des trois points : 2/3 verts ; Crédit est vert, Web Push est vert, Auth reste bloqué par le réglage de sécurité du projet Replay à contrôler.**
+
+
+
+## 129. Vérification directe de la session Auth après rejeu d'un ancêtre (17/11/2026)
+
+**Périmètre :** projet Supabase Replay `naxa-ci-replay-2`, ref `pwfftcsjyeibxxqhwysw`. Contrôles strictement en lecture seule sur les journaux Auth et les tables `auth.sessions` / `auth.refresh_tokens`. Aucun changement de configuration, aucune écriture SQL, aucun changement de code, aucune action Production/Vercel/Play Store.
+
+### Preuve contradictoire sur la session E2E
+
+- Run [Replay E2E #261](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43972075922), job Auth, compte technique Gestionnaire Stock, session `53e61ccd-0f96-4c30-9a88-38feacd65049`.
+- Chaîne confirmée dans `auth.refresh_tokens` : T1 (ligne 2020) → T2 (2021) → T3 (2022). Le rejeu de T1 survient à `22:46:23.130Z`, plus de 15 secondes après la deuxième rotation.
+- Journaux Auth : rejeu de T1 refusé avec `refresh_token_already_used`, HTTP 400. À `22:46:23.502Z`, le refresh avec T3 est accepté en HTTP 200 et produit T4.
+- État DB lu après le test : T1, T2 et T3 sont marqués `revoked=true`, mais T4 est `revoked=false`. La ligne de session correspondante existe toujours dans `auth.sessions`.
+- Conclusion factuelle : le rejeu de l'ancêtre est détecté et les trois anciens refresh tokens sont révoqués, mais le serveur accepte ensuite le refresh courant et conserve la session. L'assertion E2E de révocation complète n'est donc pas un faux positif.
+
+### Réglage Dashboard : état non établi
+
+- L'utilisateur a copié le texte de la page Authentication → Sessions. Le texte confirme un intervalle de réutilisation de 10 secondes et affiche le libellé « Détecter et révoquer les jetons d'actualisation potentiellement compromis », mais ne révèle pas l'état visuel ON/OFF du commutateur.
+- Il n'est donc pas démontré que le commutateur soit activé. La précédente hypothèse « réglage activé mais non appliqué » reste à confirmer ; ne pas l'énoncer comme cause certaine.
+- La documentation Supabase [User sessions](https://supabase.com/docs/guides/auth/sessions) indique que, hors fenêtre de tolérance et hors exception du parent du token actif, toute la session doit être terminée et tous les refresh tokens révoqués.
+- Les outils Supabase connectés permettent les lectures SQL/journaux mais n'exposent pas d'action de lecture ou de modification de la configuration Auth du projet. Aucune tentative de modification SQL n'est faite : la configuration Auth ne doit pas être bricolée dans la base.
+
+### Décision / prochaine action exacte
+
+1. Conserver l'expiration du jeton d'accès à 3 600 secondes et l'intervalle de réutilisation à 10 secondes.
+2. Confirmer visuellement que le commutateur « Détecter et révoquer… » est ON. S'il est OFF, l'activer puis enregistrer ; s'il est déjà ON, ne pas le basculer et escalader le comportement observé à Supabase avec les horodatages et l'ID de session de test.
+3. Rejouer uniquement le test Auth Replay. PASS attendu : T1 rejeté, T3 également rejeté, session absente de `auth.sessions`, et contrôle de révocation globale indépendante toujours PASS.
+4. Ne pas assouplir le test, ne pas augmenter la fenêtre de réutilisation, et ne pas ajouter de garde applicative avant d'avoir établi l'état réel du paramètre natif.
+
+**Verdict : NON VERT — défaut de révocation complète observé dans Replay ; état ON/OFF du commutateur Dashboard encore inconnu.** Les deux autres points du lot (Web Push et Crédit) restent verts selon §128.
