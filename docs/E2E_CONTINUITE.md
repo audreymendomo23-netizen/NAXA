@@ -4376,3 +4376,12 @@ Lecture de `main` confirmée au commit `b21d89927f4f894289f3463162ce342b6f6ec394
 **État :** audit SQL de cause racine effectué en lecture seule. Aucune migration cumul appliquée ; aucun test E2E cumul exécuté ; aucun déploiement/Production touché.
 
 **Point exact de reprise :** inventorier les fonctions et politiques RLS des univers SPD et les parcours de création/activation de partenaire ; concevoir ensuite une migration additive, ses RPC d'approbation atomiques et les guards d'accès, avant de préparer les fixtures multi-espace sur Replay.
+
+
+## 101. Précision — modèle SPD déjà présent
+
+L'audit des politiques Replay confirme que le SPD utilise `partners.partner_type='professionnel_domicile'` et `partner_members` (`owner/manager/operator`), tandis que l'accord indépendant personnel du titulaire est porté séparément par `partner_independent_agreements`. Les offres et demandes SPD contrôlent le membership, le statut partenaire et `profiles.actif`.
+
+**Conséquence pour la suite :** le cumul doit agréger les affectations pharmacie et les memberships SPD ; il ne faut pas forcer le SPD dans le modèle Parapharmacie. Le sélecteur universel devra activer un rôle SPD explicite tout en gardant séparés membership opérationnel, convention indépendante et habilitation clinique.
+
+Aucune modification SQL/code ni recette fonctionnelle n'a été réalisée à ce stade.
