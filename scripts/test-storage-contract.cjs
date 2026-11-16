@@ -54,6 +54,7 @@ test("les dépôts métier directs et les compensations restent branchés", () =
 test("le harnais binaire est limité au Replay, envoie des octets et nettoie les comptes/fichiers", () => {
   assert.match(binaryE2E, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
   assert.match(binaryE2E, /method: "POST"/);
+  assert.match(binaryE2E, /"cache-control": "max-age=60"/);
   assert.match(binaryE2E, /Buffer\.from/);
   assert.match(binaryE2E, /download\(bucket, path, token\)/);
   assert.match(binaryE2E, /createTemporaryUser/);
