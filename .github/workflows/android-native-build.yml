@@ -1,4 +1,5 @@
 name: Android native build
+# Les recettes d'intégration utilisent exclusivement le projet Supabase Replay.
 
 on:
   push:
@@ -25,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://build-test.supabase.co' }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'build-test-anon-key' }}
+      SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -54,6 +55,13 @@ jobs:
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.9"
+
+      - name: Vérifier que l'émulateur est strictement connecté à Replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SUPABASE_URL" = "https://pwfftcsjyeibxxqhwysw.supabase.co" || { echo "::error::Android E2E refuse tout projet autre que Replay"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "::error::Clé publique Replay absente"; exit 1; }
 
       - name: Compile, test and assemble NAXA main app
         working-directory: android
@@ -99,6 +107,13 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
+      - name: Vérifier que l'émulateur est strictement connecté à Replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SUPABASE_URL" = "https://pwfftcsjyeibxxqhwysw.supabase.co" || { echo "::error::Android E2E refuse tout projet autre que Replay"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "::error::Clé publique Replay absente"; exit 1; }
 
       - name: Run encrypted queue and WorkManager tests on API 35 emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
