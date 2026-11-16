@@ -3385,3 +3385,46 @@ Les contrôles de navigation communs examinés disposent d'une destination, d'un
 **Avant la première campagne bulk :** corriger ou décider formellement du sort des deux pages suspectes, compléter si nécessaire la navigation Comptable, puis faire une passe interactive avec les comptes Replay existants sur chaque rôle et chaque menu. Si aucun Preview/Replay navigateur correspondant au SHA applicatif courant n'est disponible sans déploiement, ne pas en créer pendant cet audit : consigner le contrôle runtime comme bloqué et attendre une autorisation explicite.
 
 **Aucune correction applicative, aucune migration, aucune exécution bulk et aucun déploiement n'ont été effectués pendant ce balayage.**
+
+## 80. Corrections de navigation avant validation des campagnes bulk
+
+**Date :** 16 novembre 2026  
+**Branche :** `main` uniquement  
+**Périmètre :** corrections de découvrabilité/navigation décidées après le balayage statique §77–§79. Aucun test bulk, aucune migration, aucun changement de données Replay, aucun déploiement.
+
+### 80.1 Corrections appliquées
+
+| Zone | Correction | Contrôle statique |
+|---|---|---|
+| Promoteur | Ajout de « Livraisons du réseau » dans la navigation latérale persistante et dans la navigation des sous-pages, vers `/pharmacie/promoteur/livraisons`. | Route existante ; garde serveur maintenue (utilisateur authentifié, profil actif, rôle Promoteur). |
+| Comptable | Ajout dans la sidebar des rubriques déjà exposées sur le tableau de bord : Créances & bordereaux, Rejets & relances, Rapports & exports, Documents, Assureurs & fournisseurs, Plan comptable & mappings. | Liens repris des destinations déjà utilisées par le tableau de bord ; aucune nouvelle permission accordée par la navigation. |
+| Partenaire | Ajout d’un accès « Centres et examens » depuis le Catalogue et les Réservations, uniquement lorsqu’un membre actif est propriétaire (`owner`) ou responsable (`manager`). | La page cible conserve sa garde serveur : authentification et appartenance active owner/manager. Les rôles opérateur ne reçoivent pas ce lien. |
+
+Le sélecteur global `EspaceNaxaSwitcher` n’a pas été modifié : « Centres et examens » est une rubrique métier interne à l’espace Partenaire, pas un rôle/espace autonome. Les anciennes routes et prototypes identifiés au §79 restent inchangés.
+
+### 80.2 Fichiers modifiés et commits
+
+- `src/app/pharmacie/promoteur/layout.tsx` — commit `bc75fd72c7ced8bf835291549f515b88be51dff1`.
+- `src/components/pharmacie/ComptableSidebar.tsx` — commit `8f7bd529204461c535ec0a7a9edb5fb6d8ec73d2`.
+- `src/app/partenaire/catalogue/page.tsx` — commit `0bb3c5302d448e20c2c449a33ba17e9e2f70c063`.
+- `src/app/partenaire/reservations/page.tsx` — commit `7f43e103afd17c84960009b00668d312c48840e8`.
+
+### 80.3 Vérification et limites
+
+- Contrôle source effectué sur les fichiers concernés et les gardes serveur visibles.
+- Les destinations des liens sont des routes existantes dans l’arborescence Next.js.
+- **Aucun build, test unitaire, test navigateur ou test E2E n’a été exécuté dans cette passe.** L’application n’est donc pas déclarée validée à l’exécution.
+- Aucun test en bulk n’a été lancé. Aucune donnée ni compte Replay n’a été créé ou modifié. Aucun déploiement n’a été effectué.
+- Les commits ont été poussés sur `main` ; les workflows éventuels déclenchés par push ne sont pas assimilés à une validation exécutée ici.
+
+### 80.4 Porte de validation utilisateur
+
+**État : JAUNE — corrections source appliquées, vérification interactive encore requise.**
+
+Avant toute campagne bulk, demander la validation explicite de l’utilisateur sur :
+1. la navigation Promoteur vers les Livraisons du réseau ;
+2. l’accès Centres et examens réservé aux membres actifs owner/manager ;
+3. la sidebar Comptable complétée ;
+4. l’autorisation de procéder ensuite au contrôle interactif préalable, puis aux campagnes bulk B1 → B2 → B3 et suivantes.
+
+**Arrêt obligatoire :** attendre cette validation. Aucun bulk, aucune mutation de données Replay et aucun déploiement avant accord explicite.
