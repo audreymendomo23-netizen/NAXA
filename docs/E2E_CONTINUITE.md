@@ -4852,3 +4852,38 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Le catalogue Replay ne contient actuellement aucune offre publique retournée pour les deux univers testés. Ces résultats ne valident donc pas le chemin positif (offre publiée réellement visible à anon) ni les cas pharmacie inactive/masquée/démo avec fixtures métier. L'alerte de grant anon reste ouverte jusqu'à une recette positive et négative complète.
 
 **Verdict Lot A : PARTIEL inchangé.** Aucun grant n'a été modifié. Le point de reprise reste l'activation Auth Password Security, les tests positifs/négatifs des RPC anon et la preuve navigateur refresh/expiration/révocation.
+
+
+## 118. Lot A — recette positive/négative des RPC anon avec création transactionnelle de stock (16/11/2026)
+
+**Cible et méthode**
+- Projet exclusivement Replay : Supabase `naxa-ci-replay-2` / `pwfftcsjyeibxxqhwysw`.
+- Pharmacie fixture utilisée : `NAXA E2E — Pharmacie de recette (non commerciale)`, id `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`. Elle est non publiée par défaut (`visible_recherche=false`).
+- Produit fictif de catalogue : `Amoxicilline NAXA Test`, id `893b49e6-faaa-4944-a396-f03f79d17978`.
+- Création simulée dans une transaction : insertion d'une ligne `stocks` (prix 1 200 FCFA, quantité 5) et d'un lot correspondant (5 unités, péremption future). Les triggers réels de journalisation et de cohérence des lots se sont exécutés. Après bascule du rôle SQL à `anon`, les trois RPC ont renvoyé : `marketplace_produit_visible=true`, offre `{prix:1200, quantite:5}`, une ligne correspondante dans `get_universe_catalog_v2('pharmacie')`.
+- Le stock et son lot ont été créés uniquement pour la durée du test ; transaction terminée par `ROLLBACK`.
+
+**Résultats négatifs exécutés sous rôle SQL `anon`**
+- Pharmacie masquée : produit invisible, aucune offre, aucune ligne catalogue.
+- Pharmacie inactive : produit invisible, aucune offre, aucune ligne catalogue.
+- Pharmacie démo : produit invisible, aucune offre, aucune ligne catalogue.
+- Pharmacie archivée : produit invisible, aucune offre, aucune ligne catalogue.
+- Lot expiré : offre quantité 0, aucune ligne catalogue.
+- Lot bloqué : offre quantité 0, aucune ligne catalogue.
+- Quantité stock égale à 0 : RPC d'offre renvoie quantité 0, catalogue exclu. `marketplace_produit_visible` reste vrai car cette fonction indique l'existence d'une association stock/pharmacie publique, pas la disponibilité quantitative.
+- Historique de mouvement de stock datant de plus de 48 h : aucune offre, aucune ligne catalogue.
+
+**Contrôle de nettoyage**
+- Après toutes les transactions : pharmacie revenue à `visible_recherche=false`.
+- Zéro ligne résiduelle pour le stock/lot créés pendant la simulation ; zéro lot résiduel de sonde.
+- Aucun grant anon modifié, aucune migration, aucun compte Auth créé, aucune donnée Production touchée.
+
+**Limites de preuve / possibilités d'accès**
+- Les outils présents permettent l'exécution SQL Replay, les transactions/ROLLBACK, l'inspection des fonctions et la lecture/écriture documentaire GitHub sur `main`.
+- Ils n'exposent pas d'action pour modifier les paramètres Auth Supabase, de navigateur/Playwright interactif, ni de déclenchement `workflow_dispatch` GitHub Actions. Les actions GitHub disponibles concernent notamment la lecture des runs et la relance de jobs existants.
+- La recette ci-dessus valide le contrat DB/RPC et les filtres marketplace sous rôle `anon`, mais ne prouve pas le parcours UI de création de stock par un compte Gestionnaire de stock connecté.
+- Le réglage Supabase `Leaked Password Protection` reste désactivé et non modifiable par les outils présents. Une simulation SQL ou une validation côté interface ne peut pas faire passer ce réglage natif en PASS. Un contrôle compensatoire applicatif ne serait équivalent que s'il est imposé côté serveur sur tous les parcours d'inscription/changement de mot de passe et résiste au contournement direct de l'API Auth ; aucune telle preuve n'est établie à ce stade.
+
+**Verdict Lot A : PARTIEL.** Les RPC marketplace anon ont désormais une preuve positive et les cas négatifs majeurs ont été exécutés sur des fixtures de stock réelles en transaction, sans résidu. Restent à fermer : preuve navigateur Auth (connexion, refresh, expiration, révocation), revue ciblée des fonctions SECURITY DEFINER et classification des tables RLS sans policy ; la protection native des mots de passe compromis demeure une limite de forfait non modifiable depuis les accès actuels. Ne pas confondre cette limite avec une activation réussie.
+
+**Point exact de reprise :** compléter la preuve Auth navigateur avec un moyen d'exécution accessible ; auditer les fonctions SECURITY DEFINER qui touchent identité/session/affectations et classifier les 72 tables RLS sans policy ; définir avec l'utilisateur le critère d'acceptation formel du contrôle Auth non disponible sur le forfait gratuit. Aucun accès Production, aucun déploiement Vercel ou Play Store.
