@@ -20,6 +20,20 @@ type Halo = { x: number; y: number; vie: number };
 
 const d = (n: number) => ({ "--i": n } as React.CSSProperties);
 
+const ROUTE_PAR_ROLE_ACTIF: Record<string, string> = {
+  client: "/client",
+  pharmacie: "/pharmacie",
+  promoteur: "/pharmacie/promoteur",
+  caisse: "/pharmacie/caisse",
+  responsable: "/pharmacie",
+  comptable: "/pharmacie/comptable",
+  pharmacien: "/pharmacie/pharmacien",
+  gestionnaire_stock: "/pharmacie/gestionnaire-stock",
+  magasinier: "/pharmacie/gestionnaire-stock",
+  livreur: "/pharmacie/livreur",
+  admin: "/admin",
+};
+
 function safeInternalPath(value: string | null) {
   if (!value || !value.startsWith("/")) return "/";
   try {
@@ -325,23 +339,11 @@ function Formulaire() {
           return;
         }
 
-        const { data: profile } = await sb
-          .from("profiles")
-          .select("role")
-          .eq("id", auth.user.id)
-          .maybeSingle();
+        const { data: activeRole, error: activeRoleError } = await sb.rpc("naxa_business_function");
         if (annule) return;
-
-        const espacesParRole: Record<string, string> = {
-          client: "/client",
-          pharmacie: "/pharmacie",
-          promoteur: "/pharmacie",
-          caisse: "/pharmacie",
-          admin: "/admin",
-        };
         router.replace(
-          profile?.role && espacesParRole[profile.role]
-            ? espacesParRole[profile.role]
+          !activeRoleError && typeof activeRole === "string"
+            ? ROUTE_PAR_ROLE_ACTIF[activeRole] ?? "/"
             : "/"
         );
         router.refresh();
@@ -389,35 +391,19 @@ function Formulaire() {
           const sb = supabaseBrowser();
           const { data: auth } = await sb.auth.getUser();
           if (auth.user) {
-            const { data: profile } = await sb
-              .from("profiles")
-              .select("role")
-              .eq("id", auth.user.id)
-              .maybeSingle();
-
-            const espacesParRole: Record<string, string> = {
-              client: "/client",
-              pharmacie: "/pharmacie",
-              promoteur: "/pharmacie",
-              caisse: "/pharmacie",
-              admin: "/admin",
-            };
-            let partenaireActif = false;
-            if (profile?.role === "client" && search.get("espace") !== "client") {
-              const { data: memberships } = await sb.from("partner_members")
-                .select("partner_id,partners!inner(status)")
-                .eq("user_id", auth.user.id)
-                .in("member_role", ["owner", "manager"]);
-              partenaireActif = (memberships ?? []).some((membership: any) => membership.partners?.status === "active");
-            }
-            if (partenaireActif) {
-              destination = "/partenaire/catalogue";
-            } else if (search.get("espace") === "pharmacie" && profile?.role === "promoteur") {
-              destination = "/pharmacie/promoteur";
-            } else if (search.get("espace") === "client") {
-              destination = "/client";
-            } else if (profile?.role && espacesParRole[profile.role]) {
-              destination = espacesParRole[profile.role];
+            const { data: activeRole, error: activeRoleError } = await sb.rpc("naxa_business_function");
+            if (!activeRoleError && typeof activeRole === "string") {
+              let partenaireActif = false;
+              if (activeRole === "client" && search.get("espace") !== "client") {
+                const { data: memberships } = await sb.from("partner_members")
+                  .select("partner_id,partners!inner(status)")
+                  .eq("user_id", auth.user.id)
+                  .in("member_role", ["owner", "manager"]);
+                partenaireActif = (memberships ?? []).some((membership: any) => membership.partners?.status === "active");
+              }
+              destination = partenaireActif
+                ? "/partenaire/catalogue"
+                : ROUTE_PAR_ROLE_ACTIF[activeRole] ?? "/";
             }
           }
         } catch {
