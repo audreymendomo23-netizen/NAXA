@@ -123,7 +123,7 @@ async function run(env = process.env) {
       { timeout: 60000 }
     );
     await page.goto(
-      baseUrl + "/connexion?espace=promoteur&retour=" + encodeURIComponent("/pharmacie/promoteur"),
+      baseUrl + "/connexion?espace=pharmacie&retour=" + encodeURIComponent("/pharmacie/promoteur"),
       { waitUntil: "domcontentloaded" }
     );
     await page.locator("#username").waitFor({ state: "visible", timeout: 30000 });
