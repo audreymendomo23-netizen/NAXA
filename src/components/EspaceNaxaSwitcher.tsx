@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "responsable" | "stock" | "pharmacien" | "comptable" | "admin" | "livreur" | "parapharmacie";
+type Space = "client" | "pharmacie" | "promoteur" | "caisse" | "responsable" | "stock" | "pharmacien" | "comptable" | "admin" | "livreur" | "parapharmacie" | "prestations";
 type Props = { current: Space };
 type Profile = {
   role: string | null;
@@ -32,6 +32,7 @@ const SPACE_DETAILS: Record<Space, { label: string; href: string }> = {
   admin: { label: "Espace Admin", href: "/admin" },
   livreur: { label: "Poste Livreur", href: "/pharmacie/livreur" },
   parapharmacie: { label: "ERP Parapharmacie", href: "/partenaire/catalogue" },
+  prestations: { label: "Espace Soins & Prestations à domicile", href: "/partenaire/prestations" },
 };
 
 function spaceForRole(roleCode: string): Space | null {
@@ -80,9 +81,9 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           const key = `${roleCode}:${pharmacyId ?? "global"}`;
           choices.set(key, { key, space, roleCode, pharmacyId, pharmacyName, partnerId: null, partnerName: null });
         };
-        const addPartner = (roleCode: string, partnerId: string, partnerName: string) => {
+        const addPartner = (roleCode: string, partnerId: string, partnerName: string, space: "parapharmacie" | "prestations" = "parapharmacie") => {
           const key = `${roleCode}:partner:${partnerId}`;
-          choices.set(key, { key, space: "parapharmacie", roleCode, pharmacyId: null, pharmacyName: null, partnerId, partnerName });
+          choices.set(key, { key, space, roleCode, pharmacyId: null, pharmacyName: null, partnerId, partnerName });
         };
         const [{ data: activeRole }, { data: activePharmacy }, { data: activePartner }] = await Promise.all([
           sb.rpc("naxa_business_function"),
@@ -98,8 +99,9 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           if (profile.role === "promoteur") add("promoteur", null);
           if (profile.role === "pharmacie" && profile.pharmacie_id) add("pharmacie", profile.pharmacie_id);
           if (profile.role === "caisse" && profile.pharmacie_id) add("caisse", profile.pharmacie_id);
+          // L'espace Client appartient à l'identité, pas au rôle historique racine.
           const hasClientIdentity = Boolean(
-            profile.role === "client" && profile.username && profile.first_name && profile.last_name
+            profile.username && profile.first_name && profile.last_name
             && profile.phone && profile.date_of_birth && profile.age_verified === true && profile.consent_accepted_at,
           );
           if (hasClientIdentity) add("client", null);
@@ -132,8 +134,13 @@ export function EspaceNaxaSwitcher({ current }: Props) {
           for (const membership of partnerMemberships ?? []) {
             const partner = membership.partners as { name?: string; status?: string; partner_type?: string } | { name?: string; status?: string; partner_type?: string }[] | null;
             const detail = Array.isArray(partner) ? partner[0] : partner;
-            if (detail?.partner_type === "parapharmacie" && detail.status === "active" && membership.member_role === "owner") {
+            if (detail?.status !== "active") continue;
+            if (detail.partner_type === "parapharmacie" && membership.member_role === "owner") {
               addPartner("promoteur", String(membership.partner_id), detail.name ?? "Parapharmacie");
+            }
+            if (detail.partner_type === "professionnel_domicile"
+              && ["owner", "manager", "operator"].includes(String(membership.member_role))) {
+              addPartner("prestations", String(membership.partner_id), detail.name ?? "Prestations à domicile", "prestations");
             }
           }
           const now = Date.now();
@@ -193,7 +200,7 @@ export function EspaceNaxaSwitcher({ current }: Props) {
         {available.map((choice) => (
           <button key={choice.key} type="button" role="menuitem" onClick={() => void ouvrirEspace(choice)}
             className="block w-full rounded-lg px-3 py-3 text-left text-sm font-semibold hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800">
-            {choice.partnerId ? SPACE_DETAILS.parapharmacie.label : SPACE_DETAILS[choice.space].label}{choice.partnerName ? ` · ${choice.partnerName}` : choice.pharmacyName ? ` · ${choice.pharmacyName}` : ""}
+            {SPACE_DETAILS[choice.space].label}{choice.partnerName ? ` · ${choice.partnerName}` : choice.pharmacyName ? ` · ${choice.pharmacyName}` : ""}
           </button>
         ))}
         {errorMessage && <p role="alert" className="px-3 py-2 text-xs text-red-700">{errorMessage}</p>}
