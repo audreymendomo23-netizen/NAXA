@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 16 novembre 2026 (§115)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `bb84cf916fd4db1615760cc1e68256023cab577f`  
+**HEAD contrôlé avant cette mise à jour :** `a7a00c1762b7fd6c5190400e5ad1dc367697a8a9`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
@@ -4778,7 +4778,7 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Test 225 : assertion de contrat alignée sur l'implémentation active : comparaison normalisée de l'auto-affectation et du chevauchement, présence de `pg_advisory_xact_lock` plutôt que d'exiger à tort `FOR UPDATE`. Le contrôle de synchronisation offline vérifie désormais le moteur d'autorisations (`naxa_has_privilege`, `VIEW_STOCK`, `EDIT_STOCK_QUANTITY`) au lieu d'exiger un appel direct à l'ancien helper d'affectation ; le helper Stock vérifie le périmètre canonique `naxa_scope_allows`.
 
 **Vérification**
-- À compléter après application de la migration sur Replay : relecture des ACL/policy, test 036 sous rôle `authenticated`, test 225, suites 034/035/188/195 et contrôles de nettoyage.
+- Statut historique à la date du §114 ; les contrôles ont été exécutés après correction, voir §115.
 - Aucun accès Production, aucun déploiement Vercel ou Play Store.
 
 **État Lot A :** PARTIEL jusqu'au passage de tous les tests et à la preuve navigateur Auth interactive.
@@ -4788,7 +4788,7 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 
 **Cible / migration**
 - Projet confirmé : Supabase `naxa-ci-replay-2`, ref `pwfftcsjyeibxxqhwysw`, `ACTIVE_HEALTHY`.
-- Migration `20261116222600_fix_promoteur_session_audit_rls_facade.sql` appliquée avec succès sur Replay. La policy `naxa_session_audit_read_scope` appelle la façade `public.naxa_promoteur_valide(auth.uid())` ; l'ACL privée reste fermée à `authenticated`.
+- Migration `20261116212824_fix_promoteur_session_audit_rls_facade.sql` appliquée avec succès sur Replay. La policy `naxa_session_audit_read_scope` appelle la façade `public.naxa_promoteur_valide(auth.uid())` ; l'ACL privée reste fermée à `authenticated`.
 - Commit de la migration : `2aef2a54516880929e4913b3c88f62514f1f8ba9`.
 
 **Résultats SQL consolidés**
@@ -4806,7 +4806,7 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - Les suites transactionnelles ont été annulées par `ROLLBACK` ; aucune fixture métier persistante issue de ces tests.
 
 **Contrôles d'exploitation / réserves restantes**
-- Supabase Security Advisors Replay : avertissement Auth `auth_leaked_password_protection` toujours présent (protection des mots de passe compromis désactivée) ; 3 fonctions `SECURITY DEFINER` exécutables par `anon` signalées (`get_universe_catalog_v2`, `marketplace_offre_stock_disponible`, `marketplace_produit_visible)) ; 72 tables RLS sans policy (avis INFO, à classifier selon exposition et accès service_role) et 253 fonctions `SECURITY DEFINER` exécutables par `authenticated` signalées pour revue de leurs gardes métier. Ces alertes ne sont pas toutes des vulnérabilités avérées, mais elles ne sont pas clôturées par le Lot A.
+- Supabase Security Advisors Replay : avertissement Auth `auth_leaked_password_protection` toujours présent (protection des mots de passe compromis désactivée) ; 3 fonctions `SECURITY DEFINER` exécutables par `anon` signalées (`get_universe_catalog_v2`, `marketplace_offre_stock_disponible`, `marketplace_produit_visible` ; 72 tables RLS sans policy (avis INFO, à classifier selon exposition et accès service_role) et 253 fonctions `SECURITY DEFINER` exécutables par `authenticated` signalées pour revue de leurs gardes métier. Ces alertes ne sont pas toutes des vulnérabilités avérées, mais elles ne sont pas clôturées par le Lot A.
 - Le code du parcours Playwright existant réalise une connexion Auth réelle Promoteur/Caisse/Client, mais aucun run navigateur récent n'a été vérifié après cette correction. Le renouvellement/expiration de session et la révocation observée dans le navigateur restent à prouver.
 - Le contrôle de protection contre les mots de passe compromis doit être activé dans les paramètres Auth du projet Replay ; aucun outil disponible dans cette passe ne permet de modifier ce réglage de projet.
 - Les exécutions GitHub Actions post-commit (qualité et navigateur) ne sont pas confirmées par un identifiant de run dans cette passe.
