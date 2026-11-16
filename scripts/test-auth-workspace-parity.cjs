@@ -52,3 +52,25 @@ test("un refus de périmètre Web ferme la session créée pendant la résolutio
   assert.match(web, /await supabase\.auth\.signOut\(\)/);
   assert.match(web, /PHARMACY_ROLE_CODES\.has\(activeRole\)/);
 });
+
+test("le Livreur dispose d'un espace dédié et du même périmètre pharmacie sur les deux canaux", () => {
+  const nativeSession = read("src/app/api/v1/auth/session/route.ts");
+  const nativeRouting = read("android/app/src/main/java/cm/naxa/app/NativeRoleRouting.kt");
+  const nativeActivity = read("android/app/src/main/java/cm/naxa/app/MainActivity.kt");
+  const webPharmacyHome = read("src/app/pharmacie/page.tsx");
+  assert.match(nativeSession, /activeRole === "livreur"[\\s\\S]*?activeWorkspace = "livreur"/);
+  assert.match(nativeSession, /activeWorkspace === "livreur"[\\s\\S]*?naxa_active_role_pharmacy/);
+  assert.match(nativeRouting, /role == "livreur" && workspace == "livreur"/);
+  assert.match(nativeActivity, /supportsCourierWorkspace\\(currentProfile\\.effectiveRole, currentProfile\\.activeWorkspace\\)/);
+  assert.match(webPharmacyHome, /livreur:"\\/pharmacie\\/livreur"/);
+  assert.match(webPharmacyHome, /if\\(roleDestination\\)\\{window\\.location\\.replace\\(roleDestination\\);return\\}/);
+});
+
+test("les postes Comptable, Pharmacien et Gestionnaire Stock sont dirigés vers leur espace Web métier", () => {
+  const home = read("src/app/pharmacie/page.tsx");
+  for (const path of [
+    "comptable:\"/pharmacie/comptable\"",
+    "pharmacien:\"/pharmacie/pharmacien\"",
+    "gestionnaire_stock:\"/pharmacie/gestionnaire-stock\"",
+  ]) assert.ok(home.includes(path), path + " doit être routé");
+});
