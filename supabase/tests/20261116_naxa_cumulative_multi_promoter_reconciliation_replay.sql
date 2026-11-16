@@ -87,10 +87,12 @@ begin
   end if;
 
   perform set_config('request.jwt.claim.sub',v_promoter_one::text,true);
+  perform public.naxa_select_active_role('promoteur',null,null);
   v_status:=public.naxa_decide_cumulative_activity(v_approval_one,'approve',null);
   if v_status<>'pending' then raise exception 'First promoter approval must not activate SPD'; end if;
 
   perform set_config('request.jwt.claim.sub',v_promoter_two::text,true);
+  perform public.naxa_select_active_role('promoteur',null,null);
   v_status:=public.naxa_decide_cumulative_activity(v_approval_two,'approve',null);
   if v_status<>'approved' then raise exception 'Second promoter approval did not complete request'; end if;
 
@@ -131,6 +133,7 @@ begin
   select id into v_approval_one from public.naxa_cumulative_activity_approvals
   where request_id=v_request_after_revoke and approver_id=v_promoter_one;
   perform set_config('request.jwt.claim.sub',v_promoter_one::text,true);
+  perform public.naxa_select_active_role('promoteur',null,null);
   v_status:=public.naxa_decide_cumulative_activity(v_approval_one,'approve',null);
   if v_status<>'approved' then raise exception 'Remaining promoter could not complete recalculated request'; end if;
 
@@ -142,6 +145,7 @@ begin
   select id into v_approval_one from public.naxa_cumulative_activity_approvals
   where request_id=v_request and status='pending' limit 1;
   perform set_config('request.jwt.claim.sub',v_promoter_one::text,true);
+  perform public.naxa_select_active_role('promoteur',null,null);
   v_status:=public.naxa_decide_cumulative_activity(v_approval_one,'reject','Refus E2E explicite');
   if v_status<>'rejected' then raise exception 'A single promoter refusal did not reject the request'; end if;
 
