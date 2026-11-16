@@ -198,7 +198,7 @@ export async function creerProduitPartenaire(form: FormData) {
   const price = Number(field(form, "price_fcfa", 12));
   const stock = Number(field(form, "stock_quantity", 20));
   const photo = field(form, "photo_url", 1000);
-  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || !["parapharmacie", "bebe-maman"].includes(universe) ||
+  if (!/^[0-9a-f-]{36}$/i.test(partnerId) || universe !== "parapharmacie" ||
       name.length < 2 || (universe === "parapharmacie" && isMedicationProduct({ name, brand, category, description })) ||
       !Number.isInteger(price) || price < 0 || !Number.isFinite(stock) || stock < 0 ||
       (photo && (!/^https:\/\//i.test(photo) || photo.length > 1000))) {
@@ -229,6 +229,7 @@ export async function changerStatutProduitPartenaire(form: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(id) || !["draft", "active", "archived"].includes(status)) redirect("/admin/univers?erreur=produit");
   const { data: product } = await sb.from("partner_products").select("partner_id,universe_slug,name,brand,category,description").eq("id", id).maybeSingle();
   if (!product) redirect("/admin/univers?erreur=schema");
+  if (product.universe_slug === "bebe-maman" && status !== "archived") redirect("/admin/univers?erreur=produit");
   if (status === "active" && product.universe_slug === "parapharmacie" && isMedicationProduct(product)) redirect("/admin/univers?erreur=produit");
   if (status === "active") {
     const [partner, association, universe, flag] = await Promise.all([
