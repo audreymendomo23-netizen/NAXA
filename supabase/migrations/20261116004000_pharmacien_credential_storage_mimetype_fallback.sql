@@ -22,7 +22,7 @@ with check (
     coalesce(metadata->>'mimetype','') in ('application/pdf','image/jpeg','image/png')
     or (
       coalesce(metadata->>'mimetype','') in ('','application/octet-stream')
-      and name ~* '\.(pdf|jpe?g|png)
+      and name ~* '\.(pdf|jpe?g|png)$'
     )
   )
 );
