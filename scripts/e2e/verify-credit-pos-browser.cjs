@@ -557,7 +557,7 @@ async function run(env = process.env) {
     clientPage.setDefaultTimeout(30000);
     await pageLogin(clientPage, CLIENT_USERNAME, clientPassword, "client", "/achats/credit/suivi");
     await clientPage.getByRole("heading", { name: "Mes crédits et remboursements" }).waitFor();
-    await clientPage.getByText("Achat à crédit", { exact: false }).waitFor();
+    await clientPage.getByText("Achat à crédit", { exact: false }).first().waitFor();
 
     const refundReference = "NAXA-E2E-CREDIT-BROWSER-" + crypto.randomUUID();
     const refund = await rpc("client_credit_rembourser", cashierToken, {
