@@ -42,7 +42,6 @@ export async function creerDossierUnivers(form: FormData) {
   if (!PROMOTEUR_VALIDATION.username.test(username)) errors.username = "Nom d’utilisateur invalide.";
   if (!(country in PROMOTEUR_VALIDATION.phone) || validatePromoteurPhone(rawPhone, country)) errors.phone_number = validatePromoteurPhone(rawPhone, country) ?? "Indicatif invalide.";
   if (!PROMOTEUR_VALIDATION.email.test(email)) errors.email = "Adresse e-mail invalide.";
-  if (password.length < PROMOTEUR_VALIDATION.passwordMinLength) errors.motdepasse = "6 caractères minimum.";
   const birth = new Date(dob);
   const today = new Date();
   const age = Number.isNaN(birth.getTime()) ? -1 : today.getUTCFullYear() - birth.getUTCFullYear() -
@@ -55,22 +54,56 @@ export async function creerDossierUnivers(form: FormData) {
   if (Object.keys(errors).length) redirect("/admin?erreur=validation&univers=" + encodeURIComponent(universe) + "&champs=" + encodeURIComponent(JSON.stringify(errors)));
 
   const db = supabaseAdmin();
-  const created = await db.auth.admin.createUser({
-    email, password, email_confirm: true,
-    user_metadata: {
-      username, first_name: get(form, "first_name"), last_name: get(form, "last_name"),
-      phone: normalizePromoteurPhone(rawPhone, country), phone_country: country,
-      date_of_birth: dob, consent_accepted: true,
-    },
-  });
-  if (created.error || !created.data.user) {
-    console.error("[admin][creerDossierUnivers] Auth user creation failed", {
-      code: created.error?.code ?? "missing_user",
-      message: created.error?.message ?? "Auth returned no user",
-    });
-    redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
+  const { data: existingProfiles, error: existingLookupError } = await db.from("profiles")
+    .select("id,username,actif,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
+    .ilike("username", username)
+    .limit(2);
+  if (existingLookupError || (existingProfiles?.length ?? 0) > 1) {
+    redirect("/admin?erreur=identite&univers=" + encodeURIComponent(universe));
   }
-  const ownerId = created.data.user.id;
+
+  const normalizedPhone = normalizePromoteurPhone(rawPhone, country);
+  let ownerId: string;
+  let createdAuthUser = false;
+  const existingProfile = existingProfiles?.[0];
+
+  if (existingProfile) {
+    const existingAuth = await db.auth.admin.getUserById(existingProfile.id);
+    const identityMatches = existingProfile.actif === true
+      && existingProfile.first_name?.trim().toLocaleLowerCase("fr") === get(form, "first_name").toLocaleLowerCase("fr")
+      && existingProfile.last_name?.trim().toLocaleLowerCase("fr") === get(form, "last_name").toLocaleLowerCase("fr")
+      && existingProfile.phone === normalizedPhone
+      && existingProfile.date_of_birth === dob
+      && existingProfile.age_verified === true
+      && Boolean(existingProfile.consent_accepted_at)
+      && existingAuth.data.user?.email?.toLowerCase() === email;
+    if (existingAuth.error || !existingAuth.data.user || !identityMatches) {
+      redirect("/admin?erreur=identite&univers=" + encodeURIComponent(universe));
+    }
+    // Réutilisation de l'identité Auth existante : aucun second compte ni changement de mot de passe.
+    ownerId = existingProfile.id;
+  } else {
+    if (password.length < PROMOTEUR_VALIDATION.passwordMinLength) {
+      redirect("/admin?erreur=validation&univers=" + encodeURIComponent(universe) + "&champs=" + encodeURIComponent(JSON.stringify({ motdepasse: "6 caractères minimum pour une nouvelle identité." })));
+    }
+    const created = await db.auth.admin.createUser({
+      email, password, email_confirm: true,
+      user_metadata: {
+        username, first_name: get(form, "first_name"), last_name: get(form, "last_name"),
+        phone: normalizedPhone, phone_country: country,
+        date_of_birth: dob, consent_accepted: true,
+      },
+    });
+    if (created.error || !created.data.user) {
+      console.error("[admin][creerDossierUnivers] Auth user creation failed", {
+        code: created.error?.code ?? "missing_user",
+        message: created.error?.message ?? "Auth returned no user",
+      });
+      redirect("/admin?erreur=compte&univers=" + encodeURIComponent(universe));
+    }
+    ownerId = created.data.user.id;
+    createdAuthUser = true;
+  }
   const docs = {
     kyc: form.get("kyc") === "oui",
     piece_existence_legale: form.get("piece_existence_legale") === "oui",
@@ -97,12 +130,14 @@ export async function creerDossierUnivers(form: FormData) {
 
     // Compensation best-effort: record its outcome for operational follow-up.
     // Never expose backend details or the Auth user ID in the redirect.
-    const compensation = await db.auth.admin.deleteUser(ownerId);
-    if (compensation.error) {
-      console.error("[admin][creerDossierUnivers] Auth compensation failed; manual review required", {
-        code: compensation.error.code ?? "unknown",
-        message: compensation.error.message,
-      });
+    if (createdAuthUser) {
+      const compensation = await db.auth.admin.deleteUser(ownerId);
+      if (compensation.error) {
+        console.error("[admin][creerDossierUnivers] Auth compensation failed; manual review required", {
+          code: compensation.error.code ?? "unknown",
+          message: compensation.error.message,
+        });
+      }
     }
 
     redirect("/admin?erreur=dossier&univers=" + encodeURIComponent(universe));
