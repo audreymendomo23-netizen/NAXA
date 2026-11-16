@@ -214,7 +214,9 @@ export async function proposerAccreditationPharmacien(formData:FormData){
 
   const extension=file.type==="application/pdf"?"pdf":file.type==="image/png"?"png":"jpg";
   const storagePath=[auth.user.id,matches[0].id,pharmacyId,randomUUID()+"."+extension].join("/");
-  const {error:uploadError}=await db.storage.from("naxa-pharmacien-accreditations")
+  // Upload avec la session du Promoteur : la policy Storage vérifie son réseau,
+  // la pharmacie, le compte cible et le type MIME avant tout stockage.
+  const {error:uploadError}=await sb.storage.from("naxa-pharmacien-accreditations")
     .upload(storagePath,file,{contentType:file.type,upsert:false});
   if(uploadError)redirect("/pharmacie/affectations?erreur=accreditation_document");
 
