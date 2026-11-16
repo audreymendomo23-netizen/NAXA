@@ -2,10 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§71)  
+**Dernière mise à jour :** 16 novembre 2026 (§87)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**État global :** 🟡 PARTIEL — la qualité complète (tests, TypeScript, lint, build Next.js et syntaxe Actions) est `SUCCESS` sur le commit `685ae719631ad71467b6eaaa71a97bb38b759644` (run `43787029143`). Le Replay E2E (`43787029157`) échoue encore à l'étape Web Push : `webpush is not defined`; les étapes remboursement JWT, navigateur crédit et Storage sont donc `SKIPPED` et ne constituent pas des preuves négatives ni positives. Les preuves antérieures SQL/worker et les contrôles de nettoyage restent référencés aux §68–§70. Deux commits de diagnostic ont ensuite été poussés sur `main` (`08418675d9ce46d46907e6fc28300aae43df29e8` : pile d'appel complète dans le script ; `a1dce28b25f420e753acaddaab165cf403044338` : capture du journal Next.js lorsque le test Web Push échoue). La cause racine de `webpush is not defined` n'est pas encore identifiée : attendre le prochain résultat Replay instrumenté avant toute correction fonctionnelle. Production, Vercel et Play Store inchangés.
-
+**HEAD documentaire :** `ad0b3667494f5c8fe906795444457ce91e8e47ea`  
+**État global :** 🟡 PARTIEL — le contrôle ciblé de navigation Chromium sur Replay est clôturé **VERT** au §86 (Promoteur desktop/mobile, 6 destinations Comptable, 2 accès Partenaire ; nettoyage Replay vérifié). La qualité complète est **SUCCESS** au run [43801594362](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801594362) : 549 PASS, 0 FAIL, 0 SKIP, TypeScript et build Next.js PASS, ESLint 0 erreur / 225 avertissements, actionlint PASS. Le code applicatif testé est `5b9f7e5aab72cacc61e7e0a72193c31232fd493a` ; les commits ultérieurs documentaires ne modifient pas l'application. **Le chantier E2E global n'est pas vert** : les parcours métier et appareils listés aux sections antérieures restent à exécuter/valider. Les campagnes bulk B1–B11 n'ont pas été lancées et restent soumises à une validation explicite distincte. Aucun compte Auth supplémentaire, aucune écriture Production, aucun déploiement Preview/Production et aucun envoi Play Store n'ont été effectués. Les 225 avertissements ESLint restent visibles et suivis, sans invalider le contrôle ciblé.
 
 
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
@@ -3832,3 +3832,18 @@ Run [43801594362 — SUCCESS](https://github.com/audreymendomo23-netizen/NAXA/ac
 - **Hors périmètre :** recettes métier bulk B1–B11, déploiement Preview/Production et tests des opérations métier Stock/Marketplace/Livraison/Caisse.
 
 **Conclusion senior QA : le scénario de navigation ciblé est clôturé VERT sur Replay. Cela ne vaut pas validation des campagnes bulk : aucune campagne B1–B11 n'a été lancée et leur autorisation explicite reste à demander séparément.**
+
+
+## 87. Réconciliation de l'en-tête de continuité avec la clôture du scénario navigateur — 16 novembre 2026
+
+Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun code applicatif. Elle corrige l'en-tête historique du document afin qu'il reflète le résultat final déjà établi au §86 et évite de confondre le vert du scénario ciblé avec le vert de l'ensemble des recettes E2E.
+
+- HEAD documentaire observé sur `main` avant cette mise à jour : `ad0b3667494f5c8fe906795444457ce91e8e47ea`.
+- Référence applicative réellement testée : `5b9f7e5aab72cacc61e7e0a72193c31232fd493a`.
+- Navigation ciblée : **VERT**, preuves détaillées au §86.
+- Qualité technique : **VERT**, run `43801594362`, 549 PASS / 0 FAIL / 0 SKIP ; TypeScript, build et actionlint PASS ; ESLint 0 erreur et 225 avertissements.
+- État global des recettes E2E : **PARTIEL** tant que les parcours métier, rôles et appareils encore ouverts dans le document n'ont pas leurs propres preuves.
+- Campagnes B1–B11 : **NON LANCÉES** ; aucune autorisation de bulk n'est présumée.
+- Environnements : Replay uniquement pour le contrôle précédent ; Production non touchée ; aucun déploiement Vercel.
+
+**Point de reprise exact :** attendre la décision explicite de l'utilisateur avant tout lancement B1–B11. En cas d'autorisation, commencer par B1 sur Replay, respecter l'ordre défini au §77, réutiliser uniquement les comptes existants et arrêter au premier blocage. Sans autorisation, ne lancer aucune recette bulk.
