@@ -377,8 +377,21 @@ async function run(env = process.env) {
     await cashierPage.getByRole("button", { name: "Rechercher", exact: true }).click();
     const productButton = cashierPage.locator("button").filter({ hasText: PRODUCT_NAME }).first();
     await productButton.waitFor();
+    const statusNotice = cashierPage.locator('[aria-live="polite"]');
+    const priorNotice = await statusNotice.textContent().catch(() => "");
     await productButton.click();
-    await cashierPage.getByRole("row").filter({ hasText: PRODUCT_NAME }).waitFor();
+    const productRow = cashierPage.getByRole("row").filter({ hasText: PRODUCT_NAME });
+    try {
+      await productRow.waitFor({ state: "visible", timeout: 15000 });
+    } catch {
+      await cashierPage.waitForFunction((previous) => {
+        const node = document.querySelector('[aria-live="polite"]');
+        return Boolean(node && node.textContent?.trim() && node.textContent.trim() !== previous);
+      }, priorNotice, { timeout: 10000 }).catch(() => null);
+      const notice = (await statusNotice.textContent().catch(() => ""))?.trim();
+      throw new Error("Ajout du produit refusé ou non confirmé par le panier Caisse ; message métier : "
+        + String(notice || "aucun message de résultat affiché").slice(0, 300));
+    }
 
     await cashierPage.getByRole("button", { name: "Finaliser la vente à crédit", exact: true }).click();
     await cashierPage.getByText(/Dépassement du plafond/).waitFor();
