@@ -166,7 +166,7 @@ async function upload(bucket, path, bytes, mime, token, apiKey) {
     apiKey,
     accessToken: token,
     contentType: mime,
-    extraHeaders: { "x-upsert": "false", "cache-control": "60" },
+    extraHeaders: { "x-upsert": "false", "cache-control": "max-age=60" },
     body: bytes,
   });
 }
@@ -262,7 +262,7 @@ async function run() {
 
     await check("upload binaire PDF par le propriétaire", async () => {
       const response = await upload(BUCKET_CREDIT, privatePath, pdf, "application/pdf", userA.token);
-      if (!response.ok) throw new Error("Upload propriétaire refusé (HTTP " + response.status + ").");
+      if (!response.ok) { const detail = (await response.text()).slice(0, 500); throw new Error("Upload propriétaire refusé (HTTP " + response.status + ") : " + detail); }
     });
 
     await check("téléchargement authentifié par le propriétaire", async () => {
