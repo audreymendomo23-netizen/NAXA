@@ -2,6 +2,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const os = require("node:os");
 const path = require("node:path");
 const webpush = require("web-push");
@@ -299,6 +300,49 @@ async function run(env = process.env) {
         }),
       });
       if (!saved.ok) throw new Error("Souscription authentifiée refusée pour " + identity.label + " (HTTP " + saved.status + ").");
+
+      // Vérifier immédiatement le transport Google/Firebase avec la même paire
+      // VAPID que le worker serveur, avant de tester la route NAXA.
+      const storedRows = await admin("/rest/v1/naxa_push_subscriptions?select=user_id,endpoint,subscription&user_id=eq."
+        + encodeURIComponent(identity.session.id));
+      const stored = Array.isArray(storedRows)
+        ? storedRows.find(row => row.endpoint === subscription.subscription.endpoint)
+        : null;
+      if (!stored || stored.user_id !== identity.session.id
+        || stored.subscription?.keys?.p256dh !== subscription.subscription.keys?.p256dh
+        || stored.subscription?.keys?.auth !== subscription.subscription.keys?.auth) {
+        throw new Error("Souscription stockée différente de la souscription Chromium pour " + identity.label + ".");
+      }
+      const endpointUrl = new URL(subscription.subscription.endpoint);
+      const endpointFingerprint = crypto.createHash("sha256")
+        .update(subscription.subscription.endpoint).digest("hex").slice(0, 12);
+      try {
+        await webpush.sendNotification(subscription.subscription, JSON.stringify({
+          title: "NAXA · Sonde transport E2E",
+          body: "Vérification directe du fournisseur Web Push.",
+          url: "/notifications",
+          tag: "naxa-e2e-transport-" + identity.session.id,
+          type: "naxa_e2e_transport_probe",
+        }), { TTL: 60, urgency: "normal" });
+      } catch (error) {
+        const status = error && typeof error === "object" ? error.statusCode : undefined;
+        throw new Error("Fournisseur Push refuse l'endpoint Chromium neuf pour " + identity.label
+          + " (HTTP " + String(status || "inconnu") + ", hôte " + endpointUrl.hostname
+          + ", empreinte " + endpointFingerprint + ").");
+      }
+      await page.waitForFunction(async () => {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          const shown = await registration.getNotifications();
+          if (shown.some(notification => notification.data?.type === "naxa_e2e_transport_probe")) return true;
+        }
+        return false;
+      }, { timeout: 20000 }).catch(() => {
+        throw new Error("Fournisseur Push accepte l'endpoint direct mais Chromium n'affiche pas la sonde pour "
+          + identity.label + " (hôte " + endpointUrl.hostname + ", empreinte " + endpointFingerprint + ").");
+      });
+      process.stdout.write("PASS — transport Push direct Chromium accepté pour " + identity.label
+        + " (hôte " + endpointUrl.hostname + ", empreinte " + endpointFingerprint + ").\\n");
       subscriptions.push({ userId: identity.session.id, endpoint: subscription.subscription.endpoint, page, notification: identity.notification, label: identity.label });
     }
 
