@@ -124,23 +124,18 @@ export function EspaceNaxaSwitcher({ current }: Props) {
             }
           }
 
-          const [{ data: partnerMemberships }, { data: partnerAssignments }] = await Promise.all([
+          const [{ data: partnerMemberships }, { data: partnerAssignments }, { data: spdWorkspaces }] = await Promise.all([
             sb.from("partner_members").select("partner_id,member_role,partners!inner(name,status,partner_type)")
               .eq("user_id", auth.user.id),
             sb.from("naxa_partner_professional_assignments")
               .select("partner_id,role_code,commence_at,expire_at,statut,partners!inner(name,status,partner_type)")
               .eq("profile_id", auth.user.id).eq("statut", "active"),
+            // Server-side eligibility includes active SPD status and confirmed subscription.
+            sb.rpc("naxa_list_accessible_spd_workspaces"),
           ]);
-          const spdPartnerIds = (partnerMemberships ?? []).filter((membership) => {
-            const relation = membership.partners as { partner_type?: string } | { partner_type?: string }[] | null;
-            const detail = Array.isArray(relation) ? relation[0] : relation;
-            return detail?.partner_type === "professionnel_domicile";
-          }).map((membership) => String(membership.partner_id));
-          const { data: enabledSpdUniverses } = spdPartnerIds.length
-            ? await sb.from("partner_universes").select("partner_id")
-                .in("partner_id", spdPartnerIds).eq("universe_slug", "prestations").eq("enabled", true)
-            : { data: [] as { partner_id: string }[] };
-          const enabledSpdPartnerIds = new Set((enabledSpdUniverses ?? []).map((item) => item.partner_id));
+          const enabledSpdPartnerIds = new Set(
+            (spdWorkspaces ?? []).map((workspace: { partner_id: string }) => String(workspace.partner_id)),
+          );
 
           for (const membership of partnerMemberships ?? []) {
             const partner = membership.partners as { name?: string; status?: string; partner_type?: string } | { name?: string; status?: string; partner_type?: string }[] | null;
@@ -149,12 +144,12 @@ export function EspaceNaxaSwitcher({ current }: Props) {
             if (detail.partner_type === "parapharmacie" && membership.member_role === "owner") {
               addPartner("promoteur", String(membership.partner_id), detail.name ?? "Parapharmacie");
             }
-            if (detail.partner_type === "professionnel_domicile"
-              && enabledSpdPartnerIds.has(String(membership.partner_id))
-              && ["owner", "manager", "operator"].includes(String(membership.member_role))) {
-              addPartner("prestations", String(membership.partner_id), detail.name ?? "Prestations à domicile", "prestations");
-            }
           }
+          for (const workspace of spdWorkspaces ?? []) {
+            const item = workspace as { partner_id: string; partner_name: string };
+            addPartner("prestations", String(item.partner_id), String(item.partner_name ?? "Prestations à domicile"), "prestations");
+          }
+
           const now = Date.now();
           for (const assignment of partnerAssignments ?? []) {
             if (new Date(assignment.commence_at).getTime() > now) continue;
