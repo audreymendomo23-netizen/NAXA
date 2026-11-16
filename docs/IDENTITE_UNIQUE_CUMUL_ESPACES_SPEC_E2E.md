@@ -146,19 +146,26 @@ Pour chaque scénario, conserver la preuve du run, l'identité Auth (sans secret
 
 ## 6. État et point de reprise
 
-- Audit de code statique : **effectué partiellement** sur le HEAD `b21d89927f4f894289f3463162ce342b6f6ec394`.
-- Architecture et règles métier : **spécifiées** dans ce document.
-- Migration / RPC cumul : **non implémentées**.
-- Sélecteur universel / login : **non corrigés**.
-- Parcours pharmacie↔SPD : **non implémentés**.
-- Tests unitaires dédiés cumul : **non ajoutés**.
-- E2E Replay de ce chantier : **non exécutée**.
-- Production et déploiement : **non touchés**.
+### État historique de la première passe (avant implémentation)
 
-**Point exact de reprise : Lot A.** Inspecter les migrations et définitions SQL réellement présentes sur `main` pour les tables d'affectation, les notifications et les RPC de sélection/grant/revoke. Ne pas écrire de migration avant cet inventaire, ne pas activer de dossier SPD, et ne pas déclarer le chantier vert.
+Les mentions « non implémenté » ci-dessus décrivent l'état initial constaté sur le HEAD `b21d89927f4f894289f3463162ce342b6f6ec394`. Elles sont remplacées par l'état vérifié au §9 ci-dessous.
+
+### État actualisé au 16 novembre 2026
+
+- Audit code + schéma SQL Replay : **effectué**.
+- Modèle identité unique, espaces Client/Pharmacie/SPD et cumul croisé : **implémenté sur Replay et versionné sur `main`**.
+- Approbations multi-Promoteurs, arbitrage Admin, révocation/recalcul et notifications : **implémentés et testés en SQL E2E**.
+- Sélecteur SPD : **branché sur une RPC qui ne retourne que les espaces actifs, payés et affectés**.
+- Provisionnement SPD : **réutilise l'identité existante recherchée par username et téléphone ; création Auth uniquement si aucun profil correspondant n'existe**.
+- Cloisonnement Client / pharmacie / SPD et contexte Admin : **policies RLS corrigées et tests Replay passés**.
+- Tests SQL Replay : **5 suites exécutées avec rollback**.
+- Validation TypeScript/build et parcours navigateur GitHub Actions : **en cours au moment de cette mise à jour**.
+- Production, déploiement Vercel et Play Store : **non touchés**.
+
+Le point de reprise n'est plus le Lot A : il est désormais la vérification finale des workflows GitHub et la recette navigateur Replay.
 
 
-## 7. Audit SQL Replay — constat de cause racine (16 novembre 2026)
+## 7. Audit SQL Replay initial — cause racine avant corrections (16 novembre 2026)
 
 Lecture en base Replay `pwfftcsjyeibxxqhwysw` en lecture seule ; aucune ligne métier modifiée.
 
@@ -200,3 +207,49 @@ Conséquences :
 - la validation Admin d'une convention indépendante reste distincte de l'accord Promoteur pharmacie ;
 - l'invalidation de l'identité globale `profiles.actif` est particulièrement dangereuse : elle coupe aussi les policies SPD et l'accès Client.
 
+> **Portée historique :** les constats des §7 et §8 décrivent l'état de départ avant les migrations d'implémentation. Les restrictions de domaine, le résolveur SPD, le sélecteur et les guards Client mentionnés comme manquants ont été corrigés et sont documentés au §9.
+
+## 9. Implémentation, corrections et preuves E2E Replay — 16 novembre 2026
+
+### 9.1 Parcours applicatifs livrés sur `main`
+
+- `src/app/admin/creation-univers-actions.ts` : recherche d'une identité existante par username **et** téléphone normalisé ; si un profil correspond, contrôle de concordance des données et réutilisation du même `auth.uid()`. `auth.admin.createUser()` n'est utilisé que pour une nouvelle identité, jamais pour dupliquer un profil trouvé.
+- `src/app/pharmacie/affectations/actions.ts` : demande `SPD_VERS_PHARMACIE` avant le grant d'une nouvelle affectation si la personne possède déjà un membership SPD.
+- `src/app/naxa/cumuls/page.tsx` : affichage des actions de décision selon le rôle et l'organisation **actifs**. Le Promoteur doit être dans l'espace Promoteur ; le propriétaire SPD dans le bon espace SPD ; l'Admin dans Admin.
+- `src/app/notifications/page.tsx` : les notifications de cumul ouvrent `/naxa/cumuls`.
+- `src/components/EspaceNaxaSwitcher.tsx` : ajout des espaces SPD à partir de `naxa_list_accessible_spd_workspaces`, qui filtre côté serveur les memberships inactifs, partenaires suspendus et abonnements non confirmés.
+- `src/app/api/auth/login/route.ts` : le contexte Client est activé par la RPC de sélection lorsqu'il est demandé ; il reste indépendant du rôle professionnel.
+
+### 9.2 Corrections SQL Replay versionnées
+
+Les migrations suivantes sont appliquées sur Replay et présentes sur `main` :
+
+- `20261116191135_naxa_identity_client_spd_workspace_support` et `20261116191403_naxa_spd_active_role_profile_compatibility` : identité Client + espace SPD dans le modèle actif.
+- `20261116191719_naxa_cumulative_activity_cross_approval` et migrations correctives `20261116191751`, `20261116191809`, `20261116191857`, `20261116192448`, `20261116192636`, `20261116192700`, `20261116192834`, `20261116192929` : demandes bilatérales, approbations par organisation, arbitrage Admin, notifications et recalcul des sources.
+- `20261116193330_naxa_preserve_client_identity_on_partner_lock`, `20261116193348_naxa_accreditation_revocation_preserves_identity`, `20261116193535`, `20261116193552`, `20261116193603`, `20261116193809`, `20261116194008`, `20261116194147` : séparation verrou commercial / identité, révocation d'accréditation sans suppression du profil, et contrôles de souscription.
+- `20261116194956_naxa_cumulative_source_reconciliation_guards` : annulation et invalidation des décisions devenues obsolètes après changement d'affectation source.
+- `20261116195501_naxa_admin_client_identity_workspace_access` et `20261116195526_naxa_admin_client_context_resolution` : espace Client accessible à une identité Admin complète ; les privilèges Admin suivent le contexte actif et sont suspendus en contexte Client.
+- `20261116195628_naxa_list_authorized_spd_workspaces` : liste serveur des espaces SPD actifs et payés.
+- `20261116200105_naxa_client_personal_data_workspace_isolation` : RLS Client, pharmacie, SPD et Storage ; données personnelles des membres exclues des vues employeur.
+- `20261116200551_naxa_cumulative_decisions_require_active_workspace` et `20261116200725_naxa_cumulative_decision_context_mismatch_is_denied` : l'approbateur doit activer l'espace de l'organisation concernée ; un clic depuis Client est refusé sans annuler la demande.
+
+### 9.3 Suites SQL E2E exécutées sur Replay
+
+Toutes les suites ci-dessous ont été exécutées sur `pwfftcsjyeibxxqhwysw`. Chaque suite encadre les fixtures et mutations par `BEGIN` / `ROLLBACK` : aucun compte, réservation, partenaire ou verrou de recette n'est conservé.
+
+1. `supabase/tests/20261116_naxa_identity_cumulative_replay.sql` — pharmacie→SPD, auto-arbitrage Promoteur par Admin, SPD→pharmacie, bypass grant refusé, bascule SPD↔Client, visibilité du sélecteur payé, verrou commercial qui préserve Client, révocation d'accréditation.
+2. `supabase/tests/20261116_naxa_cumulative_multi_promoter_reconciliation_replay.sql` — deux pharmacies / deux Promoteurs, attente après un seul accord, notifications durables, révocation d'une source, invalidation des anciennes approbations, recalcul et refus d'un Promoteur.
+3. `supabase/tests/20261116_naxa_cumulative_rls_replay.sql` — RLS activée, RPC anonymes refusées, lectures isolées, notification au bon destinataire, écriture directe des statuts bloquée et décision refusée depuis le contexte Client sans annuler la demande.
+4. `supabase/tests/20261116_naxa_admin_client_workspace_replay.sql` — identité Admin complète en Client ; privilèges Admin inactifs en Client et restaurés après retour dans Admin.
+5. `supabase/tests/20261116_naxa_client_data_privacy_replay.sql` — Promoteur et Pharmacien incapables de lire réservations, ordonnances et fichiers personnels d'un salarié de leur pharmacie ; données des clients ordinaires conservées ; accès personnel restauré uniquement en Client ; employeur SPD incapable de lire la réservation Client personnelle d'un opérateur.
+
+**Résultat : 5/5 suites SQL Replay exécutées sans exception.** Ces résultats prouvent les parcours base/RPC/RLS avec fixtures transactionnelles ; ils ne remplacent pas une recette navigateur complète.
+
+### 9.4 Contrôles encore attendus avant un « vert » de livraison
+
+- `naxa-quality.yml` : résultat final de `npm test`, TypeScript, lint et build.
+- `naxa-replay-promoteur-secret-safe-v2.yml` : résultat final de la recette navigateur Replay déclenchée par les changements applicatifs.
+- Si un de ces workflows échoue, corriger la cause et relancer ; ne pas masquer le résultat.
+- La migration Production et le déploiement Vercel ne sont pas autorisés par ce chantier et n'ont pas été exécutés.
+
+**État :** développement base + parcours applicatifs versionnés ; preuves SQL Replay vertes ; contrôles GitHub en attente.
