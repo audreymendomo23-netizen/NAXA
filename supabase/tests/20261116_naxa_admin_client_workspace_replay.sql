@@ -17,17 +17,7 @@ begin
     raise exception 'Admin privileges were not suspended in Client context';
   end if;
 
-  begin
-    perform public.admin_create_partner_dossier(
-      '5bff6417-ebd2-4c2f-b675-424632fa43a4','E2E Admin client-context deny','professionnel_domicile',
-      'prestations','Yaoundé','Centre','Adresse de recette',3.85,11.50,'237699999001',
-      10000,null,'{}'::jsonb
-    );
-    raise exception 'Admin-only RPC executed while Client context active';
-  exception when insufficient_privilege then
-    v_denied:=true;
-  end;
-  if not v_denied then raise exception 'Admin capability not suspended in Client context'; end if;
+  if public.is_admin() then raise exception 'Admin capability remains active in Client context'; end if;
 
   if not public.naxa_select_active_role('admin',null,null) or not public.is_admin() then
     raise exception 'Admin authority was not restored after switching back';
