@@ -48,8 +48,8 @@ export default async function AdminUnivers({ searchParams }: { searchParams: { o
   const dossierPartnerIds = new Set((partnerDossiersResult.data ?? []).map((item) => item.partner_id));
   const dossiersEnAttente = (partnerDossiersResult.data ?? []).filter((item) => item.dossier_status === "pending").length;
   const universesUnavailable = !!(u.error || f.error);
-  const partnersUnavailable = !!(p.error || a.error);
-  const productsUnavailable = !!productsResult.error;
+  const partnersUnavailable = !!(p.error || a.error || partnerActiveCount.error || partnerPendingCount.error);
+  const productsUnavailable = !!(productsResult.error || productDraftCount.error || productActiveCount.error);
   const suiviUnavailable = !!(t.error || suiviPros.error);
   const flags = new Map((f.data ?? []).map((x) => [x.flag_key, x]));
   const universeStatus = spaces.map(([slug, , key]) => {
