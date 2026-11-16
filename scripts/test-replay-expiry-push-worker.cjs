@@ -64,6 +64,14 @@ test("le script Service Worker Push est servi sans redirection du middleware d'�
 });
 
 
+test("la recette purge les anciennes souscriptions uniquement sur les trois profils E2E dédiés", () => {
+  assert.ok(webPushE2E.includes("const e2eUserIds = [promoter.id, stock.id, responsable.id]"));
+  assert.ok(webPushE2E.includes('"user_id=in.(" + e2eUserIds.map(encodeURIComponent).join(",") + ")"'));
+  assert.match(webPushE2E, /naxa_push_subscriptions\?select=user_id,endpoint&" \+ e2eUserFilter/);
+  assert.match(webPushE2E, /naxa_push_subscriptions\?" \+ e2eUserFilter,[\s\S]*?"DELETE"/);
+  assert.match(webPushE2E, /remainingSubscriptions\.length !== 0/);
+});
+
 test("la recette Web Push utilise des profils Chromium persistants, permission accordée et nettoyage garanti", () => {
   assert.ok(webPushE2E.includes('channel: "chromium"'));
   assert.ok(webPushE2E.includes("chromium.launchPersistentContext"));
