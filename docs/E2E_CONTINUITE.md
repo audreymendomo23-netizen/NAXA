@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§117)  
+**Dernière mise à jour :** 16 novembre 2026 (§127)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `082466d7288c1d5706e4f519f7a399776676fa86`  
+**HEAD contrôlé avant cette mise à jour :** `0e0890d821e1c5062d360f6c9c19331e47e1f12c`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5033,3 +5033,31 @@ Liens de preuve :
 - Commit contrôlé : https://github.com/audreymendomo23-netizen/NAXA/commit/082b385cd486141a1b28d94233eede7e1196a7ae
 
 **Verdict Lot A : PARTIEL — corrections statiques validées par NAXA quality ; recette E2E Replay toujours sans preuve d'exécution.**
+
+
+## 127. Audit contradictoire et correction du test de réutilisation des refresh tokens Auth (16/11/2026)
+
+**Périmètre : Replay uniquement, projet `pwfftcsjyeibxxqhwysw`.** Aucun changement de paramètre Auth Supabase, aucune migration SQL, aucune donnée Production, aucun déploiement Vercel ou Play Store.
+
+### Audit des logs et contradiction
+
+- Run initial [Replay E2E #258](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43965871815), commit `082b385cd486141a1b28d94233eede7e1196a7ae`, échoue uniquement sur l'assertion de rejeu du refresh token ancien dans le script Auth.
+- Logs Auth Replay : deux appels `grant_type=refresh_token` pour la fixture Gestionnaire Stock sont acceptés en HTTP 200, avec événements `token_refreshed`, aux horodatages `2026-11-16T22:12:06Z` et `2026-11-16T22:12:18Z`. Le second appel intervient 12 secondes après le premier.
+- Le scénario initial ne faisait qu'une rotation `T1 → T2`, attendait 12 secondes, puis rejouait `T1`. Or `T1` est précisément le parent du refresh token actuellement actif `T2`.
+- La documentation Supabase [User sessions — refresh token reuse detection](https://supabase.com/docs/guides/auth/sessions), mise à jour le 19/10/2026, décrit explicitement deux exceptions : fenêtre de réutilisation (10 secondes par défaut) et réacceptation du parent du token actif, même après cette fenêtre, pour tolérer une réponse réseau perdue. Si le jeton rejoué ne relève d'aucune exception, toute la session est terminée et tous ses refresh tokens sont révoqués.
+- **Cause racine : assertion E2E incorrecte, pas défaut Auth démontré.** Le serveur se comportait conformément à la règle de tolérance documentée ; le test confondait le parent actif avec un ancien jeton ancêtre. Modifier les paramètres Auth ou désactiver la détection aurait affaibli la sécurité et n'aurait pas corrigé le test.
+
+### Correction versionnée sur main
+
+- Commit [`0e0890d821e1c5062d360f6c9c19331e47e1f12c`](https://github.com/audreymendomo23-netizen/NAXA/commit/0e0890d821e1c5062d360f6c9c19331e47e1f12c) — `fix(e2e): tester la détection réelle de réutilisation Auth`.
+- Le script `scripts/e2e/verify-auth-session-lifecycle.cjs` exécute maintenant deux rotations successives `T1 → T2 → T3`, attend 15 secondes après la première rotation, puis rejoue `T1` qui est désormais un ancêtre et non le parent actif.
+- Assertions renforcées : rejet de `T1` hors fenêtre de tolérance, puis rejet de `T3` pour prouver que la détection a révoqué la session entière.
+- Aucun refresh token, access token, mot de passe ou secret n'est écrit dans les logs. Le contrôle de révocation globale d'une seconde session indépendante reste présent.
+
+### Vérification en cours
+
+- [Run Replay E2E #259](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43969321921), commit `0e0890d821e1c5062d360f6c9c19331e47e1f12c` : `in_progress` au moment de cette mise à jour ; le job de provisionnement et les contrôles statiques initiaux sont en cours. Aucune preuve PASS Auth n'est encore revendiquée.
+- [NAXA quality #3812](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43969321770) : `in_progress` au moment de cette mise à jour.
+- Le résultat final attendu pour ce point est : connexion UI PASS ; cookie absent refusé ; rotations successives PASS ; rejeu de l'ancêtre refusé ; refresh courant refusé après détection (révocation de session) ; révocation globale indépendante PASS.
+
+**Verdict : PARTIEL — cause racine identifiée et correction versionnée ; validation E2E complète encore en cours.** Ne pas déclarer vert avant les logs terminaux du run #259. Leaked Password Protection reste une exception de forfait distincte et n'est pas modifiée par ce correctif.
