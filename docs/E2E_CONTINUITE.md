@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§90)  
+**Dernière mise à jour :** 16 novembre 2026 (§93)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD documentaire :** `4d99919d963891ce352fd59607118bf2441c0561`  
 **État global :** 🟡 PARTIEL — le contrôle ciblé de navigation Chromium sur Replay est clôturé **VERT** au §86 (Promoteur desktop/mobile, 6 destinations Comptable, 2 accès Partenaire ; nettoyage Replay vérifié). La qualité complète est **SUCCESS** au run [43801594362](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801594362) : 549 PASS, 0 FAIL, 0 SKIP, TypeScript et build Next.js PASS, ESLint 0 erreur / 225 avertissements, actionlint PASS. Le code applicatif testé est `5b9f7e5aab72cacc61e7e0a72193c31232fd493a` ; les commits ultérieurs documentaires ne modifient pas l'application. **Le chantier E2E global n'est pas vert** : les parcours métier et appareils listés aux sections antérieures restent à exécuter/valider. Les campagnes bulk B1–B11 n'ont pas été lancées et restent soumises à une validation explicite distincte. Aucun compte Auth supplémentaire, aucune écriture Production, aucun déploiement Preview/Production et aucun envoi Play Store n'ont été effectués. Les 225 avertissements ESLint restent visibles et suivis, sans invalider le contrôle ciblé.
@@ -4093,3 +4093,38 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - ACL vérifiées : RPC de publication et de réservation exécutables par `authenticated`, non exécutables par `anon` ; RPC catalogue accessible à `anon` et `authenticated` via la façade existante.
 - Le registre Replay ne contient actuellement aucune ligne `partner_products`, `universe_reservations` ou `pharmacie_services` pour Bébé & Maman. Aucun transfert automatique de données historiques n’a donc été effectué ; aucune donnée de Production n’a été consultée ou modifiée.
 - **Aucune recette E2E, aucun scénario navigateur, aucun build/CI et aucun déploiement n’ont été lancés**, conformément à la consigne de ne pas lancer la recette. La correction du schéma et des sources est enregistrée ; la clôture par recette reste volontairement non déclarée.
+
+
+## 93. Règle commune de classement des stocks Pharmacie / Bébé & Maman / Parapharmacie (16/11/2026)
+
+**Décision métier validée par l’utilisateur :**
+- Stock appartenant à une **Pharmacie** : destinations autorisées **Pharmacie**, **Bébé & Maman** et **Parapharmacie**.
+- Stock appartenant à une **Parapharmacie** : destinations autorisées **Bébé & Maman** et **Parapharmacie** ; destination **Pharmacie strictement interdite**.
+- Le propriétaire conserve ses fiches, prix, quantités, lots et réservations. La publication dans plusieurs univers ne crée jamais plusieurs stocks physiques.
+- Une réservation/vente débite le stock du propriétaire une seule fois et actualise la disponibilité dans toutes les destinations où l’offre est publiée.
+- Le classement du produit (catégorie/sous-catégorie/nature) est distinct de ses destinations de vente.
+- L’IA peut reconnaître un produit et suggérer une classification/destination avec un niveau de confiance ; elle ne certifie pas la fiche, ne valide pas la conformité pharmaceutique et ne remplace jamais la déclaration/responsabilité du professionnel. Les suggestions restent non bloquantes.
+- Les règles de destination et d’éligibilité sont vérifiées côté serveur. Une suggestion IA ne confère aucun droit de publication.
+
+**Audit du code sur main au commit 114f763b5e4ae44dcb0149af3cf4a00c2996f1ef :**
+- L’ERP Pharmacie utilise les tables produits, stocks, stocks_lots et les réservations ERP ; la publication Bébé & Maman est actuellement portée par pharmacie_bebe_maman_produits.
+- La RPC private.get_universe_catalog renvoie actuellement les produits partner_products uniquement pour Parapharmacie et les fiches ERP Pharmacie uniquement pour Bébé & Maman.
+- La migration 20261116053153_bebe_maman_disable_legacy_partner_flow.sql bloque explicitement la création de nouveaux produits partenaires Bébé & Maman.
+- Le panier et le checkout Bébé & Maman actuels supposent qu’une offre vient d’une pharmacie et appellent creer_reservations_bebe_maman_client, qui réserve via private.reserve_stock dans l’ERP Pharmacie.
+- Le flux Parapharmacie utilise au contraire partner_products et reserve_universe_products. Il n’est donc pas possible de rendre un stock de Parapharmacie visible et réservable dans Bébé & Maman par un simple changement de filtre : le propriétaire et le moteur de réservation doivent être distingués explicitement.
+
+**Contradiction / cause racine :**
+Le modèle actuel de Bébé & Maman est exclusivement rattaché à l’ERP Pharmacie, tandis que Parapharmacie est un catalogue/stock partenaire autonome. L’ancienne règle « B&M réservé aux pharmacies » est matérialisée dans la migration et le panier. Ajouter des offres Parapharmacie dans B&M sans adapter panier, checkout et réservation risquerait de traiter un identifiant partenaire comme un identifiant pharmacie et de débiter le mauvais stock.
+
+**Correction requise avant toute déclaration de clôture :**
+1. Introduire une destination de publication explicite pour chaque stock propriétaire, sans dupliquer les quantités : ERP Pharmacie et stock autonome Parapharmacie.
+2. Étendre le catalogue Bébé & Maman pour lire les deux sources, en renvoyant un type de propriétaire explicite (pharmacie ou parapharmacie) et son identifiant.
+3. Adapter le panier/checkout B&M pour router chaque groupe vers le moteur de réservation du propriétaire : réservation ERP Pharmacie pour une pharmacie ; réservation partenaire pour une parapharmacie. Chaque voie vérifie la destination côté serveur.
+4. Permettre la publication des références Parapharmacie dans Bébé & Maman sans réactiver l’ancien circuit par inadvertance ; remplacer le blocage générique par une règle explicite réservée aux partenaires Parapharmacie actifs.
+5. Pour les stocks ERP Pharmacie, rendre la destination Parapharmacie sélectionnable sans changer la propriété ni le stock physique ; appliquer les droits de l’établissement.
+6. Ajouter un service de classification assistée (référentiel d’abord, IA en cas d’incertitude) dont les suggestions sont non bloquantes et séparées des autorisations métier.
+7. Mettre à jour les deux espaces Gestionnaire Stock et les catalogues pour afficher les destinations actives, puis documenter les contrôles statiques effectués.
+
+**État de cette reprise :** audit ciblé effectué ; cause racine identifiée ; règle métier documentée. Le code métier n’est pas encore corrigé : une correction limitée aux composants visibles serait incomplète et dangereuse sans le routage catalogue/panier/réservation ci-dessus. Aucun build, CI, test, recette E2E, écriture Supabase/Replay/Production ou déploiement n’a été lancé dans cette passe.
+
+**Point exact de reprise :** implémenter le modèle de destination et le routage double propriétaire dans les migrations SQL et les parcours Gestionnaire Stock / Bébé & Maman / Parapharmacie, en conservant les stocks propriétaires et les deux moteurs de réservation existants ; ensuite seulement faire un contrôle statique ciblé. Ne pas lancer la recette.
