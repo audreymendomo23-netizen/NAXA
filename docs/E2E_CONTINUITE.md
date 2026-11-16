@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 16 novembre 2026 (§87)  
+**Dernière mise à jour :** 16 novembre 2026 (§88)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD documentaire :** `ad0b3667494f5c8fe906795444457ce91e8e47ea`  
+**HEAD documentaire :** mise à jour de continuité en cours sur `main`  
 **État global :** 🟡 PARTIEL — le contrôle ciblé de navigation Chromium sur Replay est clôturé **VERT** au §86 (Promoteur desktop/mobile, 6 destinations Comptable, 2 accès Partenaire ; nettoyage Replay vérifié). La qualité complète est **SUCCESS** au run [43801594362](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43801594362) : 549 PASS, 0 FAIL, 0 SKIP, TypeScript et build Next.js PASS, ESLint 0 erreur / 225 avertissements, actionlint PASS. Le code applicatif testé est `5b9f7e5aab72cacc61e7e0a72193c31232fd493a` ; les commits ultérieurs documentaires ne modifient pas l'application. **Le chantier E2E global n'est pas vert** : les parcours métier et appareils listés aux sections antérieures restent à exécuter/valider. Les campagnes bulk B1–B11 n'ont pas été lancées et restent soumises à une validation explicite distincte. Aucun compte Auth supplémentaire, aucune écriture Production, aucun déploiement Preview/Production et aucun envoi Play Store n'ont été effectués. Les 225 avertissements ESLint restent visibles et suivis, sans invalider le contrôle ciblé.
 
 
@@ -3847,3 +3847,40 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Environnements : Replay uniquement pour le contrôle précédent ; Production non touchée ; aucun déploiement Vercel.
 
 **Point de reprise exact :** attendre la décision explicite de l'utilisateur avant tout lancement B1–B11. En cas d'autorisation, commencer par B1 sur Replay, respecter l'ordre défini au §77, réutiliser uniquement les comptes existants et arrêter au premier blocage. Sans autorisation, ne lancer aucune recette bulk.
+
+
+## Chantier d’alignement transversal et univers — reprise 16/11/2026
+
+### Gouvernance et ordre impératif
+- Ce chantier est distinct des campagnes E2E globales. Ne pas lancer les campagnes bulk ni déclarer le produit globalement vert pendant cette séquence.
+- Ordre fixé : **1. Bébé & Maman → 2. Dispositifs médicaux / Suivi connecté → 3. Prestations / Soins à domicile → 4. Parapharmacie → 5. Examens médicaux**.
+- Ne passer à l’univers suivant qu’après clôture documentée de l’univers courant.
+- Pour chaque univers : décisions finales → audit code/migrations/RPC/tables/RLS → contradictions et cause racine → corrections sur `main` → contrôles ciblés et preuves → documentation → clôture.
+- Socle transversal préalable : identité et séparation des rôles/espaces, registre et activation des univers, modèle Partenaire vs salarié/structure, propriété métier des données, panier/commandes/réservations, paiements et comptabilité, permissions/RLS et audit, supervision Admin et cohérence des états. Les spécificités de chaque univers restent prioritaires sur les abstractions communes.
+- Sécurité d’exécution maintenue : `main` uniquement ; Replay pour les contrôles qui écrivent ; Production en lecture seule ; aucun déploiement ; aucun test global/E2E bulk pendant ce chantier.
+
+### État du dépôt au démarrage de cette séquence
+- HEAD `main` vérifié : `202d26383cf1f6bb983d1f0f543e328417b9ddca` (16/11/2026 04:08:44 UTC).
+- Le présent document était au blob `7b6d63fc68e873ac8ed35622e2e7aed8495f0046` avant cette mise à jour.
+- La page `/bebe-maman` délègue à `UniverseCatalog`; le catalogue lit la RPC `get_universe_catalog('bebe-maman')`.
+- `UniverseCatalog.tsx` décrit Bébé & Maman comme une extension des pharmacies participantes, avec références, photos commerciales, prix et stocks gérés dans l’ERP Pharmacie, et annonce l’absence de classement publicitaire/sponsorisation/avantage promotionnel.
+- `UniverseProductGrid.tsx` place les articles B&M dans le panier principal NAXA avec un type d’article distinct `bebe-maman`, conserve le tri par nom (pas de tri par prix ni de classement recommandé pour B&M), et renvoie vers `/panier`. Le composant groupe ensuite les lignes B&M pour une réservation par pharmacie.
+- `src/app/univers-actions.ts` revalide le catalogue côté serveur, exige un utilisateur authentifié avec rôle `client`, puis appelle `reserve_universe_products`. Le reçu est routé vers `/univers-reservation/:id`.
+- `ProductImageLibrary.tsx` présente explicitement les photos Open Beauty Facts comme documentation neutre, sans prix, classement, sponsorisation ni incitation à l’achat ; elle précise que ces photos ne prouvent ni stock ni disponibilité partenaire.
+- Les règles lexicales `excludedFromBabyUniverse` filtrent plusieurs catégories de produits bébé (notamment laits/formules, céréales infantiles, biberons, tétines et sucettes). La règle est annoncée comme un garde-fou applicatif ; l’autorité réelle doit être vérifiée dans les contraintes/RPC SQL.
+- L’Admin `/admin/univers` présente des compteurs et listes limités aux 100 partenaires/produits les plus récents et aux 20 événements d’audit ; l’écran indique lui-même que ces compteurs ne sont pas un audit exhaustif du réseau. Ce n’est donc pas encore une preuve de supervision complète, détaillée et fiable.
+- `changerAssociationPartenaire` interdit l’association commerciale `bebe-maman` ; le test SQL `20261026100000_admin_unified_universe_dossiers.sql` vérifie que le service B&M est rattaché à `pharmacie_services` et non à `partners`/`partner_universes`.
+- **Contradiction technique à instruire avant correction :** `creerProduitPartenaire` et `changerStatutProduitPartenaire` restent génériques pour `bebe-maman` et opèrent sur `partner_products`; la migration `20261026140000_bebe_maman_catalogue_pharmacie.sql` conserve un modèle catalogue/réservation historiquement adossé à `partner_id`/partenaire et sa RPC de réservation vérifie une association `partner_universes` active. Ce chemin semble incompatible avec la décision finale B&M = extension de pharmacie, sans partenaire B&M autonome, et avec le verrou Admin qui interdit précisément cette association. Il faut établir le propriétaire réel des lignes et le chemin actif avant de choisir une correction.
+- Les migrations B&M `20261026193000`, `20261026194000`, `20261026195000` durcissent les search_path et RLS du catalogue/réservation ; leur présence dans Git ne prouve pas à elle seule leur application sur Replay ou Production.
+- Aucun contrôle SQL Replay, aucune recette fonctionnelle ciblée, aucune validation RLS active, aucun build ni test n’a été exécuté dans cette passe. Aucun code ni migration applicative n’a été modifié.
+
+### Socle transversal — premier relevé
+- **JAUNE / audit incomplet.** Le registre Admin global utilise les slugs `parapharmacie`, `bebe-maman`, `examens`, `suivi`, `prestations`; l’API publique mappe aussi `suivi` vers `dispositifs`.
+- L’activation Admin appelle `admin_set_universe_enabled`, puis relit le registre et les feature flags pour vérifier la persistance ; la RPC synchronise le flag principal, la ligne `universes`, et pour `suivi` le flag `suivi_connecte`.
+- Le modèle de supervision `/admin/univers` a des listes tronquées (100 partenaires/produits, 20 logs) et ne donne pas encore une vue probante des indicateurs métier, incidents, conformité et traçabilité de chaque univers. À compléter par audit de `/admin`, des tableaux spécialisés et des sources SQL.
+- Le contrôle transversal ne doit pas forcer un modèle partenaire autonome sur les univers qui sont des services d’une pharmacie ou d’une structure ; les relations structure/salarié, indépendants et habilitations doivent être distinguées.
+
+### Bébé & Maman — statut d’ouverture
+- **JAUNE — non clôturé.** Les éléments UI visibles confirment plusieurs intentions finales (extension Pharmacie, panier principal partagé mais articles identifiables, documentation photo séparée, absence de tri promotionnel). Ils ne démontrent pas encore la cohérence de bout en bout avec l’ERP Pharmacie.
+- Bloquants/candidats à instruire : modèle d’appartenance `partner_products` vs `pharmacie_services`; RPC de catalogue et réservation; séparation du stock pharmacie et des réservations B&M; cycle demande → confirmation → préparation → retrait/annulation/expiration et restauration de stock; intégration ERP (gestionnaire de stock, caisse, historique client); règles de publication et absence de promotions dans toutes les surfaces; droits Promoteur/pharmacie/personnel/Client/Admin; activation et supervision Admin; interdiction d’intervention centrale sur les fiches métier déclarées par la pharmacie.
+- Prochaine reprise précise : cartographier le schéma et les fonctions SQL actives liées à `partner_products`, `pharmacie_services`, `universe_reservations`, `universe_reservation_items`, `reservations`, `stocks`, `stocks_lots` et aux transitions ERP ; confronter les migrations ultérieures au modèle initial ; contrôler le test structurel et l’état réellement appliqué sur Replay en lecture seule avant toute correction.
