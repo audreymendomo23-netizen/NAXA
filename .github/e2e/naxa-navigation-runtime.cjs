@@ -404,15 +404,14 @@ async function run() {
       await sidebarNav.waitFor({ state: "visible" });
       const entries = await sidebarNav.locator("a").evaluateAll((nodes) => nodes.map((node) => ({
         href: node.getAttribute("href"),
-        label: (node.textContent || "").replace(/\\s+/g, " ").trim(),
+        label: (node.textContent || "").replace(/\s+/g, " ").trim(),
         visible: node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden",
       })));
       console.log("INFO sidebar Comptable — " + JSON.stringify(entries));
-      const link = sidebarNav.locator("a").filter({ has: comptablePage.locator("text=" + item.label) });
       // Le href reste l'identifiant stable ; l'intitulé est vérifié séparément.
       const targetLink = sidebarNav.locator("a[href='" + item.href + "']");
       await targetLink.waitFor({ state: "visible" });
-      const actualLabel = (await targetLink.innerText()).replace(/\\s+/g, " ").trim();
+      const actualLabel = (await targetLink.innerText()).replace(/\s+/g, " ").trim();
       assert.equal(actualLabel, item.label, "Intitulé incorrect pour " + item.href);
       await targetLink.click();
       await expectPath(comptablePage, item.href, "Comptable → " + item.label);
