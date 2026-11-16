@@ -3991,7 +3991,7 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Ces quatre catégories sont **dette performance classée**, pas défaut métier ou vulnérabilité avérée. Elles ne bloquent pas le vert fonctionnel transversal, mais doivent rester dans le plan de performance avant montée en charge.
 
 ### 90.5 Blocages externes et produit toujours ouverts
-1. **Protection des mots de passe compromis : BLOQUANT sécurité avant ouverture publique.** Advisor Replay confirme `auth_leaked_password_protection` désactivé. Documentation Supabase actuelle : fonctionnalité disponible sur Pro et supérieur. Le projet Replay observé est sur un plan Free. Aucun changement de plan ni engagement financier n'a été autorisé. Pas de contournement maison présenté comme équivalent. Référence : `https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection`.
+1. **Protection HIBP des mots de passe compromis : NON BLOQUANTE — limitation Supabase Free.** Advisor Replay confirme `auth_leaked_password_protection` désactivé. Cette option n'étant pas disponible dans l'offre gratuite constatée, elle est suivie comme limitation fournisseur et ne conditionne pas le vert NAXA. Aucun changement de plan ni contournement maison n'est demandé. Référence : `https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection`.
 2. **Exposition réelle du schéma private : vérification Dashboard requise.** Le connecteur ne peut pas lire le réglage Exposed schemas ; le SQL seul ne suffit pas.
 3. **Supervision Admin : défaut produit confirmé dans `src/app/admin/univers/page.tsx`.** Les partenaires et produits sont chargés avec `limit(100)`, le journal avec `limit(20)`; les compteurs dérivés des lignes chargées ne sont pas des totaux réseau. `src/app/admin/page.tsx` charge la liste pharmacies sans pagination et agrège certains indicateurs en mémoire. La supervision exhaustive, agrégats serveur et pagination/filtres fiables restent à implémenter.
 4. **Matrice de droits et suspension : non certifiée en exécution.** Le triage statique ne remplace pas les tests négatifs/positifs avec comptes de rôle et après révocation/suspension. Aucun compte de test n'a été créé dans cette passe.
@@ -4001,11 +4001,11 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Les alertes de policies multiples, initplan, index FK et index inutilisés sont classées dette performance et ne sont pas traitées par modifications aveugles.
 - Les grants du schéma `private` sont conservés en raison des wrappers invoker ; la configuration API doit être vérifiée avant de conclure sur l'exposition.
 - Les deux RPC anon Marketplace sont conservées comme lecture publique explicitement bornée.
-- **Socle transversal : JAUNE / NON VERT pour le go-live.** Les derniers points ne peuvent pas être fermés entièrement par une migration SQL sûre : HIBP dépend d'un plan Supabase Pro, l'exposition API dépend d'un réglage Dashboard non accessible au connecteur, et la supervision Admin exige une modification applicative. Les tests par rôle sont encore requis.
+- **Socle transversal : JAUNE / NON VERT pour le go-live.** HIBP est une limitation non bloquante de Supabase Free. Restent à clôturer : vérification Dashboard de l'exposition API `private`, build/navigation de la supervision Admin, et matrice d'autorisations métier complète.
 - Aucun code applicatif ni schéma n'a été modifié dans cette passe. Aucun changement de plan, aucun déploiement et aucune écriture Production.
 
 ### 90.7 Point de reprise exact
-- Propriétaire NAXA : confirmer le schéma `private` absent de Project Settings → API → Exposed schemas et décider du passage au plan Pro pour activer HIBP.
+- Propriétaire NAXA : confirmer que `private` est absent de Project Settings → API → Exposed schemas. HIBP reste documenté comme limitation non bloquante de l'offre Free ; aucune montée de plan n'est requise.
 - Développement sur `main`, sans déploiement pendant audit : remplacer les compteurs limités par des agrégats SQL exacts et des listes paginées, puis exécuter tests build/typecheck ciblés.
 - Sur Replay : exécuter la matrice d'autorisation et suspension ; documenter chaque PASS/FAIL.
 - Une fois ces critères de sécurité et supervision clos, le socle pourra être déclaré vert selon les critères de mise en production ; reprendre ensuite l'univers Bébé & Maman dans l'ordre impératif.
@@ -4041,9 +4041,18 @@ Cette mise à jour ne crée aucune nouvelle preuve technique et ne modifie aucun
 - Les tests de suspension ont été exécutés dans une transaction annulée ; l'état de profil a été vérifié actif après rollback.
 - Aucune migration, aucune écriture persistante, aucune modification Production, aucun déploiement.
 - La supervision Admin est corrigée au niveau source, mais reste À TESTER par build et navigation réelle.
-- État global : JAUNE / NON VERT jusqu'au build/typecheck, aux tests de navigation/pagination, à la matrice des actions sensibles et à la clôture des points externes HIBP / exposition API private.
+- État global : JAUNE / NON VERT jusqu'au build/typecheck, aux tests de navigation/pagination, à la matrice des actions sensibles et à la vérification Dashboard de l'exposition API `private`. HIBP ne bloque plus le passage au vert.
 
 ### 91.5 Contrôle des compteurs Replay après correction
 - Requête SQL indépendante sur Replay : partenaires actifs 0, partenaires en attente 0, produits publiés 0, produits brouillons 0, associations ouvertes 0, professionnels du suivi 0, professionnels vérifiés 0, événements d'audit 99. Ces valeurs décrivent l'environnement Replay à l'instant du contrôle ; elles ne sont pas transposées à Production.
 - Le commit de finition des libellés de synthèse Admin est 316b758f82055791ef5de168a061ac4a0d77a0b7.
 - L'échec du test transactionnel d'expiration d'affectation (contrainte naxa_professional_assignment_nature_ck) n'est pas compté comme un PASS ; la révocation explicite/expiration reste non certifiée. Aucun changement n'a été conservé par cette tentative.
+
+
+### 91.6 Reclassement HIBP et inventaire Replay actualisé — 16/11/2026
+- Décision utilisateur : HIBP ne constitue pas un blocage lorsque la protection des mots de passe compromis est indisponible sur Supabase Free. Le contrôle reste désactivé et documenté comme limitation fournisseur ; aucun faux PASS n'est déclaré et aucune montée de plan n'est demandée.
+- Vérification SQL en lecture seule sur Replay `pwfftcsjyeibxxqhwysw` : profils présents par rôle = Admin 1 actif, Client 8 actifs, Promoteur 1 actif. Affectations professionnelles actives : Caisse 2, Gestionnaire Stock 2, Livreur 1, Responsable 1. Aucun profil Pharmacien ou Comptable n'est actuellement recensé dans `profiles`.
+- Cette photographie confirme que les catégories Pharmacien et Comptable ne peuvent pas être certifiées à partir des comptes Replay présents. Les tests scope historiques des rôles Caisse, Gestionnaire Stock, Livreur et Responsable restent des preuves ciblées, mais ne couvrent pas les opérations métier sensibles ni la révocation/expiration.
+- Le contrôle SQL de `current_setting('pgrst.db_schemas', true)` retourne NULL : il ne permet pas de conclure sur la configuration effective PostgREST. Le nombre de fonctions `private` (102) et leur présence ne prouvent pas que le schéma est exposé. Seul le réglage Dashboard **Project Settings → API → Exposed schemas** tranche ce point ; aucun GRANT interne n'a été modifié.
+- Les commits de supervision Admin existent sur `main`, mais aucun build/typecheck/navigation n'est prouvé dans cette passe. Le contrôle de statut GitHub du commit documentaire courant ne fournit aucun status check. Ne pas déclarer le point 3 vert sur la seule base de la modification source.
+- Aucun changement de base n'a été effectué dans cette vérification. Replay consulté en lecture seule ; Production et déploiements non touchés.
