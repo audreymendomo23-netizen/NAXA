@@ -83,7 +83,7 @@ test("la recette envoie une seule notification par souscription via le worker NA
   assert.ok(webPushE2E.includes("endpointFingerprint"));
   assert.ok(webPushE2E.includes("endpointUrl.hostname"));
   assert.ok(webPushE2E.includes("Le worker NAXA n'a pas confirmé un envoi Web Push ciblé"));
-  assert.doesNotMatch(webPushE2E, /webpush\\.sendNotification\\(subscription\\.subscription/);
+  assert.ok(!webPushE2E.includes("webpush.sendNotification(subscription.subscription"));
   assert.ok(!webPushE2E.includes("naxa_e2e_transport_probe"));
 });
 
