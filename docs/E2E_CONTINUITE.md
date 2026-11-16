@@ -4922,3 +4922,14 @@ Toutes ces suites sont transactionnelles (`BEGIN` / `ROLLBACK`) et ont été ex�
 - `Leaked Password Protection` reste désactivé. Le contrôle compensatoire côté application n'est pas prouvé et ne doit pas être assimilé à la protection native.
 
 **Verdict Lot A : PARTIEL, nettement avancé.** PASS : création de stock par les RPC métier avec identité Auth de test simulée, visibilité RLS Gestionnaire, refus Client/hors périmètre, RPC anon positives/négatives, et classification des 72 tables sans policy. Le vert global reste conditionné à la preuve navigateur Auth (connexion/refresh/expiration/révocation), à l'acceptation explicite de la limite du forfait gratuit ou à un contrôle compensatoire prouvé, et à la poursuite des tests comportementaux ciblés sur les RPC sensibles. Aucun accès Production, aucun déploiement Vercel ou Play Store.
+
+
+## 120. Lot A — vérification de la contrainte Leaked Password Protection du forfait gratuit (16/11/2026)
+
+- Documentation officielle Supabase consultée via le connecteur : la protection contre les mots de passe compromis utilise l'API Pwned Passwords de HaveIBeenPwned et est disponible uniquement à partir du plan Pro. La limite rencontrée sur Replay Free est donc une contrainte documentée du produit, pas une mauvaise manipulation.
+- La documentation du `Password Verification Hook` décrit un hook de suivi/décision après une tentative de vérification de mot de passe (notamment limitation des tentatives et notification). Son payload documenté expose `user_id` et `valid`, pas le mot de passe candidat ; il ne remplace donc pas la vérification native d'un mot de passe compromis à l'inscription ou au changement de mot de passe.
+- Un contrôle Pwned Passwords uniquement dans le navigateur ou dans l'interface NAXA serait contournable par un appel direct à l'API Auth avec la clé publique. Il ne peut pas être déclaré compensatoire « équivalent » sans preuve d'un contrôle serveur imposé à tous les chemins Auth et non contournable.
+- Décision technique : ne pas inventer de contournement SQL, ne pas prétendre que le hook Auth couvre ce risque, ne pas ajouter une vérification client seule pour fabriquer un PASS. Conserver l'alerte native comme limitation documentée du plan Free.
+- Source : https://supabase.com/docs/guides/auth/password-security ; https://supabase.com/docs/guides/auth/auth-hooks/password-verification-hook.
+
+**État de l'exigence :** techniquement non activable sur Free ; aucun correctif NAXA n'est à appliquer pour faire croire à l'activation. La clôture du Lot A exige une décision explicite d'acceptation du risque / reclassement « hors capacité du forfait gratuit », ou un environnement de test disposant du plan Pro. L'utilisateur ne doit pas être invité à payer pour poursuivre les autres recettes.
