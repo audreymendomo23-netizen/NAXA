@@ -2810,3 +2810,91 @@ Aucune migration Production, aucun déploiement Vercel et aucune publication Pla
 **JAUNE — fermeture navigateur/Auth et CI globale : non confirmées.** Ne pas déclarer le parcours complet navigateur vert avant un run terminal SUCCESS de `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml` ou une preuve Playwright équivalente.
 
 **Périmètre préservé :** aucune écriture, migration ou configuration Supabase Production ; aucun déploiement Vercel ; aucune publication Play Store. Aucun changement du code applicatif n'a été requis par ces tests ; seule la documentation de continuité est actualisée.
+
+## 69. Gouvernance Promoteur, agrément Pharmacien et effectifs multi-postes — 16/11/2026
+
+### Règles métier arrêtées et appliquées
+
+- **NAXA ne valide pas les pharmaciens.** Le Promoteur titulaire qui gère la pharmacie examine le numéro professionnel et le justificatif, puis décide lui-même d'approuver, refuser ou retirer l'agrément. Cette décision est limitée à la pharmacie de son réseau.
+- Une proposition Pharmacien reste à l'état pending_promoter. L'affectation et le poste actif ne sont créés qu'après l'appel à naxa_promoteur_decider_accreditation_pharmacien avec la décision approve. Le retrait par le Promoteur révoque l'affectation et neutralise immédiatement les RPC cliniques.
+- Le chemin générique naxa_grant_professional_assignment refuse le rôle Pharmacien, afin qu'aucun appel direct ne contourne la décision du Promoteur. L'ancienne RPC d'approbation Admin n'est plus exécutable par authenticated ; la route /admin/pharmaciens redirige vers /admin, sans file de validation NAXA.
+- Un Promoteur peut gérer plusieurs pharmacies. Un index unique partiel garantit un seul Promoteur actif responsable par pharmacie.
+- Une pharmacie ne peut compter qu'un seul Responsable actif sur une même période. Un verrou transactionnel et un trigger DB empêchent aussi les créations concurrentes ou directes de dépasser cet invariant.
+- Plusieurs comptes peuvent porter le même poste Caisse, Gestionnaire de stock, Comptable ou Livreur. Le contrôle d'architecture vérifie toujours que le niveau de fonction existe, mais l'effectif humain n'est plus plafonné par max_caisses.
+- max_caisses ne mesure que les ressources physiques. Les Caissiers partagent la caisse physique provisionnée par pharmacie. Un trigger sur public.caisses maintient le plafond physique au niveau de la capacité d'architecture.
+- Les droits d'écriture Comptable restent individuels : le Promoteur choisit quels comptes Comptable reçoivent MANAGE_ACCOUNTING. L'affectation d'un Comptable ne crée ni droit financier implicite, ni vente, ni écriture de journal.
+
+### Corrections livrées
+
+- Migrations Replay versionnées :
+  - pharmacien_accreditation_and_client_prescription_flow
+  - promoter_validates_pharmacists_and_staff_capacity
+  - separate_cashier_staff_from_physical_register_capacity
+  - one_active_promoter_per_pharmacy
+- Promoteur : formulaire de proposition, upload privé du justificatif, liste des dossiers, examen du document, approbation, refus et retrait dans /pharmacie/affectations.
+- Client : /client/ordonnances, dépôt privé PDF/JPEG/PNG (10 Mo max), choix de pharmacie, suivi du statut et des motifs de complément/refus.
+- Pharmacien : file canonique, ouverture sécurisée du document original, préparation, demande de complément, décision et retour du statut au Client. L'ancienne route /pharmacien/validations redirige vers la file ERP canonique.
+- Affectations : formulaire générique sans Pharmacien direct ; libellé réseau précisant la multiplicité des équipes et l'unicité du Responsable.
+- Caisse : /pharmacie/caisses distingue les collaborateurs de la ressource physique ; max_caisses ne désactive plus l'ajout d'un autre Caissier lorsqu'une caisse partagée existe déjà.
+- Comptabilité : écran de délégation par Comptable et par pharmacie conservé ; aucun droit d'écriture n'est créé automatiquement lors d'une affectation.
+
+### Recette E2E exécutée sur Supabase Replay
+
+**Test Pharmacien/Client — 16/16 PASS**
+Fichier : supabase/tests/297_active_role_pharmacien_e2e.sql
+
+- Proposition du Promoteur sans activation prématurée.
+- Blocage du sélecteur tant que la proposition n'est pas validée.
+- Absence de droit d'exécution de l'ancienne RPC Admin.
+- Validation par le Promoteur et création de l'affectation dans sa pharmacie.
+- Refus de l'affectation générique directe et refus d'un autre périmètre pharmacie.
+- Poste Pharmacien actif sans conversion de l'identité de base Client.
+- Consultation, prescription interne, ouverture/clôture de service et export journalisé.
+- Dépôt Client d'un document privé, prise en charge Pharmacien, demande de complément visible du Client.
+- Deuxième ordonnance préparée et validée, résultat visible côté Client.
+- Retrait d'agrément par le Promoteur et blocage des RPC cliniques.
+
+**Test réseau/effectifs/comptabilité — 13/13 PASS**
+Fichier : supabase/tests/20261116003000_promoter_validates_pharmacists_and_staff_capacity_e2e.sql
+
+- Un même Promoteur gère deux pharmacies, chacune avec son unique Responsable.
+- Un second Promoteur actif ne peut pas se rattacher à une pharmacie déjà détenue.
+- Une deuxième affectation Responsable simultanée est refusée.
+- 3 Caissières, 3 Gestionnaires de stock, 3 Comptables et 3 Livreurs sont affectés dans une pharmacie.
+- Les trois Caissières partagent une caisse physique existante. La création d'une deuxième caisse physique est refusée lorsque max_caisses=1.
+- Les quatre fonctions autonomes sont sélectionnables par les comptes temporaires.
+- Les trois Comptables sont listés par le Promoteur et reçoivent chacun un droit d'écriture distinct, uniquement après délégation explicite.
+- Architecture, max_caisses, max_responsables et nombre de niveaux restent inchangés.
+- Affectations et délégations ne créent ni vente, ni ligne de vente, ni événement financier, ni écriture ou ligne comptable.
+
+### Contrôle des résidus après ROLLBACK
+
+État Replay constaté après les deux recettes :
+
+| Contrôle | État |
+|---|---:|
+| Agréments Pharmacien | 0 |
+| Affectations Pharmacien actives | 0 |
+| Profils temporaires naxateam% | 0 |
+| Identités Auth temporaires naxa-team-% | 0 |
+| Droits d'écriture Comptable de test | 0 |
+| Caisses physiques | 2 (préexistantes) |
+| Affectations professionnelles totales | 6 (préexistantes) |
+| Liens Promoteur/pharmacie actifs | 3 (préexistants) |
+
+Les scénarios se terminent par ROLLBACK ; aucune donnée de recette n'est conservée. Les seules modifications persistantes sont les migrations et les objets de schéma correspondants sur Replay.
+
+### CI et limites — ne pas surdéclarer le vert
+
+- GitHub Actions NAXA quality, run 43781080647, commit d53a8eba18a7975c628f920ff101691fc5bc32d2 : le job de validation des workflows (actionlint) est SUCCESS. Le job npm test + TypeScript + lint + build Next.js était encore in_progress au dernier contrôle ; son résultat terminal doit être vérifié après la mise à jour documentaire.
+- Les 29 assertions ci-dessus sont des recettes SQL transactionnelles réellement exécutées sur Replay. Les lignes storage.objects y simulent les références de documents et les règles métier/rôles sont exécutées côté Postgres.
+- Une recette navigateur Playwright complète avec connexions réelles, upload HTTP Storage, rendu des formulaires et navigation entre comptes distincts n'a pas été exécutée dans cette session. Le statut navigateur reste JAUNE tant qu'un run browser terminal SUCCESS sur Replay n'est pas disponible.
+- Aucun changement ni test sur Supabase Production ; aucun déploiement Vercel ; aucune publication Play Store.
+
+### Verdict §69
+
+**VERT — règles métier Postgres/Replay :** Pharmacien sous décision Promoteur, isolation pharmacie, un Responsable par pharmacie, effectifs multipliés, caisse physique protégée et comptabilité sans effet parasite.
+
+**JAUNE — navigateur réel et résultat terminal du job qualité global :** à confirmer. Ne pas annoncer un vert global navigateur/production avant les preuves correspondantes.
+
+**Point de reprise exact :** contrôler le résultat terminal du workflow GitHub NAXA quality après le commit de documentation, puis exécuter la recette navigateur Replay (auth Promoteur, Client, Pharmacien et trois profils de fonctions) avec upload réel sur les deux buckets privés. Production et déploiement demeurent hors périmètre.
