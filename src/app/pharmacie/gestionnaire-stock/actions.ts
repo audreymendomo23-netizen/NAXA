@@ -438,3 +438,30 @@ export async function modifierFicheProduitPharmacie(formData: FormData) {
   revalidatePath("/api/medicaments/catalogue-hors-ligne");
   redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=fiche_modifiee");
 }
+
+export async function definirProduitUniversBebeMaman(formData: FormData) {
+  const sb = supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) redirect("/connexion?retour=/pharmacie/gestionnaire-stock/stock-logistique");
+
+  const pharmacie = String(formData.get("pharmacie_id") ?? "");
+  const produit = String(formData.get("produit_id") ?? "");
+  const active = String(formData.get("active") ?? "") === "true";
+  if (!safeUuid(pharmacie) || !safeUuid(produit)) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=bebe_maman");
+  }
+
+  const { data, error } = await sb.rpc("pharmacie_bebe_maman_produit_definir", {
+    p_pharmacie: pharmacie,
+    p_produit: produit,
+    p_active: active,
+  });
+  if (error || data !== true) {
+    redirect("/pharmacie/gestionnaire-stock/stock-logistique?erreur=bebe_maman");
+  }
+
+  revalidatePath("/pharmacie/gestionnaire-stock");
+  revalidatePath("/pharmacie/gestionnaire-stock/stock-logistique");
+  revalidatePath("/bebe-maman");
+  redirect("/pharmacie/gestionnaire-stock/stock-logistique?ok=" + (active ? "bebe_maman_active" : "bebe_maman_inactive"));
+}
