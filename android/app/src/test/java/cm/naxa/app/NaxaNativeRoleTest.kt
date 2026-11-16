@@ -43,7 +43,9 @@ class NaxaNativeRoleTest {
                 NaxaNativeRole.supportsClientWorkspace(role, "client")
             )
         }
-        assertTrue(NaxaNativeRole.supportsCourierWorkspace("livreur", "pharmacy"))
+        assertTrue(NaxaNativeRole.supportsCourierWorkspace("livreur", "livreur"))
+        assertFalse(NaxaNativeRole.supportsCourierWorkspace("livreur", "pharmacy"))
+        assertFalse(NaxaNativeRole.supportsCourierWorkspace("livreur", "partner"))
         assertFalse(NaxaNativeRole.supportsCourierWorkspace("livreur", "client"))
         assertFalse(NaxaNativeRole.supportsPharmacyWorkspace("client", "pharmacy"))
         assertFalse(NaxaNativeRole.supportsPharmacyWorkspace("admin", "pharmacy"))
