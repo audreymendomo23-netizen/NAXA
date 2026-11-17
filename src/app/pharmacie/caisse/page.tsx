@@ -34,6 +34,7 @@ type CreditAccountOption = { creditId: string; clientId: string; label: string; 
 type RefundChannel = "especes" | "orange_money" | "mtn_momo";
 type RefundTreasuryAccount = { accountId: string; name: string; type: string; channel: RefundChannel | null };
 type CreditRefundReceipt = { operationId: string; clientLabel: string; amount: number; channel: RefundChannel; reference: string | null; remainingBalance: number; createdAt: string; actorId: string | null };
+type PendingCreditRefund = { idempotencyKey: string; creditId: string; clientLabel: string; amount: number; channel: RefundChannel; reference: string | null; reason: string; verifyBeneficiary: boolean; verifyAmount: boolean; clientConfirmed: boolean; balanceBefore: number };
 type AssuranceTicket = { assureur: string; montant_total: number; montant_prise_en_charge: number; montant_client: number; montant_rembourse: number; statut: string };
 type TicketLigne = {
   vente_id: string;
@@ -100,6 +101,9 @@ export default function CaissePage() {
   const [refundVerifyAmount, setRefundVerifyAmount] = useState(false);
   const [refundClientConfirmed, setRefundClientConfirmed] = useState(false);
   const [refundIdempotencyKey, setRefundIdempotencyKey] = useState<string | null>(null);
+  const [refundPendingRequest, setRefundPendingRequest] = useState<PendingCreditRefund | null>(null);
+  const [refundRequestUncertain, setRefundRequestUncertain] = useState(false);
+  const refundPendingStorageKey = pid && uid ? `naxa:caisse-credit-refund:v1:${pid}:${uid}` : null;
   const [refundReceipt, setRefundReceipt] = useState<CreditRefundReceipt | null>(null);
   const [refundTreasuryAccounts, setRefundTreasuryAccounts] = useState<RefundTreasuryAccount[]>([]);
   const [refundTreasuryBusy, setRefundTreasuryBusy] = useState(false);
@@ -232,6 +236,34 @@ export default function CaissePage() {
     })();
     return () => { active = false; };
   }, [pid, sb]);
+
+  useEffect(() => {
+    if (!refundPendingStorageKey) return;
+    const raw = window.localStorage.getItem(refundPendingStorageKey);
+    if (!raw) return;
+    try {
+      const pending = JSON.parse(raw) as PendingCreditRefund;
+      if (!pending.idempotencyKey || !pending.creditId || !Number.isSafeInteger(pending.amount)
+        || pending.amount <= 0 || !["especes", "orange_money", "mtn_momo"].includes(pending.channel)
+        || !Number.isSafeInteger(pending.balanceBefore) || pending.balanceBefore < pending.amount) {
+        throw new Error("Données de demande incomplètes");
+      }
+      setRefundPendingRequest(pending);
+      setRefundIdempotencyKey(pending.idempotencyKey);
+      setRefundCreditId(pending.creditId);
+      setRefundAmount(String(pending.amount));
+      setRefundChannel(pending.channel);
+      setRefundReference(pending.reference ?? "");
+      setRefundReason(pending.reason);
+      setRefundVerifyBeneficiary(pending.verifyBeneficiary);
+      setRefundVerifyAmount(pending.verifyAmount);
+      setRefundClientConfirmed(pending.clientConfirmed);
+      setRefundRequestUncertain(true);
+      setMsg("Une demande de remboursement précédente a un résultat réseau incertain. Réessayez exactement la même demande : la clé anti-doublon est conservée.");
+    } catch {
+      setMsg("Une demande de remboursement en attente est illisible. Ne créez pas un second remboursement avant vérification de l’historique.");
+    }
+  }, [refundPendingStorageKey]);
 
   async function chargerComptesTresorerieRemboursement() {
     if (!pid) { setRefundTreasuryAccounts([]); return; }
@@ -692,13 +724,19 @@ export default function CaissePage() {
 
   async function rembourserCredit() {
     const account = creditAccounts.find((item) => item.creditId === refundCreditId);
+    const pending = refundPendingRequest;
+    const retryingUncertainRequest = refundRequestUncertain && !!pending;
     const amount = Number(refundAmount);
     const mobile = refundChannel !== "especes";
-    if (!session || !account || !Number.isSafeInteger(amount) || amount <= 0 || amount > account.solde || busy) {
+    const creditIdToUse = pending?.creditId ?? refundCreditId;
+    const balanceBefore = pending?.balanceBefore ?? account?.solde ?? 0;
+    const clientLabel = pending?.clientLabel ?? account?.label ?? "";
+    if (!session || !creditIdToUse || (!account && !retryingUncertainRequest)
+      || !Number.isSafeInteger(amount) || amount <= 0 || (!retryingUncertainRequest && account && amount > account.solde) || busy) {
       setMsg("Sélectionnez un crédit actif et saisissez un montant entier positif, inférieur ou égal au solde.");
       return;
     }
-    if (!refundTreasuryAccounts.some((item) => item.channel === refundChannel)) {
+    if (!refundTreasuryAccounts.some((item) => item.channel === refundChannel) && !retryingUncertainRequest) {
       setMsg("Aucun compte de trésorerie n’est rattaché à ce canal. Configurez d’abord le compte correspondant.");
       return;
     }
@@ -707,35 +745,71 @@ export default function CaissePage() {
       return;
     }
 
-    const idempotencyKey = refundIdempotencyKey ?? crypto.randomUUID();
+    const idempotencyKey = pending?.idempotencyKey ?? refundIdempotencyKey ?? crypto.randomUUID();
+    const request: PendingCreditRefund = pending ?? {
+      idempotencyKey,
+      creditId: creditIdToUse,
+      clientLabel,
+      amount,
+      channel: refundChannel,
+      reference: refundReference.trim() || null,
+      reason: refundReason.trim() || "Remboursement de crédit reçu au comptoir",
+      verifyBeneficiary: refundVerifyBeneficiary,
+      verifyAmount: refundVerifyAmount,
+      clientConfirmed: refundClientConfirmed,
+      balanceBefore,
+    };
+    if (request.creditId !== creditIdToUse || request.amount !== amount || request.channel !== refundChannel
+      || request.reference !== (refundReference.trim() || null)
+      || request.reason !== (refundReason.trim() || "Remboursement de crédit reçu au comptoir")
+      || request.verifyBeneficiary !== refundVerifyBeneficiary
+      || request.verifyAmount !== refundVerifyAmount
+      || request.clientConfirmed !== refundClientConfirmed) {
+      setMsg("La demande en attente doit être rejouée sans modification. Videz-la uniquement après vérification certaine dans l’historique.");
+      return;
+    }
+
+    if (!refundPendingStorageKey) {
+      setMsg("La session pharmacie/utilisateur n’est pas encore prête ; aucun remboursement n’a été envoyé.");
+      return;
+    }
+    try {
+      window.localStorage.setItem(refundPendingStorageKey, JSON.stringify(request));
+    } catch {
+      setMsg("Impossible de sauvegarder la clé anti-doublon sur cet appareil. Aucun remboursement n’a été envoyé.");
+      return;
+    }
+
+    setRefundPendingRequest(request);
     setRefundIdempotencyKey(idempotencyKey);
+    setRefundRequestUncertain(false);
     setBusy(true);
     setMsg("");
     try {
       const { data, error } = await sb.rpc("client_credit_rembourser", {
-        p_credit: account.creditId,
-        p_montant: amount,
-        p_mode: refundChannel,
-        p_reference: refundReference.trim() || null,
-        p_motif: refundReason.trim() || "Remboursement de crédit reçu au comptoir",
-        p_idempotency_key: idempotencyKey,
-        p_verification_beneficiaire: refundVerifyBeneficiary,
-        p_verification_montant: refundVerifyAmount,
-        p_confirmation_client_vue: refundClientConfirmed,
+        p_credit: request.creditId,
+        p_montant: request.amount,
+        p_mode: request.channel,
+        p_reference: request.reference,
+        p_motif: request.reason,
+        p_idempotency_key: request.idempotencyKey,
+        p_verification_beneficiaire: request.verifyBeneficiary,
+        p_verification_montant: request.verifyAmount,
+        p_confirmation_client_vue: request.clientConfirmed,
       });
       if (error) throw error;
       if (!data) throw new Error("La base n’a pas confirmé l’enregistrement du remboursement.");
 
-      const remainingBalance = account.solde - amount;
+      const remainingBalance = request.balanceBefore - request.amount;
       setCreditAccounts((current) => current
-        .map((item) => item.creditId === account.creditId ? { ...item, solde: remainingBalance } : item)
+        .map((item) => item.creditId === request.creditId ? { ...item, solde: remainingBalance } : item)
         .filter((item) => item.solde > 0));
       setRefundReceipt({
         operationId: String(data),
-        clientLabel: account.label,
-        amount,
-        channel: refundChannel,
-        reference: refundReference.trim() || null,
+        clientLabel: request.clientLabel,
+        amount: request.amount,
+        channel: request.channel,
+        reference: request.reference,
         remainingBalance,
         createdAt: new Date().toISOString(),
         actorId: uid,
@@ -745,14 +819,27 @@ export default function CaissePage() {
       setRefundAmount("");
       setRefundReference("");
       setRefundReason("");
+      window.localStorage.removeItem(refundPendingStorageKey);
       setRefundIdempotencyKey(null);
+      setRefundPendingRequest(null);
+      setRefundRequestUncertain(false);
       setRefundVerifyBeneficiary(false);
       setRefundVerifyAmount(false);
       setRefundClientConfirmed(false);
-      setMsg("Remboursement " + (refundChannel === "especes" ? "espèces" : refundChannel === "orange_money" ? "Orange Money" : "MTN MoMo") + " confirmé. L’opération et son mouvement de trésorerie ont été enregistrés ensemble.");
+      setMsg("Remboursement " + (request.channel === "especes" ? "espèces" : request.channel === "orange_money" ? "Orange Money" : "MTN MoMo") + " confirmé. L’opération et son mouvement de trésorerie ont été enregistrés ensemble.");
     } catch (error) {
-      // Keep the same idempotency key if the network outcome is uncertain.
-      setMsg(error instanceof Error ? error.message : "Résultat incertain. Réutilisez la même demande sans changer ses paramètres.");
+      const knownServerRejection = typeof error === "object" && error !== null
+        && "code" in error && typeof (error as { code?: unknown }).code === "string";
+      if (knownServerRejection) {
+        window.localStorage.removeItem(refundPendingStorageKey);
+        setRefundIdempotencyKey(null);
+        setRefundPendingRequest(null);
+        setRefundRequestUncertain(false);
+        setMsg(error instanceof Error ? error.message : "La base a refusé le remboursement. Corrigez les paramètres avant une nouvelle demande.");
+      } else {
+        setRefundRequestUncertain(true);
+        setMsg("Résultat réseau incertain. La demande et sa clé anti-doublon sont conservées sur cet appareil. Réessayez sans modifier les paramètres ; le serveur ne créera pas de doublon.");
+      }
     } finally {
       setBusy(false);
     }
@@ -964,29 +1051,30 @@ export default function CaissePage() {
                       </select>
                     </label>
                     <label className="block text-sm font-semibold">Canal du remboursement
-                      <select className="champ mt-1 w-full" value={refundChannel} onChange={(event) => { setRefundChannel(event.target.value as RefundChannel); setRefundVerifyBeneficiary(false); setRefundVerifyAmount(false); setRefundClientConfirmed(false); }}>
+                      <select className="champ mt-1 w-full" value={refundChannel} onChange={(event) => { setRefundChannel(event.target.value as RefundChannel); setRefundVerifyBeneficiary(false); setRefundVerifyAmount(false); setRefundClientConfirmed(false); }} disabled={busy || refundRequestUncertain}>
                         <option value="especes">Espèces</option>
                         <option value="orange_money">Orange Money</option>
                         <option value="mtn_momo">MTN MoMo</option>
                       </select>
                     </label>
                     <label className="block text-sm font-semibold">Montant remboursé (FCFA)
-                      <input className="champ mt-1 w-full" type="number" min="1" step="1" inputMode="numeric" value={refundAmount} onChange={(event) => { setRefundAmount(event.target.value); }} disabled={busy || !refundCreditId} />
+                      <input className="champ mt-1 w-full" type="number" min="1" step="1" inputMode="numeric" value={refundAmount} onChange={(event) => { setRefundAmount(event.target.value); }} disabled={busy || refundRequestUncertain || !refundCreditId} />
                     </label>
                     <label className="block text-sm font-semibold">Référence de transaction{refundChannel === "especes" ? " (facultative)" : " (obligatoire)"}
-                      <input className="champ mt-1 w-full" value={refundReference} onChange={(event) => { setRefundReference(event.target.value); }} maxLength={120} disabled={busy || !refundCreditId} required={refundChannel !== "especes"} />
+                      <input className="champ mt-1 w-full" value={refundReference} onChange={(event) => { setRefundReference(event.target.value); }} maxLength={120} disabled={busy || refundRequestUncertain || !refundCreditId} required={refundChannel !== "especes"} />
                     </label>
                     <label className="block text-sm font-semibold">Motif (facultatif)
-                      <input className="champ mt-1 w-full" value={refundReason} onChange={(event) => { setRefundReason(event.target.value); }} maxLength={240} disabled={busy || !refundCreditId} />
+                      <input className="champ mt-1 w-full" value={refundReason} onChange={(event) => { setRefundReason(event.target.value); }} maxLength={240} disabled={busy || refundRequestUncertain || !refundCreditId} />
                     </label>
+                    {refundRequestUncertain && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Résultat précédent non confirmé par le réseau : les paramètres sont verrouillés. Réessayez la même demande pour récupérer le résultat sans double débit.</p>}
                     {refundChannel !== "especes" && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 space-y-2">
                       <p className="font-bold">Contrôle visuel obligatoire — aucune confirmation opérateur automatique</p>
-                      <label className="flex items-start gap-2"><input type="checkbox" checked={refundVerifyBeneficiary} onChange={(event) => setRefundVerifyBeneficiary(event.target.checked)} disabled={busy} /><span>J’ai vérifié le bénéficiaire affiché et le compte marchand de la pharmacie.</span></label>
-                      <label className="flex items-start gap-2"><input type="checkbox" checked={refundVerifyAmount} onChange={(event) => setRefundVerifyAmount(event.target.checked)} disabled={busy} /><span>J’ai vérifié que le montant affiché correspond au montant à rembourser.</span></label>
+                      <label className="flex items-start gap-2"><input type="checkbox" checked={refundVerifyBeneficiary} onChange={(event) => setRefundVerifyBeneficiary(event.target.checked)} disabled={busy || refundRequestUncertain} /><span>J’ai vérifié le bénéficiaire affiché et le compte marchand de la pharmacie.</span></label>
+                      <label className="flex items-start gap-2"><input type="checkbox" checked={refundVerifyAmount} onChange={(event) => setRefundVerifyAmount(event.target.checked)} disabled={busy || refundRequestUncertain} /><span>J’ai vérifié que le montant affiché correspond au montant à rembourser.</span></label>
                       <label className="flex items-start gap-2"><input type="checkbox" checked={refundClientConfirmed} onChange={(event) => setRefundClientConfirmed(event.target.checked)} disabled={busy} /><span>J’ai vu la confirmation de transaction sur le téléphone du client.</span></label>
                     </div>}
                     <p className="rounded-xl bg-slate-50 p-3 text-sm">Le canal choisi reste distinct de l’origine <strong>Comptoir</strong>. La validation mobile repose sur les trois contrôles visuels déclarés par le caissier ; NAXA ne prétend pas recevoir une confirmation automatique de l’opérateur.</p>
-                    <button className="btn btn-vert w-full" disabled={busy || !session || !refundCreditId || !refundTreasuryAccounts.some((item) => item.channel === refundChannel) || !Number.isSafeInteger(Number(refundAmount)) || Number(refundAmount) <= 0 || Number(refundAmount) > (creditAccounts.find((item) => item.creditId === refundCreditId)?.solde ?? 0) || (refundChannel !== "especes" && (!refundReference.trim() || !refundVerifyBeneficiary || !refundVerifyAmount || !refundClientConfirmed))} onClick={() => void rembourserCredit()}>{busy ? "Traitement…" : "Confirmer le remboursement"}</button>
+                    <button className="btn btn-vert w-full" disabled={busy || !session || !refundCreditId || !refundTreasuryAccounts.some((item) => item.channel === refundChannel) || !Number.isSafeInteger(Number(refundAmount)) || Number(refundAmount) <= 0 || Number(refundAmount) > (creditAccounts.find((item) => item.creditId === refundCreditId)?.solde ?? 0) || (refundChannel !== "especes" && (!refundReference.trim() || !refundVerifyBeneficiary || !refundVerifyAmount || !refundClientConfirmed))} onClick={() => void rembourserCredit()}>{busy ? "Traitement…" : refundRequestUncertain ? "Réessayer la même demande" : "Confirmer le remboursement"}</button>
                   </>}
                 </section>
                 <section id="caisse-cloture" className="carte mt-4 space-y-3">
