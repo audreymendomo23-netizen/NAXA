@@ -27,12 +27,13 @@ test("credit refund runtime E2E refuses Production and non-HTTPS endpoints", () 
 test("credit refund runtime covers the three channels, each with an independent idempotency key", () => {
   for (const channel of ["especes", "orange_money", "mtn_momo"]) {
     assert.ok(runtimeSource.includes('channel: "' + channel + '"'), "Missing channel " + channel);
-    assert.ok(runtimeSource.includes("idempotencyByChannel[plan.channel]"), "Missing idempotency for " + channel);
   }
+  assert.match(runtimeSource, /idempotencyByChannel\[plan\.channel\]/);
   assert.match(runtimeSource, /p_idempotency_key:\s*idempotencyKey/);
   assert.match(runtimeSource, /p_verification_beneficiaire:\s*plan\.verify/);
   assert.match(runtimeSource, /p_verification_montant:\s*plan\.verify/);
   assert.match(runtimeSource, /p_confirmation_client_vue:\s*plan\.verify/);
+  assert.match(runtimeSource, /replayedId !== id/);
 });
 
 test("credit refund runtime verifies atomic treasury movements, origin, accounting outbox and Caisse drawer scope", () => {
@@ -45,7 +46,7 @@ test("credit refund runtime verifies atomic treasury movements, origin, accounti
   assert.match(runtimeSource, /totalAllRefunds !== 600/);
 });
 
-test("credit refund runtime safely refuses invalid proof, missing account, overbalance and mismatched idempotency", () => {
+test("credit refund runtime rejects invalid states and performs guarded cleanup on Replay", () => {
   assert.match(runtimeSource, /idempotencyConflictRejected/);
   assert.match(runtimeSource, /missingProofRejected/);
   assert.match(runtimeSource, /missingAccountRejected/);
@@ -53,4 +54,5 @@ test("credit refund runtime safely refuses invalid proof, missing account, overb
   assert.match(runtimeSource, /discoveryComplete/);
   assert.match(runtimeSource, /remainingMovements/);
   assert.match(runtimeSource, /remainingEvents/);
+  assert.match(runtimeSource, /assertReplayUrl/);
 });
