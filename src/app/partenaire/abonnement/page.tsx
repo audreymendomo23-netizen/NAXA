@@ -137,6 +137,8 @@ export default async function PartnerSubscriptionPage({
                 <p className="rounded-xl bg-amber-50 p-3 text-sm">Le dossier doit être validé avant de soumettre un règlement d’abonnement.</p>
               ) : pending ? (
                 <p className="rounded-xl bg-amber-50 p-3 text-sm">Un règlement est déjà en attente de vérification pour cette structure. Aucun second règlement ne peut être soumis.</p>
+              ) : item.destinations.length === 0 ? (
+                <p className="rounded-xl bg-amber-50 p-3 text-sm">Les coordonnées de paiement NAXA ne sont pas configurées. La déclaration est temporairement indisponible.</p>
               ) : (
                 <form action={soumettreReglementAbonnementPartenaire} className="grid gap-3 rounded-2xl border border-slate-200 p-4 sm:grid-cols-2">
                   <input type="hidden" name="partner_id" value={item.partner_id}/>
