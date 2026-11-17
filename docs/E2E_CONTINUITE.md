@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§147)  
+**Dernière mise à jour :** 17 novembre 2026 (§148)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `895f138d8dd74debfada7743a998e03625288f38`  
+**HEAD contrôlé avant cette mise à jour :** `2216a87d192537069f28cefe108529651148d4c8`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5596,3 +5596,37 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 - Le point ne doit pas être corrigé par réactivation aveugle du profil : cela pourrait réactiver une identité suspendue pour une autre raison. La règle métier doit préciser si la validation Admin réactive le compte titulaire lorsque l'abonnement est courant, ou si l'accès Partenaire doit être séparé de `profiles.actif` avec un garde dédié à la suspension générale.
 
 **Verdict : ROUGE / BLOQUANT pour l'accès Partenaire Examens après validation tant que la règle d'activation du titulaire n'est pas tranchée et que les policies RLS d'écriture ne sont pas alignées.** Aucun changement Production ; aucun déploiement.
+
+
+## 148. Identité globale indépendante de l'accès Partenaire — choix 2 (17/11/2026)
+
+**Décision utilisateur :** choix 2 confirmé. `profiles.actif` reste le statut global de l'identité ; il ne doit pas être piloté par le cycle de vie d'un dossier Partenaire. L'accès à un espace partenaire dépend séparément de l'identité active du membre, du dossier validé, du statut partenaire, de l'abonnement, des verrous/suspensions et de l'adhésion/affectation.
+
+**Cause racine corrigée :**
+- `public.admin_create_partner_dossier` désactivait le profil du titulaire lors de la création d'un dossier en attente.
+- `private.naxa_partner_has_confirmed_payment` vérifie déjà que le titulaire est actif, que le partenaire est actif, que le dossier est validé, que l'univers est activé, que l'abonnement est courant et qu'aucun verrou/suspension disciplinaire n'est actif.
+- Les Server Actions Examens vérifiaient l'adhésion et le statut partenaire, mais pas l'état actif du profil de l'acteur.
+- Les policies de gestion Examens n'appliquaient pas les mêmes conditions que le contrôle partenaire.
+
+**Corrections versionnées sur `main` :**
+- Migration `supabase/migrations/20261117055200_partner_workspace_access_independent_identity.sql`, commit `2695802b67b2b2ede60766a0156dd16a263c4aa7`.
+- La RPC de création conserve l'éligibilité initiale du Client actif mais ne modifie plus `profiles.actif`. La validation Admin ne réactive donc jamais une identité.
+- `partners_member_read` exige une identité active et le contrôle complet du partenaire.
+- Les policies `exam_centers`, `exam_services`, `exam_packs`, `exam_center_hours`, `exam_slots` exigent identité active, rôle owner/manager et partenaire autorisé, en `USING` et `WITH CHECK`.
+- Server Action `src/app/partenaire/examens/actions.ts` : contrôle préalable du profil actif avant les actions owner/manager, commit `52c0da2ce4902424bea9a6768b3b39d952a8783c`.
+- Test 313 renforcé pour vérifier que la création conserve le profil actif dans le cas positif, commit `5da5d61a1c8ae5e61876887d8d29e3e9bee69fed`.
+- Nouveau test structurel `supabase/tests/315_partner_workspace_access_invariants.sql`, commit `2216a87d192537069f28cefe108529651148d4c8`.
+
+**Preuve Replay :**
+- Migration appliquée uniquement sur Replay `pwfftcsjyeibxxqhwysw`.
+- Exécution transactionnelle du test 315 : **PASS** ; invariants de la RPC, du helper d'accès, de la lecture partenaire et des cinq policies Examens vérifiés.
+- Aucun partenaire/dossier n'était présent sur Replay au contrôle préalable. Le test métier positif complet (création dossier → validation → accès) et les refus par suspension/expiration/révocation ne peuvent donc pas encore être exécutés avec les fixtures existantes.
+- Le test 313 renforcé n'a pas été lancé : il requiert un Admin et un Client admissible, absents du jeu de données Replay observé.
+- Les advisors Supabase signalent des constats RLS préexistants sur plusieurs autres tables sans policy ; aucun constat n'a été attribué à cette migration sans analyse dédiée.
+
+**Réserves :**
+- Les profils déjà désactivés par l'ancienne RPC ne sont pas réactivés automatiquement : leur statut doit être examiné individuellement pour ne pas lever une suspension globale légitime.
+- Contrôle navigateur/authentifié réel non effectué faute de fixtures partenaire.
+- Production et Vercel non touchés ; CI non exécutée dans cette passe.
+
+**Verdict de ce lot :** correction SQL et Server Action intégrée, test structurel Replay PASS ; recette métier complète encore PARTIELLE. Ne pas annoncer AU VERT.
