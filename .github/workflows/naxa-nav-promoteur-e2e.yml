@@ -15,6 +15,7 @@ on:
       - "src/middleware.ts"
       - "src/app/api/pharmacies/gardes/route.ts"
       - "src/components/BottomNav.tsx"
+      - "supabase/migrations/**"
   workflow_dispatch:
 
 permissions:
