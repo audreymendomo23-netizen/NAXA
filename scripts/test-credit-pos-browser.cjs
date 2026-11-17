@@ -38,7 +38,7 @@ test("la recette soumet le remboursement depuis l'interface Caisse et vérifie r
   assert.match(source, /client_credit_rembourser/);
   assert.match(source, /credit_remboursement/);
   assert.match(source, /caisse_cloturer/);
-  assert.match(source, /Number\\(closed\\.ecart\\) !== 0/);
+  assert.match(source, /Number\(closed\.ecart\) !== 0/);
   assert.match(source, /accountAfterRefund/);
   assert.match(source, /caisse_credit_tresorerie_compte_creer/);
   assert.match(source, /tresorerie_mouvements/);
