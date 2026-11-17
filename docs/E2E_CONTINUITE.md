@@ -6230,3 +6230,28 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Réserve à conserver : pendant les transitions Client, logs `ERR_ABORTED` sur plusieurs requêtes interrompues ; le navigateur a aussi signalé `PAGEERROR` ServiceWorker `URL object could not be cloned` et deux erreurs console HTTP 400. Ces signaux ne sont pas effacés par le succès du job et restent à diagnostiquer avant une validation plus large du parcours Client.
 - Limite métier : le Client n'a testé que favoris/panier locaux, recherche/filtres et historique ; aucune commande Marketplace persistée n'a été créée ni suivie. Cette recette ne valide donc pas le cycle Client transactionnel.
 - Verdict : recette de navigation Promoteur/Comptable/Partenaire/Client sur Replay = PASS selon le périmètre exécuté ; qualité GitHub = PASS ; nettoyage Replay = PASS. E2E globale NAXA et cycle Marketplace Client restent PARTIELS. Aucun changement Production, aucune migration Production, aucun déploiement Vercel, aucun accès Play Store.
+
+
+## 174. Instrumentation ciblée des anomalies Client — 17/11/2026
+
+**Demande :** exécuter la correction des anomalies observées dans la recette navigateur précédente, sans modifier Production.
+
+**Constat conservé :**
+- Les deux réponses HTTP 400 de la recette antérieure n'étaient pas associées à une URL, une méthode ou un corps de réponse ; leur cause métier n'était donc pas démontrée.
+- L'erreur ServiceWorker « URL object could not be cloned » était visible, mais la pile d'appel n'était pas journalisée. Le fichier `worker/sw.ts` configure Serwist et ne contient pas d'appel applicatif explicite à `postMessage` ; cela ne suffit pas à attribuer la panne à Serwist ou à un composant précis.
+- Les `net::ERR_ABORTED` coïncidaient avec des changements de route. Ils doivent être classés comme interruptions de navigation, sans être confondus avec des réponses HTTP métier en échec.
+
+**Instrumentation ajoutée au harnais Chromium :**
+- Commit [b5c3d27ae154a7231dcb80946f8d32b41fcfe897](https://github.com/audreymendomo23-netizen/NAXA/commit/b5c3d27ae154a7231dcb80946f8d32b41fcfe897) : journalisation des réponses HTTP 400 avec méthode, URL expurgée, type de ressource, corps de requête et corps de réponse ; capture de la pile des erreurs JavaScript ; séparation explicite des interruptions `ERR_ABORTED`.
+- Commit [69aaf7cb6e01259dbde793cf80266d31bb984b92](https://github.com/audreymendomo23-netizen/NAXA/commit/69aaf7cb6e01259dbde793cf80266d31bb984b92) : correction des motifs d'expurgation pour masquer les jetons, adresses e-mail, UUID et numéros de téléphone avant journalisation.
+- Les paramètres de requête ne sont pas consignés en clair ; seuls leurs noms sont conservés. Les valeurs sensibles présentes dans les corps structurés sont masquées.
+
+**Exécution automatique déclenchée :**
+- Commit testé : `69aaf7cb6e01259dbde793cf80266d31bb984b92` sur `main`.
+- Run qualité : [44048025967](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048025967), contrôle de syntaxe GitHub Actions PASS ; tests/TypeScript/lint encore en cours au dernier relevé.
+- Recette navigateur Replay : [44048025935](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048025935), déclenchée mais encore en attente au dernier relevé. Aucun résultat diagnostic HTTP 400 ou ServiceWorker n'est donc encore établi dans cette section.
+- Le contrôle Supabase Preview a été annulé automatiquement car le quota mensuel Git push de l'organisation est épuisé ; ce contrôle n'est pas un échec de recette applicative et ne constitue pas un PASS.
+
+**Décision technique :** ne pas remplacer aveuglément des objets `URL` par des chaînes ni modifier les RPC avant d'avoir la pile ServiceWorker et les réponses HTTP 400 capturées par ce run. Après réception des logs, corriger chaque cause prouvée, relancer la recette Replay, puis vérifier le nettoyage des fixtures.
+
+**Périmètre :** aucun changement de schéma ou de donnée Production, aucune migration, aucun déploiement Vercel, aucun changement Play Store.
