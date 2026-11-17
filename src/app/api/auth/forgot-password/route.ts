@@ -1,59 +1,73 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { isFinalizedNaxaProfile } from "@/lib/auth/finalized-profile";
+import { rateLimit, tooManyAttempts, trustedRequestIp } from "@/lib/pharmacie-rate-limit";
 
 const GENERIC = "Si ce nom d'utilisateur existe, un code OTP a été envoyé à l'adresse e-mail associée.";
-const NOT_FOUND = "Aucun compte NAXA ne correspond à ce nom d'utilisateur.";
+const USERNAME_PATTERN = /^[a-z0-9][a-z0-9._-]{2,29}$/;
+
+function genericResponse() {
+  return NextResponse.json(
+    { ok: true, message: GENERIC },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const username = String(body.username ?? "").trim().toLowerCase();
-    if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) {
-      return NextResponse.json({ ok: false, error: NOT_FOUND }, { status: 404 });
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (Number.isFinite(contentLength) && contentLength > 2048) {
+      return NextResponse.json({ ok: false, error: "Demande invalide." }, { status: 413 });
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin()
+    const body = await request.json();
+    const username = String(body?.username ?? "").trim().toLowerCase();
+    if (!USERNAME_PATTERN.test(username)) return genericResponse();
+
+    // Limit by source IP before account lookup to reduce account enumeration.
+    const ip = trustedRequestIp(request);
+    const ipGate = await rateLimit("ip_password_reset", ip, "attempt", 5, 600, 60, 900);
+    if (!ipGate.allowed) return tooManyAttempts(ipGate.retryAfter);
+
+    const admin = supabaseAdmin();
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("id, username")
       .ilike("username", username)
       .maybeSingle();
 
     if (profileError) {
-      console.error("password reset profile lookup:", profileError.message);
-      return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 500 });
+      console.error("NAXA_PASSWORD_RESET_PROFILE_LOOKUP_FAILED");
+      return NextResponse.json(
+        { ok: false, error: "Service momentanément indisponible. Réessayez." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
-    if (!profile) {
-      return NextResponse.json({ ok: false, error: NOT_FOUND }, { status: 404 });
+    if (!profile) return genericResponse();
+
+    const { data: userData, error: userError } = await admin.auth.admin.getUserById(profile.id);
+    if (userError || !userData.user?.email || !isFinalizedNaxaProfile(profile, userData.user)) {
+      return genericResponse();
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin().auth.admin.getUserById(profile.id);
-    if (userError || !userData.user?.email) {
-      console.error("password reset auth lookup:", userError?.message ?? "email missing");
-      return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 500 });
-    }
-    if (!isFinalizedNaxaProfile(profile, userData.user)) {
-      return NextResponse.json({ ok: false, error: NOT_FOUND }, { status: 404 });
-    }
-
-    const { error } = await supabaseAdmin().auth.signInWithOtp({
+    const { error } = await admin.auth.signInWithOtp({
       email: userData.user.email,
       options: { shouldCreateUser: false },
     });
     if (error) {
-      console.error("password reset OTP:", error.message);
-      const rateLimited = /rate|too many|for security purposes|only request this after|after \d+ seconds/i.test(error.message);
-      return NextResponse.json({
-        ok: false,
-        error: rateLimited
-          ? "Attendez 60 secondes avant de demander un nouveau code."
-          : "Impossible d'envoyer le code OTP. Réessayez.",
-      }, { status: rateLimited ? 429 : 500 });
+      console.error("NAXA_PASSWORD_RESET_OTP_FAILED");
+      return NextResponse.json(
+        { ok: false, error: "Service de récupération momentanément indisponible. Réessayez." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
-    return NextResponse.json({ ok: true, message: GENERIC });
+    return genericResponse();
   } catch {
-    return NextResponse.json({ ok: false, error: "Impossible de vérifier ce compte. Réessayez." }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Service momentanément indisponible. Réessayez." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
