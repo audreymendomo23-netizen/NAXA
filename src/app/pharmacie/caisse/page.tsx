@@ -224,7 +224,9 @@ export default function CaissePage() {
   // encours positif ; la sélection POS conserve la liste distincte, y compris à 0 FCFA.
   useEffect(() => {
     let active = true;
-    void rechargerComptesCreditRemboursement().catch(() => {
+    void rechargerComptesCreditRemboursement().then((rows) => {
+      if (active) setRefundCreditAccounts(rows);
+    }).catch(() => {
       if (active) setRefundCreditAccounts([]);
     });
     return () => { active = false; };
@@ -258,8 +260,8 @@ export default function CaissePage() {
     }
   }, [refundPendingStorageKey]);
 
-  async function rechargerComptesCreditRemboursement() {
-    if (!pid) { setRefundCreditAccounts([]); return; }
+  async function rechargerComptesCreditRemboursement(): Promise<RefundCreditAccountOption[]> {
+    if (!pid) return [];
     const { data, error } = await sb.rpc("caisse_credit_remboursement_comptes_lister", { p_pharmacie: pid });
     if (error) throw error;
     const rows = (data ?? []) as {
@@ -272,13 +274,13 @@ export default function CaissePage() {
       phone: string | null;
       username: string | null;
     }[];
-    setRefundCreditAccounts(rows.map((row) => ({
+    return rows.map((row) => ({
       creditId: row.credit_id,
       clientId: row.client_id,
       label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
       solde: Number(row.solde),
       plafond: Number(row.plafond),
-    })));
+    }));
   }
 
   async function chargerComptesTresorerieRemboursement() {
@@ -884,7 +886,7 @@ export default function CaissePage() {
         : item));
       let refundProjectionAvailable = true;
       try {
-        await rechargerComptesCreditRemboursement();
+        setRefundCreditAccounts(await rechargerComptesCreditRemboursement());
       } catch {
         refundProjectionAvailable = false;
       }
