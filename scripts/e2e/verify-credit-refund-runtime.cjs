@@ -317,30 +317,35 @@ async function run(env = process.env) {
       throw new Error("Le Client technique possède déjà un compte crédit dans cette pharmacie ; aucun encours existant ne sera modifié.");
     }
 
-    const existingTreasuryMappings = [];
     for (const plan of plans) {
-      const rows = await adminRows(
-        "tresorerie_comptes?select=id,canal_paiement&pharmacie_id=eq."
+      const existingRows = await adminRows(
+        "tresorerie_comptes?select=id,canal_paiement,type,actif&pharmacie_id=eq."
           + encodeURIComponent(pharmacyId) + "&canal_paiement=eq."
           + encodeURIComponent(plan.channel) + "&actif=eq.true&limit=2"
       );
-      existingTreasuryMappings.push(...rows);
-    }
-    if (existingTreasuryMappings.length) {
-      throw new Error("Des comptes de trésorerie existent déjà pour un canal de la pharmacie E2E ; la recette ne les réaffecte ni ne les supprime.");
-    }
-
-    for (const plan of plans) {
-      const id = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
-        p_pharmacie: pharmacyId, p_canal: plan.channel,
-      }, "Création compte trésorerie " + plan.channel);
-      if (typeof id !== "string") throw new Error("Compte de trésorerie non créé pour " + plan.channel + ".");
+      if (existingRows.length > 1) {
+        throw new Error("Plusieurs comptes actifs sont affectés au canal " + plan.channel + " ; la recette refuse de choisir arbitrairement.");
+      }
+      const expectedType = plan.channel === "especes" ? "especes" : "mobile_money";
+      let id;
+      if (existingRows.length === 1) {
+        const existing = existingRows[0];
+        if (existing.canal_paiement !== plan.channel || existing.type !== expectedType || existing.actif !== true) {
+          throw new Error("Le compte déjà affecté au canal " + plan.channel + " a un type ou un état incompatible ; aucune modification automatique.");
+        }
+        id = existing.id;
+      } else {
+        id = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
+          p_pharmacie: pharmacyId, p_canal: plan.channel,
+        }, "Création compte trésorerie " + plan.channel);
+        if (typeof id !== "string") throw new Error("Compte de trésorerie non créé pour " + plan.channel + ".");
+        treasuryAccountIds.push(id);
+      }
       treasuryAccountByChannel[plan.channel] = id;
-      treasuryAccountIds.push(id);
       const retryId = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
         p_pharmacie: pharmacyId, p_canal: plan.channel,
       }, "Vérification idempotence compte " + plan.channel);
-      if (retryId !== id) throw new Error("Création compte non idempotente pour " + plan.channel + ".");
+      if (retryId !== id) throw new Error("Création/réutilisation du compte non idempotente pour " + plan.channel + ".");
     }
 
     const listedAccounts = await rpc("caisse_credit_tresorerie_comptes_lister", cashierToken, {
