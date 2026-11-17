@@ -58,10 +58,14 @@ begin
   select pg_get_functiondef(p.oid),p.prosecdef into v_def,v_secdef
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='admin_valider_dossier_partenaire';
+  -- La validation commerciale ne force plus l'activation du profil : elle applique
+  -- le statut partenaire et les verrous d'abonnement, sans muter l'identité client.
   if v_def is null or v_secdef is distinct from true
      or position('public.is_admin()' in v_def)=0
      or position('public.admin_partner_dossiers' in v_def)=0
-     or position('update public.profiles set actif=true' in v_def)=0 then
+     or position('private.naxa_owner_subscription_is_current' in v_def)=0
+     or position('public.naxa_subscription_access_locks' in v_def)=0
+     or position('identity_actif_mutated' in v_def)=0 then
     raise exception 'Validation du dossier partenaire absente ou insuffisamment protégée';
   end if;
   if has_function_privilege('anon','public.admin_valider_dossier_partenaire(uuid)','EXECUTE') then
