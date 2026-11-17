@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 17 novembre 2026 (§147)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `a976cb95dbd1d9228cbf5f711381edaff36e3b42`  
+**HEAD contrôlé avant cette mise à jour :** `895f138d8dd74debfada7743a998e03625288f38`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5551,9 +5551,11 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 ### Correction versionnée et appliquée sur Replay
 
 - Migration source : `supabase/migrations/20261117043716_session_audit_skip_parent_delete_cascade.sql`.
+- Commit de la migration source : `dadd36c8ced8b755831ca6f3cc48d110c11546da`.
 - Le trigger vérifie désormais que le parent existe encore dans `auth.users` avant d'écrire l'événement `SESSION_REVOKED`. Lors d'une suppression Auth en cascade, la ligne parent n'est plus visible et l'insertion d'audit est ignorée ; les audits historiques du compte suivent la FK `ON DELETE CASCADE`. Lors d'une révocation ordinaire, le compte existe encore et l'événement reste écrit.
 - Migration appliquée sur Replay `pwfftcsjyeibxxqhwysw`, version enregistrée `20261117043716`, nom `session_audit_skip_parent_delete_cascade`.
 - Test versionné : `supabase/tests/314_session_audit_user_cascade.sql`.
+- Commit du test : `d275410bc3904886acaf44e2737bae3af04ab9fe`.
 - Le test tente la suppression du compte Admin E2E dans un sous-bloc transactionnel annulé, puis vérifie qu'une suppression normale de session produit toujours `SESSION_REVOKED`. Le test complet se termine par `ROLLBACK`.
 
 ### Preuves après correction
