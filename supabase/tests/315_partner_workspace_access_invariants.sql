@@ -64,6 +64,13 @@ begin
    raise exception 'Policy de gestion % incomplète : %',v_table,v_policy;
   end if;
  end loop;
+ select lower(coalesce(qual,'') || ' ' || coalesce(with_check,''))
+ into v_policy from pg_policies
+ where schemaname='public' and tablename='exam_equipment'
+  and policyname='exam_equipment_public_verified_read';
+ if v_policy is null or position('universe_partner_is_public' in v_policy)=0 then
+  raise exception 'La lecture publique du matériel ne respecte pas le statut partenaire';
+ end if;
  foreach v_table in array array['exam_appointments','exam_pack_items'] loop
   select lower(coalesce(qual,'') || ' ' || coalesce(with_check,''))
    into v_policy from pg_policies
