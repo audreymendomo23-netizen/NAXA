@@ -564,6 +564,9 @@ async function run() {
     clientPage.setDefaultTimeout(20000);
     clientPage.on("pageerror", (error) => console.error("CLIENT PAGEERROR — " + error.message));
     clientPage.on("console", (message) => { if (message.type() === "error") console.error("CLIENT CONSOLE — " + message.text()); });
+    clientPage.on("response", (response) => {
+      if (response.status() >= 500) console.error("CLIENT HTTP ERROR — " + response.status() + " " + response.url());
+    });
     clientPage.on("requestfailed", (request) => console.error("CLIENT REQUEST FAILED — " + request.method() + " " + request.url() + " — " + (request.failure()?.errorText || "unknown")));
     const clientResponse = await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
     const clientCookies = await clientContext.cookies(BASE_URL);
@@ -595,7 +598,7 @@ async function run() {
 
     await clientPage.goto(BASE_URL + "/client/profil/favoris", { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/client/profil/favoris", "Client → Favoris");
-    await clientPage.getByRole("heading", { name: /Mes favoris/ }).waitFor({ state: "visible" });
+    await clientPage.getByRole("heading", { name: "Mes favoris", exact: true }).first().waitFor({ state: "visible" });
     await clientPage.getByText("Article local de recette", { exact: true }).waitFor({ state: "visible" });
     await clientPage.getByRole("button", { name: "Retirer Article local de recette des favoris", exact: true }).click();
     await clientPage.getByText("Votre liste est encore vide", { exact: true }).waitFor({ state: "visible" });
