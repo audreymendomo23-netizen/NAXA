@@ -6391,3 +6391,28 @@ La revalidation navigateur complète sur le HEAD réunissant ces modifications e
 - Le cycle panier multi-propriétaires n'est pas encore prouvé en navigateur sur Replay.
 - La limite locale de 10 lignes est globale ; son adéquation au panier multi-univers reste à décider.
 - Aucun schéma, donnée ou projet Production modifié ; aucune migration, aucun déploiement Vercel, aucune action Play Store.
+
+
+## 180. Re-audit après évolution concurrente du panier — 17/11/2026
+
+**HEAD vérifié avant ce correctif :** `bfb4386b7707dc97ba60943c411540a04db4e7b5`. Depuis le précédent point de contrôle `dbbdbe9`, trois commits ont été poussés par l'autre séquence de travail :
+- `5f11914` remplace le groupement Pharmacie par une construction explicite de Map ; la syntaxe est plus lisible et évite l'expression imbriquée fautive.
+- `b2adaca` réécrit presque entièrement `src/lib/panier.tsx` (normalisation `typeProprietaire` / `idProprietaire`, callbacks explicites, lecture/écriture locale). La logique de quantité et de retrait est désormais alignée sur ces fonctions normalisées.
+- `bfb4386` actualise la documentation dédiée et relance les contrôles.
+
+**Nouvelle anomalie fonctionnelle trouvée pendant la vérification :**
+- Dans la liste Pharmacie de `src/app/panier/page.tsx`, les boutons quantité et retrait transmettaient directement `line.owner_type` et `line.owner_id`.
+- Pour une ligne historique contenant uniquement `pharmacie_id`, ces deux arguments sont absents. Les fonctions normalisées du contexte ne reçoivent donc aucun filtre propriétaire et peuvent modifier/retirer plusieurs lignes ayant le même `produit_id`, y compris une ligne d'une autre pharmacie.
+- Le parcours Bébé & Maman utilisait déjà une résolution de secours des champs historiques ; la liste Pharmacie ne l'appliquait pas. C'était une incohérence réelle entre les deux circuits.
+
+**Correction appliquée :**
+- Commit `1a39e0857679f2ccc72f2f64cd93b9d58c268fea` : les actions −, + et Retirer de la liste Pharmacie transmettent maintenant le type et l'identifiant propriétaire résolus depuis `owner_type/owner_id`, puis `pharmacie_id/partner_id` en compatibilité historique.
+- Aucun appel RPC, règle de stock, schéma ou donnée Supabase n'a été modifié.
+
+**État des exécutions observé à 09:08 UTC :**
+- Navigation Replay `44052229258`, sur `dbbdbe9` : build et démarrage du serveur PASS ; scénario navigateur encore `in_progress`. Le statut n'avait pas évolué depuis 09:04:44 UTC, donc aucun verdict final exploitable.
+- Qualité `44052399111`, sur `bfb4386` : `pending`, aucun job disponible.
+- Navigation `44052340453`, sur `b2adaca` : `pending`, aucun job disponible. Les runs qualité/navigation des commits intermédiaires `5f11914` et `b2adaca` ont été annulés par les pushes suivants ; ils ne comptent pas comme validation.
+- La nouvelle correction `1a39e08` déclenche une nouvelle qualité sur le HEAD correspondant. Le workflow navigateur surveille maintenant `src/app/panier/page.tsx` et `src/lib/panier.tsx`, donc une exécution Replay doit aussi être relancée après cette modification.
+
+**Verdict :** les erreurs de syntaxe précédentes sont corrigées dans le code observé ; une seconde anomalie, concernant le ciblage propriétaire des lignes historiques, a été trouvée et corrigée. La correction reste à compiler et à tester. Le panier multi-propriétaires n'est pas vert avant réussite du contrôle qualité et scénario navigateur multi-propriétaires. ServiceWorker DataCloneError reste un point rouge distinct. Aucun changement Production, migration, déploiement Vercel ou action Play Store.
