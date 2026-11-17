@@ -39,6 +39,7 @@ const files = {
   reviewSql: read("supabase/migrations/20261107120000_delivery_reviews_and_commission_scope_20261107.sql"),
   posSql: read("supabase/migrations/20261107133000_delivery_pos_cash_collection_and_monthly_due_20261107.sql"),
   stockDebitFix: read("supabase/migrations/20261117143000_fix_delivery_pos_physical_stock_debit.sql"),
+  deliveryStockReplayTest: read("supabase/tests/20261117144000_delivery_pos_stock_debit_replay.sql"),
   courierSql: read("supabase/migrations/20261107141000_delivery_courier_cash_and_eta_mission_data.sql"),
   noCommissionSql: read("supabase/migrations/20261115130000_delivery_no_naxa_commission_policy.sql"),
 };
@@ -96,6 +97,18 @@ test("la Caisse valide le paiement dans le POS complet sans double décrément d
   assert.match(files.posSql, /insert into public\.vente_paiements/);
   assert.match(files.paymentValidation, /naxa_delivery_pos_encaisser/);
   assert.match(files.cashierPage, /DeliveryPaymentValidationPanel/);
+});
+
+test("les commandes Livraison isolent les stocks par pharmacie, libèrent un hold annulé et débitent au POS", () => {
+  assert.match(files.deliveryStockReplayTest, /creer_transactions_client/);
+  assert.match(files.deliveryStockReplayTest, /mode','commande'/);
+  assert.match(files.deliveryStockReplayTest, /set_reservation_status\(v_order_a,'annulee'/);
+  assert.match(files.deliveryStockReplayTest, /marketplace_offre_stock_disponible/);
+  assert.match(files.deliveryStockReplayTest, /naxa_delivery_pos_encaisser/);
+  assert.match(files.deliveryStockReplayTest, /v_stock_b_after<>v_stock_b_before-1/);
+  assert.match(files.deliveryStockReplayTest, /stock_decremented_at_draft=true/);
+  assert.match(files.deliveryStockReplayTest, /ROLLBACK/);
+  assert.match(files.stockDebitFix, /v_r.id,false/);
 });
 
 test("les espèces à la remise sont déclarées par le Livreur puis rapprochées par la Caisse", () => {
