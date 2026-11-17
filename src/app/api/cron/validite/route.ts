@@ -144,6 +144,7 @@ export async function GET(req: Request) {
   let partnerExpired = 0;
   let partnerReminders = 0;
   let invitationReminders = 0;
+  let agreementReminders = 0;
 
   // Les synchronisations métier sont indépendantes : une panne d'un univers
   // ne doit pas empêcher la distribution des e-mails déjà mis en file.
@@ -152,6 +153,7 @@ export async function GET(req: Request) {
     "synchroniser_validite_abonnements_partenaires",
     "emettre_rappels_abonnements_partenaires_5j",
     "emettre_rappels_invitations_email",
+    "emettre_rappels_conventions_prestations_email",
   ] as const;
 
   for (const jobName of syncJobs) {
@@ -166,6 +168,8 @@ export async function GET(req: Request) {
       partnerReminders = Number(data ?? 0);
     } else if (jobName === "emettre_rappels_invitations_email") {
       invitationReminders = Number(data ?? 0);
+    } else if (jobName === "emettre_rappels_conventions_prestations_email") {
+      agreementReminders = Number(data ?? 0);
     }
   }
 
@@ -228,6 +232,7 @@ export async function GET(req: Request) {
     partnerExpired,
     partnerReminders,
     invitationReminders,
+    agreementReminders,
     claimed,
     sent,
     retried,
