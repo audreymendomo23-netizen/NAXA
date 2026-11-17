@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
 const { createServerClient } = require("@supabase/ssr");
 const { chromium } = require("playwright");
@@ -330,28 +331,32 @@ async function createClientHistoryFixtures(profileA, profileB) {
     { profile: profileA, suffix: "A" },
     { profile: profileB, suffix: "B" },
   ]) {
-    const paiementRef = "NAXA-E2E-HISTORY-" + RUN_LABEL + "-" + fixture.suffix;
+    const reservationId = randomUUID();
     const createdAt = new Date().toISOString();
-    const { data: reservation, error: reservationError } = await admin.from("reservations").insert({
+
+    // Persist the exact ID before insert so the finally cleanup can remove
+    // a partially created fixture even if a later statement fails.
+    state.historyReservationIds.push(reservationId);
+    saveState();
+
+    const { error: reservationError } = await admin.from("reservations").insert({
+      id: reservationId,
       client_id: fixture.profile.id,
       pharmacie_id: historyPharmacyId,
       statut: "payee",
       total: stock.prix,
-      paiement_ref: paiementRef,
+      paiement_ref: null,
       created_at: createdAt,
       mode: "reservation",
       paiement_statut: "effectue",
       paiement_mode: "especes_retrait",
       paiement_valide_at: createdAt,
       stock_decremented: false,
-    }).select("id").single();
+    });
     if (reservationError) throw reservationError;
 
-    state.historyReservationIds.push(reservation.id);
-    saveState();
-
     const { error: itemError } = await admin.from("reservation_items").insert({
-      reservation_id: reservation.id,
+      reservation_id: reservationId,
       produit_id: stock.produit_id,
       quantite: 1,
       prix_unitaire: stock.prix,
@@ -359,19 +364,19 @@ async function createClientHistoryFixtures(profileA, profileB) {
     if (itemError) throw itemError;
 
     const { error: eventError } = await admin.from("reservation_events").insert({
-      reservation_id: reservation.id,
+      reservation_id: reservationId,
       client_id: fixture.profile.id,
       pharmacie_id: historyPharmacyId,
       event_type: "status_changed",
       from_statut: "confirmee",
       to_statut: "payee",
-      paiement_ref: paiementRef,
+      paiement_ref: null,
       occurred_at: createdAt,
-      detail: { e2e: true, run_label: RUN_LABEL, test: "client_history_isolation_ab" },
+      detail: { e2e: true, run_label: RUN_LABEL, suffix: fixture.suffix, test: "client_history_isolation_ab" },
     });
     if (eventError) throw eventError;
 
-    reservationIds.push(reservation.id);
+    reservationIds.push(reservationId);
   }
 
   console.log("PASS fixtures historique — deux achats E2E payés créés pour deux Clients distincts ; aucune ligne de stock n'a été débitée.");
@@ -381,16 +386,18 @@ async function createClientHistoryFixtures(profileA, profileB) {
 async function cleanupClientHistoryFixtures() {
   if (!state.historyPharmacyId && !(state.historyReservationIds || []).length) return;
   const failures = [];
-  const marker = "NAXA-E2E-HISTORY-" + state.runLabel + "-";
+  const reservationIds = Array.isArray(state.historyReservationIds) ? state.historyReservationIds.filter(Boolean) : [];
 
-  const deleted = await admin.from("reservations").delete()
-    .like("paiement_ref", marker + "%").select("id");
-  if (deleted.error) failures.push("suppression des réservations A/B temporaires : " + deleted.error.message);
+  if (reservationIds.length) {
+    const deleted = await admin.from("reservations").delete()
+      .in("id", reservationIds).select("id");
+    if (deleted.error) failures.push("suppression des réservations A/B temporaires : " + deleted.error.message);
 
-  const remainingReservations = await admin.from("reservations")
-    .select("id", { count: "exact", head: true }).like("paiement_ref", marker + "%");
-  if (remainingReservations.error || (remainingReservations.count || 0) !== 0) {
-    failures.push("des réservations A/B temporaires sont toujours présentes.");
+    const remainingReservations = await admin.from("reservations")
+      .select("id", { count: "exact", head: true }).in("id", reservationIds);
+    if (remainingReservations.error || (remainingReservations.count || 0) !== 0) {
+      failures.push("des réservations A/B temporaires sont toujours présentes.");
+    }
   }
 
   if (state.historyPharmacyId && typeof state.historyOriginalVisibleRecherche === "boolean") {
