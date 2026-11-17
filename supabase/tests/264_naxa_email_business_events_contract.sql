@@ -22,6 +22,9 @@ begin
     or position('partner_subscription_due_5d' in pg_get_functiondef('public.enqueue_notification_email()'::regprocedure))=0 then
     raise exception '264 FAIL: notifications abonnement non raccordées à l''outbox historique';
   end if;
+  if exists(select 1 from pg_trigger where tgname='trg_naxa_partner_subscription_notification_email' and not tgisinternal) then
+    raise exception '264 FAIL: double envoi possible sur les abonnements partenaires';
+  end if;
   if not exists(select 1 from pg_trigger where tgname='trg_naxa_home_agreement_email_events' and not tgisinternal) then
     raise exception '264 FAIL: déclencheur convention domicile absent';
   end if;
