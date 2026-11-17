@@ -232,41 +232,6 @@ export default function CaissePage() {
     return () => { active = false; };
   }, [pid, sb]);
 
-  // Les affectations de trésorerie doivent être rechargées au montage et à chaque changement de pharmacie.
-  // Sans cet effet, les selects restaient vides malgré des comptes actifs correctement créés en base.
-  useEffect(() => {
-    let active = true;
-    if (!pid) {
-      setRefundTreasuryAccounts([]);
-      return () => { active = false; };
-    }
-    void (async () => {
-      try {
-        const { data, error } = await sb.rpc("caisse_credit_tresorerie_comptes_lister", { p_pharmacie: pid });
-        if (!active) return;
-        if (error) throw error;
-        const rows = (data ?? []) as {
-          account_id: string;
-          nom: string;
-          compte_type: string;
-          canal_paiement: string | null;
-        }[];
-        setRefundTreasuryAccounts(rows.map((row) => ({
-          accountId: row.account_id,
-          name: row.nom,
-          type: row.compte_type,
-          channel: row.canal_paiement === "especes" || row.canal_paiement === "orange_money" || row.canal_paiement === "mtn_momo"
-            ? row.canal_paiement : null,
-        })));
-      } catch {
-        if (!active) return;
-        setRefundTreasuryAccounts([]);
-        setMsg("Impossible de charger les comptes de trésorerie de cette pharmacie. Les remboursements restent bloqués jusqu’au rechargement.");
-      }
-    })();
-    return () => { active = false; };
-  }, [pid, sb]);
-
   // Charger les comptes de trésorerie déjà configurés à chaque ouverture
   // de la Caisse. Sans ce chargement initial, les comptes créés côté serveur
   // restent invisibles jusqu'à une action manuelle de configuration.

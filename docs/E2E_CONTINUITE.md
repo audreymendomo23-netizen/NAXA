@@ -7296,27 +7296,27 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Le sous-parcours SQL multicanal est vert. Le parcours complet navigateur + qualité globale reste **PARTIEL / EN ATTENTE** jusqu'aux deux runs terminaux ; ne pas déclarer le chantier global vert avant preuves.
 
 
-## Section 202 — Correction du chargement initial des comptes de trésorerie Caisse (17 novembre 2026)
+## Section 202 — Stabilisation de la recette navigateur des remboursements crédit (17 novembre 2026)
 
-### Cause racine vérifiée sur Replay
-- Le run Replay 44192308451 (commit b2dc61cd89fd3e62d5f4a1a10e98a68648e335cb) a exécuté avec succès le remboursement JWT, mais l'étape navigateur s'est arrêtée sur Compte non configuré pour les trois canaux.
-- Les trois lignes de public.tresorerie_comptes existaient pourtant sur la pharmacie technique 1a4f1ce5-cccf-477e-9a5b-474c8c9fc713, actives et affectées respectivement à especes, orange_money et mtn_momo.
-- La page Caisse ne chargeait caisse_credit_tresorerie_comptes_lister qu'après un clic de création/configuration. Aucun chargement initial n'alimentait refundTreasuryAccounts. Le bouton restait donc désactivé même avec les comptes présents en base.
+### Diagnostic consolidé
+- Le run navigateur 44192308451 a montré que les trois comptes espèces, Orange Money et MTN MoMo existaient en base et que la RPC les listait, mais que les trois sélecteurs de la page Caisse restaient vides dans cette exécution.
+- Relecture du code : la page Caisse possédait déjà un effet de chargement initial qui appelle le helper chargerComptesTresorerieRemboursement lorsque pid est défini. Il serait donc incorrect d'affirmer que l'interface n'avait aucun chargement initial.
+- Le script navigateur utilisait une création directe via RPC puis comptait uniquement sur le rafraîchissement de l'interface. Le correctif du script utilise maintenant le chemin visible pour le caissier : si un canal n'est pas sélectionné, clic sur Créer compte à 0 FCFA, puis attente explicite de la sélection du compte avant de saisir le remboursement.
 
-### Correction versionnée
-- src/app/pharmacie/caisse/page.tsx : ajout d'un chargement contrôlé des comptes déjà affectés au montage et à chaque changement de pharmacie ; l'effet annule ses mises à jour après démontage et bloque le parcours en cas d'échec de lecture.
-- scripts/test-credit-pos-browser.cjs : assertion statique dédiée pour empêcher la régression du chargement initial des comptes par canal.
-- La création à 0 FCFA, le changement manuel de compte, le contrôle de preuve Orange/MTN et le rapprochement atomique restent inchangés.
+### Réconciliation du changement d351a25
+- Une tentative d'ajout d'un second chargeur a été commitée, mais le contrôle TypeScript a détecté que le then d'une RPC Supabase retourne un PromiseLike auquel catch n'est pas disponible.
+- Ce chargeur redondant a été retiré. Le helper et son effet initial existants sont conservés ; le test statique vérifie maintenant leur présence et leur liaison à pid.
+- Le test navigateur conserve les assertions sur l'interface réelle, les trois canaux, les reçus, les trois mouvements de trésorerie, les preuves visuelles et le tiroir espèces.
 
-### État de la fixture Replay après le run interrompu
-- Session Caisse b8b29ce1-1f34-417e-8fde-ae02890c6dbc : clôturée ; total théorique 1 000 FCFA, total compté 1 000 FCFA, écart 0.
-- Compte crédit technique : solde 0 FCFA après remboursement compensatoire de récupération ; aucune session Caisse n'est restée ouverte.
-- Stock du produit technique : 4 unités, valeur initiale vérifiée.
-- Trois comptes de trésorerie : présents, actifs et reliés aux trois canaux sur Replay.
+### Preuves Replay toujours valides
+- Recette SQL 302_caisse_credit_repayment_multichannel_e2e.sql exécutée directement sur Replay : PASS avec ROLLBACK.
+- Recette runtime authentifiée JWT Caisse Replay précédente : PASS sur espèces, Orange Money et MTN MoMo.
+- La session d'essai interrompue a été récupérée : session clôturée, écart 0 FCFA, solde du crédit de recette 0 FCFA et stock technique revenu à 4 unités.
+- Les trois comptes de trésorerie de la pharmacie technique étaient actifs et affectés aux bons canaux lors du contrôle direct Replay.
 
-### Preuves et limites conservées
-- Recette SQL 302_caisse_credit_repayment_multichannel_e2e.sql réexécutée directement sur Replay le 17 novembre 2026 : PASS ; le script termine par ROLLBACK.
-- Dernier script runtime authentifié avant cette correction : PASS pour les trois canaux via un vrai JWT Caisse Replay.
-- La recette navigateur des trois canaux doit être relancée sur ce correctif ; aucun PASS navigateur n'est revendiqué avant le résultat du run post-correction.
-- Le dernier run groupé a aussi signalé un échec indépendant du test de réutilisation de refresh token Auth. Il reste séparé du remboursement Caisse et ne doit pas être masqué par un résultat vert SQL.
-- Aucun changement de schéma n'est requis pour ce défaut ; aucune migration Production, écriture Production ni publication Vercel n'est autorisée ou effectuée dans ce passage.
+### Vérifications à ne pas confondre
+- Le contrôle qualité du SHA 9d513617 a exécuté 582 tests avec 582 PASS, puis a échoué en TypeScript sur le chargeur redondant depuis retiré.
+- Le build/TypeScript/lint du HEAD après retrait doit rendre un nouveau résultat terminal avant déclaration au vert.
+- La recette navigateur avec le nouveau chemin UI doit également rendre un résultat terminal PASS avant de déclarer le remboursement E2E global vert.
+- Le test Auth de détection de réutilisation de refresh token avait un échec indépendant dans un run antérieur ; il ne doit pas être présenté comme un échec de remboursement Caisse ni être masqué.
+- Aucune migration ni écriture Production et aucun déploiement Vercel ne sont effectués dans ce passage.

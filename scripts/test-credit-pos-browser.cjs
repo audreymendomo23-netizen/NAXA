@@ -15,12 +15,10 @@ const caisseSource = fs.readFileSync(
   "utf8",
 );
 
-test("les comptes de trésorerie affectés sont rechargés à l'initialisation et au changement de pharmacie", () => {
-  assert.match(caisseSource, /Les affectations de trésorerie doivent être rechargées au montage et à chaque changement de pharmacie/);
-  assert.match(caisseSource, /useEffect\(\(\) => \{\s*let active = true;\s*if \(!pid\) \{\s*setRefundTreasuryAccounts\(\[\]\);/);
-  assert.match(caisseSource, /sb\.rpc\("caisse_credit_tresorerie_comptes_lister", \{ p_pharmacie: pid \}\)/);
-  assert.match(caisseSource, /setRefundTreasuryAccounts\(rows\.map\(\(row\) => \(\{/);
-  assert.match(caisseSource, /\}, \[pid, sb\]\);/);
+test("les comptes de trésorerie sont rechargés par le helper au montage et au changement de pharmacie", () => {
+  assert.match(caisseSource, /\/\/ Charger les comptes de trésorerie déjà configurés à chaque ouverture/);
+  assert.match(caisseSource, /useEffect\(\(\) => \{\s*let active = true;\s*if \(!pid\) \{\s*setRefundTreasuryAccounts\(\[\]\);[\s\S]{0,450}chargerComptesTresorerieRemboursement\(\)\.catch\(\(error\) => \{/);
+  assert.match(caisseSource, /async function chargerComptesTresorerieRemboursement\(\)[\s\S]{0,500}sb\.rpc\("caisse_credit_tresorerie_comptes_lister"/);
   assert.match(caisseSource, /refundTreasuryAccounts\.some\(\(item\) => item\.channel === refundChannel\)/);
 });
 
