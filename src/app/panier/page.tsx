@@ -19,7 +19,7 @@ export default function Panier() {
     group.push(line);
     groups.set(ownerId, group);
     return groups;
-  }, new Map<string, typeof medicaments>());
+  }, new Map<string, typeof medicaments>()));
   const lignesSansPharmacie = medicaments.filter(line => {
     const ownerId = line.pharmacie_id ?? (line.owner_type === "pharmacie" ? line.owner_id : undefined);
     return !ownerId || (line.owner_type && line.owner_type !== "pharmacie");
