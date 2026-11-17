@@ -34,6 +34,7 @@ function doPost(e) {
         !/^[a-zA-Z0-9_-]{8,160}$/.test(idempotencyKey) ||
         payload.subject.trim().length < 1 ||
         payload.subject.length > 180 ||
+        /[\\r\\n\\u0000]/.test(payload.subject) ||
         payload.html.length > 30000) {
       return json_({ sent: false, error: "invalid_request" });
     }
