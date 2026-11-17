@@ -46,10 +46,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Appareil Partenaire non enrôlé." }, { status: 403 });
     }
     const { data: membership } = await db.from("partner_members")
-      .select("partner_id,partners!inner(status)").eq("partner_id", body.partnerId)
+      .select("partner_id,member_role").eq("partner_id", body.partnerId)
       .eq("user_id", auth.user.id).in("member_role", ["owner", "manager"]).maybeSingle();
-    if (!membership || (membership as any).partners?.status !== "active") {
-      return NextResponse.json({ error: "Accès propriétaire/gestionnaire révoqué ou partenaire suspendu." }, { status: 403 });
+    const { data: partner } = await db.from("partners").select("id,status")
+      .eq("id", body.partnerId).maybeSingle();
+    let paymentWorkspaceAllowed = Boolean(membership && partner?.status === "active");
+    if (membership?.member_role === "owner" && partner?.status === "pending") {
+      const { data: dossier } = await db.from("admin_partner_dossiers")
+        .select("partner_id").eq("partner_id", body.partnerId)
+        .eq("dossier_status", "validated")
+        .in("universe_slug", ["parapharmacie", "examens", "prestations"])
+        .maybeSingle();
+      paymentWorkspaceAllowed = Boolean(dossier);
+    }
+    if (!paymentWorkspaceAllowed) {
+      return NextResponse.json({ error: "Accès propriétaire/gestionnaire révoqué, dossier non validé ou partenaire suspendu." }, { status: 403 });
     }
 
     const parsed = parsePromoteurPaymentSms(smsText, canal);
@@ -77,6 +88,18 @@ export async function POST(request: Request) {
     }).select("id").single();
     if (error?.code === "23505") return NextResponse.json({ received: true, status: "duplicate" }, { status: 409 });
     if (error || !candidate) return NextResponse.json({ error: "Enregistrement de l'élément de paiement impossible." }, { status: 503 });
+
+    const { data: pairedPayment } = await db.from("partner_subscription_payments")
+      .select("id,receipt_number,period_start,period_end,confirmation_source")
+      .eq("payer_candidate_id", candidate.id).eq("status", "confirmed").maybeSingle();
+    if (pairedPayment) {
+      await db.from("naxa_partner_payment_devices").update({ last_seen_at: new Date().toISOString() }).eq("id", device.id);
+      return NextResponse.json({
+        received: true, candidateId: candidate.id, status: "auto_confirmed_partner_subscription",
+        receipt: pairedPayment.receipt_number, periodStart: pairedPayment.period_start,
+        periodEnd: pairedPayment.period_end, confirmationSource: pairedPayment.confirmation_source,
+      }, { status: 200 });
+    }
 
     const { data: admins } = await db.from("profiles").select("id").eq("role", "admin").eq("actif", true);
     if (admins?.length) await db.from("notifications").insert(admins.map((admin: {id:string}) => ({
