@@ -1,7 +1,7 @@
 -- NAXA — corriger la journalisation d'une référence de paiement sur réservation.
--- Cause : la fonction Replay utilisait reservation_events.to_value, colonne inexistante.
--- Le schéma canonique stocke la référence dans reservation_events.paiement_ref.
--- Aucun changement de table, de contrainte, de RLS ou de privilège n'est requis.
+-- Conserver les événements de paiement vérifié et de livraison déjà en production.
+-- Cause Replay : la fonction utilisait reservation_events.to_value, colonne absente.
+-- La référence doit être stockée dans reservation_events.paiement_ref.
 
 begin;
 
@@ -15,60 +15,86 @@ begin
   if tg_op = 'INSERT' then
     insert into public.reservation_events (
       reservation_id, client_id, pharmacie_id, event_type,
-      from_statut, to_statut, paiement_ref, occurred_at, actor_id
+      to_statut, paiement_ref, detail, actor_id
     )
     values (
       new.id, new.client_id, new.pharmacie_id, 'reservation_created',
-      null, new.statut, new.paiement_ref, now(), (select auth.uid())
+      new.statut, new.paiement_ref,
+      jsonb_build_object('mode', new.mode, 'total', new.total, 'expires_at', new.expires_at),
+      auth.uid()
     );
-
-    if new.statut in ('payee','retiree') then
-      insert into public.reservation_events (
-        reservation_id, client_id, pharmacie_id, event_type,
-        from_statut, to_statut, paiement_ref, occurred_at, actor_id
-      )
-      values (
-        new.id, new.client_id, new.pharmacie_id, 'status_changed',
-        null, new.statut, new.paiement_ref, now(), (select auth.uid())
-      );
-    end if;
 
     if new.paiement_ref is not null then
       insert into public.reservation_events (
-        reservation_id, client_id, pharmacie_id, event_type,
-        from_statut, to_statut, paiement_ref, occurred_at, actor_id
+        reservation_id, client_id, pharmacie_id, event_type, paiement_ref, detail, actor_id
       )
       values (
         new.id, new.client_id, new.pharmacie_id, 'payment_declared',
-        null, new.statut, new.paiement_ref, now(), (select auth.uid())
+        new.paiement_ref, '{}'::jsonb, auth.uid()
       );
     end if;
-
     return new;
   end if;
 
-  if tg_op = 'UPDATE' then
-    if new.statut is distinct from old.statut then
-      insert into public.reservation_events (
-        reservation_id, client_id, pharmacie_id, event_type,
-        from_statut, to_statut, paiement_ref, occurred_at, actor_id
-      )
-      values (
-        new.id, new.client_id, new.pharmacie_id, 'status_changed',
-        old.statut, new.statut, new.paiement_ref, now(), (select auth.uid())
-      );
-    end if;
+  if new.statut is distinct from old.statut then
+    insert into public.reservation_events (
+      reservation_id, client_id, pharmacie_id, event_type,
+      from_statut, to_statut, paiement_ref, detail, actor_id
+    )
+    values (
+      new.id, new.client_id, new.pharmacie_id, 'status_changed',
+      old.statut, new.statut, new.paiement_ref,
+      jsonb_build_object('mode', new.mode), auth.uid()
+    );
+  end if;
 
-    if new.paiement_ref is distinct from old.paiement_ref then
-      insert into public.reservation_events (
-        reservation_id, client_id, pharmacie_id, event_type,
-        from_statut, to_statut, paiement_ref, occurred_at, actor_id
-      )
-      values (
-        new.id, new.client_id, new.pharmacie_id, 'payment_declared',
-        old.statut, new.statut, new.paiement_ref, now(), (select auth.uid())
-      );
-    end if;
+  if new.statut in ('annulee','expiree')
+     and new.mode = 'commande'
+     and new.commande_statut is distinct from 'annulee' then
+    update public.reservations
+       set commande_statut = 'annulee'
+     where id = new.id
+       and commande_statut is distinct from 'annulee';
+  end if;
+
+  if new.paiement_ref is distinct from old.paiement_ref
+     and new.paiement_ref is not null then
+    insert into public.reservation_events (
+      reservation_id, client_id, pharmacie_id, event_type, paiement_ref, detail, actor_id
+    )
+    values (
+      new.id, new.client_id, new.pharmacie_id, 'payment_declared',
+      new.paiement_ref, '{}'::jsonb, auth.uid()
+    );
+  end if;
+
+  if new.paiement_statut is distinct from old.paiement_statut
+     and new.paiement_statut = 'effectue' then
+    insert into public.reservation_events (
+      reservation_id, client_id, pharmacie_id, event_type, paiement_ref, detail, actor_id
+    )
+    values (
+      new.id, new.client_id, new.pharmacie_id, 'payment_verified',
+      new.paiement_ref,
+      jsonb_build_object(
+        'from', old.paiement_statut,
+        'to', new.paiement_statut,
+        'payment_mode', new.paiement_mode
+      ),
+      auth.uid()
+    );
+  end if;
+
+  if new.commande_statut is distinct from old.commande_statut then
+    insert into public.reservation_events (
+      reservation_id, client_id, pharmacie_id, event_type, paiement_ref, detail, actor_id
+    )
+    values (
+      new.id, new.client_id, new.pharmacie_id, 'delivery_status_changed',
+      new.paiement_ref,
+      jsonb_build_object('from', old.commande_statut, 'to', new.commande_statut),
+      auth.uid()
+    );
   end if;
 
   return new;
