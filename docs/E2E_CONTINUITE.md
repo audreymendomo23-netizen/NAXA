@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§152)  
+**Dernière mise à jour :** 17 novembre 2026 (§153)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `a1d6636d7cff277c4da29ff355560e6097c3efd3`  
+**HEAD contrôlé avant cette mise à jour :** `2a01113251337e8092a8db8b763414d20063ef49`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5743,3 +5743,32 @@ Après le rejeu, les compteurs Replay sont tous à zéro pour : réservations, l
 - Les pharmacies et stocks visibles dans Replay sont majoritairement des fixtures démo. Aucune n'a été rendue publiquement visible pour forcer artificiellement une offre.
 - Lot B reste **JAUNE / PARTIEL** jusqu'au résultat du run navigateur et aux preuves positives/négatives manquantes. Les recettes SQL 306–312 restent PASS (§150).
 - Aucun déploiement Vercel, aucune mutation Production et aucune migration Replay n'ont été effectués par cette mesure.
+
+
+## 153. Diagnostic du premier run navigateur et correction de stabilité (17/11/2026)
+
+**Run `44026734192` — échec partiel, diagnostic établi**
+
+- Installation des dépendances : PASS ; installation Playwright/Chromium : PASS ; build Next.js avec configuration Replay : PASS ; démarrage du serveur local : PASS.
+- La navigation Promoteur desktop/mobile a passé ses trois contrôles. Le tableau de bord Comptable et la première navigation « Créances & bordereaux » ont également passé.
+- L'échec s'est produit au retour vers `/pharmacie/comptable` dans la boucle de navigation : Chromium a renvoyé `net::ERR_ABORTED` sur un `page.goto` répétant le chargement du tableau de bord après une navigation App Router. Le bloc Client ajouté n'a donc pas encore été atteint. Il ne s'agit pas d'un échec fonctionnel observé du parcours Client.
+- Nettoyage de secours : PASS. Le script a supprimé l'affectation Comptable temporaire, le partenaire et l'adhésion temporaires.
+
+**Contrôle de propreté Replay après le run**
+
+Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésion temporaire, 0 affectation Comptable temporaire, 0 ligne de rôle actif résiduelle pour le compte Comptable, 0 réservation, 0 favori persistant et 0 mission Livreur. Aucun compte Auth n'a été créé par le run.
+
+**Correction appliquée sur main**
+
+- Commit `2a01113251337e8092a8db8b763414d20063ef49`.
+- Suppression du rechargement redondant du tableau de bord dans la boucle Comptable ; le retour se fait maintenant par le lien réel de la sidebar, avec vérification de l'URL et du titre avant de poursuivre.
+- Ce correctif conserve les assertions sur les six destinations Comptable ; il ne masque pas les erreurs de navigation.
+
+**Nouvelle exécution et qualité**
+
+- Nouveau run navigateur Replay : [`44027362844`](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44027362844), état `IN_PROGRESS` à cette mise à jour.
+- Qualité complète sur le commit documentaire précédent `bf2fb37f1e565dc55518dd20c3b04949c8615bf1` : [run `44026881022`](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44026881022), **SUCCESS**.
+- Qualité du commit correctif `2a01113251337e8092a8db8b763414d20063ef49` : run `44027362915` en cours.
+- Aucune création de déploiement Vercel pour les commits `a1d6636`, `bf2fb37` et `2a01113` ; aucune modification Production. Le build et les tests navigateur s'exécutent sur le runner GitHub en local contre Replay.
+
+**Verdict maintenu :** Lot B reste **JAUNE / PARTIEL**. Le premier run prouve que le runner peut construire et démarrer NAXA, mais les tests UI Client n'ont pas encore été atteints. Ne pas déclarer de PASS Client ni AU VERT avant le nouveau run et le contrôle de nettoyage final.
