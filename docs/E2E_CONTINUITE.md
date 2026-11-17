@@ -5689,3 +5689,25 @@ Après le rejeu, les compteurs Replay sont tous à zéro pour : réservations, l
 **PASS — rejeu SQL/JWT des tests 306 à 312.** Cela confirme les parcours métier Client/Marketplace, Stock, Livreur et Promoteur au niveau des RPC/RLS exercés par les tests. Cela ne constitue pas une preuve de navigation ni d'interaction visuelle dans le navigateur.
 
 **Lot B global : toujours JAUNE / PARTIEL, pas AU VERT.** Les réserves de recette UI Client positive (recherche, clic favori, panier/commande, annulation et historique), ainsi que les parcours complets Ordonnance et Assurance, ne sont pas levées par ce rejeu SQL. Aucun outil navigateur/Playwright n'est disponible dans cette session ; je n'invente donc pas de preuve UI. CI non vérifiée. Aucun changement de schéma, Production, Vercel ou déploiement ; Replay n'a reçu que des transactions de test annulées.
+
+
+## 151. Tentative d'exécution Playwright navigateur — environnement bloqué (17/11/2026)
+
+**Installation / disponibilité locale**
+- Playwright Python est déjà installé dans l'environnement d'exécution ; Chromium système est disponible à `/usr/bin/chromium`. L'installation npm du paquet Node a expiré après 120 s ; elle n'était pas nécessaire pour disposer du moteur Playwright Python.
+- Un script Playwright a été lancé en mode headless sur le déploiement Preview Vercel existant.
+
+**Cible vérifiée**
+- Déploiement READY consulté : `naxa-316j5tq69-naxa3.vercel.app`, commit `8ebe45267b97c3b0c666b1df3f9e73df0b08c005`.
+- Ce déploiement est antérieur au HEAD documentaire actuel de `main` (`02a38a7dc113cee4f3a8b609556525e34f6a3d19)) ; il ne peut donc pas constituer une preuve de recette sur le HEAD courant.
+- L'endpoint de la page d'accueil répond HTTP 200 via le fetch Vercel et expose le portail public avec la barrière d'âge.
+
+**Blocage d'exécution**
+- La navigation Playwright directe vers le domaine Vercel échoue avant chargement avec `net::ERR_BLOCKED_BY_ADMINISTRATOR`. Le test réseau complémentaire échoue à la résolution DNS (`Could not resolve host`). L'environnement du navigateur/container ne dispose donc pas d'un accès réseau sortant au domaine ; le fetch serveur Vercel reste possible mais n'est pas un navigateur et ne permet pas d'exécuter les interactions JS.
+- Aucun test de clic, d'authentification Client, de favoris UI, de panier, de commande ou d'historique n'est déclaré exécuté.
+- Aucun identifiant secret ni mot de passe de compte E2E n'a été extrait ou exposé.
+
+**Verdict**
+- **Playwright installé/disponible : PASS. Navigation réelle vers l'application : BLOQUÉE par la politique réseau/DNS de l'environnement.**
+- **Lot B UI : toujours NON PROUVÉ / JAUNE.** Pour reprendre sans fausse preuve, il faut un runner Playwright ayant accès réseau au Preview du HEAD courant, et une session Client E2E utilisable (ou un mécanisme d'authentification de test sécurisé).
+- Aucun déploiement, aucune modification Production, aucune mutation Replay, aucune création de compte ni aucun changement de rôle lors de cette tentative.
