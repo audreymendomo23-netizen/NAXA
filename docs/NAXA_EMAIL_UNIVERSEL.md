@@ -42,6 +42,7 @@ Les abonnements Parapharmacie, Examens et Prestations conservent leur indépenda
 - Le lien d'invitation n'est pas réémis sur un chemin générique : le token et la route du flux existant sont utilisés.
 - Aucun secret n'est versionné. Le worker refuse une URL qui n'est pas une URL HTTPS Apps Script officielle.
 - Le script Gmail utilise un verrou global et une clé anti-doublon. Cette garantie est best-effort : une interruption exactement entre l'acceptation de l'envoi par Gmail et l'écriture de la propriété Apps Script ne peut pas être rendue strictement exactly-once par MailApp.
+- Le worker transforme les URL HTTPS des contenus en liens HTML cliquables après échappement du texte. Les échecs d'accusé de réception Supabase sont comptés comme erreurs et propagés au déclencheur Apps Script.
 
 ## Configuration d'exploitation
 
@@ -69,6 +70,7 @@ Projet : `pwfftcsjyeibxxqhwysw`.
 - Test SQL 263 : `263 universal email outbox contract PASS`.
 - Test SQL 264 : `264 business email events contract PASS`.
 - Test transactionnel réel du déclencheur Livreur : création d'une invitation de contrôle → événement outbox avec le bon lien `/invitation/livreur?token=...` ; PASS ; transaction annulée ensuite.
+- Test transactionnel réel d'une notification de rappel d'abonnement : insertion d'une notification métier → événement outbox ciblant le titulaire ; PASS ; transaction annulée ensuite.
 - RPC de rappel invitations et conventions : exécutées sur Replay, retour 0 sans erreur (aucune échéance à rappeler au moment du test).
 - Test transactionnel de l'outbox : même clé → même identifiant ; claim ; échec simulé → retour à pending ; aucune livraison Gmail ; transaction annulée.
 
