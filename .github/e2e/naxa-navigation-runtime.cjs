@@ -170,7 +170,7 @@ function redactDiagnosticText(value) {
     .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, "Bearer [redacted]")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email redacted]")
     .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi, "[uuid redacted]")
-    .replace(/\b(?:\\+?237)?[0-9][0-9 .-]{7,}[0-9]\b/g, "[phone redacted]")
+    .replace(/\b(?:\+?237)?[0-9][0-9 .-]{7,}[0-9]\b/g, "[phone redacted]")
     .slice(0, 1800);
 }
 
