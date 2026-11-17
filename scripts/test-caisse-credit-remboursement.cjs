@@ -16,8 +16,14 @@ for (const channel of ["especes", "orange_money", "mtn_momo"]) {
 
 assert.match(ui, /p_idempotency_key:\s*idempotencyKey/);
 assert.match(ui, /const idempotencyKey = refundIdempotencyKey \?\? crypto\.randomUUID\(\)/);
-assert.equal((ui.match(/setRefundIdempotencyKey\(null\);/g) || []).length, 1,
-  "The idempotency key is cleared only after a confirmed successful refund");
+assert.equal((ui.match(/setRefundIdempotencyKey\(null\);/g) || []).length, 2,
+  "The idempotency key is cleared only after success or a confirmed server rejection");
+assert.match(ui, /localStorage\.setItem\(refundPendingStorageKey/);
+assert.match(ui, /localStorage\.removeItem\(refundPendingStorageKey/);
+assert.match(ui, /setRefundRequestUncertain\(true\)/);
+assert.match(ui, /disabled=\{busy \|\| refundRequestUncertain/);
+assert.match(ui, /knownServerRejection/);
+assert.match(ui, /Réessayer la même demande/);
 assert.match(ui, /p_verification_beneficiaire:\s*refundVerifyBeneficiary/);
 assert.match(ui, /p_verification_montant:\s*refundVerifyAmount/);
 assert.match(ui, /p_confirmation_client_vue:\s*refundClientConfirmed/);
