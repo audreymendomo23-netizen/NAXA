@@ -7024,3 +7024,49 @@ La reprise a confirmé le moteur de crédit et identifié le prochain manque fon
 - `tresorerie_mouvements.source_type` autorise actuellement `depense`, `vente`, `ajustement` et `transfert`, mais pas `credit_operation`. La table n'a pas de clé d'idempotence ni de champ de canal. Le raccordement crédit exige donc une évolution de schéma contrôlée, une contrainte d'unicité et une règle de correspondance stable compte/canal.
 - Les déclencheurs existants sur `client_credit_operations` émettent les événements comptables d'octroi et de remboursement. Le déclencheur de remboursement n'envoie actuellement que montant, date comptable et référence ; il ne transmet ni origine, ni canal. Ne pas confondre cet outbox comptable avec le journal de liquidités.
 - Conséquence : ne pas écrire un mouvement de trésorerie dans l'état actuel ni inventer un compte. La migration devra créer/assurer les comptes de trésorerie nécessaires avec solde initial nul, différencier Orange Money et MTN MoMo par canal, et enregistrer mouvement + opération + outbox dans une même transaction idempotente. Les soldes historiques ne seront pas reconstruits par cette correction.
+
+
+## 194. Audit d'implémentation du recouvrement crédit — contrat Caisse et trésorerie — 17/11/2026
+
+### État du dépôt et périmètre
+
+- Branche contrôlée : `main`.
+- Dernier commit de référence vérifié : `c2c3cf8736d116b02638377b5f1898149af49bee` (correction PWA).
+- Le document de continuité contenait déjà la décision de ne pas démarrer le lot sans contrat serveur sécurisé (§193 et reprise en fin de document).
+- Les lectures SQL de cette passe ont ciblé exclusivement Replay `pwfftcsjyeibxxqhwysw`. Aucune requête d'écriture, aucune migration, aucune donnée métier créée. Production et déploiement non touchés.
+
+### Contradiction code / base — recouvrement
+
+- `src/app/pharmacie/caisse/page.tsx` (821 lignes) charge les comptes via `caisse_credit_clients_lister(uuid)`, sélectionne le Client et finalise une vente à crédit avec `vente_credit_finaliser`.
+- La page n'appelle toujours pas `client_credit_rembourser` et ne contient aucun formulaire de remboursement. Le recouvrement partenaire n'est donc pas simplement masqué : il est absent de cette page.
+- Le type UI `CreditAccountOption` et le RPC de liste ne transportent que `client_id`, solde et plafond, pas `client_credits.id`. L'interface ne doit pas contourner les politiques en lisant directement la table : le contrat serveur du recouvrement doit résoudre le compte par (pharmacie, client) après vérification de l'acteur, ou exposer explicitement l'identifiant via un RPC de liste autorisé.
+- La définition Replay de `client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text)` exige déjà un acteur authentifié, verrouille le compte, vérifie son statut, son solde, le périmètre pharmacie et une session Caisse ouverte détenue par l'acteur. Elle décrémente le solde et insère une opération liée à la session.
+- Cause directe du refus multicanal confirmée par `pg_get_functiondef` : la fonction rejette tout mode différent de `especes`. La surcharge historique `client_credit_rembourser(uuid,integer,text,text)` lève une erreur explicite et ne doit pas être appelée.
+
+### Trésorerie — nouvelle cause racine établie
+
+- Les enums Replay distinguent déjà `especes`, `orange_money`, `mtn_momo` et `mobile_money` dans `mode_paiement_caisse`. Le type de compte de trésorerie ne distingue que `especes`, `mobile_money`, `banque`, `carte` et `autre` : il ne peut pas identifier seul Orange vs MTN.
+- `tresorerie_mouvements` ne contient actuellement que compte, nature, montant, libellé, référence, source_type/source_id, date et acteur. Aucun canal normalisé, aucune clé d'idempotence dédiée et aucun identifiant de groupe de transfert.
+- Les index uniques existants ne garantissent pas l'unicité d'un remboursement crédit : la seule unicité partielle observée sur les mouvements concerne les dépenses (`source_type='depense'`). Les opérations crédit ne possèdent pas non plus de clé d'idempotence de remboursement ; leur PK ne protège que contre la répétition d'un même identifiant.
+- Inventaire des fonctions SQL publiques dont le nom ou le corps référence la trésorerie : seule `tresorerie_creer_compte(uuid,text,tresorerie_compte_type,integer)` crée un compte. Aucune RPC d'insertion contrôlée de mouvement de trésorerie n'a été trouvée dans cet inventaire.
+- État Replay observé : aucune ligne de compte de trésorerie n'est configurée (résultat vide pour `tresorerie_comptes`) et les mouvements sont à zéro. Il n'existe donc pas de compte cible validé pour y poster les remboursements. Le compte ne doit jamais être deviné ou créé implicitement au moment d'un remboursement.
+- Conclusion : brancher immédiatement un INSERT dans le navigateur serait une faille (les droits authenticated sont en lecture seule) ; appeler la fonction de création de compte à chaque remboursement serait également incorrect. La trésorerie nécessite un contrat serveur transactionnel, une idempotence source, un mapping explicite canal→compte et une configuration préalable des comptes par pharmacie.
+
+### Contrat de correction à implémenter
+
+1. Ajouter un RPC de remboursement Caisse versionné, appelé avec pharmacie + client (pas d'accès direct client aux tables), montant, canal, référence facultative, motif facultatif et déclaration booléenne de contrôle visuel pour les canaux mobiles comptoir.
+2. Autoriser uniquement `especes`, `orange_money` et `mtn_momo` pour ce parcours physique. Pour Orange/MTN, exiger la déclaration explicite du contrôle visuel (bénéficiaire, montant et confirmation présentée), conserver acteur/date et référence facultative. Ne pas exiger SMS/API opérateur pour ce parcours ; ne pas modifier les preuves Marketplace/Livraison.
+3. Conserver les contrôles actuels : auth.uid, Caisse autorisée, pharmacie active et dans le périmètre, session ouverte détenue par l'acteur, crédit actif, verrouillage FOR UPDATE, montant entier strictement positif et inférieur ou égal au solde.
+4. Ajouter une clé d'idempotence obligatoire et unique par opération de remboursement. Le même appel rejoué doit retourner l'opération déjà créée sans réduire le solde ni créditer la trésorerie une seconde fois.
+5. Enregistrer l'événement d'origine du crédit sans le déduire du seul canal : Marketplace vs Comptoir doit être déterminé à partir des liens source fiables. L'événement courant est `credit_remboursement`; le canal du remboursement est celui effectivement reçu.
+6. Créer un RPC de trésorerie strictement contrôlé, dans la même transaction ou via outbox idempotente, avec mapping obligatoire vers un compte actif de type espèces ou mobile_money. Distinguer Orange et MTN par une métadonnée de canal explicite. Aucun mouvement pour l'octroi.
+7. Si le compte de trésorerie du canal n'est pas configuré, le remboursement ne doit pas être déclaré terminé avec un mouvement manquant : transaction atomique refusée ou état de rapprochement explicite et récupérable, selon le contrat retenu. Ne jamais créditer par défaut un autre canal.
+8. Ajouter l'interface Caisse, le reçu et le journal partenaire après stabilisation du contrat SQL. La clôture physique continue de compter uniquement les remboursements espèces.
+9. Tests Replay : espèces, Orange, MTN, contrôle visuel absent, montant supérieur au solde, session absente/étrangère, pharmacie hors périmètre, crédit inactif, double soumission/idempotence, rollback si compte de trésorerie absent, compte canal incorrect, outbox comptable, absence d'octroi dans le ledger, et tiroir espèces uniquement.
+
+### Décision de reprise
+
+- **Cause racine confirmée :** le remboursement multicanal est bloqué par une garde SQL espèces-only ; l'écran Caisse ne propose aucun recouvrement ; le ledger de trésorerie ne possède ni RPC de mouvement ni idempotence remboursement ni comptes configurés sur Replay.
+- **Aucune correction de code ou migration appliquée dans cette passe.** Il serait prématuré de créer le formulaire avant de figer et tester le contrat serveur et le mapping de trésorerie.
+- Le prochain travail est la conception puis l'implémentation de la migration additive sur Replay, suivie des tests transactionnels. L'outil CLI local `supabase migration new` n'est pas disponible dans cette session ; ne pas fabriquer silencieusement une migration en contournant cette étape de préparation. Si l'environnement de travail local/CLI devient disponible, créer la migration avec la CLI, la versionner sur `main`, puis appliquer et vérifier uniquement sur Replay.
+- Statut : **NON VERT — audit approfondi terminé, implémentation bloquée par l'absence de l'outillage local de création de migration et par la configuration de trésorerie Replay inexistante.** Aucun contournement de sécurité.
