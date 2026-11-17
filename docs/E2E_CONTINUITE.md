@@ -6261,3 +6261,36 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 
 - Commit complémentaire [7971e7bcca9dc7a2f86bcd44213daa9c01196d37](https://github.com/audreymendomo23-netizen/NAXA/commit/7971e7bcca9dc7a2f86bcd44213daa9c01196d37) : correction du motif de masquage des préfixes téléphoniques internationaux dans les diagnostics.
 - Nouvelle exécution déclenchée sur ce HEAD : qualité [44048215108](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048215108) et navigateur Replay [44048214981](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048214981). Les deux runs étaient encore en attente au dernier relevé ; aucun résultat de recette ne leur est attribué à ce stade.
+
+
+## 175. Résultats de la recette instrumentée — diagnostic HTTP 400 confirmé — 17/11/2026
+
+**Exécution navigateur :** [run 44048003954](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048003954), commit testé `b5c3d27ae154a7231dcb80946f8d32b41fcfe897`, conclusion GitHub Actions **SUCCESS**.
+- Construction Next.js Replay, démarrage du serveur local, scénario Promoteur/Comptable/Partenaire/Client et nettoyage des fixtures : PASS.
+- Navigation Promoteur vers « Livraisons du réseau » : PASS.
+- Scénario Client desktop/mobile (favoris/panier locaux, recherche/filtres, historique) : PASS selon les assertions du harnais.
+- Le succès de ce scénario ne signifie pas absence d'anomalies : les diagnostics ci-dessous ont précisément permis d'en isoler une.
+
+**Cause des deux HTTP 400 — identifiée avec preuve :**
+- Les deux réponses concernent la même requête GET PostgREST : `client_achats?select=...&client_id=eq.<utilisateur>`.
+- Corps JSON renvoyé par PostgreSQL : code `42703`, message `column client_achats.client_id does not exist`.
+- Le code source `src/app/client/page.tsx` filtre bien `client_achats` avec `.eq("client_id", user.id)` (ligne 56 dans la version consultée, puis même requête répétée dans le chargement/rafraîchissement).
+- **Racine confirmée :** désaccord entre le contrat de la requête Client et le schéma réel de `client_achats`. Ce n'est pas un simple avertissement navigateur : la récupération des achats échoue, ce qui peut rendre l'historique d'achats incomplet ou indisponible. Les autres blocs de la page ont néanmoins permis au test de navigation de passer.
+- **Correction non encore appliquée :** vérifier la définition SQL et les clés réelles de `client_achats` sur Replay, puis corriger la requête ou une migration de façon cohérente avec le modèle de données et les politiques RLS. Ne pas ajouter une colonne `client_id` au hasard.
+
+**ServiceWorker :**
+- Le run capture toujours `DataCloneError: Failed to execute 'postMessage' on 'ServiceWorker': URL object could not be cloned.`
+- La pile capturée ne contient que le type et le message, sans frame applicative permettant d'attribuer l'appel à un composant précis.
+- **Cause non encore localisée ; correction non appliquée.** Ne pas attribuer arbitrairement le défaut à Serwist ni modifier un payload sans identifier le producteur.
+
+**ERR_ABORTED :**
+- Les interruptions observées concernent des chargements de routes/RSC, appels de recherche et appels Supabase qui coïncident avec les changements de page.
+- Elles sont désormais journalisées comme interruptions de navigation, et non comme erreurs HTTP 4xx/5xx. Leur caractère bénin est plausible dans ce scénario, mais chaque appel métier abandonné devra être revalidé si le parcours dépend de son résultat.
+
+**Autres exécutions :**
+- [Qualité 44048267466](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048267466), commit documentaire `d34ffa9d236eff2253530d7b00f50247d8137218` : **SUCCESS**, tests, TypeScript, lint, build Next.js et validation syntaxique Actions PASS.
+- [Navigation 44048214981](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048214981), commit `7971e7b...` : **FAILURE** avant les scénarios Client, sur un timeout de 15 s lors de `page.goto("/pharmacie/promoteur")`; les étapes de build et démarrage serveur avaient réussi, le nettoyage de secours a réussi. Ce run ne fournit donc aucun résultat sur les diagnostics Client.
+- [Qualité 44048215108](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048215108) : annulé par un push ultérieur ; aucun PASS à en tirer.
+- Le premier run navigateur instrumenté `44048003954` est le run exploitable pour les diagnostics ci-dessus. La correction du motif téléphonique ultérieure n'a pas été revalidée par ce même run.
+
+**État :** HTTP 400 = racine identifiée, correction à faire ; ServiceWorker = cause non localisée ; E2E Client = partiel, pas vert global. Aucun schéma Production modifié, aucune migration Production, aucun déploiement.
