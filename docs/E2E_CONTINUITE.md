@@ -5914,7 +5914,7 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - Préparation du runner : checkout, Node 22, contrôle strict de l'URL Replay, `npm ci`, Playwright/Chromium, build Next.js et démarrage du serveur local : **PASS**.
 - Navigation Promoteur desktop et mobile : **PASS**.
 - Espace Comptable : ouverture, rendu et six destinations latérales (Créances, Rejets, Rapports, Documents, Référentiels, Plan comptable) : **PASS**.
-- Le parcours s'arrête à l'ouverture `/client` : le navigateur aboutit à `/` au lieu de rester sur `/client`. Le script ne journalisait pas encore la réponse HTTP, les cookies présents, les erreurs navigateur ni la visibilité du profil Client sous son JWT ; la cause racine n'est donc pas encore établie. Ne pas attribuer cet échec au produit ou au compte sans ces contrôles.
+- Après les six destinations Comptable, le navigateur finit sur `/` au lieu de la route attendue. Les logs disponibles ne montrent aucun marqueur PASS Partenaire ni Client : ils ne permettent donc pas d'affirmer que l'échec survient sur `/client`, ni même d'identifier avec certitude la première route en échec après le Comptable. Le runtime précédent ne journalisait pas la réponse HTTP, les cookies présents, les erreurs navigateur ni la visibilité du profil Client sous son JWT ; la cause racine n'est pas établie. Ne pas attribuer cet échec au Client sans preuve.
 - Nettoyage de secours : **PASS** ; l'affectation Comptable, le rôle actif, le partenaire et l'adhésion temporaires ont été supprimés. Le second nettoyage confirme qu'il ne reste aucune fixture gérée par le script.
 - Le run qualité associé [44027614895](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44027614895) a été **CANCELLED** pour les tests/TypeScript/lint/build ; actionlint est **PASS**. Il ne constitue pas une preuve de qualité complète.
 
@@ -5934,13 +5934,13 @@ Requête SQL en lecture seule du 17/11 :
 
 ### Statut et point de reprise
 
-- Client UI : **NON PROUVÉ** tant que le prochain run n'a pas confirmé le précontrôle JWT puis l'ouverture de `/client`.
+- Partenaire UI et Client UI : **NON PROUVÉS**. Le prochain run doit d'abord localiser la première route fautive après Comptable ; le précontrôle JWT Client est une vérification anticipée, pas la preuve que le Client était en cause.
 - Favoris, panier, recherche/filtres et historique : assertions présentes dans le runtime, mais non atteintes par le run en échec ; aucune ne doit être comptée PASS.
 - Les parcours réels de commande, refus pharmacie, annulation/restauration et historique transactionnel restent à prouver séparément ; les fixtures locales panier/favori ne les couvrent pas.
 - Aucun changement de policy RLS, donnée métier persistante, migration Replay, Production ou déploiement Vercel n'a été effectué par cette correction.
 - Le run qualité complet reste à obtenir sur un commit actuel ; le dernier run cité est annulé.
 
-**Verdict :** Lot B reste **JAUNE / PARTIEL**. Le runner Playwright local fonctionne et a prouvé les écrans Promoteur/Comptable ; le parcours Client a un échec de navigation non diagnostiqué avant le correctif de journalisation. Le prochain point exact est le résultat du workflow déclenché par le commit `6c109d4`, puis correction de la cause démontrée et relance jusqu'aux assertions Client. Ne pas déclarer AU VERT avant PASS navigateur Client et tests métier positifs/négatifs complets.
+**Verdict :** Lot B reste **JAUNE / PARTIEL**. Le runner Playwright local fonctionne et a prouvé les écrans Promoteur/Comptable ; le premier échec de navigation après Comptable n'est pas localisé entre Partenaire et Client. Le prochain point exact est le résultat du workflow déclenché par le commit `6c109d4`, puis correction de la cause démontrée et relance jusqu'aux assertions Partenaire et Client. Ne pas déclarer AU VERT avant PASS navigateur Client et tests métier positifs/négatifs complets.
 
 
 ## 156. Vérification de la facturation indépendante partenaire (17/11/2026)
