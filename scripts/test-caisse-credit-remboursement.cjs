@@ -55,5 +55,7 @@ assert.match(e2e, /compta_evenement/);
 assert.match(e2e, /clé idempotence réutilisée avec montant différent/i);
 assert.match(e2e, /preuve complète/i);
 assert.match(e2e, /clé idempotence réutilisée avec preuve différente/i);
+assert.match(e2e, /caisse_cloturer\(v_session,100\)/);
+assert.match(e2e, /v_total_refunds <> 600 or v_cash_refunds <> 100/);
 
 process.stdout.write("OK — contrat Caisse remboursement crédit : 3 canaux, idempotence, preuve mobile, trésorerie, reçu et recette Replay.\n");
