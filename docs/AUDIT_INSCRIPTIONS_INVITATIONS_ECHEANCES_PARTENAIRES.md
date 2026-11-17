@@ -90,3 +90,33 @@ Le modèle comporte des conventions indépendantes (`partner_independent_agreeme
 - Aucune écriture Supabase, migration appliquée, modification de code, exécution de test fonctionnel ou déploiement n'a été effectué pendant cet audit.
 
 **Verdict : PARTIEL — décision et diagnostic documentés ; implémentation commune et preuves E2E restent à réaliser.**
+
+
+## Contrôle complémentaire avant implémentation — 17 novembre 2026
+
+Une seconde lecture du schéma Replay a recherché toutes les colonnes de dates d'échéance (echeance, expires_at, date_expiration, due_at, period_end) et les tables de paiement/abonnement liées aux partenaires.
+
+### Blocage confirmé : échéances mensuelles partenaires
+
+- admin_partner_dossiers contient monthly_fee_fcfa, mais aucune date d'échéance, date de début de période, dernière date de paiement ou statut d'abonnement.
+- Les seules tables de cycle mensuel avec echeance observées sont abonnements et abonnements_promoteurs, rattachées au parcours Pharmacie/Promoteur.
+- partner_independent_agreements.expires_at existe pour les conventions indépendantes Prestations à domicile, mais cette date est facultative et représente une fin de convention, pas une échéance de facturation mensuelle.
+- Aucune table de souscription périodique partenaire distincte pour Parapharmacie et Examens n'a été trouvée dans l'inventaire interrogé.
+- Les intentions de paiement génériques repérées sont liées à des transactions/réservations ou à des captures de notifications ; elles ne fournissent pas à elles seules un calendrier d'abonnement mensuel partenaire.
+
+**Conséquence :** le choix métier « mensuel + J-5 » est validé, mais son application aux trois univers partenaires hors Pharmacie exige d'abord une source de vérité de facturation : début de période, prochaine échéance, statut, paiement confirmé et règle de renouvellement. Le montant mensuel du dossier ne suffit pas à calculer une échéance ni à prouver un paiement.
+
+### Blocage confirmé : invitation e-mail unifiée
+
+- exam_staff_invites contient une adresse e-mail, un token et une expiration, mais le mécanisme inspecté ne crée pas à lui seul une notification utilisateur destinée à une boîte e-mail commune.
+- Les invitations Livreur sont un flux Pharmacie séparé.
+- Les affectations directes Parapharmacie et les membres Prestations ne doivent pas être transformés artificiellement en invitations e-mail.
+- L'outbox e-mail actuelle exige un user_id et résout l'adresse via auth.users; elle ne peut donc pas adresser directement une invitation à une adresse qui n'a pas encore de compte.
+
+**Conséquence :** une outbox d'invitation doit accepter un destinataire e-mail externe, conserver un identifiant d'événement idempotent et fournir un lien/token d'invitation sans créer de compte prématurément. Les fonctions d'acceptation et leurs contrôles par univers restent souverains.
+
+### Décision d'ingénierie de sécurité
+
+Je n'ai pas ajouté une migration spéculative et je n'ai pas modifié le worker pour calculer des dates à partir de monthly_fee_fcfa. Cela aurait créé de fausses échéances, des rappels erronés et potentiellement des blocages d'accès non autorisés.
+
+**État de la demande « fais-le » :** audit approfondi terminé ; implémentation applicative non commencée, car le schéma de facturation mensuelle des partenaires et le contrat de délivrance des invitations externes ne sont pas encore présents. Aucun changement Supabase ou Production n'a été effectué.
