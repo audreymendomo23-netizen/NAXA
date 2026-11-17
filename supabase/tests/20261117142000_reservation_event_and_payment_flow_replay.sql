@@ -134,7 +134,7 @@ begin
     v_event_count,v_history_count,v_stock_before,v_stock_after,v_close.ecart
   );
 end;
-$naxa_payment_flow$;
+$naxa_payment_flow_test$;
 
 select * from pg_temp.naxa_payment_flow_test_result;
 
