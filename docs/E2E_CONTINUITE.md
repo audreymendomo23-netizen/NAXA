@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§168)  
+**Dernière mise à jour :** 17 novembre 2026 (§195)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `660b3df7b1232fa2476c8784021c8c89b0d7ca34`  
+**HEAD contrôlé avant cette mise à jour :** `c4bd6d0f5a4c0126c7f64fc945f5149ec1386f69`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7070,3 +7070,32 @@ La reprise a confirmé le moteur de crédit et identifié le prochain manque fon
 - **Aucune correction de code ou migration appliquée dans cette passe.** Il serait prématuré de créer le formulaire avant de figer et tester le contrat serveur et le mapping de trésorerie.
 - Le prochain travail est la conception puis l'implémentation de la migration additive sur Replay, suivie des tests transactionnels. L'outil CLI local `supabase migration new` n'est pas disponible dans cette session ; ne pas fabriquer silencieusement une migration en contournant cette étape de préparation. Si l'environnement de travail local/CLI devient disponible, créer la migration avec la CLI, la versionner sur `main`, puis appliquer et vérifier uniquement sur Replay.
 - Statut : **NON VERT — audit approfondi terminé, implémentation bloquée par l'absence de l'outillage local de création de migration et par la configuration de trésorerie Replay inexistante.** Aucun contournement de sécurité.
+
+
+## 195. Recontrôle du chantier recouvrement crédit — état Replay et blocages d'exécution — 17/11/2026
+
+### Preuves fraîches en lecture seule
+
+- HEAD GitHub contrôlé : `c4bd6d0f5a4c0126c7f64fc945f5149ec1386f69` sur `main`.
+- Projet Supabase ciblé : Replay `pwfftcsjyeibxxqhwysw`, statut `ACTIVE_HEALTHY`, PostgreSQL 17.11. Aucun accès Production.
+- Relecture de `src/app/pharmacie/caisse/page.tsx` : la page gère la vente à crédit et la sélection du client ; aucun appel à `client_credit_rembourser` et aucun formulaire de remboursement.
+- Définition SQL réelle de `client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text)` : garde espèces uniquement, verrouillage du crédit, vérification du solde, contrôle de périmètre pharmacie et session Caisse ouverte détenue par l'acteur. La surcharge historique à quatre arguments lève une exception.
+- Compteurs Replay : 1 compte crédit, 21 opérations de remboursement historiques, 0 compte de trésorerie, 0 mouvement de trésorerie, 0 index unique identifié garantissant l'unicité des remboursements.
+- Colonnes actuelles de `tresorerie_mouvements` : `id, pharmacie_id, compte_id, nature, montant, libelle, reference, source_type, source_id, date_operation, created_by, created_at`. Aucun canal explicite, aucune clé d'idempotence, aucun groupe de transfert.
+- Colonnes actuelles de `tresorerie_comptes` : `id, pharmacie_id, nom, type, devise, solde_initial, actif, created_by, created_at`. Le type `mobile_money` ne distingue pas Orange Money de MTN MoMo.
+- La clôture `caisse_cloturer` calcule explicitement les remboursements espèces uniquement dans le tiroir : cette règle est conservée et ne doit pas être élargie aux remboursements mobiles.
+- L'advisor sécurité Supabase Replay remonte des constats globaux (RLS activé sans policy sur plusieurs tables, fonctions SECURITY DEFINER exposées, protection des mots de passe compromis désactivée). Ces constats ne sont pas tous attribuables à ce chantier ; aucune révocation globale ou modification de policy n'a été faite sans analyse de périmètre.
+
+### État des actions de cette passe
+
+- Audit de code, SQL et compteurs Replay : effectué.
+- Écriture SQL, migration, création de compte, création de mouvement, mutation métier : aucune.
+- Code applicatif modifié : aucun.
+- Production / Vercel / déploiement : non touchés.
+- La CLI Supabase n'est pas installée dans l'environnement de travail présent et aucun checkout local du dépôt n'est disponible. La migration versionnée ne peut donc pas être créée avec la séquence requise `supabase migration new` puis testée localement ici. Ne pas remplacer cette étape par un SQL distant non versionné ou un fichier de migration improvisé.
+
+### Décision qualité
+
+Le chantier demeure **NON VERT**. Les blocages sont concrets et indépendants : contrat SQL espèces-only, absence d'interface Caisse de remboursement, absence de canal/idempotence et de RPC d'écriture trésorerie, absence de comptes de trésorerie Replay, absence de tests transactionnels multicanaux et de preuve E2E.
+
+Le vert exige, dans cet ordre : créer la migration avec la CLI dans le dépôt local ; implémenter le RPC versionné et idempotent + mapping obligatoire des comptes ; appliquer uniquement sur Replay ; tester espèces/Orange/MTN, autorisations, sessions, solde, doublons, rollback et outbox ; construire l'interface Caisse, reçu et journal partenaire ; exécuter la recette E2E et les contrôles de sécurité ciblés ; versionner les preuves sur `main`. Aucun remboursement ne doit être simulé ou posté dans la trésorerie pour obtenir artificiellement un résultat vert.
