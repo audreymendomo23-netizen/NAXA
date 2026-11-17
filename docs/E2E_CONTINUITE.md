@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§142)  
+**Dernière mise à jour :** 17 novembre 2026 (§143)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `768db553312fa35186a6fe09ba1a9e88745a2c62`  
+**HEAD contrôlé avant cette mise à jour :** `0d9fa32c49be4218fda6e933d3ee2b802b24dabd`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5463,3 +5463,17 @@ La fonction `public.naxa_delivery_monthly_due` incluait auparavant `commission_n
 | CI du HEAD | **NON VÉRIFIÉ** : GitHub ne retourne aucun status ni run associé au commit `768db553312fa35186a6fe09ba1a9e88745a2c62` |
 
 **Verdict Lot B : JAUNE / PARTIEL.** Le faux rouge de route absente est levé et le calcul des frais mensuels est aligné sur la règle commerciale. Le vrai blocage Partenaire et les parcours UI restent ouverts. Aucune modification Production ni aucun déploiement.
+
+
+## 143. Contrôle final de la correction Promoteur Livraisons (17/11/2026)
+
+- Migration présente dans l'historique Replay sous version `20261117010232`, nom `promoteur_delivery_monthly_due_subscription_only`.
+- Contrôle de définition après migration : `commission_reference_position = 0` ; la fonction n'utilise plus `commission_naxa`.
+- Privilège `EXECUTE` conservé pour `authenticated`.
+- Test 312 rejoué après migration : `LOT_B_PROMOTEUR_DELIVERY_REPORT_NETWORK_SCOPE PASS`.
+- Compte E2E Promoteur : réseau de trois pharmacies confirmé ; une pharmacie hors réseau refusée.
+- Partenaires / membres sur Replay : `partners = 0`, `partner_members = 0`, membres E2E = 0. Aucun compte Partenaire dédié ne peut donc être utilisé sans créer une identité de recette conforme.
+- HEAD documentation : `0d9fa32c49be4218fda6e933d3ee2b802b24dabd`.
+- GitHub combined status du HEAD : aucun statut publié ; CI non vérifiée.
+
+**Point de reprise exact :** créer une identité Auth E2E dédiée au rôle Partenaire et son organisation de recette via le processus normal, puis exécuter le navigateur sur les routes Promoteur Livraisons, Client Marketplace, Ordonnance et Assurance. Ne pas convertir un compte Client en Partenaire, ni donner un rôle métier à un compte Promoteur pour contourner la séparation des espaces.
