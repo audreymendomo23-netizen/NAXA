@@ -36,6 +36,14 @@ test("credit refund runtime covers the three channels, each with an independent 
   assert.match(runtimeSource, /replayedId !== id/);
 });
 
+test("credit refund runtime reuses existing channel accounts without claiming or deleting them", () => {
+  assert.match(runtimeSource, /existingRows\.length > 1/);
+  assert.match(runtimeSource, /const expectedType = plan\.channel === "especes" \? "especes" : "mobile_money"/);
+  assert.match(runtimeSource, /if \(existingRows\.length === 1\)/);
+  assert.match(runtimeSource, /treasuryAccountIds\.push\(id\)/);
+  assert.doesNotMatch(runtimeSource, /Des comptes de trésorerie existent déjà pour un canal/);
+});
+
 test("credit refund runtime verifies atomic treasury movements, origin, accounting outbox and Caisse drawer scope", () => {
   assert.match(runtimeSource, /caisse_credit_tresorerie_compte_creer/);
   assert.match(runtimeSource, /caisse_credit_tresorerie_comptes_lister/);
