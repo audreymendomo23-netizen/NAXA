@@ -6328,3 +6328,23 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - ServiceWorker : rouge / cause non localisée / aucune correction sûre démontrée.
 - E2E Client transactionnelle : reste partielle tant que le cycle commande Marketplace persistant n'est pas exercé.
 - Aucun changement de schéma ou de donnée Production, aucune migration, aucun déploiement Vercel, aucun accès Play Store.
+
+
+## 177. Vérification post-correction — filtre résiduel découvert et supprimé — 17/11/2026
+
+La lecture des logs complets du run navigateur Replay 44050265085 (succès du job, commit be8cfb59f6828f82ba389d305b81937164aee7ea) a révélé que le HTTP 400 persistait malgré le premier correctif :
+- Le chargement initial de la vue client_achats n'avait plus le filtre client_id.
+- En revanche, le chemin de rafraîchissement dans refreshReservations() conservait encore .eq("client_id", user.id) à la ligne 115.
+- Les logs du run confirment encore deux réponses 400 PostgreSQL 42703 sur client_achats?client_id=..., alors même que le nouveau précontrôle JWT Client affichait PASS.
+- Le précontrôle testé ne suffisait donc pas à garantir l'absence de requête fautive dans le chemin de rafraîchissement. Le résultat global de navigation PASS ne signifie pas que le défaut HTTP était corrigé.
+
+**Correction complémentaire sur main :**
+- Commit e1baa2af05a13baca07c294fc0502865e349d0c3 : suppression du dernier filtre client_id dans le chemin de rafraîchissement de client_achats. Les filtres client_id des requêtes sur reservations, home_service_requests et exam_appointments sont distincts et conservés.
+- Vérification statique du fichier après commit : aucun .eq("client_id", user.id) ne doit subsister sur les appels client_achats. Une nouvelle exécution Replay est nécessaire pour prouver l'absence des HTTP 400.
+
+**Résultats vérifiés des runs précédents :**
+- Qualité sur HEAD documentaire précédent 844cf49952b153661f4f141b3cf36a25415844ba : run 44050329888 SUCCESS ; tests, TypeScript, lint, build Next.js et validation des workflows PASS.
+- Navigation Replay 44050265085 : job SUCCESS (Promoteur, Comptable, Partenaire, Client, nettoyage), mais logs Client contiennent toujours les deux HTTP 400 sur le chemin de rafraîchissement et DataCloneError ServiceWorker. Le succès du job ne ferme donc pas ces anomalies.
+- ServiceWorker : DataCloneError toujours observée dans le run ; émetteur exact non identifié, correction toujours ouverte.
+
+**Verdict :** premier correctif incomplet ; dernier filtre résiduel supprimé dans e1baa2a. Statut de la correction HTTP 400 = en attente de revalidation navigateur sur le nouveau HEAD. ServiceWorker = rouge. Aucun changement Production, migration, déploiement ou action Play Store.
