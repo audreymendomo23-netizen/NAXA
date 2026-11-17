@@ -6104,3 +6104,14 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 **Verdict Lot B : JAUNE / PARTIEL.** La qualité statique est PASS sur le HEAD précédent ; le navigateur a échoué sur une référence de constante dans le harnais, corrigée sur le HEAD suivant. La commande métier réelle via UI, le refus pharmacie et l'annulation/restauration UI restent à prouver. Les tests SQL transactionnels 306–312 déjà documentés restent distincts des parcours navigateur.
 
 **Point de reprise :** commit `ad0dd3ed18c793747e1430765f851be6846b572e` sur `main`; récupérer le nouveau run qualité et navigation Replay, puis examiner les premières assertions après le bloc Partenaire. Replay uniquement ; aucune migration Production et aucun déploiement Vercel.
+
+
+## §165 — Audit profond des logs Client et corrections ciblées (17/11/2026)
+
+- Run analysé : [44036755319](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44036755319), job navigateur Replay. Promoteur, Comptable et cycle Partenaire passent ; le Client échoue au panier à cause du sélecteur strict qui trouve deux titres « Mon panier ». Le nettoyage de secours passe.
+- Correction du harnais déjà intégrée sur main : commit `80897223610627e921a99367b623bcf0631fa3c8`, sélecteur limité à `main h1` pour viser le titre de page.
+- Audit des logs Supabase Replay (fenêtre 07:14–07:18 UTC) : le 503 de `GET /api/pharmacies/gardes` masque une erreur PostgREST 42703. Cause racine confirmée : la requête sélectionne `pharmacies.photo_verified_at`, colonne inexistante ; Postgres suggère `photo_verifiee_le`. Correction du nom dans le type, le SELECT et le contrôle photo : commit `b5a61248df1914591d806917916fef60fe45d6f3`.
+- Les images publiques échouaient via `/_next/image` parce que l'optimiseur Next récupère les sources statiques sans le cookie d'âge ; le middleware redirigeait ces sources vers la page d'accueil (307). Correction : exemption limitée aux extensions d'assets statiques (images/icônes/polices) du seul contrôle d'âge ; les routes applicatives restent protégées. Commit `356b71fd0ba662155aad024ff81b4aa5292bc35d`.
+- Le workflow navigateur est désormais déclenché aussi lorsque `src/middleware.ts` ou `src/app/api/pharmacies/gardes/route.ts` changent : commit `3dd594fd7294d25dfa886e187436b5d31584b6cf`.
+- Exécutions sur le HEAD final `3dd594fd7294d25dfa886e187436b5d31584b6cf` : navigateur Replay [44037767501](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44037767501) et qualité [44037767387](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44037767387), toutes deux déclenchées et PENDING au moment de cette note. Aucun résultat PASS n'est présumé.
+- Périmètre : `main`, Replay uniquement ; aucun changement de schéma/RLS, aucune migration Production, aucun déploiement. La preuve de commande métier réelle, du refus pharmacie et de la restauration exacte du stock reste à produire séparément.
