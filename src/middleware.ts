@@ -66,8 +66,8 @@ export async function middleware(req: NextRequest) {
     (prefix) => path === prefix || path.startsWith(prefix + "/")
   );
 
-  // Le verrouillage Admin doit aussi protéger les URL saisies directement.
-  // La policy RLS publique de public.universes ne retourne que les espaces actifs.
+  // Le verrouillage Admin protège aussi les URL directes. La colonne enabled
+  // est vérifiée explicitement pour partager la même règle que l’API status.
   const universParcours = [
     { prefix: "/parapharmacie", slug: "parapharmacie" },
     { prefix: "/examens", slug: "examens" },
