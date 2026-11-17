@@ -532,6 +532,14 @@ async function run() {
     const partnerContext = await browserContext(browser, promoterSession, { width: 1440, height: 900 });
     const partnerPage = await partnerContext.newPage();
     partnerPage.setDefaultTimeout(15000);
+    const partnerBackendErrors = [];
+    partnerPage.on("response", (response) => {
+      const url = response.url();
+      if ((url.includes("/rest/v1/") || url.includes("/api/")) && response.status() >= 400) {
+        partnerBackendErrors.push("HTTP " + response.status() + " " + url);
+      }
+    });
+    partnerPage.on("pageerror", (error) => partnerBackendErrors.push("PAGEERROR " + error.message));
     await partnerPage.goto(BASE_URL + "/partenaire/catalogue", { waitUntil: "domcontentloaded" });
     await expectPath(partnerPage, "/partenaire/catalogue", "Ouverture du catalogue partenaire");
     const catalogueExamensLink = partnerPage.getByRole("link", { name: "Centres et examens", exact: true });
@@ -540,7 +548,9 @@ async function run() {
     await expectPath(partnerPage, "/partenaire/examens", "Catalogue partenaire → Centres et examens");
     await partnerPage.getByRole("heading", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
     await partnerPage.getByText("Créer la fiche de ton centre", { exact: true }).waitFor({ state: "visible" });
-    console.log("PASS rendu — Partenaire → Centres et examens");
+    await partnerPage.getByRole("textbox").first().waitFor({ state: "visible" });
+    assert.deepEqual(partnerBackendErrors, [], "La recette Partenaire Examens a rencontré des erreurs API ou navigateur : " + partnerBackendErrors.join(" | "));
+    console.log("PASS Partenaire Examens — session Promoteur, accès catalogue, formulaire visible, aucune erreur API/page.");
 
     await partnerPage.goto(BASE_URL + "/partenaire/reservations", { waitUntil: "domcontentloaded" });
     await expectPath(partnerPage, "/partenaire/reservations", "Ouverture des réservations partenaire");
