@@ -88,7 +88,7 @@ async function finishLegacy(
   const { data, error: finishError } = await sb.rpc("finish_notification_email_outbox", {
     p_outbox_id: item.outbox_id,
     p_success: success,
-    p_provider_message_id: success ? item.outbox_id : null,
+    p_provider_message_id: null,
     p_error: error || null,
   });
   if (finishError || data !== true) return null;
@@ -105,7 +105,7 @@ async function finishUniversal(
   const { data, error: finishError } = await sb.rpc("finish_naxa_email_event", {
     p_outbox_id: item.outbox_id,
     p_success: success,
-    p_provider_message_id: success ? item.outbox_id : null,
+    p_provider_message_id: null,
     p_error: error || null,
   });
   if (finishError || data !== true) return null;
@@ -147,20 +147,20 @@ export async function GET(req: Request) {
   // Les synchronisations métier sont indépendantes : une panne d'un univers
   // ne doit pas empêcher la distribution des e-mails déjà mis en file.
   const syncJobs = [
-    { name: "synchroniser_validite_pharmacies", args: undefined },
-    { name: "synchroniser_validite_abonnements_partenaires", args: undefined },
-    { name: "emettre_rappels_abonnements_partenaires_5j", args: undefined },
+    "synchroniser_validite_pharmacies",
+    "synchroniser_validite_abonnements_partenaires",
+    "emettre_rappels_abonnements_partenaires_5j",
   ] as const;
 
-  for (const job of syncJobs) {
-    const { data, error } = await sb.rpc(job.name, job.args);
+  for (const jobName of syncJobs) {
+    const { data, error } = await sb.rpc(jobName);
     if (error) {
-      syncErrors.push(job.name);
+      syncErrors.push(jobName);
       continue;
     }
-    if (job.name === "synchroniser_validite_abonnements_partenaires") {
+    if (jobName === "synchroniser_validite_abonnements_partenaires") {
       partnerExpired = Number(data ?? 0);
-    } else if (job.name === "emettre_rappels_abonnements_partenaires_5j") {
+    } else if (jobName === "emettre_rappels_abonnements_partenaires_5j") {
       partnerReminders = Number(data ?? 0);
     }
   }
