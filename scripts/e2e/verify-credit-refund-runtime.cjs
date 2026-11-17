@@ -158,13 +158,17 @@ async function run(env = process.env) {
 
   async function cleanup() {
     const errors = [];
-    if (!operationIds.length && clientId) {
+    let discoveryComplete = !clientId;
+    if (clientId) {
       try {
         operationIds.push(...(await findOperationsByReferences()).map(row => row.id));
-      } catch (error) { errors.push(error.message); }
+        discoveryComplete = true;
+      } catch (error) {
+        errors.push("Découverte des opérations de nettoyage impossible : " + error.message);
+      }
     }
 
-    let operationsDeleted = true;
+    let operationsDeleted = discoveryComplete;
     for (const id of [...new Set(operationIds)]) {
       let movementsDeleted = false;
       try {
@@ -226,11 +230,22 @@ async function run(env = process.env) {
 
     if (operationsDeleted && clientId && attemptedReferences.length) {
       try {
-        const remainingOps = await adminRows(
-          "client_credit_operations?select=id&reference=in."
+        const remainingOps = await findOperationsByReferences();
+        if (remainingOps.length) errors.push("Des opérations de remboursement subsistent après nettoyage.");
+      } catch (error) { errors.push(error.message); }
+      try {
+        const remainingMovements = await adminRows(
+          "tresorerie_mouvements?select=id&source_type=eq.credit_remboursement&reference=in."
             + "(" + attemptedReferences.map(value => '"' + value.replace(/"/g, "") + '"').join(",") + ")&limit=20"
         );
-        if (remainingOps.length) errors.push("Des opérations de remboursement subsistent après nettoyage.");
+        if (remainingMovements.length) errors.push("Des mouvements de trésorerie E2E subsistent après nettoyage.");
+      } catch (error) { errors.push(error.message); }
+      try {
+        const remainingEvents = await adminRows(
+          "compta_evenement?select=id&source_type=eq.credit_operation&evenement_type=eq.credit_remboursement&source_id=in."
+            + "(" + [...new Set(operationIds)].map(value => '"' + value + '"').join(",") + ")&limit=20"
+        );
+        if (remainingEvents.length) errors.push("Des événements comptables E2E subsistent après nettoyage.");
       } catch (error) { errors.push(error.message); }
     }
     if (operationsDeleted && creditId) {
