@@ -221,3 +221,29 @@ Le flux `admin_confirmer_reglement_promoteur` confirme actuellement un règlemen
 **Limite de configuration Replay :** \`naxa_payment_destinations\` est vide (aucune destination Orange Money ou MTN active). Le formulaire bloque donc correctement la déclaration réelle et la route de capture Admin refuse un canal sans destination configurée. Le test transactionnel a utilisé une destination synthétique en ROLLBACK ; aucune coordonnée réelle n'a été inventée.
 
 **Verdict : PARTIEL.** Le moteur de rapprochement SMS croisé est testé en transaction et les données sont annulées. Le parcours HTTP/Android réel, la configuration des destinations, l'envoi e-mail effectif et le build/TypeScript restent à prouver. Aucun déploiement Production.
+
+
+## Verrouillage des frontières de facturation — Promoteur ≠ partenaire indépendant (17 novembre 2026)
+
+L'audit a révélé trois anciens couplages qui auraient contredit le choix A malgré le nouveau moteur :
+
+1. \`admin_valider_dossier_partenaire\` activait auparavant une structure dès que l'abonnement Promoteur était courant et pouvait accepter l'univers Aide. Il valide désormais uniquement Parapharmacie, Examens médicaux et Prestations à domicile ; sans cycle propre confirmé ou accès historique valide, le partenaire reste \`pending\` et son univers désactivé.
+2. \`admin_confirmer_reglement_promoteur\` réactivait auparavant les partenaires validés du Promoteur. Ce comportement est supprimé : le règlement Promoteur renouvelle uniquement son périmètre Promoteur/Pharmacie.
+3. \`synchroniser_validite_pharmacies\` créait auparavant des verrous Promoteur à partir de dossiers partenaires. Les verrous sont désormais fondés sur le propre abonnement Promoteur actif/impayé ; l'expiration partenaire est traitée exclusivement par \`partner_subscriptions\`.
+
+Le RPC \`promoteur_soumettre_reglement\` n'accepte plus les titulaires de dossiers partenaires comme Promoteurs : il exige un profil actif de rôle Promoteur. Les deux flux de souscription (Promoteur et structure) se protègent mutuellement contre la réutilisation d'une référence déjà revendiquée dans l'autre flux ou dans une confirmation de réservation Client.
+
+### Tests transactionnels complémentaires (ROLLBACK)
+
+- Validation d'un dossier Examens avec univers/feature flag activés temporairement dans le sous-bloc : dossier \`validated\`, partenaire toujours \`pending\`, univers toujours désactivé, contrat propre \`pending_payment\`. Aucun paiement Promoteur n'a été utilisé. Le bloc a été annulé ; les feature flags Replay sont restés désactivés.
+- Rappel J-5 : premier passage émet exactement un rappel ; second passage émet zéro rappel supplémentaire.
+- Expiration : un contrat échu passe à \`expired\`, tandis que le partenaire reste \`active\` et le profil global reste actif. L'autre structure non échue n'est pas modifiée.
+- Contrôle post-rollback : zéro partenaire temporaire, zéro contrat, zéro règlement, zéro candidat SMS, zéro événement Admin et zéro notification de test persistants.
+
+### Blocages de configuration constatés sur Replay
+
+- Les feature flags et univers \`parapharmacie\`, \`examens\`, \`prestations\` sont tous désactivés. Aucune activation permanente n'a été faite.
+- \`naxa_payment_destinations\` ne contient aucune destination active MTN/Orange. La soumission de paiement est donc correctement bloquée tant que les coordonnées réelles NAXA ne sont pas configurées.
+- Aucun build/TypeScript/CI ni parcours HTTP/Android n'a été exécuté. Aucun Production ni déploiement Vercel touché.
+
+**Verdict : PARTIEL.** Les frontières A sont appliquées côté DB et testées par transactions annulées. L'activation fonctionnelle réelle dépend des feature flags, des destinations de paiement, puis du run qualité et du parcours Android/Admin.
