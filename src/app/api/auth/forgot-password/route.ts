@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     });
     if (error) {
       // Keep the public result identical even when the provider rejects an OTP.
-      console.error("NAXA_PASSWORD_RESET_OTP_FAILED");
+      console.error("NAXA_PASSWORD_RESET_OTP_FAILED", { code: error.code, status: error.status });
     }
 
     return genericResponse();
