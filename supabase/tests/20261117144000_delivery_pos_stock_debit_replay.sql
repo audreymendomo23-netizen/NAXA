@@ -154,7 +154,7 @@ BEGIN
   END IF;
 
   SELECT quantite INTO v_stock_b_after FROM public.stocks WHERE pharmacie_id=v_pharmacy_b AND produit_id=v_product;
-  SELECT r.commande_statut,r.stock_decremented INTO v_status,v_decremented FROM public.reservations r WHERE r.id=v_order_b;
+  SELECT r.stock_decremented INTO v_decremented FROM public.reservations r WHERE r.id=v_order_b;
   IF v_stock_b_after<>v_stock_b_before-1 OR NOT v_decremented THEN
     RAISE EXCEPTION 'Débit physique manquant ou multiple : avant %, après %, stock_decremented %',v_stock_b_before,v_stock_b_after,v_decremented;
   END IF;
@@ -166,6 +166,7 @@ BEGIN
   IF NOT public.naxa_delivery_confirm_received(v_mission,'Réception E2E confirmée') THEN RAISE EXCEPTION 'Confirmation Client refusée'; END IF;
   PERFORM set_config('request.jwt.claim.sub',v_courier::text,true);
   IF NOT public.naxa_delivery_confirm_handover(v_mission) THEN RAISE EXCEPTION 'Confirmation remise Livreur refusée'; END IF;
+  SELECT r.commande_statut INTO v_status FROM public.reservations r WHERE r.id=v_order_b;
   PERFORM set_config('request.jwt.claim.sub',v_cashier::text,true);
   SELECT * INTO v_close FROM public.caisse_cloturer(v_session,2500);
   IF v_close.total_theorique<>2500 OR v_close.total_compte<>2500 OR v_close.ecart<>0 THEN
