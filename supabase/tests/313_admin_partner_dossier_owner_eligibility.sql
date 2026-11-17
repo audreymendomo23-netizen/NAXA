@@ -53,18 +53,23 @@ begin
     raise exception 'Le contexte Admin de test est invalide';
   end if;
 
-  select pg_get_functiondef(
-    'public.admin_create_partner_dossier(uuid,text,text,text,text,text,text,numeric,numeric,text,bigint,text,jsonb)'::regprocedure
+  select regexp_replace(
+    lower(pg_get_functiondef(
+      'public.admin_create_partner_dossier(uuid,text,text,text,text,text,text,numeric,numeric,text,bigint,text,jsonb)'::regprocedure
+    )),
+    '\\s+', '', 'g'
   ) into v_definition;
 
-  if position('owner_profile.role::text = ''client''' in v_definition)=0
-     or position('owner_profile.actif is true' in v_definition)=0
-     or position('owner_profile.age_verified is true' in v_definition)=0
-     or position('owner_profile.date_of_birth is not null' in v_definition)=0
-     or position('owner_profile.date_of_birth <=' in v_definition)=0
-     or position('owner_profile.consent_accepted_at is not null' in v_definition)=0
-     or position('owner_auth.email_confirmed_at is not null' in v_definition)=0
-     or position('update public.profiles set actif=false' in lower(v_definition))>0 then
+  -- Comparer le SQL normalisé : les retours à la ligne et espaces de formatage
+  -- ne doivent pas faire échouer un invariant métier inchangé.
+  if position('owner_profile.role::text=''client''' in v_definition)=0
+     or position('owner_profile.actifistrue' in v_definition)=0
+     or position('owner_profile.age_verifiedistrue' in v_definition)=0
+     or position('owner_profile.date_of_birthisnotnull' in v_definition)=0
+     or position('owner_profile.date_of_birth<=' in v_definition)=0
+     or position('owner_profile.consent_accepted_atisnotnull' in v_definition)=0
+     or position('owner_auth.email_confirmed_atisnotnull' in v_definition)=0
+     or position('updatepublic.profilessetactif=false' in v_definition)>0 then
     raise exception 'La RPC ne contient pas toutes les gardes d''éligibilité attendues';
   end if;
 
