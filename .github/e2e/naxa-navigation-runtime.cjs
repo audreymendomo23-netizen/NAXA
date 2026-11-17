@@ -557,6 +557,7 @@ async function run() {
     await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
     await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).click();
     await expectPath(partnerPage, "/partenaire/examens", "Réservations partenaire → Centres et examens");
+    assert.deepEqual(partnerBackendErrors, [], "La navigation Partenaire Examens / réservations a rencontré des erreurs API ou navigateur : " + partnerBackendErrors.join(" | "));
     await partnerContext.close();
 
     // Client E2E : session d'un profil Client Replay déjà existant.
