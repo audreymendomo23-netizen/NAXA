@@ -159,3 +159,48 @@ La table Replay `naxa_universe_payment_confirmations` ne peut pas servir de preu
 Le flux `admin_confirmer_reglement_promoteur` confirme actuellement un règlement lié à `abonnements_promoteurs` et crée sa période mensuelle Promoteur. Aucun événement équivalent propre à chaque structure contractante des trois autres univers n'a été établi dans le schéma contrôlé.
 
 **Verdict technique maintenu : PARTIEL / BLOQUÉ À LA SOURCE DE VÉRITÉ.** La règle du payeur est désormais décidée, mais aucune migration, écriture Replay ou modification du worker n'est autorisée sur la base d'une fausse équivalence avec les paiements de réservation. Il faut un événement de règlement d'abonnement confirmé, relié sans ambiguïté à la structure qui paie, avant de calculer son premier cycle et son J-5. Les cycles historiques valides restent à préserver.
+
+
+## Implémentation initiale — abonnement indépendant par structure (17 novembre 2026)
+
+### Contrat et source de vérité
+
+- Tables créées : \`partner_subscriptions\` (un contrat par \`partner_id\`) et \`partner_subscription_payments\` (historique des déclarations et décisions).
+- Univers pris en charge : exclusivement \`parapharmacie\`, \`examens\`, \`prestations\`. Aide, dispositifs médicaux/connectés et autres catégories restent hors périmètre.
+- Le titulaire propriétaire (\`partner_members.member_role='owner'\`) déclare le règlement de sa structure. Le tarif est relu côté serveur depuis \`admin_partner_dossiers.monthly_fee_fcfa\`, jamais accepté comme valeur faisant autorité depuis le navigateur.
+- Une déclaration crée un règlement \`pending\` et une notification ; elle ne crée aucune période et ne change aucun droit d'accès. La référence normalisée est unique et une seule déclaration peut être en attente par structure.
+- L'Administration confirme ou refuse après contrôle manuel de l'encaissement réel. La confirmation produit le reçu et la période, démarre le premier cycle à la date locale de confirmation NAXA, puis prolonge une période indépendante existante à partir du lendemain de son échéance. Une déclaration ou un SMS isolé ne vaut pas confirmation.
+- Les coordonnées NAXA sont prises en instantané depuis \`naxa_payment_destinations\`. Le paiement de réservation Client (\`naxa_universe_payment_confirmations\`) reste exclu.
+
+### Accès et historique
+
+- \`private.naxa_partner_has_confirmed_payment(uuid)\` vérifie désormais le cycle propre à la structure, le dossier validé, le statut partenaire actif, l'univers activé et l'identité titulaire active. L'abonnement Promoteur n'est plus la source de vérité pour ces trois univers indépendants.
+- Les structures déjà actives et dont l'ancien accès était encore valide conservent cet accès jusqu'à l'échéance historique de l'abonnement Promoteur. Cette période est marquée \`legacy_access_until\`, sans être transformée en paiement propre à la structure et sans renouvellement implicite.
+- La confirmation ne réactive jamais \`profiles.actif\`. Un compte globalement suspendu reste suspendu.
+- L'expiration ne suspend que le contrat de la structure concernée ; elle ne désactive pas le profil global ni les autres structures.
+
+### Rappels et interfaces
+
+- Synchronisation d'expiration et rappels J-5 idempotents par structure via \`naxa_process_partner_subscription_cycles()\`.
+- Job pg_cron Replay créé : \`naxa-partner-subscription-cycle-hourly\`, \`20 * * * *\`.
+- Les types de notification partenaires ont été ajoutés à l'outbox e-mail existante. La route \`/api/cron/validite\` appelle aussi les deux RPC partenaires avant de vider l'outbox.
+- Espace titulaire : \`/partenaire/abonnement\` ; revue Admin : \`/admin/abonnements-partenaires\`, ajoutée à la navigation Admin.
+
+### Migrations Replay appliquées
+
+- \`20261117200000_partner_independent_subscription_cycles\`
+- \`20261117201000_partner_subscription_read_api_and_date_guard\`
+- \`20261117202000_partner_subscription_read_api_fix\`
+- \`20261117203000_partner_subscription_cron_schedule\`
+
+### Vérifications et limites
+
+- Replay : les quatre migrations sont appliquées ; tables présentes ; RLS activée sur les deux tables et politiques SELECT titulaires/membres/Admin en place.
+- Privilèges contrôlés : déclaration et confirmation refusées à \`anon\`, autorisées à \`authenticated\` avec contrôle métier dans les RPC ; synchronisation et rappels réservés à \`service_role\`.
+- Appels non authentifiés aux RPC de déclaration, lecture titulaire, confirmation Admin et liste Admin : rejetés avec \`42501\` attendu.
+- Job pg_cron présent (job 13). Exécution immédiate sans effet : 0 expiration, 0 rappel.
+- Données Replay : 0 dossier de ces trois univers, 0 abonnement et 0 paiement. Il n'existe donc pas de preuve positive de déclaration → confirmation → cycle → J-5 dans Replay à ce stade.
+- Advisor sécurité : aucun finding visant les deux nouvelles tables. Advisor performance : quatre index de FK signalés « unused » parce que Replay ne contient aucune ligne ; les index sont conservés pour couvrir les FK.
+- Build/TypeScript et test navigateur non exécutés dans ce passage. Aucune donnée Production et aucun déploiement Vercel touchés.
+
+**Verdict : PARTIEL.** Le moteur DB, les RPC, le job horaire et les deux interfaces sont versionnés et déployés sur Replay ; le parcours positif reste à prouver avec un dossier partenaire réel/synthétique autorisé et le run qualité applicatif. Le cycle n'est pas déclaré AU VERT.
