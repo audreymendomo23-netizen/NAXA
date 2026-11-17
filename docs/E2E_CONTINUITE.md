@@ -6481,3 +6481,18 @@ Aucune modification de schéma ou donnée Replay/Production, aucune migration, a
 - Le `DataCloneError` ServiceWorker observé dans le run précédent reste un point distinct à qualifier ; ne pas le déclarer corrigé par ce changement.
 
 **Verdict :** correction source appliquée ; validation automatisée du nouveau HEAD en attente. Aucun VERT global attribué avant les deux workflows finaux.
+
+
+## 184. Isolation des historiques Client A/B — garde E2E ciblée — 17/11/2026
+
+**Périmètre strict :** historique des achats Client uniquement. Aucun changement au panier, à la vue SQL, aux politiques RLS, au schéma ou aux données Replay/Production.
+
+**Régression ajoutée au harnais :**
+- Deux identités Auth Replay distinctes sont utilisées : le compte Client acheteur existant et le second compte de recette qui est temporairement encore en rôle Client au moment du contrôle.
+- Chaque JWT interroge directement `client_achats` et collecte les identifiants de réservations effectivement visibles.
+- Le test exige au moins un achat payé/retiré dans chacun des deux historiques et vérifie qu'aucun identifiant de réservation n'est commun aux réponses A et B.
+- Un historique vide ne peut donc pas produire un faux PASS : le test échoue explicitement si les fixtures ne contiennent pas de matière pour démontrer l'isolation.
+
+**Sécurité conservée :** la vue `client_achats` reste filtrée par `r.client_id = auth.uid()`, avec `security_invoker=true`; aucune colonne `client_id` n'est ajoutée et aucune politique RLS n'est affaiblie.
+
+**Validation :** le contrôle est ajouté au scénario Replay ; son verdict dépend du prochain run Chromium sur le commit qui contient ce changement. Aucun résultat PASS n'est anticipé.
