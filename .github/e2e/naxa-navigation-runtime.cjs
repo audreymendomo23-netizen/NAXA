@@ -513,7 +513,7 @@ async function run() {
 
     const [{ data: confirmedPayment, error: confirmedPaymentError }, { data: activeSubscription, error: activeSubscriptionError }, { data: visiblePartner, error: visiblePartnerError }] = await Promise.all([
       admin.from("partner_subscription_payments").select("status,confirmation_source,receipt_number").eq("id", submittedPaymentId).single(),
-      admin.from("partner_subscriptions").select("status,first_confirmed_payment_at,period_start,due_date").eq("partner_id", state.partnerId).single(),
+      admin.from("partner_subscriptions").select("status,first_confirmed_payment_at,period_start,due_date").eq("partner_id", state.partnerId).eq("status", "active").single(),
       promoterClient.from("partners").select("id,status").eq("id", state.partnerId).single(),
     ]);
     if (confirmedPaymentError) throw confirmedPaymentError;
