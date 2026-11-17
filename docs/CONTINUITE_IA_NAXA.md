@@ -2,7 +2,7 @@
 
 > **Priorité opérationnelle — 13/11/2026 :** `AGENTS.md` est la source de consignes. La branche de travail et de référence est `main`. Les anciens journaux de branches, PR et interdictions de fusion ci-dessous sont conservés comme archives et ne remplacent ni `AGENTS.md`, ni les ordres explicites plus récents de l'utilisateur.
 
-Dernière mise à jour : 2026-11-15
+Dernière mise à jour : 2026-11-17
 
 ## Règles opérationnelles courantes
 
@@ -1145,3 +1145,28 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Le compte Admin `kenzi` est présent, actif, associé à `naxa.home@gmail.com`; le journal Auth contient des tentatives récentes rejetées `invalid_credentials`. Cela ne prouve pas que le mot de passe saisi est faux ni que la réinitialisation est maintenant fonctionnelle de bout en bout.
 - Non testé à ce stade : envoi réel OTP, réception email, vérification OTP, mise à jour du mot de passe, nouvelle connexion/session. Aucun mot de passe n'a été modifié. Aucun déploiement Vercel déclenché.
 - Décision : cause SQL du HTTP 503 identifiée et corrigée avec preuve RPC/ACL ; parcours Auth complet encore **PARTIEL / À RECETTER**.
+
+
+## Addendum 2026-11-17 — consolidation du parcours récupération OTP / mot de passe
+
+### Corrections versionnées sur main
+- `src/app/(auth)/mot-de-passe-oublie/page.tsx` n’effectue plus la modification du mot de passe directement avec `supabaseBrowser().auth.updateUser`. Après vérification OTP, il appelle désormais `POST /api/auth/update-user-password`, qui vérifie côté serveur la session créée par la vérification OTP, l’adresse e-mail confirmée, la politique de mot de passe, la limitation par IP/utilisateur et le contrôle Have I Been Pwned en k-anonymat.
+- Après confirmation serveur de la mise à jour, la déconnexion locale est tentée sans transformer un échec secondaire de déconnexion en faux échec de changement de mot de passe.
+- `src/app/api/auth/update-user-password/route.ts` inclut maintenant la lecture de session dans son bloc de gestion d’erreurs et distingue une indisponibilité générale de mise à jour d’une indisponibilité propre au contrôle HIBP. Aucun secret ni mot de passe n’est journalisé.
+- `src/app/api/auth/forgot-password/route.ts` journalise uniquement le code et le statut d’un éventuel refus du fournisseur OTP, sans exposer l’adresse e-mail ni le code.
+- Commits de correction : `709471f4c9862d67222a1b4e2d5d55535e0e8c82`, `1ba642b85f01a1797b7b5f8c7c685a59c220259b`, `aceb8870df1c0a21000f2115a7bda3c8be905168`, `130cd3568d7df19eee2dcb18c3b0b8e5e4fc05b2`. Le HEAD `main` observé ensuite est `9d513617e406daf389e74efddfa0bfc185163924`, dont le parent direct est le dernier commit OTP ci-dessus.
+
+### Vérifications exécutées
+- Contrôles statiques sur les sources GitHub : parcours de récupération raccordé à `/api/auth/update-user-password` ; aucun appel client direct à `auth.updateUser` ni ancien contrôle HIBP côté navigateur ; route OTP vérifiant le code avec le type `email` correspondant à `signInWithOtp` et déposant la session sur la réponse ; route serveur contrôlant `getUser()` puis appelant `updateUser({ password })).
+- SQL Production : appels `attempt` transactionnels sur les scopes `ip_password_reset`, `ip_password` et `password_user` → tous `allowed=true`, `retry_after=0`, `failures=1`; transaction annulée après le test.
+- ACL Production recontrôlées : `service_role EXECUTE=true`, `anon=false`, `authenticated=false` sur `public.naxa_rate_limit_v1`. Aucun droit d’exécution public ajouté.
+- Journaux Vercel : le déploiement Production observé reste `dpl_zij7GYkQZH4NhoYGGK9nax7GpVrJ`, SHA `7ccd8c67f72e044e1a2165d7e6e9acd694f48776`, état `READY`. Les erreurs `NAXA_RATE_LIMIT_UNAVAILABLE` observées le 17/11 à 22:42 précèdent la validation SQL des scopes ci-dessus. Aucun déploiement n’a été lancé par cette intervention ; les corrections applicatives sur `main` ne sont donc pas encore actives en Production.
+
+### Statut et limites restantes
+- Construction source : corrigée et versionnée sur `main`.
+- Couche SQL Production : corrigée et testée pour les trois scopes concernés ; ACL confirmées.
+- Parcours réel non encore prouvé : envoi et réception du courriel OTP après correction SQL, vérification OTP en navigateur, mise à jour réelle du mot de passe, puis nouvelle connexion et établissement de session.
+- Les journaux Auth contiennent encore des réponses `invalid_credentials` antérieures à une réinitialisation réussie ; aucun mot de passe n’a été changé par cette intervention. Cela ne permet pas d’affirmer que le mot de passe saisi était nécessairement erroné.
+- Build, typecheck, lint et CI non exécutés dans cet environnement. Aucun statut vert global revendiqué.
+- Déploiement Production non effectué, conformément à l’absence d’autorisation de redéploiement.
+- Statut global : **PARTIEL — code et SQL corrigés, activation Production et recette Auth réelle restantes**.
