@@ -266,6 +266,7 @@ async function run() {
   const promoter = await profileByUsername("naxa_e2e_promoteur");
   const comptable = await profileByUsername("naxa_e2e_expiry_overflow");
   const partnerOwner = await profileByUsername("naxa_e2e_acheteur");
+  const partnerMember = promoter;
   assert.equal(promoter.role, "promoteur", "Le profil Promoteur existant a changé de rôle.");
   assert.equal(comptable.role, "client", "Le profil de recette destiné au rôle temporaire n'est plus Client.");
   assert.equal(partnerOwner.role, "client", "Le profil Client destiné au partenaire n'est plus Client.");
@@ -276,7 +277,7 @@ async function run() {
     admin.from("naxa_profile_active_roles").select("profile_id").eq("profile_id", comptable.id).maybeSingle(),
     admin.from("naxa_professional_assignments").select("id").eq("profile_id", comptable.id).eq("role_code", "comptable").eq("statut", "active"),
     admin.from("partners").select("id").eq("name", TEMP_PARTNER_NAME),
-    admin.from("partner_members").select("partner_id").eq("user_id", partnerOwner.id),
+    admin.from("partner_members").select("partner_id").eq("user_id", partnerMember.id),
     admin.from("pharmacies").select("id,actif,est_demo").eq("id", PHARMACY_ID).single(),
     admin.from("promoteur_pharmacies").select("pharmacie_id,actif").eq("promoteur_id", promoter.id).eq("pharmacie_id", PHARMACY_ID).eq("actif", true).maybeSingle(),
   ]);
@@ -286,7 +287,7 @@ async function run() {
   assert.equal(activeRole.data, null, "Une sélection de rôle préexistante empêche un test réversible.");
   assert.equal((assignment.data || []).length, 0, "Une affectation Comptable préexistante empêche un test réversible.");
   assert.equal((partnersByName.data || []).length, 0, "Collision de nom de fixture partenaire.");
-  assert.equal((memberships.data || []).length, 0, "Le compte Client de recette possède déjà une adhésion partenaire.");
+  assert.equal((memberships.data || []).length, 0, "Le Promoteur de recette possède déjà une adhésion partenaire.");
   assert.equal(pharmacy.data.actif, true, "La pharmacie de recette n'est pas active.");
   assert.equal(pharmacy.data.est_demo, true, "La pharmacie sélectionnée n'est pas une pharmacie E2E.");
   assert.ok(promoterLink.data, "Le Promoteur existant n'est pas propriétaire de la pharmacie de recette.");
@@ -294,7 +295,7 @@ async function run() {
   state.comptableProfileId = comptable.id;
   state.originalFonctionInterne = comptable.fonction_interne;
   state.originalPharmacieId = comptable.pharmacie_id;
-  state.partnerOwnerId = partnerOwner.id;
+  state.partnerOwnerId = partnerMember.id;
   saveState();
 
   const { data: insertedAssignment, error: assignmentError } = await admin.from("naxa_professional_assignments")
@@ -321,20 +322,35 @@ async function run() {
       partner_type: "centre_examen",
       city: "Yaoundé",
       status: "active",
-      created_by: partnerOwner.id,
+      created_by: partnerMember.id,
     })
     .select("id").single();
   if (partnerError) throw partnerError;
   state.partnerId = insertedPartner.id;
   saveState();
 
+  const { error: universeError } = await admin.from("partner_universes").insert({
+    partner_id: state.partnerId,
+    universe_slug: "examens",
+    enabled: true,
+  });
+  if (universeError) throw universeError;
+  const { error: dossierError } = await admin.from("admin_partner_dossiers").insert({
+    partner_id: state.partnerId,
+    promoteur_id: partnerMember.id,
+    universe_slug: "examens",
+    monthly_fee_fcfa: 1,
+    dossier_status: "validated",
+    created_by: partnerMember.id,
+  });
+  if (dossierError) throw dossierError;
   const { error: membershipError } = await admin.from("partner_members").insert({
     partner_id: state.partnerId,
-    user_id: partnerOwner.id,
+    user_id: partnerMember.id,
     member_role: "owner",
   });
   if (membershipError) throw membershipError;
-  console.log("INFO : partenaire et adhésion owner temporaires ajoutés ; aucun compte Auth créé.");
+  console.log("INFO : partenaire temporaire, univers et dossier validé rattachés au Promoteur Replay existant ; aucun compte Auth créé.");
 
   const sessions = [];
   let browser;
@@ -343,8 +359,8 @@ async function run() {
     sessions.push(promoterSession);
     const comptableSession = await createExistingUserSession(comptable);
     sessions.push(comptableSession);
-    const partnerSession = await createExistingUserSession(partnerOwner);
-    sessions.push(partnerSession);
+    const clientSession = await createExistingUserSession(partnerOwner);
+    sessions.push(clientSession);
 
     await setActiveComptableRole(comptable, comptableSession.accessToken);
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
@@ -430,7 +446,7 @@ async function run() {
     }
     await comptableContext.close();
 
-    const partnerContext = await browserContext(browser, partnerSession, { width: 1440, height: 900 });
+    const partnerContext = await browserContext(browser, promoterSession, { width: 1440, height: 900 });
     const partnerPage = await partnerContext.newPage();
     partnerPage.setDefaultTimeout(15000);
     await partnerPage.goto(BASE_URL + "/partenaire/catalogue", { waitUntil: "domcontentloaded" });
@@ -452,7 +468,7 @@ async function run() {
 
     // Client E2E : session d'un profil Client Replay déjà existant.
     // Les données panier/favori ci-dessous sont locales, marquées démo et supprimées par les actions UI.
-    const clientContext = await browserContext(browser, partnerSession, { width: 390, height: 844 });
+    const clientContext = await browserContext(browser, clientSession, { width: 390, height: 844 });
     const clientPage = await clientContext.newPage();
     clientPage.setDefaultTimeout(20000);
     await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
