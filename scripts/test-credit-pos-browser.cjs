@@ -55,9 +55,9 @@ test("la recette soumet le remboursement depuis l'interface Caisse et vérifie r
   assert.match(source, /NAXA-E2E-CREDIT-BROWSER-MTN/);
   assert.match(source, /async function ensureTreasuryAccount\(channel\)/);
   assert.match(source, /Créer compte à 0 FCFA/);
-  assert.match(source, /channelSelect\\.waitFor\\(\\{ state: "visible" \\}\\)/);
-  assert.match(source, /channelSelect\\.inputValue\\(\\)/);
-  assert.match(source, /await cashierPage\\.waitForFunction\\(\\(label\\) =>/);
+  assert.match(source, /channelSelect\.waitFor\(\{ state: "visible" \}\)/);
+  assert.match(source, /channelSelect\.inputValue\(\)/);
+  assert.match(source, /await cashierPage\.waitForFunction\(\(label\) =>/);
   assert.match(source, /treasuryAccountByChannel\[plan\.channel\]/);
   assert.match(source, /refundSection\.locator\('input\[type="checkbox"\]'\)/);
   assert.match(source, /confirmations\.count\(\) !== 3/);
