@@ -619,6 +619,7 @@ async function run() {
     const clientContext = await browserContext(browser, clientSession, { width: 390, height: 844 });
     const clientPage = await clientContext.newPage();
     clientPage.setDefaultTimeout(20000);
+    const clientPurchase400s = [];
     clientPage.on("pageerror", (error) => {
       console.error("CLIENT PAGEERROR — " + redactDiagnosticText(error.message));
       if (error.stack) console.error("CLIENT PAGEERROR STACK — " + redactDiagnosticText(error.stack));
@@ -638,6 +639,7 @@ async function run() {
             if (postData) requestData = redactDiagnosticText(postData);
           } catch { requestData = "[corps de requête inaccessible]"; }
           const responseBody = await diagnosticResponseBody(response);
+          if (safeUrl.includes("/rest/v1/client_achats")) clientPurchase400s.push(safeUrl + " — " + responseBody);
           console.error("CLIENT HTTP 400 DIAGNOSTIC — " + method + " " + safeUrl
             + " — resource=" + request.resourceType()
             + " — request=" + requestData
@@ -715,7 +717,9 @@ async function run() {
     await clientPage.locator("#history-period").selectOption("all");
     await clientPage.locator("#history-search").fill("aucune commande E2E");
     await clientPage.getByText("Aucun élément ne correspond à ces critères.", { exact: true }).waitFor({ state: "visible" });
-    console.log("PASS Client — historique, filtre de période et recherche sans commande résiduelle.");
+    await clientPage.waitForTimeout(1200);
+    assert.deepEqual(clientPurchase400s, [], "La vue client_achats a retourné une erreur HTTP 400 : " + clientPurchase400s.join(" | "));
+    console.log("PASS Client — historique, filtre de période, recherche et absence de HTTP 400 sur client_achats.");
     await clientContext.close();
 
     console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Client desktop/mobile (favoris/panier locaux, recherche/filtres, historique). Partenaire : PASS si paiement Replay confirmé, sinon SKIP documenté.");
