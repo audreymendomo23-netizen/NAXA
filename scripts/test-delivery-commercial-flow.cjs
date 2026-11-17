@@ -38,6 +38,7 @@ const files = {
   trackingSql: read("supabase/migrations/20261107111500_delivery_tracking_both_apps_20261107.sql"),
   reviewSql: read("supabase/migrations/20261107120000_delivery_reviews_and_commission_scope_20261107.sql"),
   posSql: read("supabase/migrations/20261107133000_delivery_pos_cash_collection_and_monthly_due_20261107.sql"),
+  stockDebitFix: read("supabase/migrations/20261117143000_fix_delivery_pos_physical_stock_debit.sql"),
   courierSql: read("supabase/migrations/20261107141000_delivery_courier_cash_and_eta_mission_data.sql"),
   noCommissionSql: read("supabase/migrations/20261115130000_delivery_no_naxa_commission_policy.sql"),
 };
