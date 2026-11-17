@@ -30,7 +30,7 @@ type Caisse = { id: string; nom: string };
 type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string; ouvert_par: string };
 type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
 type PaiementTicket = { montant_percu: number | null; monnaie_rendue: number | null; montant: number; mode: string };
-type CreditAccountOption = { clientId: string; label: string; solde: number; plafond: number };
+type CreditAccountOption = { creditId: string; clientId: string; label: string; solde: number; plafond: number };
 type AssuranceTicket = { assureur: string; montant_total: number; montant_prise_en_charge: number; montant_client: number; montant_rembourse: number; statut: string };
 type TicketLigne = {
   vente_id: string;
@@ -88,6 +88,10 @@ export default function CaissePage() {
   const [assuranceTicket, setAssuranceTicket] = useState<AssuranceTicket | null>(null);
   const [creditAccounts, setCreditAccounts] = useState<CreditAccountOption[]>([]);
   const [creditClientId, setCreditClientId] = useState("");
+  const [refundCreditId, setRefundCreditId] = useState("");
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReference, setRefundReference] = useState("");
+  const [refundReason, setRefundReason] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -175,10 +179,11 @@ export default function CaissePage() {
     if (!pid) { setCreditAccounts([]); return; }
     let active = true;
     void (async () => {
-      const { data, error } = await sb.rpc("caisse_credit_clients_lister", { p_pharmacie: pid });
+      const { data, error } = await sb.rpc("caisse_credit_remboursement_comptes_lister", { p_pharmacie: pid });
       if (!active) return;
       if (error) { setCreditAccounts([]); return; }
       const rows = (data ?? []) as {
+        credit_id: string;
         client_id: string;
         solde: number;
         plafond: number;
@@ -188,6 +193,7 @@ export default function CaissePage() {
         username: string | null;
       }[];
       setCreditAccounts(rows.map((row) => ({
+        creditId: row.credit_id,
         clientId: row.client_id,
         label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
         solde: Number(row.solde),
@@ -602,6 +608,39 @@ export default function CaissePage() {
     }
   }
 
+  async function rembourserCredit() {
+    const account = creditAccounts.find((item) => item.creditId === refundCreditId);
+    const amount = Number(refundAmount);
+    if (!session || !account || !Number.isSafeInteger(amount) || amount <= 0 || amount > account.solde || busy) {
+      setMsg("Sélectionnez un crédit actif et saisissez un montant entier positif, inférieur ou égal au solde.");
+      return;
+    }
+    setBusy(true);
+    setMsg("");
+    try {
+      const { data, error } = await sb.rpc("client_credit_rembourser", {
+        p_credit: account.creditId,
+        p_montant: amount,
+        p_mode: "especes",
+        p_reference: refundReference.trim() || null,
+        p_motif: refundReason.trim() || "Remboursement comptant en espèces à la Caisse",
+      });
+      if (error) throw error;
+      if (!data) throw new Error("La base n’a pas confirmé l’enregistrement du remboursement.");
+      setCreditAccounts((current) => current
+        .map((item) => item.creditId === account.creditId ? { ...item, solde: item.solde - amount } : item)
+        .filter((item) => item.solde > 0));
+      setRefundAmount("");
+      setRefundReference("");
+      setRefundReason("");
+      setMsg("Remboursement espèces enregistré. Opération : " + String(data) + ". Solde restant : " + fcfa(account.solde - amount) + ".");
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : "Le remboursement n’a pas été confirmé. Vérifiez l’historique avant de réessayer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function payerCredit() {
     if (!vente || !creditClientId || total <= 0 || busy) return setMsg("Sélectionnez un Client avec un crédit actif et ajoutez des produits avant de valider.");
     setBusy(true);
@@ -775,6 +814,29 @@ export default function CaissePage() {
                     {creditClientId && <button disabled={busy || !vente || total <= 0} className="btn btn-clair w-full" onClick={() => void payerCredit()}>{busy ? "Traitement…" : "Finaliser la vente à crédit"}</button>}
                   </aside>
                 </div>
+                <section id="caisse-remboursements-credit" className="carte mt-4 space-y-3">
+                  <h2 className="text-lg font-extrabold">Remboursement des crédits clients</h2>
+                  <p className="text-sm text-slate-600">Enregistrez ici les remboursements reçus en espèces. Le remboursement est rattaché à la session Caisse ouverte et au compte crédit de la pharmacie.</p>
+                  {creditAccounts.length === 0 ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun crédit client actif avec un solde à rembourser.</p> : <>
+                    <label className="block text-sm font-semibold">Client et compte crédit
+                      <select className="champ mt-1 w-full" value={refundCreditId} onChange={(event) => setRefundCreditId(event.target.value)} disabled={busy}>
+                        <option value="">Sélectionner un compte crédit</option>
+                        {creditAccounts.map((account) => <option key={account.creditId} value={account.creditId}>{account.label} · reste dû {fcfa(account.solde)}</option>)}
+                      </select>
+                    </label>
+                    <label className="block text-sm font-semibold">Montant remboursé (FCFA)
+                      <input className="champ mt-1 w-full" type="number" min="1" step="1" inputMode="numeric" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} disabled={busy || !refundCreditId} />
+                    </label>
+                    <label className="block text-sm font-semibold">Référence (facultative)
+                      <input className="champ mt-1 w-full" value={refundReference} onChange={(event) => setRefundReference(event.target.value)} maxLength={120} disabled={busy || !refundCreditId} />
+                    </label>
+                    <label className="block text-sm font-semibold">Motif (facultatif)
+                      <input className="champ mt-1 w-full" value={refundReason} onChange={(event) => setRefundReason(event.target.value)} maxLength={240} disabled={busy || !refundCreditId} />
+                    </label>
+                    <p className="rounded-xl bg-slate-50 p-3 text-sm">Canal accepté dans ce parcours : <strong>espèces uniquement</strong>. Les remboursements Orange Money et MTN MoMo restent désactivés tant que leur preuve et leur écriture de trésorerie atomique ne sont pas disponibles.</p>
+                    <button className="btn btn-vert w-full" disabled={busy || !session || !refundCreditId || !Number.isSafeInteger(Number(refundAmount)) || Number(refundAmount) <= 0 || Number(refundAmount) > (creditAccounts.find((item) => item.creditId === refundCreditId)?.solde ?? 0)} onClick={() => void rembourserCredit()}>{busy ? "Traitement…" : "Enregistrer le remboursement espèces"}</button>
+                  </>}
+                </section>
                 <section id="caisse-cloture" className="carte mt-4 space-y-3">
                   <h2 className="text-lg font-extrabold">Clôture de session</h2>
                   <p className="text-sm text-slate-600">Comptez les espèces réellement présentes dans le tiroir, fond initial compris. Une vente brouillon doit être finalisée ou abandonnée avant la clôture.</p>
