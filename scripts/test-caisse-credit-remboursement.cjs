@@ -7,6 +7,7 @@ const ui = read("src/app/pharmacie/caisse/page.tsx");
 const projectionMigration = read("supabase/migrations/20261117172316_caisse_credit_refund_accounts_rpc.sql");
 const migration = read("supabase/migrations/20261117173913_caisse_credit_repayment_multichannel_atomic.sql");
 const accountMigration = read("supabase/migrations/20261117175003_caisse_credit_treasury_account_create_atomic.sql");
+const idempotencyMigration = read("supabase/migrations/20261117181007_caisse_credit_refund_idempotency_proof_guard.sql");
 const e2e = read("supabase/tests/302_caisse_credit_repayment_multichannel_e2e.sql");
 
 for (const channel of ["especes", "orange_money", "mtn_momo"]) {
@@ -44,10 +45,15 @@ assert.match(migration, /insert into public\.tresorerie_mouvements/);
 assert.match(migration, /'credit_remboursement'.*'comptoir'/s);
 assert.match(accountMigration, /caisse_credit_tresorerie_compte_creer/);
 assert.match(accountMigration, /pg_advisory_xact_lock/);
+assert.match(idempotencyMigration, /v_existing\\.created_by <> auth\\.uid\\(\\)/);
+assert.match(idempotencyMigration, /verification_beneficiaire/);
+assert.match(idempotencyMigration, /verification_montant/);
+assert.match(idempotencyMigration, /confirmation_client_vue/);
 
 assert.match(e2e, /ROLLBACK;/i);
 assert.match(e2e, /compta_evenement/);
 assert.match(e2e, /clé idempotence réutilisée avec montant différent/i);
 assert.match(e2e, /preuve complète/i);
+assert.match(e2e, /clé idempotence réutilisée avec preuve différente/i);
 
 process.stdout.write("OK — contrat Caisse remboursement crédit : 3 canaux, idempotence, preuve mobile, trésorerie, reçu et recette Replay.\n");
