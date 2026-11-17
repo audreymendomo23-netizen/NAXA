@@ -209,7 +209,8 @@ export async function GET(req: Request) {
         text: item.body,
       });
       const final = await finishLegacy(sb, item, result.success, result.error);
-      if (final === "sent") sent++;
+      if (final === null) deliveryErrors.push(`legacy_finish:${item.outbox_id}`);
+      else if (final === "sent") sent++;
       else if (final === "dead") dead++;
       else retried++;
     }
@@ -233,7 +234,8 @@ export async function GET(req: Request) {
         text: item.text_body,
       });
       const final = await finishUniversal(sb, item, result.success, result.error);
-      if (final === "sent") sent++;
+      if (final === null) deliveryErrors.push(`universal_finish:${item.outbox_id}`);
+      else if (final === "sent") sent++;
       else if (final === "dead") dead++;
       else retried++;
     }
