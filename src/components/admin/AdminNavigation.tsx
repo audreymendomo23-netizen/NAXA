@@ -36,6 +36,7 @@ const groups: AdminNavGroup[] = [
       { href: "/admin/pilotage", label: "Pilotage réseau", note: "Indicateurs décisionnels" },
       { href: "/admin/pilotage/validite", label: "Validité", note: "Conventions et échéances" },
       { href: "/admin/pilotage/reglements", label: "Paiements & réabonnements", note: "Vérifier, confirmer ou contester" },
+      { href: "/admin/abonnements-partenaires", label: "Abonnements partenaires", note: "Règlements par structure et échéances" },
       { href: "/admin/pilotage/reglements/configuration", label: "Coordonnées de paiement", note: "Codes marchands et instructions" },
       { href: "/admin/pilotage/reservations", label: "Réservations Marketplace", note: "Suivi des réservations" },
       { href: "/admin/pilotage/rapports", label: "Rapports", note: "Exports et analyses" },
