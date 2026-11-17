@@ -59,10 +59,10 @@ export default function Panier() {
           <ul className="mt-3 space-y-3">{items.map(line=><li key={line.produit_id + ":" + (line.owner_id || pharmacieId)} className="border-t pt-3">
             <Link href={`/produit/${line.produit_id}`} className="font-bold underline">{line.nom}</Link>{line.dosage&&<p className="text-sm text-slate-500">{line.dosage}</p>}
             <div className="mt-2 flex items-center justify-between"><div className="flex gap-2">
-              <button className="btn btn-clair !px-0 w-10" onClick={()=>changerQuantite(line.produit_id,line.quantite-1,{},line.owner_type,line.owner_id)} disabled={line.quantite<=1}>−</button>
+              <button className="btn btn-clair !px-0 w-10" onClick={()=>changerQuantite(line.produit_id,line.quantite-1,{},line.owner_type??(line.pharmacie_id?"pharmacie":line.partner_id?"parapharmacie":undefined),line.owner_id??line.pharmacie_id??line.partner_id)} disabled={line.quantite<=1}>−</button>
               <output className="w-7 text-center font-bold">{line.quantite}</output>
-              <button className="btn btn-clair !px-0 w-10" onClick={()=>changerQuantite(line.produit_id,line.quantite+1,{},line.owner_type,line.owner_id)} disabled={line.quantite>=(line.quantite_max??MAX_QTE)}>+</button>
-            </div><button className="text-sm text-red-700 underline" onClick={()=>retirer(line.produit_id,line.owner_type,line.owner_id)}>Retirer</button></div>
+              <button className="btn btn-clair !px-0 w-10" onClick={()=>changerQuantite(line.produit_id,line.quantite+1,{},line.owner_type??(line.pharmacie_id?"pharmacie":line.partner_id?"parapharmacie":undefined),line.owner_id??line.pharmacie_id??line.partner_id)} disabled={line.quantite>=(line.quantite_max??MAX_QTE)}>+</button>
+            </div><button className="text-sm text-red-700 underline" onClick={()=>retirer(line.produit_id,line.owner_type??(line.pharmacie_id?"pharmacie":line.partner_id?"parapharmacie":undefined),line.owner_id??line.pharmacie_id??line.partner_id)}>Retirer</button></div>
           </li>)}</ul>
           <Link href={`/commande/nouvelle?pharmacie=${encodeURIComponent(pharmacieId)}`} className="btn btn-vert mt-4 w-full">Finaliser avec cette pharmacie</Link>
         </article>)}
