@@ -31,7 +31,7 @@ export async function GET() {
     );
     const universes: Record<string, boolean> = { pharmacie: true };
     for (const slug of CONFIGURABLE_UNIVERSES) {
-      const enabled = rows.get(slug) === true;
+      universes[slug] = rows.get(slug) === true;
     }
 
     return NextResponse.json(
