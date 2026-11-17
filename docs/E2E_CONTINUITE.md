@@ -2,10 +2,10 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§145)  
+**Dernière mise à jour :** 17 novembre 2026 (§146)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `d1c6243105752da8a5751992128d9cca978c04fb`  
-**État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
+**HEAD contrôlé avant cette mise à jour :** `240af73beb5e7aa0100a29df1c62ff7743f19729`  
+**État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
 ## 1. Règles et périmètre sécurisé
@@ -124,9 +124,9 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 ## 6. Prochain point de reprise
 
 1. Préparer des comptes Auth et affectations Replay réels pour la matrice Admin/Promoteur ; conserver `require_role_matrix=false` tant qu'ils ne sont pas prêts.
-2. Examiner séparément le trigger `naxa_audit_session_delete` et les suppressions normales d'utilisateurs avec sessions actives ; ne pas déployer de correction SQL sur Production.
-3. Poursuivre par le parcours navigateur métier réservation → Stock → Livreur → Client → paiement/clôture.
-4. Continuer par les recettes Android sur téléphones enrôlés : caméra, galerie/PDF/OCR, GPS/Bluetooth, SMS/FCM et offline.
+2. **Clos sur Replay (§146) :** trigger `naxa_audit_session_delete` corrigé ; la suppression Auth avec sessions actives et la révocation ordinaire sont couvertes. Ne pas migrer Production sans autorisation explicite.
+3. Auditer le parcours UI Partenaire Examens (route, garde d'accès, chargement des espaces et adhésion owner) ; préparer une identité Partenaire E2E via le processus Auth normal, sans insertion SQL directe dans `auth.users`.
+4. Poursuivre par le parcours navigateur métier réservation → Stock → Livreur → Client → paiement/clôture, puis les recettes Android sur téléphones enrôlés : caméra, galerie/PDF/OCR, GPS/Bluetooth, SMS/FCM et offline.
 
 ## 7. Journal de continuité
 
@@ -5537,3 +5537,32 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 - Les deux tests SQL sont PASS sur Replay ; le statut CI du HEAD n'a pas été contrôlé dans cette passe. Aucun parcours navigateur n'a été exécuté.
 
 **Verdict :** garde d'éligibilité corrigée, appliquée et testée sur Replay ; aucune écriture résiduelle. Le parcours Partenaire Examens global reste **JAUNE / PARTIEL** tant que l'interface n'est pas testée et que la correction n'est pas explicitement autorisée puis appliquée en Production. Aucun compte Partenaire réel créé ; aucun déploiement Vercel ou Play Store.
+
+
+## 146. Correction du trigger d'audit lors de la suppression Auth (17/11/2026)
+
+### Audit et reproduction contrôlée
+
+- Sur Replay, `auth.sessions` déclenche `trg_naxa_session_audit_delete` après suppression d'une session.
+- La fonction `public.naxa_audit_session_delete` appelait systématiquement `public.naxa_record_session_audit('SESSION_REVOKED', ..., old.user_id, ...)`.
+- La table `public.naxa_session_audit` référence `auth.users(id)` par une FK `ON DELETE CASCADE`. Pendant la suppression du compte parent, le trigger de cascade supprimait la session puis tentait de réinsérer une ligne d'audit liée au parent en cours de suppression : SQLSTATE `23503`, FK `naxa_session_audit_user_id_fkey`.
+- Reproduction sur le compte Admin E2E dédié Replay avec une session synthétique : échec FK reproduit. La transaction de test a été annulée ; le compte est resté présent et aucune session ni ligne d'audit synthétique n'a persisté.
+
+### Correction versionnée et appliquée sur Replay
+
+- Migration source : `supabase/migrations/20261117043716_session_audit_skip_parent_delete_cascade.sql`.
+- Le trigger vérifie désormais que le parent existe encore dans `auth.users` avant d'écrire l'événement `SESSION_REVOKED`. Lors d'une suppression Auth en cascade, la ligne parent n'est plus visible et l'insertion d'audit est ignorée ; les audits historiques du compte suivent la FK `ON DELETE CASCADE`. Lors d'une révocation ordinaire, le compte existe encore et l'événement reste écrit.
+- Migration appliquée sur Replay `pwfftcsjyeibxxqhwysw`, version enregistrée `20261117043716`, nom `session_audit_skip_parent_delete_cascade`.
+- Test versionné : `supabase/tests/314_session_audit_user_cascade.sql`.
+- Le test tente la suppression du compte Admin E2E dans un sous-bloc transactionnel annulé, puis vérifie qu'une suppression normale de session produit toujours `SESSION_REVOKED`. Le test complet se termine par `ROLLBACK`.
+
+### Preuves après correction
+
+- Test 314 exécuté sur Replay : **PASS** (cascade sans erreur + révocation ordinaire toujours auditée).
+- Contrôle post-test : compte Admin E2E préservé ; session synthétique résiduelle = 0 ; audit synthétique résiduel = 0.
+- Contrôle fonction : `SECURITY DEFINER=true`, `search_path=pg_catalog, public`, `anon EXECUTE=false`, `authenticated EXECUTE=false`, garde d'existence du parent présente.
+- Aucune donnée métier ou session persistante modifiée par le test.
+- Production non consultée ni modifiée dans cette passe ; aucun déploiement Vercel ou Play Store.
+- CI non vérifiée ; aucune recette navigateur Auth interactive exécutée.
+
+**Verdict :** défaut de suppression Auth corrigé et validé sur Replay. Le point trigger/audit est clos pour Replay ; le parcours Partenaire Examens et les recettes UI restent ouverts. Aucun statut global AU VERT n'est revendiqué.
