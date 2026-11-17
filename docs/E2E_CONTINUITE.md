@@ -6126,3 +6126,16 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Le workflow de navigation couvre désormais les changements du middleware, du planning de garde, de BottomNav et des migrations Supabase ; commits `3dd594fd7294d25dfa886e187436b5d31584b6cf`, `912ab730d400b9955188793b77c87986cb85bd5c`, puis `7fe0484c51b7c620bb7186bd81749bc1f825f8c6`.
 - Relance après corrections : qualité [44038178935](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44038178935) et navigateur Replay [44038178933](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44038178933), déclenchés sur le commit applicatif `faa248a69eb81ade9c7204d67cd3a2a3d7338a84), en attente au moment de la présente note. Les résultats restent à contrôler ; aucun PASS anticipé.
 - État : Replay uniquement ; aucune modification RLS, aucune migration Production, aucun déploiement. Les tests métier commande/annulation/restauration de stock restent hors preuve de cette navigation tant qu'ils ne sont pas observés explicitement.
+
+
+## §167 — Corrections des échecs de recette Client (17/11/2026)
+
+- Relecture du run navigateur Replay [44038178933](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44038178933), job 133886144683, étape 9 : l'échec exact est getByText("2", { exact: true }) qui résout trois éléments (badge panier, quantité de ligne et badge Achats). Le test cible désormais main li output avec la valeur exacte 2, commit f3a3802374a3d71e592a167006f6daed81572bed.
+- Les journaux Replay confirment des erreurs HTTP 400 causées par la sélection inexistante profiles.avatar_url sur le profil Client. La page /client/profil lit maintenant les métadonnées Auth et la photo locale ; la suppression distante modifie uniquement les métadonnées Auth, sans UPDATE sur une colonne absente. Commit 6d62720898e2e9f18346cd2c89c670e79dc243e6.
+- La page d'accueil Client avait une deuxième lecture de profiles.avatar_url et une lecture de pharmacies.photo_verified_at. Le SELECT profil a été réduit aux champs existants ; le champ photo pharmacie est demandé via l'alias PostgREST photo_verified_at:photo_verifiee_le. Commit b86d775eda626363787d027169be0db9341f9525.
+- La recherche Marketplace /resultats utilisait elle aussi le mauvais nom physique de colonne ; le SELECT utilise désormais photo_verified_at:photo_verifiee_le, tout en conservant le nom de propriété TypeScript attendu. Commit ffa5735f0aea62bdedf7157206e30df987133b77.
+- Les 4 changements sont sur main. Relancer les workflows qualité et navigation, puis examiner les logs Replay après le run. Les corrections ne sont pas déclarées PASS avant exécution.
+- Limites conservées : les ERR_ABORTED relevés lors des changements de page sont des requêtes interrompues par la navigation et ne constituent pas seuls une preuve d'échec serveur ; la recette panier était bloquée par l'assertion stricte. Les tests de commande métier, annulation et restitution exacte du stock restent distincts.
+- Périmètre : Replay uniquement ; aucun changement Production, aucune migration Production, aucun déploiement Vercel.
+
+**Point de reprise :** HEAD applicatif après f3a3802 ; attendre le run qualité et le run navigateur déclenchés sur le HEAD final après cette note, vérifier l'absence de requêtes 400 sur profiles.avatar_url et pharmacies.photo_verified_at, puis statuer.
