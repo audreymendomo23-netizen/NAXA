@@ -6461,3 +6461,23 @@ La revalidation navigateur complète sur le HEAD réunissant ces modifications e
 - Ne pas confondre l'échec de l'historique avec un échec du test panier : les logs montrent explicitement le PASS du cas multi-propriétaires avant l'échec ultérieur.
 
 Aucune modification de schéma ou donnée Replay/Production, aucune migration, aucun déploiement Vercel, aucune action Play Store.
+
+## 183. Correction historique Client — filtre sur la vue `client_achats` — 17/11/2026
+
+**Diagnostic prouvé par la recette Replay :**
+- Le workflow `44054040159` échoue sur la requête `client_achats?keys=client_id,...` avec PostgreSQL `42703` : la colonne `client_achats.client_id` n'existe pas.
+- La migration `supabase/migration_021_historique_achats_client.sql` définit la vue `public.client_achats` sans exposer de colonne `client_id`, mais filtre déjà ses lignes par `r.client_id = auth.uid()`.
+- Le composant Client ajoutait malgré tout `.eq("client_id", auth.user.id)` à la requête de cette vue. Le filtre était redondant et incompatible avec son contrat SQL.
+
+**Correction appliquée sur main :**
+- Commit `b6ec80ab67a063c527544d205d2544b2348a1223` : suppression du filtre client_id uniquement sur la requête de la vue `client_achats`.
+- Le filtre d'identité reste appliqué à la requête directe sur `reservations`.
+- La vue `client_achats` continue d'appliquer son propre périmètre `auth.uid()` et ses RLS sous-jacentes via `security_invoker=true`.
+- Aucun changement de migration, schéma, donnée Replay/Production, politique RLS ou déploiement.
+
+**Validation attendue :**
+- Le contrôle qualité et le scénario navigateur Replay doivent se terminer sur ce nouveau commit.
+- Vérifier l'affichage Historique Client, la disparition des HTTP 400 `client_achats.client_id`, le panier multi-pharmacies et le nettoyage.
+- Le `DataCloneError` ServiceWorker observé dans le run précédent reste un point distinct à qualifier ; ne pas le déclarer corrigé par ce changement.
+
+**Verdict :** correction source appliquée ; validation automatisée du nouveau HEAD en attente. Aucun VERT global attribué avant les deux workflows finaux.
