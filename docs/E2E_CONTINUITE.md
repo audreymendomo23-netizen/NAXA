@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§160)  
+**Dernière mise à jour :** 17 novembre 2026 (§161)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `6c109d4407d15ee52dbf68a0aaf4565339dda074`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -5953,3 +5953,19 @@ Requête SQL en lecture seule du 17/11 :
 - Aucun write métier Supabase, aucune migration appliquée pendant ce contrôle, aucun déploiement Production.
 
 **Verdict du lot : JAUNE / PARTIEL.** Reprise exacte : réaligner les timestamps des fichiers sur l'historique Replay, puis créer une fixture de structure isolée et tester le cycle complet en transaction annulée.
+
+
+## 161. Contrôle de propreté Replay après relance du harnais (17/11/2026)
+
+Après le commit de diagnostic `6c109d4407d15ee52dbf68a0aaf4565339dda074`, le harnais a bien démarré et créé ses fixtures temporaires (constat transitoire en lecture seule), puis celles-ci ont disparu au contrôle suivant. Vérification SQL Replay finale :
+
+| Fixture du runtime navigateur | Restant |
+|---|---:|
+| Partenaire temporaire `NAXA E2E NAV TEMP` | **0** |
+| Adhésion temporaire liée | **0** |
+| Affectation Comptable temporaire | **0** |
+| Rôle actif Comptable temporaire | **0** |
+
+Cette vérification confirme la propreté des quatre catégories suivies ; elle ne remplace pas les logs du job et ne prouve pas le passage des assertions Client. Le résultat du précontrôle JWT ajouté et le résultat final du navigateur ne sont pas disponibles dans les sorties d'exécution accessibles dans cette reprise. Ils restent donc **NON CONFIRMÉS**, sans extrapolation.
+
+**Reprise exacte :** récupérer le résultat du run déclenché par `6c109d4` dans GitHub Actions. Si le précontrôle JWT passe, diagnostiquer la redirection dans Chromium à partir des lignes `CLIENT route`, console et requêtes ; si le précontrôle échoue, corriger uniquement la session/RLS mise en évidence. Relancer ensuite le parcours Client et obtenir un run qualité complet. Aucun nettoyage manuel supplémentaire n'est requis pour les quatre fixtures ci-dessus.
