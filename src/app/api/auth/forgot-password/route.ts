@@ -56,11 +56,8 @@ export async function POST(request: Request) {
       options: { shouldCreateUser: false },
     });
     if (error) {
+      // Keep the public result identical even when the provider rejects an OTP.
       console.error("NAXA_PASSWORD_RESET_OTP_FAILED");
-      return NextResponse.json(
-        { ok: false, error: "Service de récupération momentanément indisponible. Réessayez." },
-        { status: 503, headers: { "Cache-Control": "no-store" } },
-      );
     }
 
     return genericResponse();
