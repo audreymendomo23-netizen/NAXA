@@ -1132,3 +1132,16 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Le Node contract scripts/test-pos-internal-stock-scope.cjs a été actualisé pour couvrir les deux migrations POS et le fixture ; assertions statiques source vérifiées. Aucun run Node/CI n'est revendiqué.
 - GitHub Actions n'a retourné aucun statut/run pour le HEAD ci-dessus ; le miroir GitLab main est arrêté au SHA 1b3ec14a481f129cc517ed167d246e9ba9a5a676 (pipeline #157, success 14/11), non applicable au HEAD courant.
 - Diagnostic temporaire debug_error retiré de public.naxa_apply_offline_sale_v1 sur Replay. Aucun changement Production, aucun déploiement Vercel/Play Store. Le statut global reste PARTIEL : secrets Storage E2E masqués absents, HIBP bloqué par plan Free, exposition API private à vérifier visuellement, E2E Auth/appareils/partenaire non exécutés.
+
+
+## Addendum 2026-11-17 — récupération OTP Production / rate limiter
+
+- Diagnostic Production : la route `src/app/api/auth/forgot-password/route.ts` appelle `rateLimit("ip_password_reset", ...)`. La fonction `public.naxa_rate_limit_v1` refusait ce scope dans sa liste blanche ; la contrainte `tentatives_code_scope_chk` le refusait également. Le parcours retournait donc HTTP 503 avant l'envoi OTP.
+- Corrections appliquées sur Supabase Production `eouwtuusnsuxaejsxknf` via les migrations `naxa_rate_limit_allow_password_reset_scope_20261117` et `naxa_rate_limit_password_reset_scope_constraint_20261117`.
+- Migration versionnée sur `main` : `supabase/migrations/20261117224500_naxa_rate_limit_allow_password_reset_scope.sql` et `supabase/migrations/20261117224600_naxa_rate_limit_password_reset_scope_constraint.sql`.
+- Preuve RPC Production : appel `naxa_rate_limit_v1('ip_password_reset', hash SHA-256 de test, 'check', ...)` → `allowed=true`, `retry_after=0`, `failures=0`.
+- ACL vérifiées après remplacement de la fonction : `service_role EXECUTE=true`, `anon=false`, `authenticated=false`. Aucun accès RPC public n'a été ouvert.
+- Premier test RPC a révélé que la contrainte de table, en plus de la fonction, devait être alignée ; cette seconde correction a été appliquée puis le test RPC est passé.
+- Le compte Admin `kenzi` est présent, actif, associé à `naxa.home@gmail.com`; le journal Auth contient des tentatives récentes rejetées `invalid_credentials`. Cela ne prouve pas que le mot de passe saisi est faux ni que la réinitialisation est maintenant fonctionnelle de bout en bout.
+- Non testé à ce stade : envoi réel OTP, réception email, vérification OTP, mise à jour du mot de passe, nouvelle connexion/session. Aucun mot de passe n'a été modifié. Aucun déploiement Vercel déclenché.
+- Décision : cause SQL du HTTP 503 identifiée et corrigée avec preuve RPC/ACL ; parcours Auth complet encore **PARTIEL / À RECETTER**.
