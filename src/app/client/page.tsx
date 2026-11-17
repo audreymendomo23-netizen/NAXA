@@ -112,7 +112,7 @@ function ClientPageContent(){
    if(!refreshError&&!stopped){
     const rows=(data??[]) as unknown as Reservation[];
     setReservations(rows);
-    const {data:purchaseRows,error:purchaseError}=await sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").eq("client_id",user.id).order("achat_le",{ascending:false,nullsFirst:false}).limit(500);
+    const {data:purchaseRows,error:purchaseError}=await sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").order("achat_le",{ascending:false,nullsFirst:false}).limit(500);
     if(stopped)return;
     if(!purchaseError&&purchaseRows){
      setAchats((purchaseRows as unknown as Achat[]).filter(a=>a.statut==="payee"||a.statut==="retiree"));
