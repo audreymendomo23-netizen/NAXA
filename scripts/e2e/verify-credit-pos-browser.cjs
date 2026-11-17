@@ -114,12 +114,12 @@ async function run(env = process.env) {
     });
   }
 
-  async function ensureCashTreasuryAccount() {
+  async function ensureTreasuryAccount(channel) {
     const accountId = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
       p_pharmacie: PHARMACY_ID,
-      p_canal: "especes",
-    }, "Configuration du compte trésorerie espèces");
-    if (typeof accountId !== "string") throw new Error("Compte espèces de trésorerie non confirmé.");
+      p_canal: channel,
+    }, "Configuration du compte trésorerie " + channel);
+    if (typeof accountId !== "string") throw new Error("Compte trésorerie non confirmé pour " + channel + ".");
     return accountId;
   }
 
@@ -300,7 +300,7 @@ async function run(env = process.env) {
       const credits = await rows("client_credits?select=solde&id=eq." + encodeURIComponent(creditId) + "&limit=1");
       const balance = Number(credits[0]?.solde ?? 0);
       if (balance > 0) {
-        const treasuryAccountId = await ensureCashTreasuryAccount();
+        const treasuryAccountId = await ensureTreasuryAccount("especes");
         const recoveryReference = "NAXA-E2E-CREDIT-RECOVERY-" + crypto.randomUUID();
         await rpc("client_credit_rembourser", cashierToken, {
           p_credit: creditId,
@@ -627,11 +627,24 @@ async function run(env = process.env) {
     await clientPage.getByRole("heading", { name: "Mes crédits et remboursements" }).waitFor();
     await clientPage.getByText("Achat à crédit", { exact: false }).first().waitFor();
 
-    const refundReference = "NAXA-E2E-CREDIT-BROWSER-" + crypto.randomUUID();
-    const cashTreasuryAccountId = await ensureCashTreasuryAccount();
+    const refundPlans = [
+      { channel: "especes", amount: 100, reference: "NAXA-E2E-CREDIT-BROWSER-CASH-" + crypto.randomUUID() },
+      { channel: "orange_money", amount: 300, reference: "NAXA-E2E-CREDIT-BROWSER-ORANGE-" + crypto.randomUUID() },
+      { channel: "mtn_momo", amount: 600, reference: "NAXA-E2E-CREDIT-BROWSER-MTN-" + crypto.randomUUID() },
+    ];
+    const treasuryAccountByChannel = {};
+    for (const plan of refundPlans) {
+      treasuryAccountByChannel[plan.channel] = await ensureTreasuryAccount(plan.channel);
+    }
+    const mappedTreasuryAccounts = await rpc("caisse_credit_tresorerie_comptes_lister", cashierToken, {
+      p_pharmacie: PHARMACY_ID,
+    }, "Vérification des comptes trésorerie Caisse");
+    if (!Array.isArray(mappedTreasuryAccounts) || refundPlans.some(plan =>
+      !mappedTreasuryAccounts.some(row => row.canal_paiement === plan.channel
+        && row.account_id === treasuryAccountByChannel[plan.channel]))) {
+      throw new Error("Les trois comptes de trésorerie ne sont pas visibles depuis le rôle Caisse.");
+    }
 
-    // The actual refund is submitted through the Caisse UI. Reload after sale
-    // so the refund-only account projection sees the newly positive credit balance.
     await cashierPage.reload();
     await cashierPage.getByRole("heading", { name: "Poste de caisse" }).waitFor();
     await cashierPage.getByText("Session ouverte", { exact: true }).waitFor();
@@ -645,66 +658,123 @@ async function run(env = process.env) {
     const refundChannelSelect = refundSection.locator("label").filter({
       hasText: "Canal du remboursement",
     }).locator("select");
-    if (await refundChannelSelect.inputValue() !== "especes") {
-      await refundChannelSelect.selectOption("especes");
-    }
-    await refundSection.locator("label").filter({
+    const refundAmountInput = refundSection.locator("label").filter({
       hasText: "Montant remboursé (FCFA)",
-    }).locator("input").fill(String(REFUND_AMOUNT));
-    await refundSection.locator("label").filter({
+    }).locator("input");
+    const refundReferenceInput = refundSection.locator("label").filter({
       hasText: "Référence de transaction",
-    }).locator("input").fill(refundReference);
+    }).locator("input");
+    const refundSubmit = refundSection.getByRole("button", { name: "Confirmer le remboursement", exact: true });
+    const refundOperationIds = [];
 
-    await refundSection.getByRole("button", { name: "Confirmer le remboursement", exact: true }).click();
-    const refundTicket = cashierPage.locator("#refund-ticket");
-    await refundTicket.getByRole("heading", { name: "NAXA · Reçu de remboursement crédit", exact: true }).waitFor();
-    const receiptText = (await refundTicket.textContent()) || "";
-    if (!receiptText.includes(refundReference) || !receiptText.includes("Origine")) {
-      throw new Error("Le reçu imprimable Caisse ne contient pas la référence et l'origine comptoir.");
+    for (const plan of refundPlans) {
+      await refundChannelSelect.selectOption(plan.channel);
+      await refundAmountInput.fill(String(plan.amount));
+      await refundReferenceInput.fill(plan.reference);
+      if (plan.channel !== "especes") {
+        const confirmations = refundSection.locator('input[type="checkbox"]');
+        await confirmations.first().waitFor({ state: "visible" });
+        if (await confirmations.count() !== 3) {
+          throw new Error("Les trois confirmations visuelles obligatoires ne sont pas affichées pour " + plan.channel + ".");
+        }
+        for (let i = 0; i < 3; i += 1) await confirmations.nth(i).check();
+      }
+
+      try {
+        await cashierPage.waitForFunction(() => {
+          const button = document.querySelector('#caisse-remboursements-credit button');
+          return Boolean(button && !button.disabled);
+        }, null, { timeout: 20000 });
+      } catch {
+        const formState = await refundSection.evaluate(section => ({
+          selects: [...section.querySelectorAll("select")].map(item => ({
+            value: item.value,
+            options: [...item.options].map(option => ({ value: option.value, text: option.textContent })),
+          })),
+          inputs: [...section.querySelectorAll("input")].map(item => ({
+            type: item.type,
+            value: item.type === "checkbox" ? item.checked : item.value,
+          })),
+          notice: document.querySelector('[aria-live="polite"]')?.textContent || "",
+        }));
+        throw new Error("Le bouton de remboursement reste désactivé pour " + plan.channel + " : " + JSON.stringify(formState));
+      }
+
+      await refundSubmit.click();
+      const refundTicket = cashierPage.locator("#refund-ticket");
+      await refundTicket.getByRole("heading", { name: "NAXA · Reçu de remboursement crédit", exact: true }).waitFor();
+      const receiptText = (await refundTicket.textContent()) || "";
+      const expectedChannelLabel = plan.channel === "especes" ? "Espèces"
+        : plan.channel === "orange_money" ? "Orange Money" : "MTN MoMo";
+      if (!receiptText.includes(plan.reference) || !receiptText.includes(expectedChannelLabel)
+        || !receiptText.includes("Origine")) {
+        throw new Error("Le reçu " + plan.channel + " ne contient pas la référence, le canal et l'origine comptoir.");
+      }
+
+      const refundOps = await rows(
+        "client_credit_operations?select=id,nature,montant,mode_paiement,caisse_session_id,created_by,reference,verification_beneficiaire,verification_montant,confirmation_client_vue,verification_effectuee_par,verification_effectuee_at"
+          + "&reference=eq." + encodeURIComponent(plan.reference) + "&limit=2"
+      );
+      const refundOp = await ensureSingle(refundOps, "Opération de remboursement " + plan.channel + " créée par l'interface Caisse");
+      refundOperationIds.push(refundOp.id);
+      if (refundOp.nature !== "remboursement" || Number(refundOp.montant) !== plan.amount
+        || refundOp.mode_paiement !== plan.channel || refundOp.caisse_session_id !== sessionId
+        || refundOp.created_by !== cashierUserId || refundOp.reference !== plan.reference) {
+        throw new Error("Le remboursement " + plan.channel + " n'est pas lié au caissier/session attendus.");
+      }
+      if (plan.channel !== "especes" && (refundOp.verification_beneficiaire !== true
+        || refundOp.verification_montant !== true || refundOp.confirmation_client_vue !== true
+        || refundOp.verification_effectuee_par !== cashierUserId || !refundOp.verification_effectuee_at)) {
+        throw new Error("Les trois preuves visuelles du remboursement " + plan.channel + " ne sont pas persistées.");
+      }
+
+      const movementRows = await rows(
+        "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,source_id,canal_paiement,origine"
+          + "&source_type=eq.credit_remboursement&source_id=eq." + encodeURIComponent(refundOp.id) + "&limit=2"
+      );
+      const movement = await ensureSingle(movementRows, "Mouvement trésorerie " + plan.channel);
+      if (movement.compte_id !== treasuryAccountByChannel[plan.channel] || movement.nature !== "encaissement"
+        || Number(movement.montant) !== plan.amount || movement.canal_paiement !== plan.channel
+        || movement.origine !== "comptoir") {
+        throw new Error("Le mouvement trésorerie " + plan.channel + " est absent ou incorrect.");
+      }
+
+      const events = await rows(
+        "compta_evenement?select=id,evenement_type,source_type,source_id,donnees"
+          + "&source_type=eq.credit_operation&source_id=eq." + encodeURIComponent(refundOp.id)
+          + "&evenement_type=eq.credit_remboursement&limit=2"
+      );
+      if (events.length !== 1 || events[0].donnees?.montant_fcfa !== String(plan.amount)) {
+        throw new Error("L'outbox du remboursement " + plan.channel + " n'est pas unique ou conforme.");
+      }
+
+      await refundTicket.getByRole("button", { name: "Fermer", exact: true }).click();
+      await refundTicket.waitFor({ state: "detached" });
     }
 
-    const refundOps = await rows(
-      "client_credit_operations?select=id,nature,montant,mode_paiement,caisse_session_id,created_by,reference"
-        + "&reference=eq." + encodeURIComponent(refundReference) + "&limit=2"
-    );
-    const refundOp = await ensureSingle(refundOps, "Opération de remboursement créée par l'interface Caisse");
-    const refund = refundOp.id;
-    if (refundOp.nature !== "remboursement" || Number(refundOp.montant) !== REFUND_AMOUNT
-      || refundOp.mode_paiement !== "especes" || refundOp.caisse_session_id !== sessionId
-      || refundOp.created_by !== cashierUserId || refundOp.reference !== refundReference) {
-      throw new Error("L'interface Caisse n'a pas enregistré le remboursement lié au titulaire/session attendus.");
-    }
-    const refundMovementRows = await rows(
-      "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,source_id,canal_paiement,origine"
-        + "&source_type=eq.credit_remboursement&source_id=eq." + encodeURIComponent(refund) + "&limit=2"
-    );
-    const refundMovement = await ensureSingle(refundMovementRows, "Mouvement trésorerie du remboursement");
-    if (refundMovement.compte_id !== cashTreasuryAccountId || refundMovement.nature !== "encaissement"
-      || Number(refundMovement.montant) !== REFUND_AMOUNT || refundMovement.canal_paiement !== "especes"
-      || refundMovement.origine !== "comptoir") {
-      throw new Error("Le remboursement POS n'a pas généré son mouvement espèces dans le compte trésorerie correspondant.");
-    }
-
-    const outbox = await rows(
-      "compta_evenement?select=id,evenement_type,source_type,source_id,donnees"
-        + "&source_type=eq.credit_operation&source_id=eq." + encodeURIComponent(refund)
-        + "&evenement_type=eq.credit_remboursement&limit=2"
-    );
-    if (outbox.length !== 1 || outbox[0].donnees?.montant_fcfa !== String(REFUND_AMOUNT)) {
-      throw new Error("L'événement d'outbox remboursement n'a pas été émis avec le montant exact.");
-    }
     const accountAfterRefund = await rows(
       "client_credits?select=solde&id=eq." + encodeURIComponent(creditId) + "&limit=1"
     );
     if (Number(accountAfterRefund[0]?.solde) !== 0) throw new Error("Le solde Client n'est pas revenu à zéro après remboursement complet.");
 
+    const refundSessionRows = await rows(
+      "client_credit_operations?select=montant,mode_paiement&caisse_session_id=eq."
+        + encodeURIComponent(sessionId) + "&nature=eq.remboursement"
+    );
+    const allRefundTotal = refundSessionRows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
+    const cashDrawerTotal = refundSessionRows
+      .filter(row => row.mode_paiement === "especes")
+      .reduce((sum, row) => sum + Number(row.montant || 0), 0);
+    if (allRefundTotal !== 1000 || cashDrawerTotal !== 100) {
+      throw new Error("La session doit rapprocher 1 000 FCFA, dont 100 FCFA au tiroir espèces.");
+    }
     const closeRows = await rpc("caisse_cloturer", cashierToken, {
-      p_session: sessionId, p_total_compte: REFUND_AMOUNT,
-    }, "Clôture de la session Caisse après remboursement");
+      p_session: sessionId, p_total_compte: cashDrawerTotal,
+    }, "Clôture de la session Caisse après remboursement multicanal");
     const closed = Array.isArray(closeRows) ? closeRows[0] : closeRows;
-    if (!closed || Number(closed.total_theorique) !== REFUND_AMOUNT
-      || Number(closed.total_compte) !== REFUND_AMOUNT || Number(closed.ecart) !== 0) {
-      throw new Error("Le rapprochement Caisse après remboursement n'est pas à zéro.");
+    if (!closed || Number(closed.total_theorique) !== cashDrawerTotal
+      || Number(closed.total_compte) !== cashDrawerTotal || Number(closed.ecart) !== 0) {
+      throw new Error("Le rapprochement Caisse espèces n'est pas à zéro après séparation des canaux.");
     }
     sessionClosed = true;
 
