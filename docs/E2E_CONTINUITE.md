@@ -6294,3 +6294,37 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Le premier run navigateur instrumenté `44048003954` est le run exploitable pour les diagnostics ci-dessus. La correction du motif téléphonique ultérieure n'a pas été revalidée par ce même run.
 
 **État :** HTTP 400 = racine identifiée, correction à faire ; ServiceWorker = cause non localisée ; E2E Client = partiel, pas vert global. Aucun schéma Production modifié, aucune migration Production, aucun déploiement.
+
+
+## 176. Correction de la requête historique Client et contrôle de sécurité Replay — 17/11/2026
+
+**Cause racine confirmée sur Supabase Replay** (pwfftcsjyeibxxqhwysw, état ACTIVE_HEALTHY, PostgreSQL 17) :
+- public.client_achats est une vue, pas une table. Sa définition expose reservation_id, produit_id, les détails d'achat et les horodatages ; elle n'expose pas client_id.
+- La définition de la vue contient déjà le prédicat r.client_id = auth.uid() et ne renvoie que les réservations payées/retirées.
+- La vue est configurée security_invoker=true. Le rôle authenticated possède SELECT ; anon ne le possède pas.
+- La table sous-jacente reservations a RLS activé. Sa politique SELECT resa_read limite le client à ses propres réservations lorsque sa fonction active est client, avec des voies séparées pour les accès professionnels autorisés et l'Admin.
+- Conclusion : le filtre .eq("client_id", user.id) était incorrect et redondant. La sécurité ne doit pas être réimplémentée dans le navigateur : elle est assurée par la vue et les règles RLS.
+
+**Correction code sur main :**
+- Commit [1e5de8117eb84cbaa105509a91e6c43b3dab7bfc](https://github.com/audreymendomo23-netizen/NAXA/commit/1e5de8117eb84cbaa105509a91e6c43b3dab7bfc) : suppression du filtre inexistant dans les deux appels client_achats (chargement initial et rafraîchissement). Le tri et la limite sont conservés. Commentaire ajouté pour expliciter le contrat de la vue.
+- Le repli sur les réservations reste disponible si la vue retourne une erreur ; aucun changement de schéma ni de politique RLS n'a été effectué.
+
+**Régression ajoutée au harnais :**
+- Commit [be8cfb59f6828f82ba389d305b81937164aee7ea](https://github.com/audreymendomo23-netizen/NAXA/commit/be8cfb59f6828f82ba389d305b81937164aee7ea) : le précontrôle du compte Client E2E interroge désormais client_achats sous le JWT propre du client. Une erreur PostgREST/RLS fait échouer le précontrôle avant la navigation. Une vue vide reste acceptable si le compte n'a aucun achat payé/retiré.
+- Le résultat de cette régression n'est pas anticipé : il doit être confirmé par le prochain run navigateur Replay sur le HEAD du correctif.
+
+**ServiceWorker — point toujours rouge / non corrigé :**
+- Le signal historique reste DataCloneError: Failed to execute 'postMessage' on 'ServiceWorker': URL object could not be cloned.
+- Inspection de worker/sw.ts : le fichier configure Serwist et ses stratégies de cache, sans appel applicatif explicite à postMessage. Le harnais actuel capture le message d'erreur mais ne fournit aucune frame source fiable.
+- La recherche du code applicatif ne permet pas encore d'identifier le producteur du message. Aucun remplacement global de URL par string, aucune modification arbitraire du worker et aucune désactivation du ServiceWorker n'ont été appliqués : ces contournements pourraient masquer la cause ou casser le fonctionnement hors ligne.
+- Correction suspendue jusqu'à obtention d'une trace instrumentée de l'émetteur et d'une reproduction ciblée. Ce point ne peut pas être déclaré vert.
+
+**ERR_ABORTED :** reste séparé des réponses HTTP 4xx/5xx. Les interruptions qui coïncident avec un changement de route ne sont pas considérées comme une panne métier sans preuve d'une action abandonnée.
+
+**Périmètre et verdict :**
+- Cause HTTP 400 : identifiée et correction frontend appliquée.
+- Contrat d'accès à la vue : confirmé par définition SQL, option security_invoker=true, privilèges et politique RLS Replay.
+- Régression JWT Client : ajoutée, exécution en attente.
+- ServiceWorker : rouge / cause non localisée / aucune correction sûre démontrée.
+- E2E Client transactionnelle : reste partielle tant que le cycle commande Marketplace persistant n'est pas exercé.
+- Aucun changement de schéma ou de donnée Production, aucune migration, aucun déploiement Vercel, aucun accès Play Store.
