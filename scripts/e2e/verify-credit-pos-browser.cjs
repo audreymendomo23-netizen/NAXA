@@ -301,11 +301,12 @@ async function run(env = process.env) {
       const balance = Number(credits[0]?.solde ?? 0);
       if (balance > 0) {
         const treasuryAccountId = await ensureCashTreasuryAccount();
+        const recoveryReference = "NAXA-E2E-CREDIT-RECOVERY-" + crypto.randomUUID();
         await rpc("client_credit_rembourser", cashierToken, {
           p_credit: creditId,
           p_montant: balance,
           p_mode: "especes",
-          p_reference: "NAXA-E2E-CREDIT-RECOVERY-" + crypto.randomUUID(),
+          p_reference: recoveryReference,
           p_motif: "Régularisation de la fixture technique non commerciale Replay",
           p_idempotency_key: crypto.randomUUID(),
           p_verification_beneficiaire: false,
@@ -314,7 +315,8 @@ async function run(env = process.env) {
         }, "Remboursement compensatoire de la fixture");
         const refundMovement = await rows(
           "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,canal_paiement,origine"
-            + "&source_type=eq.credit_remboursement&canal_paiement=eq.especes&reference=like.NAXA-E2E-CREDIT-RECOVERY-*&limit=1"
+            + "&source_type=eq.credit_remboursement&canal_paiement=eq.especes&reference=eq."
+            + encodeURIComponent(recoveryReference) + "&limit=2"
         );
         if (refundMovement.length !== 1 || refundMovement[0].compte_id !== treasuryAccountId
           || refundMovement[0].nature !== "encaissement" || Number(refundMovement[0].montant) !== balance
