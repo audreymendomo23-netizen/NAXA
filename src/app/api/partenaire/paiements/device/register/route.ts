@@ -28,14 +28,30 @@ async function activePartnerMemberships(db: ReturnType<typeof supabaseAdmin>, us
   type PartnerInfo = { id: string; name: string; status: string };
   const rows = (memberships ?? []) as unknown as Array<{
     partner_id: string;
+    member_role: string;
     partners: PartnerInfo | PartnerInfo[] | null;
   }>;
-  return rows
-    .map((row) => ({
-      partnerId: row.partner_id,
-      partner: Array.isArray(row.partners) ? row.partners[0] ?? null : row.partners,
-    }))
-    .filter((row) => row.partner?.status === "active" && row.partner.id === row.partnerId)
+  const normalized = rows.map((row) => ({
+    partnerId: row.partner_id,
+    memberRole: row.member_role,
+    partner: Array.isArray(row.partners) ? row.partners[0] ?? null : row.partners,
+  }));
+  const pendingOwners = normalized
+    .filter((row) => row.partner?.status === "pending" && row.memberRole === "owner")
+    .map((row) => row.partnerId);
+  const { data: validatedDossiers } = pendingOwners.length
+    ? await db.from("admin_partner_dossiers")
+        .select("partner_id,universe_slug,dossier_status")
+        .in("partner_id", pendingOwners)
+        .eq("dossier_status", "validated")
+        .in("universe_slug", ["parapharmacie", "examens", "prestations"])
+    : { data: [] as Array<{ partner_id: string; universe_slug: string; dossier_status: string }> };
+  const payablePendingOwners = new Set((validatedDossiers ?? []).map((row) => row.partner_id));
+  return normalized
+    .filter((row) => row.partner?.id === row.partnerId && (
+      row.partner.status === "active" ||
+      (row.partner.status === "pending" && row.memberRole === "owner" && payablePendingOwners.has(row.partnerId))
+    ))
     .map((row) => ({ id: row.partnerId, name: row.partner!.name }));
 }
 
