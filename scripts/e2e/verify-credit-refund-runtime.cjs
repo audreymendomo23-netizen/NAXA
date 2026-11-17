@@ -240,13 +240,15 @@ async function run(env = process.env) {
         );
         if (remainingMovements.length) errors.push("Des mouvements de trésorerie E2E subsistent après nettoyage.");
       } catch (error) { errors.push(error.message); }
-      try {
-        const remainingEvents = await adminRows(
-          "compta_evenement?select=id&source_type=eq.credit_operation&evenement_type=eq.credit_remboursement&source_id=in."
-            + "(" + [...new Set(operationIds)].map(value => '"' + value + '"').join(",") + ")&limit=20"
-        );
-        if (remainingEvents.length) errors.push("Des événements comptables E2E subsistent après nettoyage.");
-      } catch (error) { errors.push(error.message); }
+      if (operationIds.length) {
+        try {
+          const remainingEvents = await adminRows(
+            "compta_evenement?select=id&source_type=eq.credit_operation&evenement_type=eq.credit_remboursement&source_id=in."
+              + "(" + [...new Set(operationIds)].map(value => '"' + value + '"').join(",") + ")&limit=20"
+          );
+          if (remainingEvents.length) errors.push("Des événements comptables E2E subsistent après nettoyage.");
+        } catch (error) { errors.push(error.message); }
+      }
     }
     if (operationsDeleted && creditId) {
       try {
