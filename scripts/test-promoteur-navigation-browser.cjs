@@ -92,7 +92,7 @@ test("les écritures Replay temporaires disposent d'un nettoyage vérifié", () 
   assert.match(runtime, /Cookie Auth sans domaine\/chemin valide/);
 });
 
-test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable et Partenaire", () => {
+test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable, Partenaire et Client", () => {
   for (const route of [
     "/pharmacie/promoteur/livraisons",
     "/pharmacie/comptable/creances-bordereaux",
@@ -106,7 +106,15 @@ test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable et Parte
   assert.match(runtime, /Navigation des sous-pages Promoteur/);
   assert.match(runtime, /Sous-navigation Promoteur → Livraisons du réseau/);
   assert.match(runtime, /Navigation latérale Promoteur → Livraisons du réseau/);
-  assert.match(runtime, /Retour au tableau de bord Comptable/);
+  assert.match(runtime, /Retour sidebar au tableau de bord Comptable/);
+  assert.match(runtime, /dashboardLink\\.click\\(\\)/);
+  for (const route of ["/client", "/client/profil/favoris", "/panier", "/resultats?q=paracetamol", "/client/historique"]) {
+    assert.ok(runtime.includes(route), "Route Client absente du scénario : " + route);
+  }
+  assert.match(runtime, /Article local de recette/);
+  assert.match(runtime, /Filtrer par ville/);
+  assert.match(runtime, /assurance-options/);
+  assert.match(runtime, /history-period/);
   assert.match(runtime, /390, height: 844/);
 });
 
