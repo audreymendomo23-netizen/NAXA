@@ -42,7 +42,17 @@ test("la recette soumet le remboursement depuis l'interface Caisse et vérifie r
   assert.match(source, /accountAfterRefund/);
   assert.match(source, /caisse_credit_tresorerie_compte_creer/);
   assert.match(source, /tresorerie_mouvements/);
-  assert.match(source, /refundReference/);
+  assert.match(source, /refundPlans = \[/);
+  assert.match(source, /channel: "especes", amount: 100/);
+  assert.match(source, /channel: "orange_money", amount: 300/);
+  assert.match(source, /channel: "mtn_momo", amount: 600/);
+  assert.match(source, /caisse_credit_tresorerie_comptes_lister/);
+  assert.match(source, /#caisse-credit-refund-submit/);
+  assert.match(source, /cashDrawerTotal !== 100/);
+  assert.match(source, /allRefundTotal !== 1000/);
+  assert.match(source, /verification_effectuee_par/);
+  assert.match(source, /NAXA-E2E-CREDIT-BROWSER-ORANGE/);
+  assert.match(source, /NAXA-E2E-CREDIT-BROWSER-MTN/);
 });
 
 test("la pharmacie de recette reste active et masquée au catalogue public", () => {
