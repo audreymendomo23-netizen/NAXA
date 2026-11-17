@@ -75,32 +75,6 @@ export const ECOSYSTEMES: Ecosysteme[] = [
     tagline: "Des services de santé près de chez vous",
     image: "/images/ecosystemes/ecosystemes.webp", imagePosition: "0% 100%", imageAlt: "Professionnelle accompagnant une personne à domicile",
   },
-  {
-    id: "bebe-maman",
-    label: "Maman & Bébé",
-    shortLabel: "Maman & Bébé",
-    description: "Espace dédié",
-    href: "/bebe-maman",
-    color: "#A72D69",
-    softColor: "#FCECF3",
-    accent: "#F5B7D0",
-    symbol: "♡",
-    tagline: "Un espace dédié à la maman et à l’enfant",
-    image: "/images/ecosystemes/ecosystemes.webp", imagePosition: "50% 100%", imageAlt: "Articles de soin pour bébé et maternité",
-  },
-  {
-    id: "dispositifs",
-    label: "Dispositifs médicaux",
-    shortLabel: "Dispositifs",
-    description: "Équipements et matériel",
-    href: "/suivi",
-    color: "#1D4ED8",
-    softColor: "#EAF2FE",
-    accent: "#A9C8FF",
-    symbol: "⌁",
-    tagline: "Vos appareils et votre suivi connecté",
-    image: "/images/ecosystemes/ecosystemes.webp", imagePosition: "100% 100%", imageAlt: "Ensemble d’appareils médicaux de mesure",
-  },
 ];
 
 export const ECOSYSTEME_PAR_ID: Record<EcosystemeId, Ecosysteme> = Object.fromEntries(
