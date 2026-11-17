@@ -41,6 +41,13 @@ begin
   end;
   v_orange_op := public.client_credit_rembourser(v_credit,200,'orange_money','OM-E2E-302-01','Recette E2E Orange','30200000-0000-4000-8000-000000000002',true,true,true);
   v_mtn_op := public.client_credit_rembourser(v_credit,300,'mtn_momo','MTN-E2E-302-01','Recette E2E MTN','30200000-0000-4000-8000-000000000003',true,true,true);
+  begin
+    perform public.client_credit_rembourser(v_credit,200,'orange_money','OM-E2E-302-01','Recette E2E Orange','30200000-0000-4000-8000-000000000002',false,true,true);
+    raise exception 'FAIL: clé idempotence réutilisée avec preuve différente';
+  exception when others then
+    get stacked diagnostics v_message = message_text;
+    if v_message = 'FAIL: clé idempotence réutilisée avec preuve différente' then raise; end if;
+  end;
   select solde into v_balance from public.client_credits where id=v_credit;
   if v_balance <> 9400 then raise exception 'FAIL: solde attendu 9400, obtenu %',v_balance; end if;
   select count(*) into v_operations from public.client_credit_operations where credit_id=v_credit and nature='remboursement';
