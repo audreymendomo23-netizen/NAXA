@@ -5842,3 +5842,23 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - Aucun build/TypeScript/E2E positif n'a été exécuté. Aucun déploiement Vercel ni changement Production.
 
 **État du lot : 🟡 PARTIEL.** Il reste à exécuter un parcours positif contrôlé et le run qualité applicatif avant tout AU VERT.
+
+
+## 157. Rapprochement SMS croisé des abonnements partenaires (17/11/2026)
+
+- Extension de \`partner_subscription_payments\` : liens uniques vers le candidat de débit Partenaire et l'événement de crédit Admin, source de confirmation \`manual_admin\` ou \`paired_sms\`.
+- Triggers DB sur candidat Partenaire et événement crédit Admin ; le rapprochement est relancé aussi après déclaration pour couvrir les arrivées dans n'importe quel ordre.
+- Auto-confirmation uniquement avec une paire unique : SMS original de débit (\`voluntary_sms_share\`) + SMS de crédit capturé par un appareil Admin enrôlé ; montant, canal, référence, payeur, destination, horodatages fournisseur et hashes concordent. Une notification seule ne déclenche pas d'activation automatique.
+- Vérification d'acteurs distincts : le compte qui partage la preuve de débit ne peut pas être l'Admin qui confirme automatiquement.
+- Le dispositif Partenaire peut être enrôlé avant activation pour un titulaire dont le dossier est validé ; les gestionnaires n'obtiennent pas cette exception.
+- La route Admin capture vérifie si le trigger a confirmé un abonnement Partenaire et retourne le reçu/la période. La route candidat Partenaire retourne également le résultat auto-confirmé si le crédit Admin est déjà arrivé.
+- Le contrôle manuel Admin reste le recours lorsque les preuves sont incomplètes ou ambiguës.
+
+**Test SQL transactionnel Replay : PASS / ROLLBACK.** Scénario synthétique Examens : structure et dossier validé → contrat créé par trigger → règlement pending → SMS de débit Partenaire → SMS crédit Admin. Assertions passées : règlement \`confirmed\`, source \`paired_sms\`, reçu présent, abonnement \`active\`, période créée, partenaire \`active\`, univers activé, événement Admin \`confirmed\`. Le bloc a ensuite annulé toutes les données. Contrôle post-test : aucun partenaire, contrat, paiement, candidat, événement ni notification temporaire persistant.
+
+**Configuration / limites :**
+- \`naxa_payment_destinations\` est vide sur Replay ; aucun canal Orange/MTN actif, donc pas de test de déclaration ou de capture HTTP réelle.
+- Les tests positifs des routes Android et Admin, l'e-mail effectif et le build/TypeScript ne sont pas encore exécutés.
+- Aucun déploiement Production ni Vercel.
+
+**État : 🟡 PARTIEL.** Le moteur SQL de rapprochement croisé est prouvé par transaction annulée ; l'intégration réseau réelle reste à valider.
