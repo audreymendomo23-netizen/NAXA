@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§135)  
+**Dernière mise à jour :** 17 novembre 2026 (§137)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `f0d7a87aa337a1189c2faf5fdcdc15ce4660ca12`  
+**HEAD contrôlé avant cette mise à jour :** `166490b274fad2efc0bae2e961ca5e21ab33bf04`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5312,3 +5312,44 @@ Liens de preuve :
 **Verdict révisé B2 :** les parcours SQL métier positifs et négatifs favoris/offre/réservation/anti-survente/annulation/historique sont maintenant PASS sur Replay. La recette navigateur positive reste NON PROUVÉE. Le Lot B2 demeure donc **JAUNE / PARTIEL**, et ne doit pas être annoncé AU VERT tant que le parcours Client navigateur n'est pas exécuté et que les autres composantes du Lot B global (notamment assurance et ordonnance) ne sont pas chacune clôturées avec leurs preuves.
 
 **Aucune donnée persistante, Production, migration ou déploiement n'a été modifié.**
+
+
+## 136. Lot B — audit préalable de navigation et des accès E2E (17/11/2026)
+
+**Audit du code sur main et des comptes Replay avant d'étendre B1 :**
+
+| Espace / route | Constat vérifié | Verdict |
+|---|---|---|
+| Promoteur — `/pharmacie/promoteur/livraisons` | Le layout `src/app/pharmacie/promoteur/layout.tsx` expose cette URL dans les onglets et dans `NavPromoteur`, mais le fichier de route `src/app/pharmacie/promoteur/livraisons/page.tsx` est absent de `main` (404 GitHub). | **ROUGE — lien mort** |
+| Partenaire — `/partenaire/examens` | La page existe. Elle exige une ligne `partner_members` avec `member_role` owner/manager et un partenaire actif. La vérification Replay ne trouve aucune adhésion pour les comptes E2E Promoteur, Client, Pharmacien, Caisse, Stock, Comptable ou Livreur. | **ROUGE recette — compte non habilité**, pas une absence de route |
+| Comptable — `/pharmacie/comptable` | La page existe et vérifie `naxa_business_function()='comptable'`, une pharmacie active et `compta_scope_autorise=true`. Sous JWT simulé du compte E2E Comptable, ces trois contrôles retournent respectivement `comptable`, la pharmacie Mvan et `true`. | **PASS contrôle d'accès SQL** |
+| Gestionnaire stock — `/pharmacie/gestionnaire-stock` | La route existe. Le compte E2E possède une affectation active à Mvan et `naxa_business_function()='gestionnaire_stock'`. Une ligne de stock temporaire est lisible sous RLS par ce compte (test annulé). | **PASS accès RLS de lecture** |
+| Livreur — `/pharmacie/livreur` | La route existe. Le compte E2E Livreur renvoie la fonction active `livreur` et la pharmacie Mvan ; le contrôle de page est cohérent avec cette affectation. | **PASS contrôle SQL de fonction / pharmacie** |
+
+### Point de vigilance sur les privilèges stock
+
+- `naxa_has_privilege('VIEW_STOCK')` et `naxa_has_privilege('EDIT_STOCK_QUANTITY')` retournent `false` pour le compte Gestionnaire de stock de test ; aucune ligne explicite `naxa_profile_privileges` et aucune entrée `naxa_architecture_privileges` / `naxa_role_privileges` pour la clé `gestionnaire_stock` n'ont été relevées.
+- Ce résultat n'est pas, à lui seul, la cause du blocage de la page actuelle : `GestionnaireStockEspace` vérifie la fonction active et les RPC de mouvements/inventaire vérifient l'affectation professionnelle active. Le test RLS et le test métier §137 passent. Ne pas ajouter des privilèges par défaut sans définir la matrice métier autorisée.
+- La matrice doit néanmoins être revue séparément si d'autres composants s'appuient directement sur `naxa_has_privilege`.
+
+**Décision :** l'absence de route Promoteur Livraisons est un vrai point rouge de navigation. Ne pas masquer le défaut par une redirection vers un autre écran ; créer le véritable écran réseau et tester son périmètre avant de le déclarer vert. L'accès Partenaire Examens nécessite une fixture d'adhésion dédiée si ce parcours appartient au Lot B ; ne pas transformer un compte Promoteur en partenaire membre sans règle métier explicite.
+
+## 137. Lot B1 — lots, mouvements et inventaire avec le compte Gestionnaire stock (17/11/2026)
+
+**Test ajouté sur main :**
+- Fichier : `supabase/tests/307_lot_b1_stock_lots_inventory.sql`.
+- Commit : `166490b274fad2efc0bae2e961ca5e21ab33bf04`.
+- Projet : Replay `pwfftcsjyeibxxqhwysw`, pharmacie Mvan démo, compte E2E `naxa_e2e_stock`.
+- Transaction isolée, JWT authentifié, `ROLLBACK` final.
+
+**Résultat d'exécution : PASS**
+1. Initialisation d'un stock temporaire à 5 unités.
+2. Création du premier lot avec quantité égale au stock agrégé.
+3. Retour +2 sur le lot puis perte -1 ; le stock agrégé et le lot suivent à 6 unités.
+4. Inventaire complet : ligne détaillée par lot créée, comptage saisi à 4, clôture exécutée.
+5. Contrôle final : stock agrégé = 4, inventaire statut `cloture`.
+6. Résultat terminal : `LOT_B1_STOCK_LOT_MOVEMENTS_AND_INVENTORY PASS`.
+
+**Limite :** cette preuve ferme les mouvements simples par lot et l'inventaire complet positif/négatif sur une ligne de stock. Elle ne couvre pas encore la réception fournisseur, les transferts inter-pharmacies, les lots bloqués/périmés pendant une opération, les inventaires multi-lignes, ni la préparation concurrente de plusieurs commandes. Les scénarios SQL ne remplacent pas la recette UI.
+
+**Verdict Lot B1 : JAUNE / PARTIEL.** Les lots, mouvements et inventaires sont maintenant prouvés sur Replay. La route Promoteur Livraisons reste absente ; les scénarios de réception fournisseur et de préparation multi-commandes restent à exécuter. Aucune donnée persistante, Production ou déploiement n'a été modifié.
