@@ -6659,3 +6659,42 @@ La vente POS est liée à la réservation B ; le débit constaté est exactement
 - Le workflow qualité correspondant au HEAD documentaire courant 7f77eac975a8d6abd0ffce0b27a32f22a4141fcb est le run 44091674612 : contrôle de syntaxe GitHub Actions PASS ; job Tests, TypeScript et lint encore en cours au dernier contrôle. Le run précédent sur 2c317eabe a été annulé par le remplacement du HEAD.
 - Chromium n'a pas été utilisé pour ce diagnostic précis : l'incohérence se situe dans le trigger PostgreSQL de débit POS. La preuve couvre la chaîne RPC réelle avec les identités Replay, pas une recette navigateur du checkout.
 - Aucun changement de ServiceWorker, aucun déploiement, aucune migration Production, aucune action Play Store.
+
+
+## 189. Parcours de paiement comptoir — canaux, monnaie rendue et conformité du code — 17/11/2026
+
+### Décision métier à conserver
+
+Pour un achat physique au comptoir, y compris lorsque le client n'utilise pas NAXA :
+
+1. La caissière enregistre les articles et quantités. NAXA calcule automatiquement le total à payer à partir des lignes de vente et des prix enregistrés ; aucun total ne doit être saisi manuellement.
+2. La caissière demande le canal choisi : espèces, Orange Money ou MTN MoMo, puis sélectionne ce canal dans NAXA.
+3. En espèces, elle saisit le montant effectivement reçu. NAXA calcule automatiquement la monnaie à rendre : `max(montant reçu - total dû, 0)`. Un montant reçu inférieur au total bloque l'encaissement.
+4. En Orange Money ou MTN MoMo au comptoir, le client montre le message de confirmation sur son téléphone ; la caissière vérifie visuellement le bénéficiaire, le montant et la confirmation, puis valide explicitement. Aucun rapprochement SMS NAXA, aucune API opérateur et aucune attente de confirmation automatisée ne sont requis pour ce parcours physique.
+5. Après validation, NAXA finalise la vente, enregistre le canal, le montant dû, le montant reçu, la monnaie rendue (zéro pour un paiement mobile exact), l'identité et l'heure de validation, l'événement de paiement, le débit de stock et le reçu.
+6. Le Promoteur doit voir séparément le solde théorique espèces, Orange Money et MTN MoMo, ainsi que leur total. Les mouvements de dépenses, retraits, transferts, remboursements et paiements Marketplace doivent être tracés et affectés au bon canal ; les paiements Marketplace de la pharmacie alimentent les mêmes trois soldes, avec leur origine conservée. La clôture du tiroir espèces reste distincte de la vue globale de trésorerie.
+7. La validation visuelle par la caissière est une validation opérationnelle, pas une preuve indépendante de l'opérateur. Le rapprochement des soldes est une fonction de gestion ultérieure, pas une condition de paiement du client au comptoir.
+
+### Audit de conformité du code sur `main` et Replay
+
+**Version contrôlée :** HEAD `1becf64a40ecc44662d82a21cb6191c748c3f771` ; fichier `src/app/pharmacie/caisse/page.tsx` (blob `64a17ef248860f6fd9f0895cd61c1cb9d3814db0`) ; base Replay `pwfftcsjyeibxxqhwysw`. Production non consultée ni modifiée.
+
+| Exigence | Constat source / Replay | Verdict |
+|---|---|---|
+| Total automatique à partir des articles | `totalPanier(lignes.map(line => line.total))` calcule le total depuis les lignes du panier. | **CONFORME côté calcul UI** |
+| Saisie du montant réellement reçu | Champ `Montant espèces reçu`, état `percu`. | **PARTIEL** : libellé et usage limités aux espèces |
+| Monnaie rendue automatique | `monnaieARendre(montantRecu, total)` calcule `max(reçu-total, 0)` ; RPC `vente_encaisser_finaliser` recalcule côté base et persiste `montant_percu` et `monnaie_rendue`. | **CONFORME pour espèces** |
+| Blocage si montant insuffisant | UI et RPC refusent un montant reçu inférieur au total. | **CONFORME pour espèces** |
+| Choix du canal au comptoir | L'écran POS courant ne propose pas le sélecteur espèces / Orange / MTN ; il affiche « Paiements électroniques indisponibles ». | **NON CONFORME** |
+| Confirmation visuelle explicite Orange/MTN | Aucun parcours UI/RPC de validation visuelle pour la vente comptoir ordinaire ; `vente_encaisser` et `vente_ajouter_paiement` rejettent les paiements mobiles au motif qu'une confirmation opérateur officielle serait nécessaire. | **NON CONFORME** |
+| Persistance canal, reçu et événement | Le parcours POS ordinaire finalise uniquement en `especes`. Le flux réservation Marketplace accepte plusieurs canaux et stocke le paiement, mais exige un code de paiement et ne remplace pas le parcours comptoir ordinaire. | **PARTIEL / parcours distincts** |
+| Trois soldes et total Promoteur | Audit Replay précédent : comptes trésorerie non configurés, type de compte générique `mobile_money` au lieu de deux sous-comptes Orange/MTN ; aucun mouvement automatique POS observé. | **NON CONFORME** |
+| Rapprochement multi-canaux et dépenses/transferts | La clôture `caisse_cloturer` concerne le tiroir espèces ; le ledger n'est pas alimenté de manière unifiée par les encaissements POS et Marketplace. | **NON CONFORME** |
+
+### Conclusion et point de reprise
+
+Le calcul automatique du total et de la monnaie rendue existe déjà et a été exercé dans le parcours espèces ; il ne faut pas le réécrire inutilement. La recette Replay antérieure a prouvé un encaissement espèces de 1 000 FCFA, un reçu, un événement, le débit de stock et une clôture sans écart. Elle ne prouve ni les paiements mobiles physiques, ni les trois soldes, ni le rapprochement de trésorerie.
+
+**Écarts à corriger :** unifier l'écran et les RPC de vente comptoir autour du choix de canal ; autoriser la validation manuelle explicite Orange/MTN sans rapprochement SMS pour le client physiquement présent ; conserver les montants reçu/dû et la monnaie rendue ; alimenter exactement une fois les trois sous-comptes depuis le ledger commun POS + Marketplace ; ajouter la vue Promoteur et le rapprochement par canal. Les contrôles Marketplace distants restent distincts et ne doivent pas être affaiblis par cette règle du comptoir.
+
+**Statut : NON VERT** — audit et décision documentés ; aucune correction de code, migration Replay, modification Production ou déploiement réalisés dans cette passe.
