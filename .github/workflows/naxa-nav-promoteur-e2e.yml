@@ -18,6 +18,7 @@ on:
       - "src/components/BottomNav.tsx"
       - "src/components/AccueilClient.tsx"
       - "src/app/client/profil/page.tsx"
+      - "src/app/client/historique/page.tsx"
       - "src/app/resultats/page.tsx"
       - "src/app/panier/page.tsx"
       - "src/lib/panier.tsx"
