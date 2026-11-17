@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§138)  
+**Dernière mise à jour :** 17 novembre 2026 (§140)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `3bf31501ec7ef20abbe52dd825ef122a9c29f4b0`  
+**HEAD contrôlé avant cette mise à jour :** `084c7324b10dcddc62e86145168895e31f822020`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5373,3 +5373,47 @@ Liens de preuve :
 **Couverture B1 désormais prouvée par RPC/SQL sur Replay :** mouvements retour/perte, création de lot, inventaire complet avec écart, réception fournisseur et synchronisation lot/stock. Les tests sont versionnés en 307 et 308, tous deux exécutés et annulés.
 
 **Toujours non prouvé :** préparation concurrente de plusieurs commandes Marketplace et passage du Gestionnaire stock vers le Livreur, transferts inter-pharmacies, inventaires multi-lignes, scénarios de lots bloqués/périmés en cours de réception/préparation, parcours navigateur. La route Promoteur Livraisons signalée §136 reste absente. Ne pas déclarer B1 vert.
+
+
+## 139. Lot B1 — préparation multi-commandes et chaîne de livraison complète (17/11/2026)
+
+**Tests ajoutés et exécutés sur Replay :**
+- `supabase/tests/309_lot_b1_multi_order_preparation_delivery_offers.sql` — commit `ec2a702ead95944a7fe39565336925b81548f5ec`.
+- `supabase/tests/310_lot_b1_stock_to_courier_acceptance.sql` — commit `6a93448ff9401f20c09ec249272afa120881c29e`.
+- `supabase/tests/311_lot_b1_client_courier_delivery_tracking.sql` — commit `084c7324b10dcddc62e86145168895e31f822020`.
+
+**Résultats PASS :**
+1. Deux commandes acceptées distinctes passent chacune de `non_commencee` à `en_preparation`, puis `prete_au_retrait`.
+2. La confirmation de préparation crée deux missions et deux offres destinées au compte Livreur actif de la pharmacie.
+3. Le Livreur n'accepte qu'après la préparation confirmée ; l'acceptation affecte le Livreur et fait passer la commande à `livreur_assigne`.
+4. Chaîne complète d'une commande : acceptation Livreur → retrait → arrivée → confirmation de remise par le Livreur → confirmation de réception par le Client.
+5. Le RPC de suivi appelé sous l'identité Client retourne `delivered`, la commande passe à `livree`, et les événements de suivi sont présents.
+6. Résultats terminaux : `LOT_B1_MULTI_ORDER_PREPARATION_READY_AND_COURIER_OFFERS PASS`, `LOT_B1_STOCK_READY_TO_COURIER_ACCEPTANCE PASS`, `LOT_B1_CLIENT_COURIER_DELIVERY_TRACKING_TO_DELIVERED PASS`.
+7. Chaque scénario s'est terminé par `ROLLBACK` ; aucune commande, mission, offre, notification ou donnée de stock n'est persistée.
+
+**Portée exacte :** les fonctions métier et les contrôles de rôles Stock/Livreur/Client sont prouvés par SQL/JWT sur Replay. Le parcours visuel navigateur reste non exécuté.
+
+## 140. Lot B — synthèse de continuité après les passes 306 à 311 (17/11/2026)
+
+### Couverture technique prouvée
+
+- **Catalogue / Marketplace :** tests 300–305 PASS (fraîcheur 48 h, visibilité, limites, wrappers, publication détenue par la pharmacie, isolation et favoris).
+- **Favoris / réservation Client :** test 306 PASS (ajout/retrait favori, réservation, hold, anti-survente, annulation, restauration et historique Client).
+- **Stock / inventaire / fournisseurs :** tests 307 et 308 PASS (lot, retours/pertes, inventaire complet avec écart, réception fournisseur et synchronisation stock/lot).
+- **Préparation / livraison :** tests 309 à 311 PASS (multi-commandes, publication des missions, acceptation Livreur, retrait, arrivée, double confirmation et suivi Client jusqu'à livré).
+- **Ordonnance :** 16/16 contrôles SQL Pharmacien antérieurs PASS, mais navigation Client complète et interface non prouvées.
+- **Assurance :** contrôles SQL transactionnels antérieurs PASS (import, vérification multi-pharmacies, proposition de montant, paiement/remboursement et événements comptables), mais chaîne UI Client→Assureur→réservation→Caisse→comptabilité non prouvée.
+
+### Points rouges / non clos
+
+- **ROUGE navigation :** `/pharmacie/promoteur/livraisons` est toujours référencé par le layout Promoteur mais sa page est absente de `main` (§136). Aucun écran réseau ne doit être simulé par une redirection vers un autre module.
+- **ROUGE accès partenaire de recette :** aucun compte E2E ne possède l'adhésion `partner_members` owner/manager nécessaire à `/partenaire/examens` (§136). La route existe ; le compte de test manque.
+- **JAUNE UI Client :** recherche et filtres avec offre positive, synchronisation des favoris, panier/commande, indisponibilité après ajout, annulation/restauration et historique n'ont pas été démontrés par navigateur. Les RPC/SQL correspondants ne valent pas preuve UI.
+- **JAUNE UI Ordonnance / Assurance :** les moteurs SQL passent, mais les parcours complets Client/Pharmacien/Assureur/Caisse dans l'interface ne sont pas prouvés.
+- **CI :** aucun statut CI vérifié pour les commits de tests 307–311 et le HEAD documentaire courant ; ne pas annoncer CI verte.
+
+### Verdict global
+
+**LOT B : JAUNE / PARTIEL — PAS AU VERT.**
+
+Les chaînes SQL métier Stock→Livraison et Client→Marketplace sont maintenant largement prouvées sur Replay. Les rouges restants sont des lacunes de navigation/accès et des parcours UI non prouvés, pas des échecs SQL constatés. La correction finale exige de réparer l'écran Promoteur Livraisons, de fournir une adhésion partenaire de recette conforme, puis d'exécuter les parcours navigateur complets. Aucun contournement de droits, aucune écriture persistante Replay, aucune migration Production, aucun déploiement Vercel.
