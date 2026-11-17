@@ -6496,3 +6496,35 @@ Aucune modification de schéma ou donnée Replay/Production, aucune migration, a
 **Sécurité conservée :** la vue `client_achats` reste filtrée par `r.client_id = auth.uid()`, avec `security_invoker=true`; aucune colonne `client_id` n'est ajoutée et aucune politique RLS n'est affaiblie.
 
 **Validation :** le contrôle est ajouté au scénario Replay ; son verdict dépend du prochain run Chromium sur le commit qui contient ce changement. Aucun résultat PASS n'est anticipé.
+
+
+## 185. Recette réelle d'isolation historique Client A/B — PASS Replay — 17/11/2026
+
+**Périmètre :** isolation des achats entre deux clients distincts. Exécution dans le projet Supabase Replay `pwfftcsjyeibxxqhwysw`, avec les comptes de recette existants `naxa_e2e_acheteur` (Client A) et `naxa_e2e_expiry_overflow` (Client B). Aucun compte supplémentaire créé.
+
+**Audit effectif avant correction :**
+- La vue Replay `public.client_achats` est bien déclarée `security_invoker=true`, filtre les réservations par `r.client_id = auth.uid()` et conserve les RLS des tables sous-jacentes.
+- Les deux profils test étaient distincts, actifs et majeurs, mais leurs historiques ne contenaient aucune réservation payée/retirée : le contrôle précédent échouait faute de fixtures et ne pouvait pas prouver l'isolation.
+- L'insertion d'une réservation avec référence de paiement non nulle active une branche du trigger `log_reservation_event()` qui tente d'écrire dans `reservation_events.to_value`, colonne absente du schéma Replay. Le harnais contourne cette branche uniquement pour ses fixtures avec `paiement_ref=NULL`; le trigger et le schéma n'ont pas été modifiés.
+- L'affectation professionnelle Comptable déclenche `naxa_professional_assignment_active_role_sync`, qui sélectionne automatiquement le rôle métier Comptable. Le harnais doit donc terminer la lecture d'historique Client avant d'insérer cette affectation temporaire.
+
+**Corrections du harnais sur main :**
+- `af1b8c84231ea0c70df2308291751d96ee6b5b9f` : création de deux réservations payées E2E distinctes et assertion de l'appartenance de chaque achat à son historique.
+- `8e1f78bfc279e1b0a19df88702bf1c5b6a6bede6` : références de paiement laissées nulles pour éviter la branche invalide du trigger ; UUID connus avant insert et nettoyage par identifiants exacts.
+- `6d30dff120d694a2582d637f8c0a1bfe867d8a6f` : déplacement de la création d'affectation Comptable après le contrôle A/B et son nettoyage ; la fonction métier du Client B reste donc Client pendant la preuve.
+
+**Preuve de recette :**
+- Workflow Replay Chromium `44062737464`, commit `6d30dff120d694a2582d637f8c0a1bfe867d8a6f` : SUCCESS.
+- Workflow qualité `44062737538`, même commit : SUCCESS.
+- Logs du navigateur : deux fixtures d'achats payés créées ; les deux JWT Clients distincts accèdent à `client_achats` ; `PASS isolation historique A/B — deux JWT distincts ; chaque Client voit son achat payé et aucun achat de l'autre compte.`
+- Aucun identifiant de réservation croisé n'est retourné. Le contrôle exige explicitement que A voie son achat, B voie le sien, que A ne voie pas celui de B, que B ne voie pas celui de A et que les ensembles de réservations visibles n'aient aucun chevauchement.
+- La suite complète du workflow aboutit à `RESULTAT NAVIGATION : PASS`, y compris la vérification Client → Historique sans HTTP 400 sur `client_achats`.
+
+**Nettoyage et état Replay après exécution :**
+- Logs : `PASS nettoyage historique A/B` puis `PASS nettoyage — fixtures temporaires présentes dans le registre supprimées et contrôlées.`
+- Requête SQL de contrôle après run : 0 réservation client temporaire restante ; 0 événement restant pour ces réservations ; `visible_recherche=false` restauré sur la pharmacie E2E interne ; stock du produit fixture inchangé à 3 unités ; 0 affectation Comptable temporaire restante ; 0 rôle actif temporaire restant pour le compte B.
+- Le contrôle SQL sur le catalogue et les réservations a été en lecture seule après le nettoyage.
+
+**Verdict : VERT — isolation des historiques Client A/B prouvée en Replay.** La vue, le schéma et les politiques RLS n'ont pas été modifiés ; aucun changement au panier ; aucune donnée Production touchée ; aucun déploiement.
+
+**Point distinct conservé ouvert :** la branche du trigger `log_reservation_event()` qui référence `reservation_events.to_value` en présence d'une référence de paiement non nulle reste une anomalie Replay à traiter séparément. Le présent contournement ne prétend pas la corriger et ne constitue pas une validation du flux de paiement complet.
