@@ -5660,3 +5660,32 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 **Résultat : PASS — comportement SQL métier du choix 2 prouvé sur Replay**, incluant création, validation, accès positif, non-réactivation d'une identité suspendue et refus sur les principaux états d'accès. Après correction du contrôle de normalisation des espaces SQL (assertion statique trop sensible au formatage ; commits `5757fa2504126beba073a13348b53f6ed43423c0` puis `6e1fb36c9c28fcc9c21785cb0d178592d0ccb624`), le test 313 a été rejoué : **PASS — positif rollback + 7 refus + aucun résiduel**. Le test 315 a également été rejoué après les corrections : **PASS — identité indépendante, accès partenaire et 5 policies Examens alignés**.
 
 **Limite précisément circonscrite :** la navigation navigateur avec session Auth interactive n'a pas été exécutée dans cette passe. Cela ne remet pas en cause les assertions SQL des RPC et du helper, mais interdit d'affirmer que le parcours visuel `/partenaire/examens` est lui aussi testé. Aucun changement Production, aucun déploiement Vercel, aucune modification durable de Replay.
+
+
+## 150. Rejeu bulk Lot B — tests 306 à 312 sur comptes E2E Replay (17/11/2026)
+
+**Périmètre :** rejeu des tests versionnés du Lot B sur Supabase Replay `naxa-ci-replay-2` (`pwfftcsjyeibxxqhwysw`) uniquement. Les identités Client, Gestionnaire stock, Livreur et Promoteur E2E déjà présentes sont réutilisées par les scripts ; aucune création Auth ni changement de rôle n'a été effectué.
+
+### Résultats du rejeu
+
+| Test | Parcours | Résultat |
+|---|---|---|
+| 306 | Client Marketplace : favori, réservation/hold, anti-survente, annulation, restauration et historique | **PASS** |
+| 307 | Gestionnaire stock : lot, retour/perte, inventaire et écart | **PASS** |
+| 308 | Gestionnaire stock : réception fournisseur, lot et stock agrégé synchronisés | **PASS** |
+| 309 | Préparation simultanée de deux commandes et publication des missions/offres Livreur | **PASS** |
+| 310 | Transfert Stock → Livreur, acceptation d'une mission publiée et affectation | **PASS** |
+| 311 | Livreur : retrait, arrivée, remise ; Client : confirmation de réception et suivi livré | **PASS** |
+| 312 | Promoteur : rapport réseau, exclusion hors réseau et décompte sans commission NAXA | **PASS** |
+
+Chaque test a été récupéré depuis son fichier exact sur `main`, puis exécuté sur Replay. Les sept résultats terminaux attendus ont été retournés sans erreur.
+
+### Contrôle de non-résidu après les transactions
+
+Après le rejeu, les compteurs Replay sont tous à zéro pour : réservations, lignes de réservation, favoris Client, missions et offres de livraison, événements de livraison, fournisseurs, commandes et réceptions fournisseurs, inventaires et lignes d'inventaire. Les transactions de recette n'ont donc laissé aucune donnée métier résiduelle.
+
+### Verdict de cette passe
+
+**PASS — rejeu SQL/JWT des tests 306 à 312.** Cela confirme les parcours métier Client/Marketplace, Stock, Livreur et Promoteur au niveau des RPC/RLS exercés par les tests. Cela ne constitue pas une preuve de navigation ni d'interaction visuelle dans le navigateur.
+
+**Lot B global : toujours JAUNE / PARTIEL, pas AU VERT.** Les réserves de recette UI Client positive (recherche, clic favori, panier/commande, annulation et historique), ainsi que les parcours complets Ordonnance et Assurance, ne sont pas levées par ce rejeu SQL. Aucun outil navigateur/Playwright n'est disponible dans cette session ; je n'invente donc pas de preuve UI. CI non vérifiée. Aucun changement de schéma, Production, Vercel ou déploiement ; Replay n'a reçu que des transactions de test annulées.
