@@ -6348,3 +6348,19 @@ La lecture des logs complets du run navigateur Replay 44050265085 (succès du jo
 - ServiceWorker : DataCloneError toujours observée dans le run ; émetteur exact non identifié, correction toujours ouverte.
 
 **Verdict :** premier correctif incomplet ; dernier filtre résiduel supprimé dans e1baa2a. Statut de la correction HTTP 400 = en attente de revalidation navigateur sur le nouveau HEAD. ServiceWorker = rouge. Aucun changement Production, migration, déploiement ou action Play Store.
+
+
+## 178. Garde de non-régression HTTP 400 Client — 17/11/2026
+
+Après la découverte du filtre résiduel dans refreshReservations(), le contrôle statique de main confirme maintenant exactement deux appels client_achats (chargement et rafraîchissement) et zéro filtre .eq("client_id", user.id) sur ces appels.
+
+Le harnais .github/e2e/naxa-navigation-runtime.cjs a été renforcé :
+- il mémorise les réponses HTTP 400 dont l'URL cible /rest/v1/client_achats ;
+- après ouverture de l'historique, il attend la fin des rafraîchissements puis échoue explicitement si une seule erreur de cette vue est observée ;
+- le simple succès du précontrôle JWT n'est plus considéré comme preuve suffisante du fonctionnement du chemin UI.
+
+Commit du harnais : b0fb53522492c34a14b330bb8d4a128365fbceb7.
+Commit de la suppression du dernier filtre : e1baa2af05a13baca07c294fc0502865e349d0c3.
+Commit de cette mise à jour documentaire : à confirmer à la fin du commit.
+
+La revalidation navigateur complète sur le HEAD réunissant ces modifications est encore attendue. Le ServiceWorker DataCloneError reste un point rouge distinct.
