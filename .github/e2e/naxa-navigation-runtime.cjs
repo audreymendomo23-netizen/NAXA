@@ -607,7 +607,7 @@ async function run() {
 
     await clientPage.goto(BASE_URL + "/panier", { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/panier", "Client → Panier");
-    await clientPage.getByRole("heading", { name: "Mon panier", exact: true }).waitFor({ state: "visible" });
+    await clientPage.locator("main h1").filter({ hasText: /^Mon panier$/ }).waitFor({ state: "visible" });
     await clientPage.getByText("Article local de recette", { exact: true }).waitFor({ state: "visible" });
     await clientPage.getByRole("button", { name: "+", exact: true }).click();
     await clientPage.getByText("2", { exact: true }).waitFor({ state: "visible" });
