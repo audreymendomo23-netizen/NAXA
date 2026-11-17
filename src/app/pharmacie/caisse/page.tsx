@@ -221,51 +221,12 @@ export default function CaissePage() {
   }, [pid, sb]);
 
   // Le formulaire de remboursement ne propose que les crédits qui ont un
-  // encours positif et expose leur identifiant client_credit dédié.
+  // encours positif ; la sélection POS conserve la liste distincte, y compris à 0 FCFA.
   useEffect(() => {
-    if (!pid) { setRefundCreditAccounts([]); return; }
     let active = true;
-    void (async () => {
-      const { data, error } = await sb.rpc("caisse_credit_remboursement_comptes_lister", { p_pharmacie: pid });
-      if (!active) return;
-      if (error) { setRefundCreditAccounts([]); return; }
-      const rows = (data ?? []) as {
-        credit_id: string;
-        client_id: string;
-        solde: number;
-        plafond: number;
-        first_name: string | null;
-        last_name: string | null;
-        phone: string | null;
-        username: string | null;
-      }[];
-      setRefundCreditAccounts(rows.map((row) => ({
-        creditId: row.credit_id,
-        clientId: row.client_id,
-        label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
-        solde: Number(row.solde),
-        plafond: Number(row.plafond),
-      })));
-    })();
-    return () => { active = false; };
-  }, [pid, sb]);
-
-  useEffect(() => {
-    if (!pid) { setRefundTreasuryAccounts([]); return; }
-    let active = true;
-    void (async () => {
-      const { data, error } = await sb.rpc("caisse_credit_tresorerie_comptes_lister", { p_pharmacie: pid });
-      if (!active) return;
-      if (error) { setRefundTreasuryAccounts([]); return; }
-      const rows = (data ?? []) as { account_id: string; nom: string; compte_type: string; canal_paiement: string | null }[];
-      setRefundTreasuryAccounts(rows.map((row) => ({
-        accountId: row.account_id,
-        name: row.nom,
-        type: row.compte_type,
-        channel: row.canal_paiement === "especes" || row.canal_paiement === "orange_money" || row.canal_paiement === "mtn_momo"
-          ? row.canal_paiement : null,
-      })));
-    })();
+    void rechargerComptesCreditRemboursement().catch(() => {
+      if (active) setRefundCreditAccounts([]);
+    });
     return () => { active = false; };
   }, [pid, sb]);
 
@@ -296,6 +257,29 @@ export default function CaissePage() {
       setMsg("Une demande de remboursement en attente est illisible. Ne créez pas un second remboursement avant vérification de l’historique.");
     }
   }, [refundPendingStorageKey]);
+
+  async function rechargerComptesCreditRemboursement() {
+    if (!pid) { setRefundCreditAccounts([]); return; }
+    const { data, error } = await sb.rpc("caisse_credit_remboursement_comptes_lister", { p_pharmacie: pid });
+    if (error) throw error;
+    const rows = (data ?? []) as {
+      credit_id: string;
+      client_id: string;
+      solde: number;
+      plafond: number;
+      first_name: string | null;
+      last_name: string | null;
+      phone: string | null;
+      username: string | null;
+    }[];
+    setRefundCreditAccounts(rows.map((row) => ({
+      creditId: row.credit_id,
+      clientId: row.client_id,
+      label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
+      solde: Number(row.solde),
+      plafond: Number(row.plafond),
+    })));
+  }
 
   async function chargerComptesTresorerieRemboursement() {
     if (!pid) { setRefundTreasuryAccounts([]); return; }
@@ -894,15 +878,29 @@ export default function CaissePage() {
       }
       if (result?.resultat !== "finalisee") throw new Error("La vente à crédit n’a pas retourné un statut final fiable.");
       const saleId = vente;
+      const creditAmount = Number(result.total ?? total);
+      setCreditAccounts((current) => current.map((item) => item.clientId === creditClientId
+        ? { ...item, solde: item.solde + creditAmount }
+        : item));
+      let refundProjectionAvailable = true;
+      try {
+        await rechargerComptesCreditRemboursement();
+      } catch {
+        refundProjectionAvailable = false;
+      }
       setVente(null); setLignes([]); setPercu(""); setResultats([]); setCreditClientId(""); setDraftCheckErreur(false);
       const { data: receipt, error: receiptError } = await sb.rpc("vente_ticket", { p_vente: saleId });
       setPaiementTicket({ mode: "credit", montant: Number(result.total ?? total), montant_percu: null, monnaie_rendue: 0 });
       if (receiptError || !receipt?.length) {
-        setMsg("Vente à crédit finalisée et encours mis à jour. Le ticket est indisponible ; retrouvez la vente dans l’historique.");
+        setMsg(refundProjectionAvailable
+          ? "Vente à crédit finalisée et encours remboursable actualisé. Le ticket est indisponible ; retrouvez la vente dans l’historique."
+          : "Vente à crédit finalisée. Rechargez la Caisse pour actualiser la liste des remboursements ; le ticket est disponible dans l’historique.");
         return;
       }
       setTicket((receipt ?? []) as TicketLigne[]);
-      setMsg("Vente à crédit finalisée. L’encours Client, l’opération de crédit, la session de caisse et le ticket sont mis à jour. Aucun encaissement espèces n’a été déclaré.");
+      setMsg(refundProjectionAvailable
+        ? "Vente à crédit finalisée. L’encours POS et la liste des remboursements sont actualisés ; l’opération, la session et le ticket sont mis à jour. Aucun encaissement espèces n’a été déclaré."
+        : "Vente à crédit finalisée. Rechargez la Caisse pour actualiser la liste des remboursements ; l’opération et le ticket sont enregistrés. Aucun encaissement espèces n’a été déclaré.");
     } catch (error) {
       setMsg(error instanceof Error ? error.message : "Vente à crédit non confirmée. Vérifiez le panier et le statut avant de réessayer.");
       if (session && uid) await chargerSession(session.id, uid);
