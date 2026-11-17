@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§155)  
+**Dernière mise à jour :** 17 novembre 2026 (§160)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `e6e56d5e30a6cb3c23afbbd799c99d15fe32bef4`  
+**HEAD contrôlé avant cette mise à jour :** `6c109d4407d15ee52dbf68a0aaf4565339dda074`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5904,3 +5904,40 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - Aucun déploiement Vercel ni changement Production.
 
 **Continuation exacte :** configurer les destinations réelles et activer les univers selon décision métier, puis exécuter build/TypeScript et un parcours HTTP/Android Admin/Partenaire sur Replay avec données autorisées. Ne pas déclarer AU VERT avant ces preuves.
+
+
+## 160. Diagnostic Playwright Client et renforcement du précontrôle JWT (17/11/2026)
+
+### Résultat du run précédent relu dans les logs
+
+- Run navigateur Replay : [44027615028](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44027615028), conclusion **FAIL**.
+- Préparation du runner : checkout, Node 22, contrôle strict de l'URL Replay, `npm ci`, Playwright/Chromium, build Next.js et démarrage du serveur local : **PASS**.
+- Navigation Promoteur desktop et mobile : **PASS**.
+- Espace Comptable : ouverture, rendu et six destinations latérales (Créances, Rejets, Rapports, Documents, Référentiels, Plan comptable) : **PASS**.
+- Le parcours s'arrête à l'ouverture `/client` : le navigateur aboutit à `/` au lieu de rester sur `/client`. Le script ne journalisait pas encore la réponse HTTP, les cookies présents, les erreurs navigateur ni la visibilité du profil Client sous son JWT ; la cause racine n'est donc pas encore établie. Ne pas attribuer cet échec au produit ou au compte sans ces contrôles.
+- Nettoyage de secours : **PASS** ; l'affectation Comptable, le rôle actif, le partenaire et l'adhésion temporaires ont été supprimés. Le second nettoyage confirme qu'il ne reste aucune fixture gérée par le script.
+- Le run qualité associé [44027614895](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44027614895) a été **CANCELLED** pour les tests/TypeScript/lint/build ; actionlint est **PASS**. Il ne constitue pas une preuve de qualité complète.
+
+### Vérification de la fixture Client sur Replay
+
+Requête SQL en lecture seule du 17/11 :
+- `naxa_e2e_acheteur` existe, rôle `client`, profil actif, âge vérifié, identité Auth confirmée et marqueur `NAXA-E2E-PHARMACY-STAFF-20261115`.
+- Prénom, nom, téléphone, date de naissance et consentement sont renseignés.
+- La policy `profiles_self` autorise explicitement la lecture du profil par `id = auth.uid()`. Aucune modification de policy ou de profil n'est justifiée à ce stade.
+
+### Correction de diagnostic versionnée sur main
+
+- Commit : `6c109d4407d15ee52dbf68a0aaf4565339dda074`.
+- Le runtime vérifie maintenant, avant Chromium, que le JWT Client est valide et que le compte peut lire son propre profil sous RLS.
+- En cas de redirection navigateur, le run consigne le statut HTTP, l'URL finale, les seuls noms de cookies (valeurs masquées, sauf le statut d'âge), les erreurs console/page et les requêtes échouées. Aucun jeton, cookie d'authentification ou secret n'est journalisé.
+- Le scénario reste épinglé à Replay et réutilise les comptes existants ; aucun compte Auth supplémentaire n'est créé.
+
+### Statut et point de reprise
+
+- Client UI : **NON PROUVÉ** tant que le prochain run n'a pas confirmé le précontrôle JWT puis l'ouverture de `/client`.
+- Favoris, panier, recherche/filtres et historique : assertions présentes dans le runtime, mais non atteintes par le run en échec ; aucune ne doit être comptée PASS.
+- Les parcours réels de commande, refus pharmacie, annulation/restauration et historique transactionnel restent à prouver séparément ; les fixtures locales panier/favori ne les couvrent pas.
+- Aucun changement de policy RLS, donnée métier persistante, migration Replay, Production ou déploiement Vercel n'a été effectué par cette correction.
+- Le run qualité complet reste à obtenir sur un commit actuel ; le dernier run cité est annulé.
+
+**Verdict :** Lot B reste **JAUNE / PARTIEL**. Le runner Playwright local fonctionne et a prouvé les écrans Promoteur/Comptable ; le parcours Client a un échec de navigation non diagnostiqué avant le correctif de journalisation. Le prochain point exact est le résultat du workflow déclenché par le commit `6c109d4`, puis correction de la cause démontrée et relance jusqu'aux assertions Client. Ne pas déclarer AU VERT avant PASS navigateur Client et tests métier positifs/négatifs complets.
