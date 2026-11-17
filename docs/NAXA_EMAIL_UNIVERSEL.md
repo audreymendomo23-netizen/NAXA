@@ -6,10 +6,10 @@ Le système repose sur une outbox privée Supabase, un worker Next.js protégé 
 
 ### Fichiers
 
-- `supabase/migrations/20261117120000_naxa_universal_email_outbox.sql` — file universelle, idempotence, verrouillage, reprises et ACL service_role.
-- `supabase/migrations/20261117143000_naxa_email_business_events.sql` — activation de compte, invitations Examens/Livreur, acceptation/révocation et rappels d'expiration J-1.
-- `supabase/migrations/20261117151000_naxa_email_partner_lifecycle.sql` — décisions de dossiers partenaires, activation de convention Prestations à domicile et rappel J-5.
-- `supabase/migrations/20261117160000_naxa_email_subscription_universe_fix.sql` et `20261117161000_naxa_email_prevent_duplicate_subscription_mail.sql` — correctifs de routage et suppression du double envoi potentiel.
+- `supabase/migrations/20261117075134_naxa_universal_email_outbox.sql` — file universelle, idempotence, verrouillage, reprises et ACL service_role.
+- `supabase/migrations/20261117075136_naxa_email_business_events.sql` — activation de compte, invitations Examens/Livreur, acceptation/révocation et rappels d'expiration J-1.
+- `supabase/migrations/20261117075138_naxa_email_partner_lifecycle.sql` — décisions de dossiers partenaires, activation de convention Prestations à domicile et rappel J-5.
+- `supabase/migrations/20261117075612_naxa_email_subscription_universe_fix.sql` et `20261117075626_naxa_email_prevent_duplicate_subscription_mail.sql` — correctifs de routage et suppression du double envoi potentiel.
 - `src/app/api/cron/validite/route.ts` — distribution de l'outbox historique et de l'outbox universelle, synchronisations indépendantes et compteurs.
 - `scripts/google-welcome-email.gs` — passerelle Gmail, contrôle du secret, clé d'idempotence, déclencheur périodique et arrêt d'urgence.
 - `supabase/tests/263_naxa_universal_email_outbox_contract.sql` — contrat structurel et ACL.
@@ -64,7 +64,7 @@ Après configuration, publier une nouvelle version Web App Apps Script, puis ex�
 
 ## Vérifications exécutées sur Replay
 
-Projet : `pwfftcsjyeibxxqhwysw`.
+Projet Replay : `pwfftcsjyeibxxqhwysw`. Les préfixes de fichiers des cinq migrations sont alignés sur les versions réellement inscrites dans le registre Replay.
 
 - Migration outbox universelle : appliquée avec succès.
 - Migration événements comptes/invitations : appliquée avec succès.
