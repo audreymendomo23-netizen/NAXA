@@ -80,6 +80,9 @@ test("la recette utilise trois identités E2E existantes et vérifie leurs marqu
 test("les écritures Replay temporaires disposent d'un nettoyage vérifié", () => {
   assert.match(runtime, /naxa_professional_assignments/);
   assert.match(runtime, /partner_members/);
+  assert.match(runtime, /partner_universes/);
+  assert.match(runtime, /admin_partner_dossiers/);
+  assert.match(runtime, /private\.naxa_owner_subscription_is_current/);
   assert.match(runtime, /from\("partners"\)/);
   assert.match(runtime, /from\("naxa_profile_active_roles"\)/);
   assert.match(runtime, /\.delete\(\)/);
