@@ -4,7 +4,7 @@
 
 **Dernière mise à jour :** 17 novembre 2026 (§148)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `2216a87d192537069f28cefe108529651148d4c8`  
+**HEAD contrôlé avant cette mise à jour :** `ee2f8498660cfb5b806cda2bbd89b3f3a8997209`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5609,17 +5609,19 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 - Les policies de gestion Examens n'appliquaient pas les mêmes conditions que le contrôle partenaire.
 
 **Corrections versionnées sur `main` :**
-- Migration `supabase/migrations/20261117055200_partner_workspace_access_independent_identity.sql`, commit `2695802b67b2b2ede60766a0156dd16a263c4aa7`.
+- Migration Replay version `20261117045640`, fichier `supabase/migrations/20261117045640_partner_workspace_access_independent_identity.sql` (nom aligné sur l'historique Replay après correction), commit de création initiale `2695802b67b2b2ede60766a0156dd16a263c4aa7`, renommage versionné `d22de688e14f0cd3ecc89930091a27c36d679e11`.
 - La RPC de création conserve l'éligibilité initiale du Client actif mais ne modifie plus `profiles.actif`. La validation Admin ne réactive donc jamais une identité.
 - `partners_member_read` exige une identité active et le contrôle complet du partenaire.
 - Les policies `exam_centers`, `exam_services`, `exam_packs`, `exam_center_hours`, `exam_slots` exigent identité active, rôle owner/manager et partenaire autorisé, en `USING` et `WITH CHECK`.
 - Server Action `src/app/partenaire/examens/actions.ts` : contrôle préalable du profil actif avant les actions owner/manager, commit `52c0da2ce4902424bea9a6768b3b39d952a8783c`.
 - Test 313 renforcé pour vérifier que la création conserve le profil actif dans le cas positif, commit `5da5d61a1c8ae5e61876887d8d29e3e9bee69fed`.
-- Nouveau test structurel `supabase/tests/315_partner_workspace_access_invariants.sql`, commit `2216a87d192537069f28cefe108529651148d4c8`.
+- Nouveau test structurel `supabase/tests/315_partner_workspace_access_invariants.sql`, renforcé après découverte de policies permissives parallèles, commit final `8a70d1b1a394e680b108261bee90c411f9b843b8`.
+- Migration complémentaire Replay version `20261117045917`, fichier `supabase/migrations/20261117045917_partner_access_gate_all_exam_surfaces.sql`, commit de création `6eeca3c133f1d94a7ccb8df45fd55c943ce735a6`, renommage versionné `ee2f8498660cfb5b806cda2bbd89b3f3a8997209`. Elle retire l'ancienne policy permissive `exam_hours_partner_manage`, aligne le helper central des capacités du personnel, la visibilité publique, la lecture des rendez-vous partenaire et la gestion des éléments de packs.
 
 **Preuve Replay :**
 - Migration appliquée uniquement sur Replay `pwfftcsjyeibxxqhwysw`.
-- Exécution transactionnelle du test 315 : **PASS** ; invariants de la RPC, du helper d'accès, de la lecture partenaire et des cinq policies Examens vérifiés.
+- Exécution transactionnelle du test 315 après les deux migrations : **PASS** ; invariants de la RPC, du helper d'accès, des capacités du personnel, de la visibilité publique, de la lecture partenaire et des policies owner/manager vérifiés.
+- Contrôle post-migration : l'ancienne policy permissive `exam_hours_partner_manage` n'existe plus ; la policy corrigée `exam_center_hours_partner_manage` est la seule policy owner/manager des horaires.
 - Aucun partenaire/dossier n'était présent sur Replay au contrôle préalable. Le test métier positif complet (création dossier → validation → accès) et les refus par suspension/expiration/révocation ne peuvent donc pas encore être exécutés avec les fixtures existantes.
 - Le test 313 renforcé n'a pas été lancé : il requiert un Admin et un Client admissible, absents du jeu de données Replay observé.
 - Les advisors Supabase signalent des constats RLS préexistants sur plusieurs autres tables sans policy ; aucun constat n'a été attribué à cette migration sans analyse dédiée.
