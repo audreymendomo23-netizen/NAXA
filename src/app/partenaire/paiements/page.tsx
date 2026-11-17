@@ -45,6 +45,7 @@ export default async function PartnerMerchantPaymentsPage({
       <div className="mx-auto max-w-5xl space-y-5">
         <header className="rounded-3xl bg-naxa-green-900 p-5 text-white sm:p-7">
           <Link href="/" className="text-sm font-semibold text-white/80 underline">Retour à NAXA</Link>
+          <Link href="/partenaire/abonnement" className="ml-4 text-sm font-semibold text-white underline">Abonnement NAXA de la structure</Link>
           <p className="mt-4 text-xs font-extrabold uppercase tracking-widest text-white/70">Paiements marchands</p>
           <h1 className="mt-2 text-2xl font-black sm:text-3xl">Coordonnées de réception du partenaire</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/85">Configurez les coordonnées MTN et Orange propres à chaque établissement dont vous êtes propriétaire ou gestionnaire. Le Client doit pouvoir vérifier le nom, le numéro et le code du bénéficiaire avant de payer.</p>
