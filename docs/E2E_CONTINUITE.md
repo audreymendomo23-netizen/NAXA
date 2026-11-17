@@ -6918,3 +6918,70 @@ La conclusion de la section 190 doit donc être précisée : NAXA possède déj�
 | Affichage partenaire « Événement + Canal » transversal | **NON DÉMONTRÉ** |
 
 **Statut global : NON VERT.** La documentation initiale a été enregistrée avant tout début d'implémentation ; cet audit approfondit le diagnostic et corrige la distinction entre outbox comptable et trésorerie. Aucune écriture Replay, migration, modification Production, correction de code ni déploiement n'a été effectué dans cette passe.
+
+
+## 193. Reprise crédit — état Replay, preuves SQL et prochain lot de correction — 17/11/2026
+
+### Réponse fonctionnelle vérifiée
+
+Le système possède un moteur de crédit client opérationnel dans son modèle de données et ses RPC :
+- compte de crédit par client/pharmacie avec plafond, solde et statut actif ;
+- demande de crédit Marketplace ou issue du Comptoir, avec décision Promoteur / Responsable délégué ;
+- approbation Marketplace et cycle de réservation/préparation ; le retrait Caisse reprend la vente POS approuvée ;
+- vente à crédit au Comptoir, demande de décision si le plafond est dépassé, finalisation après approbation ;
+- opération d'octroi enregistrée, solde client mis à jour, ticket POS « crédit » ;
+- remboursement partiel possible par RPC, lié à une session Caisse, avec événement comptable credit_remboursement.
+
+**Conclusion : OUI, NAXA sait traiter les octrois et les soldes de crédit. Le parcours reste PARTIEL pour les remboursements multicanaux et l'expérience partenaire.** Ne pas déclarer le module crédit globalement vert.
+
+### État Replay constaté en lecture seule
+
+Projet pwfftcsjyeibxxqhwysw (Replay), historique supabase_migrations.schema_migrations :
+- migrations crédit 247 à 267 et 299 enregistrées ;
+- intégration Marketplace/POS/comptabilité du 15 novembre enregistrée ;
+- correctif de double-débit / affectation Responsable enregistré ;
+- projection des clients crédit pour la Caisse enregistrée ;
+- configuration comptable crédit enregistrée ;
+- correctif d'insertion des champs de paiement POS du 16 novembre enregistré.
+
+Comptages observés au moment de la reprise : 1 compte de crédit, 43 demandes, 42 opérations, 42 événements comptables credit_octroi / credit_remboursement, 0 mouvement dans tresorerie_mouvements. Ces comptages sont un état instantané Replay, pas une preuve d'exécution E2E ni une donnée de Production.
+
+### Audit du code et des RPC
+
+- src/app/achats/credit/page.tsx et DemandeCreditMarketplaceForm.tsx : formulaire Marketplace avec pharmacie, téléphone, date future de remboursement et justificatif photo/PDF ; le serveur recalcule montant et disponibilité.
+- src/app/achats/credit/suivi/page.tsx : suivi des demandes, comptes, encours, opérations et reçus de remboursement pour le Client.
+- src/app/pharmacie/promoteur/credits/page.tsx et actions.ts : configuration des plafonds Client, plafonds délégués Responsable et décision des demandes.
+- src/app/pharmacie/responsable/credits/page.tsx : périmètre des affectations et contrôle serveur naxa_can_approve_client_credit avant présentation de la capacité à décider.
+- src/app/pharmacie/caisse/page.tsx : sélection du Client crédit, finalisation vente_credit_finaliser, demande de décision si plafond dépassé, ticket crédit. Le fichier ne contient pas d'appel à client_credit_rembourser ni d'écran de saisie de remboursement ; l'interface de recouvrement Caisse reste donc à localiser ou à créer.
+- client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text) : verrouille le compte, contrôle le montant et le périmètre, exige une session Caisse ouverte appartenant à l'acteur, décrémente le solde et insère client_credit_operations avec session et canal. Mais la version Replay contient encore « if p_mode is distinct from 'especes' then raise exception » : seuls les remboursements espèces passent actuellement.
+- La surcharge historique sans paramètre mode force explicitement especes ; ne pas l'utiliser pour de nouveaux appels.
+- Trigger remboursement → compta_evenement est idempotent. Le worker comptable prend en charge credit_remboursement sous réserve de période, journal et mappings validés.
+- caisse_cloturer et son garde-fou n'ajoutent au tiroir que les remboursements mode_paiement='especes', ce qui évite d'ajouter Orange/MTN au tiroir physique.
+- tresorerie_mouvements est toujours vide (0 ligne) et aucune alimentation du ledger par les remboursements n'est prouvée. L'événement comptable n'est pas une entrée de trésorerie.
+
+### Tests exécutés sur Replay pendant cette reprise
+
+| Test | Résultat |
+|---|---|
+| 248_credit_repayment_cash_session.sql | Requête exécutée, aucune ligne de résultat ; le contrat doit être considéré non confirmé par ce retour |
+| 249_credit_repayment_accounting.sql | **PASS** |
+| 250_caisse_credit_repayment_reconciliation.sql | **PASS** |
+| 254_credit_repayment_payment_mode.sql | **PASS structurel** — confirme la signature/canal et le filtre espèces, pas l'acceptation de canaux mobiles |
+| 20261116010200_credit_pos_payment_insert_fields_fix.sql | **PASS** — champs de paiement crédit insérés atomiquement, garde anti-UPDATE conservée |
+| 20261115230500_credit_accounting_worker_runtime.sql | **PASS** — octroi + remboursement équilibrés, transaction annulée |
+| 20261115220000_credit_marketplace_pos_end_to_end.sql | **BLOQUÉ AVANT LE SCÉNARIO** : la fixture ne satisfait pas naxa_guard_physical_caisse_capacity (architecture de Caisse physique absente). Ce n'est pas un échec fonctionnel du moteur crédit ; le test E2E doit être adapté à la configuration actuelle, sans contourner le garde-fou. |
+
+Les tests SQL exécutés avec ROLLBACK n'ont pas laissé de données de test persistantes. Aucun compte, demande ou opération métier n'a été créé par cette reprise.
+
+### Prochain lot d'implémentation — ordre strict
+
+1. Contrat d'événement et canal du crédit : distinguer l'origine de l'octroi (Marketplace ou Comptoir), le type d'événement (octroi, remboursement, annulation) et le canal réel du remboursement (espèces, Orange Money, MTN MoMo). Conserver fournisseur MTN distinct du Mobile Money générique. Ne pas classer l'octroi comme encaissement.
+2. Recouvrement Caisse : créer/localiser une interface sécurisée pour rechercher un crédit client actif, saisir le montant partiel, choisir le canal et enregistrer le remboursement dans la session personnelle ouverte. Le canal mobile au comptoir suit la validation visuelle définie dans la section 191 ; aucune preuve SMS/API opérateur ne doit être exigée pour ce parcours physique. Le canal déclaré doit être enregistré explicitement.
+3. RPC transactionnelle : permettre les canaux autorisés, contrôler rôle/affectation/pharmacie/session, verrouiller le compte, interdire remboursement supérieur au solde, décrémenter une seule fois, enregistrer acteur/date/canal/référence/preuve visuelle, puis émettre l'événement idempotent.
+4. Reçus : exposer le canal et l'événement sur le reçu Client et le journal partenaire ; le reçu doit afficher montant remboursé, solde restant, date, pharmacie, acteur et référence.
+5. Trésorerie : créditer une seule fois le compte de trésorerie correspondant au canal réellement reçu ; conserver le tiroir espèces distinct ; octroi de crédit sans mouvement de trésorerie.
+6. Tests : espèces, Orange, MTN, remboursement partiel, remboursement intégral, solde insuffisant, absence/session Caisse étrangère, doublon/rejeu, clôture tiroir (espèces uniquement), outbox et ledger. Adapter la fixture E2E à l'architecture Caisse physique actuelle, sans désactiver ses gardes.
+
+### Point d'arrêt
+
+La reprise a confirmé le moteur de crédit et identifié le prochain manque fonctionnel concret : l'enregistrement partenaire des remboursements, en particulier les canaux mobiles, et leur visibilité/écriture en trésorerie. La présente passe est un audit + tests de contrats et worker ; aucune modification de code, migration, écriture métier Replay, modification Production ou déploiement n'a été effectuée. Statut : NON VERT.
