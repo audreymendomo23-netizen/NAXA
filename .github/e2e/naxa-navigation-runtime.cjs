@@ -550,7 +550,7 @@ async function run() {
     await partnerPage.getByText("Créer la fiche de ton centre", { exact: true }).waitFor({ state: "visible" });
     await partnerPage.getByRole("textbox").first().waitFor({ state: "visible" });
     assert.deepEqual(partnerBackendErrors, [], "La recette Partenaire Examens a rencontré des erreurs API ou navigateur : " + partnerBackendErrors.join(" | "));
-    console.log("PASS Partenaire Examens — session Promoteur, accès catalogue, formulaire visible, aucune erreur API/page.");
+    console.log("PASS Partenaire Examens — session Promoteur, catalogue Examens et formulaire de création visibles, aucune erreur API/page.");
 
     await partnerPage.goto(BASE_URL + "/partenaire/reservations", { waitUntil: "domcontentloaded" });
     await expectPath(partnerPage, "/partenaire/reservations", "Ouverture des réservations partenaire");
