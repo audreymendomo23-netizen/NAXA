@@ -1,4 +1,5 @@
 name: NAXA navigation Promoteur E2E Replay
+# Replay regression gate: includes Client purchase-history HTTP 400 assertion.
 run-name: NAXA navigation Promoteur E2E Replay — ${{ github.ref_name }}
 
 on:
