@@ -6557,3 +6557,58 @@ Aucune modification de schéma ou donnée Replay/Production, aucune migration, a
 - **VERT** pour les contrôles qualité sur le HEAD courant, pour la recette navigation Replay complète enregistrée sur le même arbre applicatif, pour l'isolation des historiques Client A/B et pour le cas ciblé du panier local multi-pharmacies.
 - **PAS VERT GLOBAL** pour le chantier panier multi-pharmacies de bout en bout : cycle de deux commandes et stock non prouvé ; anomalie ServiceWorker toujours présente.
 - Aucun changement de schéma ou de données Production, aucune migration, aucun déploiement Vercel, aucune action Play Store.
+
+## 187. Correction du trigger de paiement et recette POS complète — 17/11/2026
+
+**Périmètre :** Replay uniquement. Aucun changement de Production, aucun déploiement.
+
+### Cause racine du défaut `to_value`
+
+- L'audit SQL de Replay a relevé que `public.log_reservation_event()` insérait la référence dans `reservation_events.to_value`, colonne inexistante.
+- Le schéma réel possède `paiement_ref` et `detail`. La contrainte `event_type` accepte notamment `payment_declared`, `payment_verified` et `delivery_status_changed`.
+- La fonction déployée était plus récente que le contenu de la migration 021 : elle journalisait également la validation de paiement, les transitions de livraison et l'annulation des commandes. Revenir à l'ancienne fonction aurait supprimé ces comportements.
+
+### Correction
+
+- `supabase/migrations/20261117140000_fix_reservation_event_payment_reference.sql` : fonction réalignée ; la référence est écrite dans `paiement_ref`.
+- `supabase/migrations/20261117141000_preserve_reservation_event_lifecycle_and_fix_payment_ref.sql` : migration de convergence conservant les événements de paiement vérifié, de livraison et la synchronisation d'annulation.
+- Les deux migrations sont appliquées sur Replay : `20261117125920` et `20261117130041`.
+- Aucun ajout de colonne, changement de contrainte, modification RLS ou privilège d'accès. Un seul trigger d'historique reste attaché à `reservations`.
+
+### Preuve du trigger
+
+- Test exact : insertion d'une réservation portant déjà une référence non nulle.
+- Résultat : événements `reservation_created` et `payment_declared` créés ; la référence est stockée dans `paiement_ref`.
+- Contrôle de définition après migration : `to_value` absent ; `payment_verified` et `delivery_status_changed` toujours présents ; trigger unique : PASS.
+
+### Recette du flux de paiement comptoir
+
+Test versionné : `supabase/tests/20261117142000_reservation_event_and_payment_flow_replay.sql`.
+
+Identités métier Replay utilisées dans une transaction SQL avec les claims d'identité correspondants :
+1. Client `naxa_e2e_acheteur` : création par `creer_transactions_client`.
+2. Responsable / Gestionnaire de stock `naxa_e2e_expiry_responsable` : confirmation via `gestionnaire_stock_reservation_confirmer`.
+3. Caisse `naxa_e2e_expiry_stock` : ouverture via `caisse_ouvrir`, encaissement POS via `vente_reservation_encaisser`, puis clôture via `caisse_cloturer`.
+
+**Résultat réel du test Replay :**
+
+| Contrôle | Résultat |
+|---|---:|
+| Réservation | `49a5aafc-e540-4660-8d35-e3989f961bfb` |
+| Vente POS | `a265ec09-d3f5-4e31-8193-13c95929de1c` |
+| Ticket | `V-20261117-000229` |
+| Paiement comptoir | **1 000 FCFA** |
+| Événements paiement/statut | 4 |
+| Lignes visibles dans l'historique Client | 1 |
+| Stock avant → après | 3 → 2 |
+| Écart de clôture Caisse | **0 FCFA** |
+
+Le reçu de la réservation est contrôlé : statut `payee`, paiement `effectue`, mode `especes_retrait`, ticket, montant perçu et horodatage présents. L'achat apparaît dans `client_achats`.
+
+### Nettoyage et limites
+
+La recette a été exécutée dans `BEGIN … ROLLBACK` ; elle n'a donc laissé aucune vente ni réservation persistante. Contrôle après rollback : 0 réservation test, 0 vente test, stock revenu à 3, pharmacie masquée (`visible_recherche=false`), 0 session Caisse ouverte.
+
+**Limite explicite :** cette preuve valide le circuit métier de paiement espèces au comptoir et son reçu POS. Elle ne constitue pas une transaction réelle MTN/Orange ni une preuve de rapprochement SMS/opérateur. Le test utilise les identités des comptes Replay via les claims SQL ; ce n'est pas une recette navigateur avec cookies/JWT HTTP.
+
+**Verdict : VERT sur Replay** pour le défaut `to_value`, la journalisation d'une référence initiale et le parcours métier réservation → confirmation Stock → encaissement Caisse → reçu → historique Client → clôture sans écart. Aucune modification Production, aucun déploiement.
