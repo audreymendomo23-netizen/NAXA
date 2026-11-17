@@ -731,7 +731,7 @@ export default function CaissePage() {
     const creditIdToUse = pending?.creditId ?? refundCreditId;
     const balanceBefore = pending?.balanceBefore ?? account?.solde ?? 0;
     const clientLabel = pending?.clientLabel ?? account?.label ?? "";
-    if (!session || !creditIdToUse || (!account && !retryingUncertainRequest)
+    if ((!session && !retryingUncertainRequest) || !creditIdToUse || (!account && !retryingUncertainRequest)
       || !Number.isSafeInteger(amount) || amount <= 0 || (!retryingUncertainRequest && account && amount > account.solde) || busy) {
       setMsg("Sélectionnez un crédit actif et saisissez un montant entier positif, inférieur ou égal au solde.");
       return;
@@ -1032,21 +1032,22 @@ export default function CaissePage() {
                       const label = channel === "especes" ? "Espèces" : channel === "orange_money" ? "Orange Money" : "MTN MoMo";
                       return <div key={channel} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto]">
                         <label className="block text-sm font-semibold">{label}
-                          <select className="champ mt-1 w-full" value={selected} onChange={(event) => void configurerCompteTresorerieRemboursement(channel, event.target.value)} disabled={refundTreasuryBusy}>
+                          <select className="champ mt-1 w-full" value={selected} onChange={(event) => void configurerCompteTresorerieRemboursement(channel, event.target.value)} disabled={refundTreasuryBusy || refundRequestUncertain}>
                             <option value="">Compte non configuré</option>
                             {options.map((item) => <option key={item.accountId} value={item.accountId}>{item.name}</option>)}
                           </select>
                         </label>
-                        {options.length === 0 && <button className="btn btn-clair" type="button" onClick={() => void creerCompteTresorerieRemboursement(channel)} disabled={refundTreasuryBusy}>Créer compte à 0 FCFA</button>}
+                        {options.length === 0 && <button className="btn btn-clair" type="button" onClick={() => void creerCompteTresorerieRemboursement(channel)} disabled={refundTreasuryBusy || refundRequestUncertain}>Créer compte à 0 FCFA</button>}
                       </div>;
                     })}
                     {refundTreasuryBusy && <p className="text-sm text-slate-500">Mise à jour des comptes…</p>}
                   </div>
 
-                  {creditAccounts.length === 0 ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun crédit client actif avec un solde à rembourser.</p> : <>
+                  {creditAccounts.length === 0 && !refundRequestUncertain ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun crédit client actif avec un solde à rembourser.</p> : <>
                     <label className="block text-sm font-semibold">Client et compte crédit
-                      <select className="champ mt-1 w-full" value={refundCreditId} onChange={(event) => { setRefundCreditId(event.target.value); }} disabled={busy}>
+                      <select className="champ mt-1 w-full" value={refundCreditId} onChange={(event) => { setRefundCreditId(event.target.value); }} disabled={busy || refundRequestUncertain}>
                         <option value="">Sélectionner un compte crédit</option>
+                        {refundPendingRequest && !creditAccounts.some((account) => account.creditId === refundPendingRequest.creditId) && <option value={refundPendingRequest.creditId}>{refundPendingRequest.clientLabel} · demande précédente à confirmer</option>}
                         {creditAccounts.map((account) => <option key={account.creditId} value={account.creditId}>{account.label} · reste dû {fcfa(account.solde)}</option>)}
                       </select>
                     </label>
