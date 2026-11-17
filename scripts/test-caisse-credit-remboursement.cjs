@@ -45,7 +45,7 @@ assert.match(migration, /insert into public\.tresorerie_mouvements/);
 assert.match(migration, /'credit_remboursement'.*'comptoir'/s);
 assert.match(accountMigration, /caisse_credit_tresorerie_compte_creer/);
 assert.match(accountMigration, /pg_advisory_xact_lock/);
-assert.match(idempotencyMigration, /v_existing\\.created_by <> auth\\.uid\\(\\)/);
+assert.match(idempotencyMigration, /v_existing\.created_by <> auth\.uid\(\)/);
 assert.match(idempotencyMigration, /verification_beneficiaire/);
 assert.match(idempotencyMigration, /verification_montant/);
 assert.match(idempotencyMigration, /confirmation_client_vue/);
