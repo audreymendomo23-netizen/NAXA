@@ -146,3 +146,16 @@ Le moteur J-5 devra lire uniquement cette source de vérité. Les dossiers valid
 
 ### État d'implémentation
 **PARTIEL / BLOQUÉ À LA SOURCE DE VÉRITÉ** : la règle métier universelle est documentée. Aucun code de facturation ni migration n'a été ajouté dans cette passe, car le schéma actuel ne permet pas de relier sans ambiguïté un paiement d'abonnement confirmé aux quatre catégories d'entités. Aucun changement Supabase n'a été appliqué et aucun déploiement Production n'a été effectué.
+
+
+## Décision complémentaire — payeur propre à chaque structure (17 novembre 2026)
+
+**Choix A validé : chaque structure contractante règle son propre abonnement.** Le Promoteur ne devient pas payeur collectif des Parapharmacies, centres d'Examens médicaux ou structures de Prestations à domicile du seul fait qu'il est Promoteur ou qu'il détient plusieurs structures. Un contrat collectif ne pourra déroger à cette règle qu'avec un accord explicite, un payeur désigné et une répartition contractuelle des obligations. Un défaut de paiement ne suspend que le périmètre du contrat concerné, selon ses règles propres.
+
+### Contrôle de la piste de confirmation universelle
+
+La table Replay `naxa_universe_payment_confirmations` ne peut pas servir de preuve d'abonnement : ses colonnes obligatoires `reservation_id` et `client_id`, ainsi que sa relation à `naxa_universe_payment_intents`, l'identifient comme confirmation d'un paiement de réservation Client. Elle est donc exclue du déclenchement des cycles partenaires.
+
+Le flux `admin_confirmer_reglement_promoteur` confirme actuellement un règlement lié à `abonnements_promoteurs` et crée sa période mensuelle Promoteur. Aucun événement équivalent propre à chaque structure contractante des trois autres univers n'a été établi dans le schéma contrôlé.
+
+**Verdict technique maintenu : PARTIEL / BLOQUÉ À LA SOURCE DE VÉRITÉ.** La règle du payeur est désormais décidée, mais aucune migration, écriture Replay ou modification du worker n'est autorisée sur la base d'une fausse équivalence avec les paiements de réservation. Il faut un événement de règlement d'abonnement confirmé, relié sans ambiguïté à la structure qui paie, avant de calculer son premier cycle et son J-5. Les cycles historiques valides restent à préserver.
