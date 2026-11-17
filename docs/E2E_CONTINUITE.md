@@ -6963,7 +6963,7 @@ Comptages observés au moment de la reprise : 1 compte de crédit, 43 demandes, 
 
 | Test | Résultat |
 |---|---|
-| 248_credit_repayment_cash_session.sql | Requête exécutée, aucune ligne de résultat ; le contrat doit être considéré non confirmé par ce retour |
+| 248_credit_repayment_cash_session.sql | **PASS silencieux** — bloc DO terminé sans exception ; aucun SELECT de résultat dans le fichier |
 | 249_credit_repayment_accounting.sql | **PASS** |
 | 250_caisse_credit_repayment_reconciliation.sql | **PASS** |
 | 254_credit_repayment_payment_mode.sql | **PASS structurel** — confirme la signature/canal et le filtre espèces, pas l'acceptation de canaux mobiles |
