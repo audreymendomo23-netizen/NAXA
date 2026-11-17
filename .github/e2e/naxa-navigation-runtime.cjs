@@ -39,6 +39,8 @@ let state = {
   originalPharmacieId: null,
   assignmentId: null,
   partnerId: null,
+  paymentId: null,
+  paymentDestinationId: null,
 };
 
 function saveState() {
@@ -231,6 +233,15 @@ async function cleanup() {
   state = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
   const failures = [];
 
+  if (state.paymentId) {
+    const notificationDelete = await admin.from("notifications").delete().eq("related_entity_id", state.paymentId);
+    if (notificationDelete.error) failures.push("suppression des notifications de paiement temporaires : " + notificationDelete.error.message);
+    const paymentDelete = await admin.from("partner_subscription_payments").delete().eq("id", state.paymentId);
+    if (paymentDelete.error) failures.push("suppression du règlement partenaire temporaire : " + paymentDelete.error.message);
+    const remainingPayment = await admin.from("partner_subscription_payments").select("id", { count: "exact", head: true }).eq("id", state.paymentId);
+    if (remainingPayment.error || (remainingPayment.count || 0) !== 0) failures.push("le règlement partenaire temporaire est toujours présent.");
+  }
+
   if (state.partnerId) {
     const membershipDelete = await admin.from("partner_members").delete().eq("partner_id", state.partnerId);
     if (membershipDelete.error) failures.push("suppression de l'adhésion partenaire : " + membershipDelete.error.message);
@@ -266,6 +277,13 @@ async function cleanup() {
     const remainingAssignment = await admin.from("naxa_professional_assignments")
       .select("id", { count: "exact", head: true }).eq("id", state.assignmentId);
     if (remainingAssignment.error || (remainingAssignment.count || 0) !== 0) failures.push("l'affectation Comptable temporaire est toujours présente.");
+  }
+
+  if (state.paymentDestinationId) {
+    const destinationDelete = await admin.from("naxa_payment_destinations").delete().eq("id", state.paymentDestinationId);
+    if (destinationDelete.error) failures.push("suppression de la destination de paiement temporaire : " + destinationDelete.error.message);
+    const remainingDestination = await admin.from("naxa_payment_destinations").select("id", { count: "exact", head: true }).eq("id", state.paymentDestinationId);
+    if (remainingDestination.error || (remainingDestination.count || 0) !== 0) failures.push("la destination de paiement temporaire est toujours présente.");
   }
 
   if (failures.length) {
@@ -337,6 +355,10 @@ async function run() {
     const clientSession = await createExistingUserSession(partnerOwner);
     sessions.push(clientSession);
     await assertClientSession(partnerOwner, clientSession);
+    const adminProfile = await profileByUsername("e2e_admin_261104");
+    assert.equal(adminProfile.role, "admin", "Le compte Admin E2E n'a plus le rôle Admin.");
+    const adminSession = await createExistingUserSession(adminProfile);
+    sessions.push(adminSession);
 
     await setActiveComptableRole(comptable, comptableSession.accessToken);
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
@@ -422,49 +444,109 @@ async function run() {
     }
     await comptableContext.close();
 
-    // L'accès partenaire est volontairement conditionné par un paiement confirmé en base.
-    // Ne jamais fabriquer une confirmation de paiement pour débloquer un test de navigation.
-    const { data: partnerMemberships, error: partnerMembershipError } = await admin.from("partner_members")
-      .select("partner_id,member_role,partners!inner(id,name,status,partner_type)")
-      .eq("user_id", promoter.id)
-      .eq("partners.status", "active")
-      .eq("partners.partner_type", "centre_examen")
-      .in("member_role", ["owner", "manager"]);
-    if (partnerMembershipError) throw partnerMembershipError;
-    const partnerIds = (partnerMemberships || []).map((membership) => membership.partner_id);
-    let confirmedPartnerIds = [];
-    if (partnerIds.length) {
-      const { data: subscriptions, error: subscriptionError } = await admin.from("partner_subscriptions")
-        .select("partner_id,status,first_confirmed_payment_at")
-        .in("partner_id", partnerIds)
-        .eq("status", "active")
-        .not("first_confirmed_payment_at", "is", null);
-      if (subscriptionError) throw subscriptionError;
-      confirmedPartnerIds = [...new Set((subscriptions || []).map((subscription) => subscription.partner_id))];
-    }
-    if (confirmedPartnerIds.length) {
-      const partnerContext = await browserContext(browser, promoterSession, { width: 1440, height: 900 });
-      const partnerPage = await partnerContext.newPage();
-      partnerPage.setDefaultTimeout(15000);
-      await partnerPage.goto(BASE_URL + "/partenaire/catalogue", { waitUntil: "domcontentloaded" });
-      await expectPath(partnerPage, "/partenaire/catalogue", "Ouverture du catalogue partenaire");
-      const catalogueExamensLink = partnerPage.getByRole("link", { name: "Centres et examens", exact: true });
-      await catalogueExamensLink.waitFor({ state: "visible" });
-      await catalogueExamensLink.click();
-      await expectPath(partnerPage, "/partenaire/examens", "Catalogue partenaire → Centres et examens");
-      await partnerPage.getByRole("heading", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
-      await partnerPage.getByText("Créer la fiche de ton centre", { exact: true }).waitFor({ state: "visible" });
-      console.log("PASS rendu — Partenaire → Centres et examens");
+    // Fixture partenaire éphémère Replay : comptes Promoteur et Admin existants uniquement.
+    // Le paiement est explicitement synthétique, passe par les RPC réelles, puis est nettoyé.
+    const { data: tempPartner, error: partnerInsertError } = await admin.from("partners").insert({
+      name: TEMP_PARTNER_NAME, partner_type: "centre_examen", city: "Yaoundé",
+      status: "active", created_by: promoter.id,
+    }).select("id").single();
+    if (partnerInsertError) throw partnerInsertError;
+    state.partnerId = tempPartner.id;
+    saveState();
 
-      await partnerPage.goto(BASE_URL + "/partenaire/reservations", { waitUntil: "domcontentloaded" });
-      await expectPath(partnerPage, "/partenaire/reservations", "Ouverture des réservations partenaire");
-      await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
-      await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).click();
-      await expectPath(partnerPage, "/partenaire/examens", "Réservations partenaire → Centres et examens");
-      await partnerContext.close();
-    } else {
-      console.log("SKIP Partenaire UI — aucun centre Replay actif avec abonnement et premier paiement confirmés pour le compte Promoteur ; aucun paiement fictif créé.");
-    }
+    const { error: universeInsertError } = await admin.from("partner_universes").insert({
+      partner_id: state.partnerId, universe_slug: "examens", enabled: true,
+    });
+    if (universeInsertError) throw universeInsertError;
+    const { error: dossierInsertError } = await admin.from("admin_partner_dossiers").insert({
+      partner_id: state.partnerId, promoteur_id: promoter.id, universe_slug: "examens",
+      monthly_fee_fcfa: 1, dossier_status: "validated", created_by: promoter.id,
+    });
+    if (dossierInsertError) throw dossierInsertError;
+    const { error: memberInsertError } = await admin.from("partner_members").insert({
+      partner_id: state.partnerId, user_id: promoter.id, member_role: "owner",
+    });
+    if (memberInsertError) throw memberInsertError;
+
+    const { data: destination, error: destinationError } = await admin.from("naxa_payment_destinations").insert({
+      canal: "orange_money", beneficiaire: "NAXA E2E — Destination non réelle",
+      reference_destination: "E2E-REPLAY-NON-REEL",
+      instructions: "Simulation automatisée Replay uniquement — aucun paiement réel.",
+      actif: true, updated_by: adminProfile.id,
+    }).select("id").single();
+    if (destinationError) throw destinationError;
+    state.paymentDestinationId = destination.id;
+    saveState();
+
+    const promoterClient = createClient(PROJECT_URL, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: "Bearer " + promoterSession.accessToken } },
+    });
+    const { data: submittedPaymentId, error: submitPaymentError } = await promoterClient.rpc("partner_soumettre_reglement_abonnement", {
+      p_partner_id: state.partnerId, p_montant: 1, p_canal: "orange_money",
+      p_compte_payeur: "E2E-REPLAY-NON-REEL",
+      p_reference: "NAXA-E2E-REPLAY-" + RUN_LABEL,
+      p_paye_le: new Date().toISOString(), p_preuve_path: null,
+    });
+    if (submitPaymentError) throw submitPaymentError;
+    assert.ok(submittedPaymentId, "La déclaration de paiement partenaire n'a pas retourné d'identifiant.");
+    state.paymentId = submittedPaymentId;
+    saveState();
+
+    const { data: pendingPayment, error: pendingPaymentError } = await admin.from("partner_subscription_payments")
+      .select("status").eq("id", submittedPaymentId).single();
+    if (pendingPaymentError) throw pendingPaymentError;
+    assert.equal(pendingPayment.status, "pending", "Le règlement doit rester en attente avant décision Admin.");
+    const { data: hiddenBeforePayment, error: hiddenBeforePaymentError } = await promoterClient.from("partners")
+      .select("id").eq("id", state.partnerId).maybeSingle();
+    if (hiddenBeforePaymentError) throw hiddenBeforePaymentError;
+    assert.equal(hiddenBeforePayment, null, "Un partenaire sans paiement confirmé est visible.");
+
+    const adminClient = createClient(PROJECT_URL, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: "Bearer " + adminSession.accessToken } },
+    });
+    const { error: confirmPaymentError } = await adminClient.rpc("admin_confirmer_reglement_partenaire", {
+      p_reglement: submittedPaymentId, p_admin: adminProfile.id,
+    });
+    if (confirmPaymentError) throw confirmPaymentError;
+
+    const [{ data: confirmedPayment, error: confirmedPaymentError }, { data: activeSubscription, error: activeSubscriptionError }, { data: visiblePartner, error: visiblePartnerError }] = await Promise.all([
+      admin.from("partner_subscription_payments").select("status,confirmation_source,receipt_number").eq("id", submittedPaymentId).single(),
+      admin.from("partner_subscriptions").select("status,first_confirmed_payment_at,period_start,due_date").eq("partner_id", state.partnerId).single(),
+      promoterClient.from("partners").select("id,status").eq("id", state.partnerId).single(),
+    ]);
+    if (confirmedPaymentError) throw confirmedPaymentError;
+    if (activeSubscriptionError) throw activeSubscriptionError;
+    if (visiblePartnerError) throw visiblePartnerError;
+    assert.equal(confirmedPayment.status, "confirmed", "Le règlement synthétique n'a pas été confirmé.");
+    assert.equal(confirmedPayment.confirmation_source, "manual_admin", "Source Admin non enregistrée.");
+    assert.ok(confirmedPayment.receipt_number, "Reçu partenaire absent.");
+    assert.equal(activeSubscription.status, "active", "Cycle partenaire non activé.");
+    assert.ok(activeSubscription.first_confirmed_payment_at, "Date du premier paiement confirmé absente.");
+    assert.ok(activeSubscription.period_start && activeSubscription.due_date, "Bornes du cycle mensuel absentes.");
+    assert.equal(visiblePartner.status, "active", "Partenaire payé non lisible sous JWT Promoteur.");
+    console.log("PASS Partenaire — RPC déclaration, attente, confirmation Admin, reçu, cycle et garde RLS.");
+
+    const partnerContext = await browserContext(browser, promoterSession, { width: 1440, height: 900 });
+    const partnerPage = await partnerContext.newPage();
+    partnerPage.setDefaultTimeout(15000);
+    await partnerPage.goto(BASE_URL + "/partenaire/catalogue", { waitUntil: "domcontentloaded" });
+    await expectPath(partnerPage, "/partenaire/catalogue", "Ouverture du catalogue partenaire");
+    const catalogueExamensLink = partnerPage.getByRole("link", { name: "Centres et examens", exact: true });
+    await catalogueExamensLink.waitFor({ state: "visible" });
+    await catalogueExamensLink.click();
+    await expectPath(partnerPage, "/partenaire/examens", "Catalogue partenaire → Centres et examens");
+    await partnerPage.getByRole("heading", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
+    await partnerPage.getByText("Créer la fiche de ton centre", { exact: true }).waitFor({ state: "visible" });
+    console.log("PASS rendu — Partenaire → Centres et examens");
+
+    await partnerPage.goto(BASE_URL + "/partenaire/reservations", { waitUntil: "domcontentloaded" });
+    await expectPath(partnerPage, "/partenaire/reservations", "Ouverture des réservations partenaire");
+    await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
+    await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).click();
+    await expectPath(partnerPage, "/partenaire/examens", "Réservations partenaire → Centres et examens");
+    await partnerContext.close();
 
     // Client E2E : session d'un profil Client Replay déjà existant.
     // Les données panier/favori ci-dessous sont locales, marquées démo et supprimées par les actions UI.
