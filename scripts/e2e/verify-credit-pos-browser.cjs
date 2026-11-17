@@ -114,6 +114,15 @@ async function run(env = process.env) {
     });
   }
 
+  async function ensureCashTreasuryAccount() {
+    const accountId = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
+      p_pharmacie: PHARMACY_ID,
+      p_canal: "especes",
+    }, "Configuration du compte trésorerie espèces");
+    if (typeof accountId !== "string") throw new Error("Compte espèces de trésorerie non confirmé.");
+    return accountId;
+  }
+
   async function pageLogin(page, username, password, espace, retour) {
     // Le middleware protège aussi /connexion par la déclaration d’âge.
     // Le compte est provisionné majeur ; on reproduit les deux marqueurs de cette déclaration
@@ -291,13 +300,27 @@ async function run(env = process.env) {
       const credits = await rows("client_credits?select=solde&id=eq." + encodeURIComponent(creditId) + "&limit=1");
       const balance = Number(credits[0]?.solde ?? 0);
       if (balance > 0) {
+        const treasuryAccountId = await ensureCashTreasuryAccount();
         await rpc("client_credit_rembourser", cashierToken, {
           p_credit: creditId,
           p_montant: balance,
           p_mode: "especes",
           p_reference: "NAXA-E2E-CREDIT-RECOVERY-" + crypto.randomUUID(),
           p_motif: "Régularisation de la fixture technique non commerciale Replay",
+          p_idempotency_key: crypto.randomUUID(),
+          p_verification_beneficiaire: false,
+          p_verification_montant: false,
+          p_confirmation_client_vue: false,
         }, "Remboursement compensatoire de la fixture");
+        const refundMovement = await rows(
+          "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,canal_paiement,origine"
+            + "&source_type=eq.credit_remboursement&canal_paiement=eq.especes&reference=like.NAXA-E2E-CREDIT-RECOVERY-*&limit=1"
+        );
+        if (refundMovement.length !== 1 || refundMovement[0].compte_id !== treasuryAccountId
+          || refundMovement[0].nature !== "encaissement" || Number(refundMovement[0].montant) !== balance
+          || refundMovement[0].origine !== "comptoir") {
+          throw new Error("Le mouvement trésorerie du remboursement compensatoire n'a pas été confirmé.");
+        }
       }
     }
     const refunds = await rows(
@@ -603,13 +626,21 @@ async function run(env = process.env) {
     await clientPage.getByText("Achat à crédit", { exact: false }).first().waitFor();
 
     const refundReference = "NAXA-E2E-CREDIT-BROWSER-" + crypto.randomUUID();
-    const refund = await rpc("client_credit_rembourser", cashierToken, {
+    const cashTreasuryAccountId = await ensureCashTreasuryAccount();
+    const refundIdempotencyKey = crypto.randomUUID();
+    const refundArgs = {
       p_credit: creditId,
       p_montant: REFUND_AMOUNT,
       p_mode: "especes",
       p_reference: refundReference,
       p_motif: "Recette E2E interne non commerciale — remboursement complet du crédit POS",
-    }, "Remboursement runtime du crédit POS");
+      p_idempotency_key: refundIdempotencyKey,
+      p_verification_beneficiaire: false,
+      p_verification_montant: false,
+      p_confirmation_client_vue: false,
+    };
+    const refund = await rpc("client_credit_rembourser", cashierToken, refundArgs,
+      "Remboursement runtime du crédit POS");
     if (typeof refund !== "string") throw new Error("Le RPC de remboursement n'a pas retourné un identifiant.");
 
     const refundOps = await rows(
@@ -622,6 +653,20 @@ async function run(env = process.env) {
       || refundOp.created_by !== cashierUserId || refundOp.reference !== refundReference) {
       throw new Error("Le remboursement n'est pas rattaché au Caisse, au titulaire ou au compte crédit attendu.");
     }
+    const refundMovementRows = await rows(
+      "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,source_id,canal_paiement,origine"
+        + "&source_type=eq.credit_remboursement&source_id=eq." + encodeURIComponent(refund) + "&limit=2"
+    );
+    const refundMovement = await ensureSingle(refundMovementRows, "Mouvement trésorerie du remboursement");
+    if (refundMovement.compte_id !== cashTreasuryAccountId || refundMovement.nature !== "encaissement"
+      || Number(refundMovement.montant) !== REFUND_AMOUNT || refundMovement.canal_paiement !== "especes"
+      || refundMovement.origine !== "comptoir") {
+      throw new Error("Le remboursement POS n'a pas généré son mouvement espèces dans le compte trésorerie correspondant.");
+    }
+    const replayedRefund = await rpc("client_credit_rembourser", cashierToken, refundArgs,
+      "Rejeu idempotent du remboursement POS");
+    if (replayedRefund !== refund) throw new Error("Le rejeu du remboursement POS a créé une seconde opération.");
+
     const outbox = await rows(
       "compta_evenement?select=id,evenement_type,source_type,source_id,donnees"
         + "&source_type=eq.credit_operation&source_id=eq." + encodeURIComponent(refund)
