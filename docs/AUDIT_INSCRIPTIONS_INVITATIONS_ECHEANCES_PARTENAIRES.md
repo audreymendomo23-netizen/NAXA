@@ -29,6 +29,8 @@ Aucun univers supplémentaire ne doit être déduit d'une catégorie générique
 
 Choix validé : **cycle mensuel commun avec rappel à J-5**.
 
+Décision complémentaire validée le 17 novembre 2026 : **dans chacun des quatre univers (Pharmacie, Parapharmacie, Examens médicaux, Prestations à domicile), le cycle mensuel commence exclusivement à la confirmation effective du premier paiement par NAXA**. La validation du dossier, la création du partenaire, la saisie d'un montant, la déclaration d'un paiement ou la réception isolée d'une notification ne déclenchent pas le cycle. La date de confirmation vérifiée est la référence de début de période ; le rappel J-5 est calculé sur l'échéance réelle issue de cette période.
+
 Cette règle harmonise le calendrier des échéances qui existent réellement. Elle ne crée pas automatiquement un abonnement mensuel, une redevance ou une obligation financière pour un partenaire dont le modèle métier ne le prévoit pas. Les dates et conditions de référence restent celles des contrats, abonnements ou conventions propres à chaque univers.
 
 ## Audit technique — constats vérifiés
@@ -120,3 +122,27 @@ Une seconde lecture du schéma Replay a recherché toutes les colonnes de dates 
 Je n'ai pas ajouté une migration spéculative et je n'ai pas modifié le worker pour calculer des dates à partir de monthly_fee_fcfa. Cela aurait créé de fausses échéances, des rappels erronés et potentiellement des blocages d'accès non autorisés.
 
 **État de la demande « fais-le » :** audit approfondi terminé ; implémentation applicative non commencée, car le schéma de facturation mensuelle des partenaires et le contrat de délivrance des invitations externes ne sont pas encore présents. Aucun changement Supabase ou Production n'a été effectué.
+
+
+## Contradiction technique après validation de la règle commune — 17 novembre 2026
+
+### Hypothèse à réfuter
+« Il suffit de démarrer toutes les échéances à la validation du dossier ou à la première preuve de paiement reçue. »
+
+Cette hypothèse est fausse :
+- admin_partner_dossiers contient un montant mensuel, mais aucune date de début de cycle, échéance, période réglée, statut de paiement ni référence de paiement confirmée.
+- La fonction admin_confirmer_reglement_promoteur confirme un règlement Promoteur et crée sa période mensuelle à partir de sa confirmation ; elle est spécifique au Promoteur et ne crée pas les périodes des dossiers Parapharmacie, Examens ou Prestations.
+- naxa_match_universe_payment_sms rapproche les preuves d'un paiement de réservation Client/partenaire. Il crée une confirmation financière liée à universe_reservations, pas une souscription mensuelle du partenaire. Réutiliser cette confirmation comme preuve d'abonnement serait une confusion de domaine.
+- La déclaration manuelle d'un paiement ou l'intention de paiement submitted n'est pas une confirmation financière. Seul un événement de confirmation NAXA vérifié peut déclencher le cycle.
+- private.naxa_partner_has_confirmed_payment contrôle actuellement la validation du dossier et l'abonnement courant du Promoteur propriétaire ; il ne prouve pas un paiement d'abonnement propre à chaque dossier partenaire.
+
+### Conséquence par contradiction
+Si le moteur utilisait la validation du dossier, un partenaire pourrait recevoir une échéance avant tout paiement confirmé. Si le moteur utilisait une réservation Client ou un SMS simplement déclaré, une transaction commerciale pourrait être interprétée à tort comme le premier paiement d'abonnement. Dans les deux cas, NAXA générerait de fausses échéances et pourrait déclencher des rappels ou blocages injustifiés.
+
+### Correction sûre requise avant activation
+Créer une source de vérité de souscription professionnelle commune aux quatre univers, liée à l'entité facturée et à l'événement de confirmation du premier règlement. Elle devra conserver au minimum : univers autorisé, partenaire/pharmacie facturé, montant et devise FCFA, date de confirmation vérifiée, début et fin de période, prochaine échéance, statut, référence et preuve de confirmation, auteur/mécanisme de confirmation, horodatages et idempotence. Les règles d'accès et de suspension resteront séparées par univers et ne seront pas réactivées automatiquement par la seule confirmation d'un paiement.
+
+Le moteur J-5 devra lire uniquement cette source de vérité. Les dossiers validés sans premier paiement confirmé resteront sans cycle et sans rappel. Les paiements de réservations Clients, les conventions à date d'expiration et les simples déclarations ne seront jamais convertis en souscriptions.
+
+### État d'implémentation
+**PARTIEL / BLOQUÉ À LA SOURCE DE VÉRITÉ** : la règle métier universelle est documentée. Aucun code de facturation ni migration n'a été ajouté dans cette passe, car le schéma actuel ne permet pas de relier sans ambiguïté un paiement d'abonnement confirmé aux quatre catégories d'entités. Aucun changement Supabase n'a été appliqué et aucun déploiement Production n'a été effectué.
