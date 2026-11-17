@@ -8,7 +8,7 @@ Le sélecteur public présente strictement quatre univers : **Pharmacie**, **Par
 
 - `src/lib/ecosystemes.ts` : retrait de Bébé & Maman et Dispositifs médicaux de la liste présentée par le sélecteur. Les identifiants historiques restent typés pour éviter une rupture immédiate des anciens appels internes ; ils ne sont plus proposés dans la liste des univers.
 - `src/app/api/universes/status/route.ts` : exposition des seuls états configurables `parapharmacie`, `examens` et `prestations`, avec Pharmacie toujours active par défaut.
-- `src/middleware.ts` : contrôle explicite de `universes.enabled = true` pour les URL des univers configurables. Les anciennes routes Bébé & Maman et suivi ne sont plus interprétées comme des univers activables indépendamment. Le contrôle reste fail-closed en cas d'erreur.
+- `src/middleware.ts` : contrôle explicite de `universes.enabled = true` pour les URL des univers configurables. Les anciennes routes Bébé & Maman et suivi ne sont plus interprétées comme des univers activables indépendamment, mais restent dans les préfixes protégés par authentification. Le contrôle reste fail-closed en cas d'erreur.
 - `src/components/IntroNaxa.tsx` : l'animation d'introduction ne capte plus les clics ; les liens de l'accueil restent accessibles pendant l'introduction.
 - `src/components/EnTeteAccueil.tsx` : suppression d'une ancienne liste d'univers locale inutilisée et incohérente.
 
