@@ -240,8 +240,9 @@ export default function CaissePage() {
       setRefundTreasuryAccounts([]);
       return () => { active = false; };
     }
-    void sb.rpc("caisse_credit_tresorerie_comptes_lister", { p_pharmacie: pid })
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await sb.rpc("caisse_credit_tresorerie_comptes_lister", { p_pharmacie: pid });
         if (!active) return;
         if (error) throw error;
         const rows = (data ?? []) as {
@@ -257,12 +258,12 @@ export default function CaissePage() {
           channel: row.canal_paiement === "especes" || row.canal_paiement === "orange_money" || row.canal_paiement === "mtn_momo"
             ? row.canal_paiement : null,
         })));
-      })
-      .catch(() => {
+      } catch {
         if (!active) return;
         setRefundTreasuryAccounts([]);
         setMsg("Impossible de charger les comptes de trésorerie de cette pharmacie. Les remboursements restent bloqués jusqu’au rechargement.");
-      });
+      }
+    })();
     return () => { active = false; };
   }, [pid, sb]);
 
