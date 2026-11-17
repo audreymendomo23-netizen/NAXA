@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§144)  
+**Dernière mise à jour :** 17 novembre 2026 (§145)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `0d9fa32c49be4218fda6e933d3ee2b802b24dabd`  
+**HEAD contrôlé avant cette mise à jour :** `d1c6243105752da8a5751992128d9cca978c04fb`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5506,3 +5506,34 @@ La fonction `public.naxa_delivery_monthly_due` incluait auparavant `commission_n
 - Cette passe valide le moteur SQL avec identité Admin simulée, pas une connexion HTTP réelle ni le rendu du parcours navigateur. Aucun outil de navigation authentifiée n'était disponible pour prouver l'interface.
 
 **Verdict :** test SQL direct Production réussi et intégralement annulé ; parcours Partenaire Examens global **JAUNE / PARTIEL**, tant que les gardes serveur d'éligibilité et le test UI ne sont pas prouvés. Aucune création réelle ni modification persistante Production.
+
+## 145. Garde d'éligibilité du titulaire d'un dossier Partenaire (17/11/2026)
+
+### Audit et cause racine
+
+La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'une ligne dans `public.profiles` avant de suspendre le profil et de créer le dossier. Elle ne prouvait pas que le titulaire était un Client actif, majeur, âge vérifié, consentant et détenteur d'une adresse e-mail confirmée. Une simple existence de profil ne suffisait donc pas à protéger l'entrée dans l'écosystème Partenaire.
+
+### Correction versionnée et appliquée sur Replay
+
+- Migration source : `supabase/migrations/20261117011921_admin_create_partner_dossier_owner_eligibility_guard.sql`.
+- La fonction exige maintenant, avant toute suspension du profil : rôle `client`, `actif=true`, `age_verified=true`, date de naissance présente et correspondant à au moins 18 ans selon la date locale `Africa/Douala`, `consent_accepted_at` non nul, adresse e-mail non vide et `auth.users.email_confirmed_at` non nul.
+- Le contrôle est effectué dans la RPC `SECURITY DEFINER`, avec `search_path` vide. L'exécution reste refusée à `anon` et autorisée à `authenticated` sous contrôle interne `public.is_admin()`.
+- Migration appliquée sur Replay `pwfftcsjyeibxxqhwysw` sous version `20261117011921`, nom `admin_create_partner_dossier_owner_eligibility_guard`.
+
+### Preuves de test Replay
+
+- Test comportemental versionné : `supabase/tests/313_admin_partner_dossier_owner_eligibility.sql`.
+- Résultat : `313_admin_partner_dossier_owner_eligibility PASS — positif rollback + 7 refus + aucun résiduel`.
+- Cas négatif rejetés : profil non-Client ; Client inactif ; âge non vérifié ; date de naissance mineure malgré le drapeau `age_verified=true` ; date de naissance absente ; consentement absent ; e-mail non confirmé.
+- Cas positif : Client admissible accepté par la RPC dans un sous-test immédiatement annulé.
+- Contrôle final Replay : `partners=0`, `partner_members=0`, `exam_centers=0`, `admin_partner_dossiers=0`, aucun événement `partner.dossier_created` supplémentaire.
+- Privilèges confirmés après migration : `anon EXECUTE=false`, `authenticated EXECUTE=true` ; `SECURITY DEFINER=true`, `search_path` vide.
+
+### Non-régression et état Production
+
+- Le test structurel historique `supabase/tests/20261026100000_admin_unified_universe_dossiers.sql` avait une assertion périmée : il exigeait que la validation commerciale réactive directement `profiles.actif`. Le modèle actuel gère le statut partenaire et les verrous d'abonnement sans muter l'identité client. L'assertion a été alignée sur `private.naxa_owner_subscription_is_current`, `public.naxa_subscription_access_locks` et le marqueur d'audit `identity_actif_mutated`.
+- Après cette mise à jour, le test structurel historique passe sur Replay : `Contrat 20261026100000 — dossiers transversaux et service Bébé & Maman : PASS structurel`.
+- Contrôle Production strictement en lecture seule après la correction : la nouvelle garde n'y est pas présente, la migration n'y est pas enregistrée et les compteurs Partenaires / membres / centres / dossiers restent à zéro. La Production n'a reçu aucune migration ni écriture de cette correction.
+- Les deux tests SQL sont PASS sur Replay ; le statut CI du HEAD n'a pas été contrôlé dans cette passe. Aucun parcours navigateur n'a été exécuté.
+
+**Verdict :** garde d'éligibilité corrigée, appliquée et testée sur Replay ; aucune écriture résiduelle. Le parcours Partenaire Examens global reste **JAUNE / PARTIEL** tant que l'interface n'est pas testée et que la correction n'est pas explicitement autorisée puis appliquée en Production. Aucun compte Partenaire réel créé ; aucun déploiement Vercel ou Play Store.
