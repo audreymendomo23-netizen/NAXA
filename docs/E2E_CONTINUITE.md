@@ -6969,7 +6969,7 @@ Comptages observés au moment de la reprise : 1 compte de crédit, 43 demandes, 
 | 254_credit_repayment_payment_mode.sql | **PASS structurel** — confirme la signature/canal et le filtre espèces, pas l'acceptation de canaux mobiles |
 | 20261116010200_credit_pos_payment_insert_fields_fix.sql | **PASS** — champs de paiement crédit insérés atomiquement, garde anti-UPDATE conservée |
 | 20261115230500_credit_accounting_worker_runtime.sql | **PASS** — octroi + remboursement équilibrés, transaction annulée |
-| 20261115220000_credit_marketplace_pos_end_to_end.sql | **BLOQUÉ AVANT LE SCÉNARIO** : la fixture ne satisfait pas naxa_guard_physical_caisse_capacity (architecture de Caisse physique absente). Ce n'est pas un échec fonctionnel du moteur crédit ; le test E2E doit être adapté à la configuration actuelle, sans contourner le garde-fou. |
+| 20261115220000_credit_marketplace_pos_end_to_end.sql | **BLOQUÉ AVANT LE SCÉNARIO** : la fixture ne satisfait pas private.naxa_guard_physical_caisse_capacity : la fonction exige une ligne pharmacie_architectures active et un niveau 3 dans naxa_architecture_niveaux avant toute création de Caisse. Ce n'est pas un échec fonctionnel du moteur crédit ; le test E2E doit provisionner une architecture réellement autorisée, sans contourner le garde-fou. |
 
 Les tests SQL exécutés avec ROLLBACK n'ont pas laissé de données de test persistantes. Aucun compte, demande ou opération métier n'a été créé par cette reprise.
 
