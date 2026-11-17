@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§148)  
+**Dernière mise à jour :** 17 novembre 2026 (§149)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `c69d70e47a2a7e72d997234b05fe39ebab1b385f`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -5633,3 +5633,30 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 - Production et Vercel non touchés ; CI non exécutée dans cette passe.
 
 **Verdict de ce lot :** correction SQL et Server Action intégrée, test structurel Replay PASS ; recette métier complète encore PARTIELLE. Ne pas annoncer AU VERT.
+
+## 149. Recette métier transactionnelle — identité globale et accès Partenaire (17/11/2026)
+
+**Périmètre fermé :** vérifier sur Replay le cycle réel création de dossier → validation Admin → décision d'accès, sans conserver de données de test. Aucun élargissement à l'audit général.
+
+**Fixtures exploitées :**
+- Les comptes Auth/Profils déjà présents sur Replay ont été réutilisés : un Admin actif et un Client admissible (email confirmé, âge vérifié, consentement et identité active).
+- Aucun nouveau compte permanent n'était nécessaire : la recette crée les objets métier temporaires dans une transaction annulée.
+- Pour rendre l'univers Examens testable sans changer son état durable, `universes.examens` et `feature_flags.universe.examens` ont été activés uniquement dans la transaction de test, puis restaurés par `ROLLBACK`.
+
+**Exécution SQL comportementale sur Replay :**
+- Contexte Admin SQL réglé sur l'identité Admin E2E existante ; les deux RPC réelles `admin_create_partner_dossier` et `admin_valider_dossier_partenaire` ont été exécutées.
+- Création d'un premier dossier Examens : le profil Client est resté `actif=true` ; après validation, le partenaire et son abonnement de test actifs ont ouvert l'accès via `private.naxa_partner_has_confirmed_payment`.
+- Création d'un second dossier avec le même Client ; son profil a été passé à `actif=false` avant validation. La RPC a validé le dossier sans réactiver le profil ; le helper a refusé l'accès Partenaire.
+- Assertions négatives exécutées et réussies : dossier en attente, partenaire en attente, univers partenaire désactivé, abonnement impayé et verrou d'accès actif entraînent tous un refus d'accès.
+- La recette transactionnelle s'est terminée sans exception SQL ; toutes les assertions PL/pgSQL explicites ont donc été franchies.
+
+**Contrôle après rollback :**
+- `partners=0`, `admin_partner_dossiers=0`, conventions et abonnements de test = 0.
+- Aucun verrou de test résiduel.
+- Le Client utilisé est toujours `actif=true`.
+- `universes.examens.enabled=false` et `feature_flags.universe.examens.enabled=false`, identiques à leur état initial.
+- Aucune donnée métier de test n'a été conservée.
+
+**Résultat : PASS — comportement SQL métier du choix 2 prouvé sur Replay**, incluant création, validation, accès positif, non-réactivation d'une identité suspendue et refus sur les principaux états d'accès. Le test structurel 315 reste PASS (§148).
+
+**Limite précisément circonscrite :** la navigation navigateur avec session Auth interactive n'a pas été exécutée dans cette passe. Cela ne remet pas en cause les assertions SQL des RPC et du helper, mais interdit d'affirmer que le parcours visuel `/partenaire/examens` est lui aussi testé. Aucun changement Production, aucun déploiement Vercel, aucune modification durable de Replay.
