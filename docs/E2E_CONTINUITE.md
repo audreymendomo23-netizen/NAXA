@@ -6416,3 +6416,20 @@ La revalidation navigateur complète sur le HEAD réunissant ces modifications e
 - La nouvelle correction `1a39e08` déclenche une nouvelle qualité sur le HEAD correspondant. Le workflow navigateur surveille maintenant `src/app/panier/page.tsx` et `src/lib/panier.tsx`, donc une exécution Replay doit aussi être relancée après cette modification.
 
 **Verdict :** les erreurs de syntaxe précédentes sont corrigées dans le code observé ; une seconde anomalie, concernant le ciblage propriétaire des lignes historiques, a été trouvée et corrigée. La correction reste à compiler et à tester. Le panier multi-propriétaires n'est pas vert avant réussite du contrôle qualité et scénario navigateur multi-propriétaires. ServiceWorker DataCloneError reste un point rouge distinct. Aucun changement Production, migration, déploiement Vercel ou action Play Store.
+
+
+## 181. Correction du faux échec E2E panier et couverture multi-propriétaires — 17/11/2026
+
+**État constaté sur main avant correction :** `28433bacfccda8291aca6f76823da2d920297f17`.
+- Qualité `44052857060` : SUCCESS (tests, TypeScript, lint, build et syntaxe GitHub Actions).
+- Navigation Replay `44052819499` sur `1a39e0857679f2ccc72f2f64cd93b9d58c268fea` : FAILURE au scénario Client, après PASS des segments Promoteur, Comptable et Partenaire ; nettoyage de secours PASS.
+- Cause exacte dans les logs : timeout sur le texte « Article local de recette » après ouverture de `/panier`.
+- Cause racine : le harnais injectait `naxa-panier-v1` après le premier rendu de `/client`. Or `PanierProvider` lit le localStorage une seule fois dans son `useEffect` initial ; son état mémoire était donc déjà vide. Le test était mal préparé et ne démontrait pas un défaut de rendu produit.
+
+**Correction appliquée :**
+- Le harnais injecte maintenant favoris et panier via `page.addInitScript`, avant la première navigation et le montage du Provider ; un marqueur sessionStorage empêche de réinjecter les données lors des navigations suivantes.
+- La fixture contient deux lignes du même produit, avec deux propriétaires Pharmacie distincts et des noms d'établissement distincts.
+- Le test augmente la quantité dans la pharmacie A, vérifie que la pharmacie B reste à 1, retire la ligne A et vérifie que B reste présente, puis retire B.
+- L'interface affiche le nom de la pharmacie sur chaque sous-panier au lieu de deux titres identiques.
+
+**Limites :** ce test prouve l'isolation locale des lignes, de la quantité et du retrait. Il ne prouve pas encore la création de deux commandes persistées ni le débit de stock réel. Aucun coût métier n'est inventé pour les lignes Replay. Aucun schéma ou donnée Replay/Production n'est modifié ; aucun déploiement Vercel.

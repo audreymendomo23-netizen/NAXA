@@ -34,3 +34,12 @@ Le Client conserve un seul accès panier. Les lignes et les finalisations resten
 - Les lignes Pharmacie sans identifiant propriétaire confirmé restent bloquées à la finalisation jusqu'à leur rattachement par le parcours de recherche/sélection de pharmacie.
 - La limite de 10 lignes reste une limite du panier local global ; le périmètre historique de cette limite doit être clarifié avant de la modifier.
 - La preuve E2E doit couvrir deux pharmacies avec le même produit, des propriétaires différents, les retraits/quantités indépendants, et la création séparée de transactions.
+
+
+## Revalidation — 17 novembre 2026
+
+- Run qualité `44052857060` sur `28433bac` : PASS.
+- Run navigateur `44052819499` sur `1a39e08` : FAILURE au précontrôle Client panier. Cause identifiée : fixture localStorage injectée après montage du PanierProvider, donc état React initial déjà vide ; nettoyage Replay PASS.
+- Correctif ajouté : injection avant montage via addInitScript, fixture de deux lignes homonymes appartenant à deux pharmacies, vérification d'incrément et de retrait isolés, affichage du nom de la pharmacie dans chaque sous-panier.
+- En attente de la nouvelle qualité et du navigateur Replay sur le commit contenant ce correctif.
+- Le cycle de commandes persistées, les transactions distinctes et le débit de stock ne sont pas encore couverts par ce test UI local.

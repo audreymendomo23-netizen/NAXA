@@ -661,7 +661,10 @@ async function run() {
       + ", cookies " + JSON.stringify(clientCookies.map(cookie => ({ name: cookie.name, value: cookie.name === "naxa-age-status-v2" ? cookie.value : "[masked]" }))));
     await expectPath(clientPage, "/client", "Ouverture espace Client");
     await expectPageHeading(clientPage, "Espace Client");
-    await clientPage.evaluate(() => {
+    // Le Provider lit localStorage au premier montage : injecter la fixture avant
+    // la toute première navigation, et ne la réinitialiser qu'une seule fois par onglet.
+    await clientPage.addInitScript(() => {
+      if (window.sessionStorage.getItem("naxa-e2e-panier-seeded") === "1") return;
       window.localStorage.setItem("naxa-favoris-v1", JSON.stringify([{
         id: "naxa-e2e-ui-favori-local",
         nom: "Article local de recette",
@@ -672,15 +675,35 @@ async function run() {
         demo: true,
         savedAt: Date.now()
       }]));
-      window.localStorage.setItem("naxa-panier-v1", JSON.stringify([{
-        produit_id: "naxa-e2e-ui-panier-local",
-        nom: "Article local de recette",
-        dosage: "1 unité",
-        quantite: 1,
-        type_article: "medicament",
-        prix_unitaire_fcfa: 1000,
-        quantite_max: 10
-      }]));
+      window.localStorage.setItem("naxa-panier-v1", JSON.stringify([
+        {
+          produit_id: "naxa-e2e-ui-panier-local",
+          nom: "Article local de recette",
+          dosage: "1 unité",
+          quantite: 1,
+          type_article: "medicament",
+          owner_type: "pharmacie",
+          owner_id: "11111111-1111-4111-8111-111111111111",
+          pharmacie_id: "11111111-1111-4111-8111-111111111111",
+          pharmacie_nom: "Pharmacie E2E A",
+          prix_unitaire_fcfa: 1000,
+          quantite_max: 10
+        },
+        {
+          produit_id: "naxa-e2e-ui-panier-local",
+          nom: "Article local de recette",
+          dosage: "1 unité",
+          quantite: 1,
+          type_article: "medicament",
+          owner_type: "pharmacie",
+          owner_id: "22222222-2222-4222-8222-222222222222",
+          pharmacie_id: "22222222-2222-4222-8222-222222222222",
+          pharmacie_nom: "Pharmacie E2E B",
+          prix_unitaire_fcfa: 1200,
+          quantite_max: 10
+        }
+      ]));
+      window.sessionStorage.setItem("naxa-e2e-panier-seeded", "1");
     });
 
     await clientPage.goto(BASE_URL + "/client/profil/favoris", { waitUntil: "domcontentloaded" });
@@ -694,13 +717,23 @@ async function run() {
     await clientPage.goto(BASE_URL + "/panier", { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/panier", "Client → Panier");
     await clientPage.locator("main h1").filter({ hasText: /^Mon panier$/ }).waitFor({ state: "visible" });
-    await clientPage.getByText("Article local de recette", { exact: true }).waitFor({ state: "visible" });
-    await clientPage.getByRole("button", { name: "+", exact: true }).click();
-    // Le compteur de quantité est ciblé dans la ligne du panier, hors badges de navigation.
-    await clientPage.locator("main li output").filter({ hasText: /^2$/ }).waitFor({ state: "visible" });
-    await clientPage.getByRole("button", { name: "Retirer", exact: true }).click();
+    const pharmacyA = clientPage.locator("article.carte").filter({
+      has: clientPage.getByRole("heading", { name: "Pharmacie · Pharmacie E2E A", exact: true })
+    });
+    const pharmacyB = clientPage.locator("article.carte").filter({
+      has: clientPage.getByRole("heading", { name: "Pharmacie · Pharmacie E2E B", exact: true })
+    });
+    await pharmacyA.waitFor({ state: "visible" });
+    await pharmacyB.waitFor({ state: "visible" });
+    await pharmacyA.getByRole("button", { name: "+", exact: true }).click();
+    await pharmacyA.locator("li output").filter({ hasText: /^2$/ }).waitFor({ state: "visible" });
+    await pharmacyB.locator("li output").filter({ hasText: /^1$/ }).waitFor({ state: "visible" });
+    await pharmacyA.getByRole("button", { name: "Retirer", exact: true }).click();
+    await pharmacyA.waitFor({ state: "detached" });
+    await pharmacyB.locator("li output").filter({ hasText: /^1$/ }).waitFor({ state: "visible" });
+    await pharmacyB.getByRole("button", { name: "Retirer", exact: true }).click();
     await clientPage.getByText("Votre panier est vide.", { exact: true }).waitFor({ state: "visible" });
-    console.log("PASS Client — quantité et retrait UI du panier local démo.");
+    console.log("PASS Client — même produit, deux propriétaires : quantité et retrait isolés par pharmacie.");
 
     await clientPage.goto(BASE_URL + "/resultats?q=paracetamol", { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/resultats", "Client → Recherche Marketplace");

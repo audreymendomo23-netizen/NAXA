@@ -54,7 +54,7 @@ export default function Panier() {
       {pret && medicaments.length > 0 && <section className="mt-6 space-y-4">
         <h2 className="text-lg font-extrabold">Pharmacie · demandes séparées par établissement</h2>
         {pharmacies.map(([pharmacieId, items]) => <article key={pharmacieId} className="carte">
-          <h3 className="font-extrabold">Pharmacie</h3>
+          <h3 className="font-extrabold">Pharmacie · {items[0]?.pharmacie_nom || "Établissement"}</h3>
           <p className="mt-1 text-xs text-slate-500">Cette liste sera transmise uniquement à la pharmacie propriétaire des articles.</p>
           <ul className="mt-3 space-y-3">{items.map(line=><li key={line.produit_id + ":" + (line.owner_id || pharmacieId)} className="border-t pt-3">
             <Link href={`/produit/${line.produit_id}`} className="font-bold underline">{line.nom}</Link>{line.dosage&&<p className="text-sm text-slate-500">{line.dosage}</p>}
