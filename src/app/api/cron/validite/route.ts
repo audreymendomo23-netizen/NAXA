@@ -33,6 +33,18 @@ const escapeHtml = (value: unknown) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const renderEmailHtml = (value: string) => {
+  const escaped = escapeHtml(value);
+  const linked = escaped.replace(
+    /(https:\/\/[^\s<]+)/g,
+    '<a href="$1" style="color:#176b45;text-decoration:underline">$1</a>'
+  );
+  return `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+    <h2 style="color:#176b45">NAXA</h2>
+    <p>${linked.replace(/\n/g, "<br>")}</p>
+  </div>`;
+};
+
 async function deliverEmail(
   googleUrl: string,
   googleSecret: string,
@@ -60,7 +72,7 @@ async function deliverEmail(
         to: item.email,
         subject: safeSubject,
         text: safeText,
-        html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>NAXA</h2><p>${escapeHtml(safeText).replace(/\n/g, "<br>")}</p></div>`,
+        html: renderEmailHtml(safeText),
       }),
       redirect: "follow",
       signal: AbortSignal.timeout(25000),
