@@ -14,6 +14,7 @@ on:
       - "src/components/pharmacie/NavPromoteur.tsx"
       - "src/middleware.ts"
       - "src/app/api/pharmacies/gardes/route.ts"
+      - "src/components/BottomNav.tsx"
   workflow_dispatch:
 
 permissions:
