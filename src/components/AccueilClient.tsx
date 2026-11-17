@@ -269,7 +269,7 @@ export function AccueilClient() {
         try {
           const { data: pharmRows, error: pharmError } = await sb
             .from("pharmacies")
-            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at,horaires,stock_updated_at")
+            .select("id,nom,ville,quartier,adresse,lat,lng,de_garde,photo_url,photo_verified_at:photo_verifiee_le,horaires,stock_updated_at")
             .eq("actif", true)
             .eq("visible_recherche", true)
             .is("archivee_le", null)
@@ -286,7 +286,7 @@ export function AccueilClient() {
         if (!active) return;
         setClientConnecte(Boolean(user));
         if (user) {
-          const { data: profile } = await sb.from("profiles").select("username,first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
+          const { data: profile } = await sb.from("profiles").select("username,first_name,last_name").eq("id", user.id).maybeSingle();
           const isGoogle = user.app_metadata?.provider === "google" || Boolean(user.identities?.some(identity => identity.provider === "google"));
           const googleName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : typeof user.user_metadata?.name === "string" ? user.user_metadata.name : "";
           const displayName = isGoogle && googleName.trim() ? googleName.trim() : typeof profile?.username === "string" && profile.username.trim() ? profile.username.trim() : [profile?.first_name,profile?.last_name].filter((value): value is string => typeof value === "string" && Boolean(value.trim())).join(" ") || "Client";
