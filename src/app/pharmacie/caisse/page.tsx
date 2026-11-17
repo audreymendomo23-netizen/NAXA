@@ -30,7 +30,8 @@ type Caisse = { id: string; nom: string };
 type Session = { id: string; caisse_id: string; fond_initial: number; ouvert_at: string; ouvert_par: string };
 type VenteHistorique = { id: string; numero_vente: string; total_net: number; statut: string; mode_paiement: string | null; created_at: string; paid_at: string | null };
 type PaiementTicket = { montant_percu: number | null; monnaie_rendue: number | null; montant: number; mode: string };
-type CreditAccountOption = { creditId: string; clientId: string; label: string; solde: number; plafond: number };
+type CreditAccountOption = { clientId: string; label: string; solde: number; plafond: number };
+type RefundCreditAccountOption = { creditId: string; clientId: string; label: string; solde: number; plafond: number };
 type RefundChannel = "especes" | "orange_money" | "mtn_momo";
 type RefundTreasuryAccount = { accountId: string; name: string; type: string; channel: RefundChannel | null };
 type CreditRefundReceipt = { operationId: string; clientLabel: string; amount: number; channel: RefundChannel; reference: string | null; remainingBalance: number; createdAt: string; actorId: string | null };
@@ -91,6 +92,7 @@ export default function CaissePage() {
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
   const [assuranceTicket, setAssuranceTicket] = useState<AssuranceTicket | null>(null);
   const [creditAccounts, setCreditAccounts] = useState<CreditAccountOption[]>([]);
+  const [refundCreditAccounts, setRefundCreditAccounts] = useState<RefundCreditAccountOption[]>([]);
   const [creditClientId, setCreditClientId] = useState("");
   const [refundCreditId, setRefundCreditId] = useState("");
   const [refundAmount, setRefundAmount] = useState("");
@@ -190,13 +192,43 @@ export default function CaissePage() {
     return true;
   }, [sb]);
 
+  // La liste POS doit contenir aussi les comptes crédit actifs à solde nul :
+  // ils permettent au Client de faire son premier achat à crédit.
   useEffect(() => {
     if (!pid) { setCreditAccounts([]); return; }
     let active = true;
     void (async () => {
-      const { data, error } = await sb.rpc("caisse_credit_remboursement_comptes_lister", { p_pharmacie: pid });
+      const { data, error } = await sb.rpc("caisse_credit_clients_lister", { p_pharmacie: pid });
       if (!active) return;
       if (error) { setCreditAccounts([]); return; }
+      const rows = (data ?? []) as {
+        client_id: string;
+        solde: number;
+        plafond: number;
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+        username: string | null;
+      }[];
+      setCreditAccounts(rows.map((row) => ({
+        clientId: row.client_id,
+        label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
+        solde: Number(row.solde),
+        plafond: Number(row.plafond),
+      })));
+    })();
+    return () => { active = false; };
+  }, [pid, sb]);
+
+  // Le formulaire de remboursement ne propose que les crédits qui ont un
+  // encours positif et expose leur identifiant client_credit dédié.
+  useEffect(() => {
+    if (!pid) { setRefundCreditAccounts([]); return; }
+    let active = true;
+    void (async () => {
+      const { data, error } = await sb.rpc("caisse_credit_remboursement_comptes_lister", { p_pharmacie: pid });
+      if (!active) return;
+      if (error) { setRefundCreditAccounts([]); return; }
       const rows = (data ?? []) as {
         credit_id: string;
         client_id: string;
@@ -207,7 +239,7 @@ export default function CaissePage() {
         phone: string | null;
         username: string | null;
       }[];
-      setCreditAccounts(rows.map((row) => ({
+      setRefundCreditAccounts(rows.map((row) => ({
         creditId: row.credit_id,
         clientId: row.client_id,
         label: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || row.phone || ("Client " + row.client_id.slice(0, 8)),
@@ -723,7 +755,7 @@ export default function CaissePage() {
   }
 
   async function rembourserCredit() {
-    const account = creditAccounts.find((item) => item.creditId === refundCreditId);
+    const account = refundCreditAccounts.find((item) => item.creditId === refundCreditId);
     const pending = refundPendingRequest;
     const retryingUncertainRequest = refundRequestUncertain && !!pending;
     const amount = Number(refundAmount);
@@ -801,7 +833,7 @@ export default function CaissePage() {
       if (!data) throw new Error("La base n’a pas confirmé l’enregistrement du remboursement.");
 
       const remainingBalance = request.balanceBefore - request.amount;
-      setCreditAccounts((current) => current
+      setRefundCreditAccounts((current) => current
         .map((item) => item.creditId === request.creditId ? { ...item, solde: remainingBalance } : item)
         .filter((item) => item.solde > 0));
       setRefundReceipt({
@@ -1043,12 +1075,12 @@ export default function CaissePage() {
                     {refundTreasuryBusy && <p className="text-sm text-slate-500">Mise à jour des comptes…</p>}
                   </div>
 
-                  {creditAccounts.length === 0 && !refundRequestUncertain ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun crédit client actif avec un solde à rembourser.</p> : <>
+                  {refundCreditAccounts.length === 0 && !refundRequestUncertain ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun crédit client actif avec un solde à rembourser.</p> : <>
                     <label className="block text-sm font-semibold">Client et compte crédit
                       <select className="champ mt-1 w-full" value={refundCreditId} onChange={(event) => { setRefundCreditId(event.target.value); }} disabled={busy || refundRequestUncertain}>
                         <option value="">Sélectionner un compte crédit</option>
-                        {refundPendingRequest && !creditAccounts.some((account) => account.creditId === refundPendingRequest.creditId) && <option value={refundPendingRequest.creditId}>{refundPendingRequest.clientLabel} · demande précédente à confirmer</option>}
-                        {creditAccounts.map((account) => <option key={account.creditId} value={account.creditId}>{account.label} · reste dû {fcfa(account.solde)}</option>)}
+                        {refundPendingRequest && !refundCreditAccounts.some((account) => account.creditId === refundPendingRequest.creditId) && <option value={refundPendingRequest.creditId}>{refundPendingRequest.clientLabel} · demande précédente à confirmer</option>}
+                        {refundCreditAccounts.map((account) => <option key={account.creditId} value={account.creditId}>{account.label} · reste dû {fcfa(account.solde)}</option>)}
                       </select>
                     </label>
                     <label className="block text-sm font-semibold">Canal du remboursement
@@ -1075,7 +1107,7 @@ export default function CaissePage() {
                       <label className="flex items-start gap-2"><input type="checkbox" checked={refundClientConfirmed} onChange={(event) => setRefundClientConfirmed(event.target.checked)} disabled={busy} /><span>J’ai vu la confirmation de transaction sur le téléphone du client.</span></label>
                     </div>}
                     <p className="rounded-xl bg-slate-50 p-3 text-sm">Le canal choisi reste distinct de l’origine <strong>Comptoir</strong>. La validation mobile repose sur les trois contrôles visuels déclarés par le caissier ; NAXA ne prétend pas recevoir une confirmation automatique de l’opérateur.</p>
-                    <button className="btn btn-vert w-full" disabled={busy || !session || !refundCreditId || !refundTreasuryAccounts.some((item) => item.channel === refundChannel) || !Number.isSafeInteger(Number(refundAmount)) || Number(refundAmount) <= 0 || Number(refundAmount) > (creditAccounts.find((item) => item.creditId === refundCreditId)?.solde ?? 0) || (refundChannel !== "especes" && (!refundReference.trim() || !refundVerifyBeneficiary || !refundVerifyAmount || !refundClientConfirmed))} onClick={() => void rembourserCredit()}>{busy ? "Traitement…" : refundRequestUncertain ? "Réessayer la même demande" : "Confirmer le remboursement"}</button>
+                    <button className="btn btn-vert w-full" disabled={busy || !session || !refundCreditId || !refundTreasuryAccounts.some((item) => item.channel === refundChannel) || !Number.isSafeInteger(Number(refundAmount)) || Number(refundAmount) <= 0 || Number(refundAmount) > (refundCreditAccounts.find((item) => item.creditId === refundCreditId)?.solde ?? 0) || (refundChannel !== "especes" && (!refundReference.trim() || !refundVerifyBeneficiary || !refundVerifyAmount || !refundClientConfirmed))} onClick={() => void rembourserCredit()}>{busy ? "Traitement…" : refundRequestUncertain ? "Réessayer la même demande" : "Confirmer le remboursement"}</button>
                   </>}
                 </section>
                 <section id="caisse-cloture" className="carte mt-4 space-y-3">
