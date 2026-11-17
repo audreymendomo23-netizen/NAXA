@@ -204,3 +204,20 @@ Le flux `admin_confirmer_reglement_promoteur` confirme actuellement un règlemen
 - Build/TypeScript et test navigateur non exécutés dans ce passage. Aucune donnée Production et aucun déploiement Vercel touchés.
 
 **Verdict : PARTIEL.** Le moteur DB, les RPC, le job horaire et les deux interfaces sont versionnés et déployés sur Replay ; le parcours positif reste à prouver avec un dossier partenaire réel/synthétique autorisé et le run qualité applicatif. Le cycle n'est pas déclaré AU VERT.
+
+
+## Vérification SMS croisée et ouverture du parcours avant activation (17 novembre 2026)
+
+- Le flux partenaire existant \`naxa_partner_payment_notification_candidates\` est désormais rapproché des règlements d'abonnement propres à la structure.
+- La déclaration d'abonnement, le SMS original de débit partagé depuis un appareil Partenaire enrôlé et le SMS de crédit capturé sur un appareil Admin enrôlé peuvent être reçus dans n'importe quel ordre. Les triggers relancent le rapprochement à l'arrivée des preuves ; la déclaration appelle aussi le rapprochement après insertion.
+- L'auto-confirmation exige une paire unique et cohérente : même structure, référence normalisée, canal, montant, numéro payeur, destination NAXA, date/heure fournisseur, hash de payload distinct, appareil Partenaire actif, appareil Admin actif, profils actifs et Admin distinct du déclarant. Seul \`voluntary_sms_share\` constitue la preuve de débit exploitable automatiquement ; une notification Android seule reste un candidat de revue.
+- La capture SMS crédit Admin déjà existante déclenche le rapprochement partenaire quand aucun règlement Promoteur ne lui est associé. Si les preuves ne forment pas une paire complète, le règlement reste en attente et l'Admin peut confirmer/refuser manuellement.
+- Les propriétaires de structures validées dont le partenaire est encore \`pending\` peuvent enrôler leur appareil et partager le SMS nécessaire au premier paiement. Les gestionnaires ne bénéficient pas de cette ouverture pré-activation.
+- Le garde-fou DB refuse une confirmation automatique si le payeur et l'Admin sont le même utilisateur.
+- Le RPC Admin manuel reste disponible et marque la source \`manual_admin\`; l'auto-confirmation marque \`paired_sms\`.
+
+**Test transactionnel Replay (ROLLBACK) :** une structure Examens synthétique a été créée dans un sous-bloc transactionnel, avec déclaration, candidat de débit Partenaire et événement de crédit Admin. Le rapprochement a confirmé le paiement, produit un reçu et une période, activé le contrat/la structure et marqué l'événement Admin \`confirmed\`. Les données de test ont été annulées ; contrôle post-test : 0 partenaire temporaire, 0 abonnement, 0 règlement, 0 candidat, 0 événement et 0 notification de confirmation persistants.
+
+**Limite de configuration Replay :** \`naxa_payment_destinations\` est vide (aucune destination Orange Money ou MTN active). Le formulaire bloque donc correctement la déclaration réelle et la route de capture Admin refuse un canal sans destination configurée. Le test transactionnel a utilisé une destination synthétique en ROLLBACK ; aucune coordonnée réelle n'a été inventée.
+
+**Verdict : PARTIEL.** Le moteur de rapprochement SMS croisé est testé en transaction et les données sont annulées. Le parcours HTTP/Android réel, la configuration des destinations, l'envoi e-mail effectif et le build/TypeScript restent à prouver. Aucun déploiement Production.
