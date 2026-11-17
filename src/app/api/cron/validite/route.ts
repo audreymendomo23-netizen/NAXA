@@ -4,18 +4,115 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type OutboxItem = {
+type LegacyOutboxItem = {
   outbox_id: string;
-  notification_id: string;
-  user_id: string;
   email: string | null;
   title: string;
   body: string;
   attempt_count: number;
 };
 
-// Le job pg_cron crée les notifications; le trigger les place dans l'outbox.
-// Cette route ne fait que synchroniser les validités et déléguer l'e-mail à Google.
+type UniversalOutboxItem = {
+  outbox_id: string;
+  event_key: string;
+  event_type: string;
+  universe: string;
+  recipient_email: string;
+  subject: string;
+  text_body: string;
+  attempt_count: number;
+};
+
+type DeliveryResult = "sent" | "retried" | "dead";
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+async function deliverEmail(
+  googleUrl: string,
+  googleSecret: string,
+  item: {
+    outboxId: string;
+    idempotencyKey: string;
+    email: string | null;
+    subject: string;
+    text: string;
+  }
+): Promise<{ success: boolean; error: string }> {
+  try {
+    if (!item.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) {
+      throw new Error("Adresse e-mail destinataire absente ou invalide.");
+    }
+
+    const safeSubject = item.subject.slice(0, 180);
+    const safeText = item.text.slice(0, 10000);
+    const response = await fetch(googleUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: googleSecret,
+        idempotencyKey: item.idempotencyKey,
+        to: item.email,
+        subject: safeSubject,
+        text: safeText,
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>NAXA</h2><p>${escapeHtml(safeText).replace(/\n/g, "<br>")}</p></div>`,
+      }),
+      redirect: "follow",
+      signal: AbortSignal.timeout(25000),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.sent !== true || typeof payload?.alreadySent !== "boolean") {
+      throw new Error(`Google Apps Script HTTP ${response.status}: réponse invalide ou envoi non confirmé.`);
+    }
+    return { success: true, error: "" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur inconnue de délivrance Google.",
+    };
+  }
+}
+
+async function finishLegacy(
+  sb: ReturnType<typeof supabaseAdmin>,
+  item: LegacyOutboxItem,
+  success: boolean,
+  error: string
+): Promise<DeliveryResult | null> {
+  const { data, error: finishError } = await sb.rpc("finish_notification_email_outbox", {
+    p_outbox_id: item.outbox_id,
+    p_success: success,
+    p_provider_message_id: success ? item.outbox_id : null,
+    p_error: error || null,
+  });
+  if (finishError || data !== true) return null;
+  if (success) return "sent";
+  return item.attempt_count >= 5 ? "dead" : "retried";
+}
+
+async function finishUniversal(
+  sb: ReturnType<typeof supabaseAdmin>,
+  item: UniversalOutboxItem,
+  success: boolean,
+  error: string
+): Promise<DeliveryResult | null> {
+  const { data, error: finishError } = await sb.rpc("finish_naxa_email_event", {
+    p_outbox_id: item.outbox_id,
+    p_success: success,
+    p_provider_message_id: success ? item.outbox_id : null,
+    p_error: error || null,
+  });
+  if (finishError || data !== true) return null;
+  if (success) return "sent";
+  return item.attempt_count >= 5 ? "dead" : "retried";
+}
+
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || req.headers.get("authorization") !== `Bearer ${cronSecret}`) {
@@ -37,109 +134,100 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ error: "URL Google Apps Script invalide." }, { status: 503 });
   }
-  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "script.google.com" || !/^\/macros\/s\/[^/]+\/exec$/.test(parsedUrl.pathname)) {
+  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "script.google.com" ||
+      !/^\/macros\/s\/[^/]+\/exec$/.test(parsedUrl.pathname)) {
     return NextResponse.json({ error: "L'URL doit être une URL HTTPS Google Apps Script officielle." }, { status: 503 });
   }
 
   const sb = supabaseAdmin();
-  const { error: syncError } = await sb.rpc("synchroniser_validite_pharmacies");
-  if (syncError) {
-    return NextResponse.json({ error: "Échec de synchronisation des validités." }, { status: 500 });
+  const syncErrors: string[] = [];
+  let partnerExpired = 0;
+  let partnerReminders = 0;
+
+  // Les synchronisations métier sont indépendantes : une panne d'un univers
+  // ne doit pas empêcher la distribution des e-mails déjà mis en file.
+  const syncJobs = [
+    { name: "synchroniser_validite_pharmacies", args: undefined },
+    { name: "synchroniser_validite_abonnements_partenaires", args: undefined },
+    { name: "emettre_rappels_abonnements_partenaires_5j", args: undefined },
+  ] as const;
+
+  for (const job of syncJobs) {
+    const { data, error } = await sb.rpc(job.name, job.args);
+    if (error) {
+      syncErrors.push(job.name);
+      continue;
+    }
+    if (job.name === "synchroniser_validite_abonnements_partenaires") {
+      partnerExpired = Number(data ?? 0);
+    } else if (job.name === "emettre_rappels_abonnements_partenaires_5j") {
+      partnerReminders = Number(data ?? 0);
+    }
   }
 
-  const { data: partnerExpired, error: partnerSyncError } = await sb.rpc(
-    "synchroniser_validite_abonnements_partenaires"
-  );
-  if (partnerSyncError) {
-    return NextResponse.json({ error: "Échec de synchronisation des abonnements partenaires." }, { status: 500 });
-  }
-
-  const { data: partnerReminders, error: partnerReminderError } = await sb.rpc(
-    "emettre_rappels_abonnements_partenaires_5j"
-  );
-  if (partnerReminderError) {
-    return NextResponse.json({ error: "Échec d'émission des rappels partenaires J-5." }, { status: 500 });
-  }
-
-  const { data, error } = await sb.rpc("claim_notification_email_outbox", { p_limit: 25 });
-  if (error) {
-    return NextResponse.json({ error: "Impossible de réclamer la file e-mail." }, { status: 500 });
-  }
-
-  const items = (data ?? []) as OutboxItem[];
+  let claimed = 0;
   let sent = 0;
   let retried = 0;
   let dead = 0;
+  const deliveryErrors: string[] = [];
 
-  for (const item of items) {
-    let success = false;
-    let providerMessageId: string | null = null;
-    let failure = "";
-
-    try {
-      if (!item.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) {
-        throw new Error("Adresse e-mail destinataire absente ou invalide.");
-      }
-
-      const response = await fetch(googleUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          secret: googleSecret,
-          idempotencyKey: `naxa-notification-${item.outbox_id}`,
-          to: item.email,
-          subject: `NAXA — ${item.title}`,
-          text: item.body,
-          html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>NAXA</h2><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body).replace(/\n/g, "<br>")}</p><p>Connectez-vous à votre espace NAXA pour consulter les détails.</p></div>`,
-        }),
-        redirect: "follow",
-        signal: AbortSignal.timeout(25000),
+  // Compatibilité : l'outbox historique Promoteur/Admin continue d'être vidée.
+  const { data: legacyData, error: legacyClaimError } = await sb.rpc(
+    "claim_notification_email_outbox", { p_limit: 25 }
+  );
+  if (legacyClaimError) {
+    deliveryErrors.push("legacy_outbox_claim");
+  } else {
+    const legacyItems = (legacyData ?? []) as LegacyOutboxItem[];
+    claimed += legacyItems.length;
+    for (const item of legacyItems) {
+      const result = await deliverEmail(googleUrl, googleSecret, {
+        outboxId: item.outbox_id,
+        idempotencyKey: `naxa-notification-${item.outbox_id}`,
+        email: item.email,
+        subject: `NAXA — ${item.title}`,
+        text: item.body,
       });
-
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || payload?.sent !== true || typeof payload?.alreadySent !== "boolean") {
-        throw new Error(`Google Apps Script HTTP ${response.status}: réponse invalide ou envoi non confirmé.`);
-      }
-      success = true;
-      providerMessageId = item.outbox_id;
-    } catch (error) {
-      failure = error instanceof Error ? error.message : "Erreur inconnue de délivrance Google.";
+      const final = await finishLegacy(sb, item, result.success, result.error);
+      if (final === "sent") sent++;
+      else if (final === "dead") dead++;
+      else retried++;
     }
-
-    const { data: finished, error: finishError } = await sb.rpc(
-      "finish_notification_email_outbox",
-      {
-        p_outbox_id: item.outbox_id,
-        p_success: success,
-        p_provider_message_id: providerMessageId,
-        p_error: failure || null,
-      }
-    );
-
-    if (finishError || finished !== true) {
-      retried++;
-      continue;
-    }
-
-    if (success) sent++;
-    else if (item.attempt_count >= 5) dead++;
-    else retried++;
   }
 
+  // Nouvelle outbox : destinataires avec ou sans compte NAXA.
+  const { data: universalData, error: universalClaimError } = await sb.rpc(
+    "claim_naxa_email_events", { p_limit: 25 }
+  );
+  if (universalClaimError) {
+    deliveryErrors.push("universal_outbox_claim");
+  } else {
+    const universalItems = (universalData ?? []) as UniversalOutboxItem[];
+    claimed += universalItems.length;
+    for (const item of universalItems) {
+      const result = await deliverEmail(googleUrl, googleSecret, {
+        outboxId: item.outbox_id,
+        idempotencyKey: `naxa-email-event-${item.outbox_id}`,
+        email: item.recipient_email,
+        subject: item.subject,
+        text: item.text_body,
+      });
+      const final = await finishUniversal(sb, item, result.success, result.error);
+      if (final === "sent") sent++;
+      else if (final === "dead") dead++;
+      else retried++;
+    }
+  }
+
+  const hasErrors = syncErrors.length > 0 || deliveryErrors.length > 0;
   return NextResponse.json({
-    partnerExpired: partnerExpired ?? 0,
-    partnerReminders: partnerReminders ?? 0,
-    claimed: items.length,
+    partnerExpired,
+    partnerReminders,
+    claimed,
     sent,
     retried,
     dead,
-  });
+    syncErrors,
+    deliveryErrors,
+  }, { status: hasErrors ? 207 : 200 });
 }
-
-const escapeHtml = (value: unknown) =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
