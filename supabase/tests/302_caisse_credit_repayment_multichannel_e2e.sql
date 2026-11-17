@@ -11,7 +11,7 @@ declare
   v_caisse uuid := 'c3194cf5-7de3-4b90-9412-416b50e7ccbf';
   v_credit uuid; v_session uuid; v_cash_account uuid; v_orange_account uuid; v_mtn_account uuid;
   v_cash_op uuid; v_cash_retry uuid; v_orange_op uuid; v_mtn_op uuid;
-  v_balance integer; v_operations integer; v_movements integer; v_mapped integer; v_total_refunds integer; v_cash_refunds integer; v_close record; v_message text;
+  v_balance integer; v_operations integer; v_movements integer; v_mapped integer; v_pos_count integer; v_refund_count integer; v_total_refunds integer; v_cash_refunds integer; v_close record; v_message text;
 begin
   if auth.uid() <> v_actor or not public.naxa_caisse_actor_for_pharmacy(v_pharmacie) then
     raise exception 'FAIL: acteur Caisse E2E non autorisé sur la pharmacie';
@@ -31,7 +31,19 @@ begin
   if v_mapped <> 3 then raise exception 'FAIL: liste des comptes ne retourne pas les trois canaux, obtenu %',v_mapped; end if;
   v_session := public.caisse_ouvrir(v_caisse,0);
   insert into public.client_credits(pharmacie_id,client_id,solde,plafond,actif,created_by)
-  values(v_pharmacie,v_client,10000,10000,true,v_actor) returning id into v_credit;
+  values(v_pharmacie,v_client,0,10000,true,v_actor) returning id into v_credit;
+
+  -- POS must see an active client credit even when outstanding balance is zero.
+  select count(*) into v_pos_count
+  from public.caisse_credit_clients_lister(v_pharmacie)
+  where client_id=v_client and solde=0 and plafond=10000;
+  if v_pos_count <> 1 then raise exception 'FAIL: compte client à solde nul absent de la liste POS'; end if;
+  select count(*) into v_refund_count
+  from public.caisse_credit_remboursement_comptes_lister(v_pharmacie)
+  where client_id=v_client;
+  if v_refund_count <> 0 then raise exception 'FAIL: compte à solde nul ne doit pas apparaître dans la liste des remboursements'; end if;
+
+  update public.client_credits set solde=10000 where id=v_credit;
   v_cash_op := public.client_credit_rembourser(v_credit,100,'especes',null,'Recette E2E espèces','30200000-0000-4000-8000-000000000001',false,false,false);
   v_cash_retry := public.client_credit_rembourser(v_credit,100,'especes',null,'Recette E2E espèces','30200000-0000-4000-8000-000000000001',false,false,false);
   if v_cash_op <> v_cash_retry then raise exception 'FAIL: rejeu espèces non idempotent'; end if;
