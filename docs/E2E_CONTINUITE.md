@@ -6139,3 +6139,26 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Périmètre : Replay uniquement ; aucun changement Production, aucune migration Production, aucun déploiement Vercel.
 
 **Point de reprise :** HEAD applicatif après f3a3802 ; attendre le run qualité et le run navigateur déclenchés sur le HEAD final après cette note, vérifier l'absence de requêtes 400 sur profiles.avatar_url et pharmacies.photo_verified_at, puis statuer.
+
+
+## §168 — Reconstitution de clôture Lot B et stratégie de recettes ciblées (17/11/2026)
+
+**Rectification de l'état de clôture :**
+- Le Lot A est considéré bouclé conformément à la décision utilisateur. Les mentions historiques « Lot A PARTIEL » antérieures ne rouvrent pas ce lot.
+- Le périmètre du Lot B n'est pas redéfini. Les preuves déjà enregistrées restent acquises : tests transactionnels 306–312 ; correctifs et tests Partenaire 313/315 ; parcours Promoteur/Livreur documentés aux §§140–150.
+- Le point rouge historique Partenaire (découplage identité globale / dossier partenaire et cohérence des gardes d'accès Examens) a reçu des corrections et preuves SQL positives/négatives. La validation SQL ne vaut pas encore preuve de navigation authentifiée dans le navigateur.
+- Les corrections du panier Client et des colonnes Supabase sont consignées au §167 ; elles ne sont pas à refaire sans nouvelle preuve d'échec.
+
+**Dernier contrôle qualité connu :**
+- Run GitHub Actions [44039976766](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44039976766), HEAD contrôlé `407b126de603d1cbd67e2d85875d01ff7bc86b3a`.
+- Syntaxe des workflows : PASS.
+- Tests : 570 PASS / 2 FAIL sur 572. Les deux échecs isolés sont dans `scripts/test-naxa-communications-scheduler.cjs` : (1) assertion sur le message attendu pour le domaine stable Production, (2) assertion obsolète attendant le dispatch Web Push par pg_cron dans le script Google Apps Script. Ces assertions concernent le scheduler de communications, pas les parcours métier Lot B ; elles ne sont ni comptées comme défauts Lot B ni masquées comme succès.
+- Ce run n'apporte pas de nouvelle preuve navigateur. Ne pas assimiler le succès de syntaxe workflow ou les tests unitaires à une recette E2E.
+
+**Ordre de recette sans dispersion :**
+1. Achever en une passe la recette Partenaire Examens authentifiée sur Replay (création/lecture et actions autorisées, puis refus des états suspendu/non validé/non payé), avec nettoyage et vérification des fixtures. Si tous les contrôles passent, marquer cette recette VERT et ne pas la rouvrir.
+2. Achever en une passe le parcours Client Marketplace desktop/mobile sur Replay : recherche/offre, panier, soumission, décision pharmacie, refus et annulation selon les scénarios du harnais, vérification de l'historique et de la restauration du stock exactement une fois ; nettoyage vérifié. Distinguer ce que le harnais observe réellement des scénarios seulement SQL.
+3. Ne lancer aucun sous-parcours si ses préconditions, son nettoyage et ses assertions de fin ne sont pas réunis. En cas d'échec, conserver la recette JAUNE/ROUGE avec le premier défaut reproductible et ne pas passer à une autre recette partielle.
+4. N'ajouter aucun critère au périmètre Lot B. Aucun accès Production, aucune migration Production, aucun déploiement Vercel.
+
+**Règle de statut :** une recette n'est déclarée VERT qu'après PASS de toutes ses assertions prévues et preuve de nettoyage. Les preuves SQL 306–315 restent acquises indépendamment des preuves UI ; elles ne sont pas rejouées inutilement.
