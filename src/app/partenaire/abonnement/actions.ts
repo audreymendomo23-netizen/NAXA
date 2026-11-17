@@ -27,7 +27,7 @@ export async function soumettreReglementAbonnementPartenaire(formData: FormData)
   }
 
   // Cameroon uses UTC+1; the input is a local date/time, not a UTC timestamp.
-  const paidAt = new Date(\`\${paidAtLocal}:00+01:00\`);
+  const paidAt = new Date(paidAtLocal + ":00+01:00");
   if (Number.isNaN(paidAt.getTime())) redirect("/partenaire/abonnement?erreur=date");
 
   const { error } = await sb.rpc("partner_soumettre_reglement_abonnement", {
