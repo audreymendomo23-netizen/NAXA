@@ -6090,3 +6090,17 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Vérification Replay après le premier run : `partners=0`, `admin_partner_dossiers=0`, `partner_subscriptions=0`, `partner_subscription_payments=0`, `naxa_payment_destinations=0`. Aucune fixture n'a été laissée.
 
 **Verdict intermédiaire :** aucune navigation E2E nouvelle n'est encore prouvée. Attendre le run 44035108623 ; ne pas déclarer PASS ni AU VERT avant le résultat navigateur et le nettoyage final.
+
+
+## §164 — Diagnostic du run 44035208736 et correction du harnais (17/11/2026)
+
+- HEAD contrôlé avant correction : `669de43e0609da645e9096e8670c1ba4574b6d16`.
+- Workflow qualité [44035208905](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44035208905) : **SUCCESS**. Jobs « Tests, TypeScript et lint » et « GitHub Actions syntax and expression checks » tous deux PASS.
+- Workflow navigateur [44035208736](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44035208736) : **FAIL** après PASS Promoteur desktop/mobile et parcours Comptable. Le log établit l'erreur exacte `TEMP_PARTNER_NAME is not defined` avant la création de la fixture Partenaire et avant le parcours Client. Le nettoyage confirme qu'aucune fixture temporaire n'était à supprimer.
+- Cause racine : la constante de nom de fixture avait été retirée alors que le bloc de création synthétique Replay l'utilisait encore. Ce n'est ni un échec RLS ni une panne du parcours Client.
+- Correction ciblée sur `main` : commit `ad0dd3ed18c793747e1430765f851be6846b572e`, restauration d'une constante descriptive pour la fixture « NAXA E2E Replay — Centre examens ». Aucun changement applicatif, aucune modification de schéma/RLS et aucun paiement Production.
+- Le run déclenché par ce commit doit confirmer le cycle synthétique Replay (déclaration pending → confirmation Admin → reçu/cycle actif → accès RLS), puis les parcours Partenaire et Client desktop/mobile. Les résultats ne sont pas présumés.
+
+**Verdict Lot B : JAUNE / PARTIEL.** La qualité statique est PASS sur le HEAD précédent ; le navigateur a échoué sur une référence de constante dans le harnais, corrigée sur le HEAD suivant. La commande métier réelle via UI, le refus pharmacie et l'annulation/restauration UI restent à prouver. Les tests SQL transactionnels 306–312 déjà documentés restent distincts des parcours navigateur.
+
+**Point de reprise :** commit `ad0dd3ed18c793747e1430765f851be6846b572e` sur `main`; récupérer le nouveau run qualité et navigation Replay, puis examiner les premières assertions après le bloc Partenaire. Replay uniquement ; aucune migration Production et aucun déploiement Vercel.
