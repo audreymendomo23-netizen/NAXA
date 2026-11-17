@@ -7182,3 +7182,33 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Traiter séparément la configuration Auth leaked-password protection et les ACL des quatre RPC anon ; inventorier les 259 RPC authenticated sans retrait global.
 - Établir une liste nominative des 73 tables RLS sans policy et 47 ensembles de policies multiples, puis corriger uniquement les écarts démontrés. Indexer les FK à fort trafic après analyse ; ne pas supprimer les index inutilisés sans observation.
 - Statut global : **NON VERT**. Les constats sont maintenant actualisés et classés ; aucune preuve d'exécution métier positive n'a été fabriquée.
+
+
+## Section 199 — Reprise fonctionnelle Caisse / remboursements crédit (17 novembre 2026)
+
+### Périmètre et garde-fous
+- Objectif utilisateur : mettre au vert tous les points rouges, en traitant l'implémentation fonctionnelle avant le durcissement technique.
+- Cible de travail : `main` et Supabase Replay uniquement. Aucune modification Production, aucun déploiement, aucune branche ni PR.
+- État de départ confirmé sur `main` : `src/app/pharmacie/caisse/page.tsx`, blob SHA `64a17ef248860f6fd9f0895cd61c1cb9d3814db0`.
+
+### Preuves fonctionnelles observées
+- La page Caisse charge les comptes clients par `caisse_credit_clients_lister` et permet la finalisation d'une vente à crédit par `vente_credit_finaliser`.
+- La page affiche encore explicitement « Paiements électroniques indisponibles » pour l'encaissement comptoir.
+- Aucun formulaire ni appel UI à `client_credit_rembourser` n'existe dans la page Caisse.
+- La RPC `client_credit_rembourser(uuid, integer, mode_paiement_caisse, text, text)` existe mais rejette explicitement tout mode autre que `especes`.
+- La RPC de liste retourne `client_id, solde, plafond, ...`, mais pas `client_credits.id`, identifiant requis par la RPC de remboursement.
+- `client_credit_operations` ne possède actuellement ni clé d'idempotence, ni champs de preuve de vérification visuelle Orange/MTN.
+- `tresorerie_comptes` ne distingue pas les opérateurs Orange et MTN ; `tresorerie_mouvements` n'expose pas de métadonnée de canal/idempotence et son contrat source connu ne couvre pas encore le remboursement crédit.
+- Les déclencheurs comptables existants sur `client_credit_operations` doivent être conservés ; ne pas dupliquer l'outbox comptable côté interface.
+
+### Décision de conception à respecter
+- Remboursements crédit au comptoir : espèces, Orange Money, MTN MoMo.
+- Pour Orange/MTN au comptoir : validation explicite par le caissier après vérification visuelle du bénéficiaire, du montant et de la confirmation sur le téléphone du client ; enregistrer l'acteur, l'heure et la référence déclarée. Ne pas inventer de confirmation opérateur/API.
+- Un remboursement doit réduire le solde crédit et créer le mouvement de trésorerie correspondant dans une opération atomique ou une outbox idempotente. Refuser proprement si le compte de trésorerie correspondant n'est pas configuré ; aucun débit du crédit sans mouvement associé.
+- Les comptes espèces, Orange Money et MTN MoMo doivent rester distincts. Le journal conserve séparément l'origine de l'événement (Marketplace/Comptoir) et le canal réel du paiement.
+- Les preuves plus strictes des parcours Marketplace/Livraison ne doivent pas être affaiblies.
+
+### Statut de ce passage
+- Audit ciblé réalisé ; aucune modification applicative ou SQL exécutée dans ce passage.
+- Aucun point n'est déclaré vert. Les remboursements multi-canaux, leur preuve visuelle, l'idempotence, la liaison trésorerie et l'interface restent rouges tant que les migrations, l'interface et les tests Replay correspondants ne sont pas réalisés.
+- Prochaine reprise exacte : concevoir et versionner le contrat SQL complet (identifiant crédit exposé par RPC contrôlée, preuve visuelle, idempotence, compte de trésorerie par canal et mouvement atomique), puis intégrer le formulaire Caisse et les reçus ; tester sur Replay avant toute déclaration de vert.
