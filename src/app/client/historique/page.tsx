@@ -134,7 +134,7 @@ export default function HistoriqueClient() {
       if (!auth.user) { location.assign("/connexion?retour=%2Fclient%2Fhistorique"); return; }
       const [reservationResult, purchaseResult] = await Promise.all([
         sb.from("reservations").select("id,client_id,pharmacie_id,statut,mode,total,created_at,expires_at,commande_statut,paiement_statut,paiement_ref,pharmacies(nom,ville,quartier,adresse)").eq("client_id", auth.user.id).order("created_at", { ascending: false }).limit(1000),
-        sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").eq("client_id", auth.user.id).order("achat_le", { ascending: false, nullsFirst: false }).limit(2000),
+        sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").order("achat_le", { ascending: false, nullsFirst: false }).limit(2000),
       ]);
       if (cancelled) return;
       if (reservationResult.error) {
