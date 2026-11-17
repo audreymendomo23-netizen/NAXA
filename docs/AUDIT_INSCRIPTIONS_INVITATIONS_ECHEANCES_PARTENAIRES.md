@@ -266,3 +266,25 @@ Les onze migrations du lot sont présentes dans l'historique Supabase Replay, da
 11. \`20261117061911 exclude_non_billable_partner_universes\`
 
 Le job \`naxa-partner-subscription-cycle-hourly\` est présent à \`20 * * * *\`. L'Advisor sécurité ne signale aucun finding sur les deux nouvelles tables ; trois index d'audit FK restent signalés INFO/unused car Replay ne contient aucun règlement. 
+
+
+## Reprise d'implémentation — état constaté sur Replay (17/11/2026)
+
+L'implémentation des abonnements indépendants est déjà présente sur `main` et dans Replay ; elle ne doit pas être dupliquée.
+
+- `partner_subscriptions` et `partner_subscription_payments` existent ; RLS est activé sur les deux tables et chacune possède une policy de lecture bornée aux membres actifs/Admin.
+- Le titulaire de chaque structure soumet son règlement via `partner_soumettre_reglement_abonnement`. La déclaration reste `pending` jusqu'à confirmation Admin, ou jusqu'au rapprochement des deux SMS distincts (débit payeur + crédit marchand) via le matcher interne.
+- La confirmation crée le cycle à la date locale de confirmation du premier paiement ; les renouvellements démarrent après l'échéance active, ou à la date courante après expiration. Le tarif est revalidé contre le dossier et le contrat.
+- La validation de dossier est découplée de l'abonnement Promoteur ; le paiement Promoteur ne lève pas les verrous des structures indépendantes.
+- Le job `naxa-partner-subscription-cycle-hourly` est actif à `20 * * * *`. Les fonctions d'expiration/rappel sont réservées à `service_role`.
+- La table de confirmations de réservations Client n'est pas utilisée comme preuve d'abonnement.
+
+### Contradiction de versionnement à corriger avant prochain déploiement DB
+
+L'historique Replay contient les versions appliquées `20261117060519 partner_independent_subscription_cycles`, `20261117061753 decouple_partner_validation_from_promoteur_subscription` et `20261117061839 isolate_partner_and_promoteur_payment_references`. Sur `main`, les fichiers consultés portent respectivement les timestamps `20261117200000`, `20261117212000` et `20261117213000`; les fichiers portant les anciens timestamps ne sont pas présents. Le versionnement Supabase repose sur le timestamp : le CLI peut donc considérer les nouveaux noms comme migrations en attente et tenter de rejouer des DDL déjà appliqués (notamment la création non idempotente de `partner_subscriptions`). Ne pas lancer `db push` tant que les 11 noms de fichiers du lot n'ont pas été réalignés sur les versions déjà enregistrées, sans rejouer les migrations.
+
+### Limite de preuve
+
+Replay ne contient actuellement aucun dossier Parapharmacie, Examens ou Prestations, ni abonnement ou règlement correspondant. Le job et les droits sont prouvés au niveau configuration, mais aucun parcours réel de soumission→confirmation→cycle→J-5→expiration ne peut être déclaré PASS. Aucune donnée métier de test n'a été créée.
+
+**Verdict : PARTIEL.** Le moteur est implémenté et planifié sur Replay ; l'alignement des fichiers de migration et le test E2E avec structure réelle restent bloquants. Aucun changement Production ni déploiement Vercel.
