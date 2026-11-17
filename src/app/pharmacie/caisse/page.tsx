@@ -232,6 +232,25 @@ export default function CaissePage() {
     return () => { active = false; };
   }, [pid, sb]);
 
+  // Charger les comptes de trésorerie déjà configurés à chaque ouverture
+  // de la Caisse. Sans ce chargement initial, les comptes créés côté serveur
+  // restent invisibles jusqu'à une action manuelle de configuration.
+  useEffect(() => {
+    let active = true;
+    if (!pid) {
+      setRefundTreasuryAccounts([]);
+      return () => { active = false; };
+    }
+    void chargerComptesTresorerieRemboursement().catch((error) => {
+      if (!active) return;
+      setRefundTreasuryAccounts([]);
+      setMsg(error instanceof Error
+        ? "Impossible de charger les comptes de trésorerie : " + error.message
+        : "Impossible de charger les comptes de trésorerie de la Caisse.");
+    });
+    return () => { active = false; };
+  }, [pid, sb]);
+
   useEffect(() => {
     if (!refundPendingStorageKey) return;
     const raw = window.localStorage.getItem(refundPendingStorageKey);
