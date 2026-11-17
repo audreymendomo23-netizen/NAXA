@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§162)  
+**Dernière mise à jour :** 17 novembre 2026 (§168)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `6c109d4407d15ee52dbf68a0aaf4565339dda074`  
+**HEAD contrôlé avant cette mise à jour :** `660b3df7b1232fa2476c8784021c8c89b0d7ca34`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -6162,3 +6162,13 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 4. N'ajouter aucun critère au périmètre Lot B. Aucun accès Production, aucune migration Production, aucun déploiement Vercel.
 
 **Règle de statut :** une recette n'est déclarée VERT qu'après PASS de toutes ses assertions prévues et preuve de nettoyage. Les preuves SQL 306–315 restent acquises indépendamment des preuves UI ; elles ne sont pas rejouées inutilement.
+
+
+## §169 — Renforcement et lancement de la recette Partenaire Examens (17/11/2026)
+
+- Mise à jour de clôture §168 enregistrée sur `main` : commit `2cc1de6da76d4bd4e78394bd844c424a71d35278`.
+- Le harnais navigateur est renforcé pour la recette Partenaire Examens : il capture les erreurs API (`/rest/v1/`, `/api/`) HTTP ≥400 et les exceptions navigateur pendant la navigation authentifiée, vérifie l'affichage du formulaire et refuse le PASS si une erreur est capturée.
+- Commit du harnais : `660b3df7b1232fa2476c8784021c8c89b0d7ca34`.
+- Run lancé automatiquement sur ce commit : [44042299247 — Navigation Promoteur / Partenaire / Client sur Replay](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44042299247), job `133899526085`.
+- Précontrôle secret Replay : PASS ; `npm ci` : PASS ; installation Playwright/Chromium : EN COURS au dernier contrôle. Le build, la recette navigateur et le nettoyage restent à exécuter ; aucun résultat de recette n'est anticipé.
+- Le lot reste JAUNE jusqu'au résultat final du navigateur et au PASS du nettoyage. Aucun accès Production, aucune migration Production, aucun déploiement.
