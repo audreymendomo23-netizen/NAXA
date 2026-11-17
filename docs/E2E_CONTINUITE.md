@@ -7119,3 +7119,27 @@ Le remboursement et son mouvement de trésorerie doivent être une seule unité 
 ### Limite de cette passe
 
 Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifié aucun écran. La base Replay ne dispose toujours d'aucun compte de trésorerie ; les tests positifs Orange/MTN ne peuvent pas être considérés réussis sans configuration explicite et acteurs Caisse autorisés. Aucun faux compte, faux utilisateur, remboursement ou mouvement n'a été créé pour produire un résultat artificiel. Le statut demeure **NON VERT**.
+
+
+## 197. Correction du menu mobile de l'accueil public — superposition et clics — 17/11/2026
+
+### Audit et cause racine
+
+- Le menu déroulant est rendu dans `EnTeteAccueil`, à l'intérieur d'un header `relative isolate` sans niveau de superposition explicite.
+- Le panneau « Que recherchez-vous ? » de `src/app/page.tsx` est un élément frère positionné en `relative z-10` et remonte visuellement sur le header.
+- Le `z-50` du menu ne pouvait pas sortir du contexte d'empilement créé par `isolate` : les liens « Espace client » et « Espace pharmacie » étaient recouverts par le panneau de recherche. Le clic semblait donc inactif.
+- Cause racine confirmée par lecture des deux composants ; il ne s'agit pas d'une destination de lien manquante : les deux liens pointent déjà vers `/connexion?espace=client` et `/connexion?espace=pharmacie`.
+
+### Correction versionnée sur main
+
+- `src/components/EnTeteAccueil.tsx` : ajout de `z-20` au header isolé. Le menu conserve son `z-50` interne et passe désormais au-dessus du panneau de recherche `z-10`.
+- Ajout de `scripts/test-public-menu-layering.cjs` : vérifie l'ordre des couches et la présence des deux destinations de navigation.
+- Aucun changement de logique métier, d'authentification ou de données Supabase.
+
+### Vérification et statut
+
+- Commit correction : `5fa59d46067f7994dfba31b3fc0817234c9efb97`.
+- Commit test : `7b63bc315d601455694c898f5b921a27b85ad26d`.
+- Test automatisé ajouté au glob `npm test` (`scripts/test-*.cjs`). Son exécution CI après push reste la preuve attendue ; aucune exécution locale n'est revendiquée.
+- Recette navigateur à refaire sur mobile : ouvrir les trois traits ; vérifier que le panneau « Que recherchez-vous ? » reste derrière le menu ; cliquer « Espace client » puis vérifier l'arrivée sur la connexion client ; revenir et tester « Espace pharmacie ».
+- Statut : **CORRECTION VERSIONNÉE — validation CI et test navigateur en attente.** Aucun déploiement Production ni changement Supabase.
