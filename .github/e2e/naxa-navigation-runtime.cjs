@@ -155,6 +155,48 @@ async function browserContext(browser, session, viewport) {
   return context;
 }
 
+function diagnosticUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    const queryKeys = Array.from(new Set(Array.from(url.searchParams.keys()))).sort();
+    return url.origin + url.pathname + (queryKeys.length ? "?keys=" + queryKeys.join(",") : "");
+  } catch {
+    return "[URL non analysable]";
+  }
+}
+
+function redactDiagnosticText(value) {
+  return String(value || "")
+    .replace(/Bearer\\s+[A-Za-z0-9._~-]+/gi, "Bearer [redacted]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[email redacted]")
+    .replace(/\\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\b/gi, "[uuid redacted]")
+    .replace(/\\b(?:\\+?237)?[0-9][0-9 .-]{7,}[0-9]\\b/g, "[phone redacted]")
+    .slice(0, 1800);
+}
+
+async function diagnosticResponseBody(response) {
+  try {
+    const raw = await response.text();
+    if (!raw) return "[corps vide]";
+    try {
+      const parsed = JSON.parse(raw);
+      const safe = (value, key = "") => {
+        if (/token|password|secret|authorization|cookie|email|phone|telephone|user.?id|profile.?id|uuid/i.test(key)) return "[redacted]";
+        if (Array.isArray(value)) return value.slice(0, 8).map((item) => safe(item));
+        if (value && typeof value === "object") {
+          return Object.fromEntries(Object.entries(value).slice(0, 20).map(([childKey, childValue]) => [childKey, safe(childValue, childKey)]));
+        }
+        return typeof value === "string" ? redactDiagnosticText(value) : value;
+      };
+      return JSON.stringify(safe(parsed)).slice(0, 1800);
+    } catch {
+      return redactDiagnosticText(raw);
+    }
+  } catch (error) {
+    return "[corps inaccessible : " + redactDiagnosticText(error && error.message) + "]";
+  }
+}
+
 async function expectPath(page, pathname, label) {
   await page.waitForURL((url) => url.pathname === pathname, { timeout: 20000 });
   assert.equal(new URL(page.url()).pathname, pathname, label + " : URL inattendue.");
@@ -574,12 +616,40 @@ async function run() {
     const clientContext = await browserContext(browser, clientSession, { width: 390, height: 844 });
     const clientPage = await clientContext.newPage();
     clientPage.setDefaultTimeout(20000);
-    clientPage.on("pageerror", (error) => console.error("CLIENT PAGEERROR — " + error.message));
-    clientPage.on("console", (message) => { if (message.type() === "error") console.error("CLIENT CONSOLE — " + message.text()); });
-    clientPage.on("response", (response) => {
-      if (response.status() >= 500) console.error("CLIENT HTTP ERROR — " + response.status() + " " + response.url());
+    clientPage.on("pageerror", (error) => {
+      console.error("CLIENT PAGEERROR — " + redactDiagnosticText(error.message));
+      if (error.stack) console.error("CLIENT PAGEERROR STACK — " + redactDiagnosticText(error.stack));
     });
-    clientPage.on("requestfailed", (request) => console.error("CLIENT REQUEST FAILED — " + request.method() + " " + request.url() + " — " + (request.failure()?.errorText || "unknown")));
+    clientPage.on("console", (message) => {
+      if (message.type() === "error") console.error("CLIENT CONSOLE — " + redactDiagnosticText(message.text()));
+    });
+    clientPage.on("response", async (response) => {
+      if (response.status() >= 400) {
+        const request = response.request();
+        const method = request.method();
+        const safeUrl = diagnosticUrl(response.url());
+        if (response.status() === 400) {
+          let requestData = "[aucun corps de requête]";
+          try {
+            const postData = request.postData();
+            if (postData) requestData = redactDiagnosticText(postData);
+          } catch { requestData = "[corps de requête inaccessible]"; }
+          const responseBody = await diagnosticResponseBody(response);
+          console.error("CLIENT HTTP 400 DIAGNOSTIC — " + method + " " + safeUrl
+            + " — resource=" + request.resourceType()
+            + " — request=" + requestData
+            + " — response=" + responseBody);
+        } else if (response.status() >= 500) {
+          console.error("CLIENT HTTP ERROR — " + response.status() + " " + method + " " + safeUrl);
+        }
+      }
+    });
+    clientPage.on("requestfailed", (request) => {
+      const failure = request.failure()?.errorText || "unknown";
+      const line = "CLIENT REQUEST FAILED — " + request.method() + " " + diagnosticUrl(request.url()) + " — " + failure;
+      if (failure.includes("ERR_ABORTED")) console.log("CLIENT REQUEST ABORTED (navigation/cancellation à qualifier) — " + line);
+      else console.error(line);
+    });
     const clientResponse = await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
     const clientCookies = await clientContext.cookies(BASE_URL);
     console.log("INFO Client route — HTTP " + (clientResponse?.status() ?? "none") + ", URL " + clientPage.url()
