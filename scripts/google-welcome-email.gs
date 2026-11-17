@@ -1,39 +1,62 @@
 /**
- * NAXA — courrier de bienvenue Google Apps Script
- * À coller dans un projet Google Apps Script dédié.
+ * NAXA — passerelle e-mail commune (Google Apps Script / Gmail).
+ *
+ * Déploiement : Web App exécutée en tant que propriétaire, URL /exec.
  * Script Properties requises :
- *   NAXA_WELCOME_SECRET = secret long aléatoire
- *   NAXA_WELCOME_FROM_NAME = NAXA (facultatif)
+ *   NAXA_WELCOME_SECRET       secret partagé avec GOOGLE_APPS_SCRIPT_SECRET
+ *   NAXA_WELCOME_FROM_NAME    facultatif, valeur conseillée : NAXA
+ *   NAXA_WORKER_URL           https://nnaxa.vercel.app/api/cron/validite
+ *   NAXA_CRON_SECRET          valeur de CRON_SECRET côté Vercel
+ *   NAXA_VERCEL_BYPASS_SECRET secret de bypass Vercel, distinct des autres secrets
+ *
+ * Les e-mails OTP Supabase restent hors de cette passerelle.
  */
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
-    const p = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    const payload = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     const props = PropertiesService.getScriptProperties();
-    const secret = props.getProperty("NAXA_WELCOME_SECRET");
-    if (!secret || !p.secret || !constantTimeEquals_(String(p.secret), secret)) {
+    const expectedSecret = props.getProperty("NAXA_WELCOME_SECRET");
+
+    if (!expectedSecret || !payload.secret ||
+        !constantTimeEquals_(String(payload.secret), expectedSecret)) {
       return json_({ sent: false, error: "unauthorized" });
     }
-    if (!validEmail_(p.to) || typeof p.html !== "string" || typeof p.subject !== "string" || !/^[a-zA-Z0-9_-]{8,160}$/.test(String(p.idempotencyKey || ""))) {
+
+    const idempotencyKey = String(payload.idempotencyKey || "");
+    if (!validEmail_(payload.to) ||
+        typeof payload.subject !== "string" ||
+        typeof payload.html !== "string" ||
+        !/^[a-zA-Z0-9_-]{8,160}$/.test(idempotencyKey) ||
+        payload.subject.trim().length < 1 ||
+        payload.subject.length > 180 ||
+        payload.html.length > 30000) {
       return json_({ sent: false, error: "invalid_request" });
     }
-    const key = "sent_" + p.idempotencyKey;
-    if (props.getProperty(key)) return json_({ sent: true, alreadySent: true });
 
-    const fromName = props.getProperty("NAXA_WELCOME_FROM_NAME") || "NAXA";
-    const plainText = typeof p.text === "string" && p.text.trim()
-      ? p.text.slice(0, 10000)
+    const propertyKey = "sent_" + idempotencyKey;
+    if (props.getProperty(propertyKey)) {
+      return json_({ sent: true, alreadySent: true });
+    }
+
+    const plainText = typeof payload.text === "string" && payload.text.trim()
+      ? payload.text.slice(0, 10000)
       : "Votre compte NAXA est prêt. Ouvrez ce message dans un client compatible HTML.";
-    MailApp.sendEmail(String(p.to), String(p.subject).slice(0, 180), plainText, {
-      htmlBody: String(p.html).slice(0, 30000),
-      name: fromName,
+    const fromName = props.getProperty("NAXA_WELCOME_FROM_NAME") || "NAXA";
+
+    MailApp.sendEmail(String(payload.to), payload.subject.trim(), plainText, {
+      htmlBody: payload.html,
+      name: fromName
     });
-    props.setProperty(key, new Date().toISOString());
-    if (String(p.idempotencyKey).indexOf("naxa-notification-") === 0) pruneNotificationKeys_(props);
+
+    // Enregistrer seulement après que MailApp a accepté l'envoi.
+    props.setProperty(propertyKey, new Date().toISOString());
+    pruneNotificationKeys_(props);
     return json_({ sent: true, alreadySent: false });
-  } catch (err) {
-    console.error("NAXA welcome email failed: " + String(err));
+  } catch (error) {
+    console.error("NAXA email gateway failure: " + String(error));
     return json_({ sent: false, error: "send_failed" });
   } finally {
     lock.releaseLock();
@@ -41,66 +64,67 @@ function doPost(e) {
 }
 
 function validEmail_(value) {
-  return typeof value === "string" && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return typeof value === "string" &&
+    value.length <= 254 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function constantTimeEquals_(a, b) {
   if (a.length !== b.length) return false;
   let result = 0;
-  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
   return result === 0;
 }
 
 function json_(data) {
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
-
 /**
- * Nettoie uniquement les clés de notifications après 30 jours.
- * Les clés de bienvenue restent conservées pour préserver leur anti-doublon historique.
+ * Purge les clés d'événements/notifications de plus de 30 jours.
+ * Les clés de bienvenue sont conservées afin de préserver leur anti-doublon.
  */
 function pruneNotificationKeys_(props) {
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const all = props.getProperties();
   Object.keys(all).forEach(function(key) {
-    if (key.indexOf("sent_naxa-notification-") !== 0) return;
+    if (key.indexOf("sent_naxa-notification-") !== 0 &&
+        key.indexOf("sent_naxa-email-event-") !== 0) return;
     const sentAt = Date.parse(all[key]);
     if (!sentAt || sentAt < cutoff) props.deleteProperty(key);
   });
 }
 
-
 /**
- * Worker planifié : appelle le endpoint NAXA protégé par CRON_SECRET.
- * Propriétés requises : NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET.
- * Le déclencheur tourne sous le compte Google propriétaire du script.
+ * Worker planifié : appelle le worker e-mail NAXA.
+ * Les secrets sont des propriétés distinctes et ne sont jamais journalisés.
  */
 function processNaxaNotificationQueue() {
   const props = PropertiesService.getScriptProperties();
   const workerUrl = String(props.getProperty("NAXA_WORKER_URL") || "").trim();
   const cronSecret = String(props.getProperty("NAXA_CRON_SECRET") || "");
-  const vercelBypassSecret = String(props.getProperty("NAXA_VERCEL_BYPASS_SECRET") || "");
-  if (!workerUrl || !cronSecret || !vercelBypassSecret) {
-    throw new Error("Configurer NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET dans les propriétés du script.");
-  }
+  const bypassSecret = String(props.getProperty("NAXA_VERCEL_BYPASS_SECRET") || "");
 
+  if (!workerUrl || !cronSecret || !bypassSecret) {
+    throw new Error("Configurer NAXA_WORKER_URL, NAXA_CRON_SECRET et NAXA_VERCEL_BYPASS_SECRET.");
+  }
   if (!/^https:\/\/nnaxa\.vercel\.app\/api\/cron\/validite$/.test(workerUrl)) {
-    throw new Error("NAXA_WORKER_URL doit cibler le domaine stable Production https://nnaxa.vercel.app/api/cron/validite.");
+    throw new Error("NAXA_WORKER_URL doit cibler https://nnaxa.vercel.app/api/cron/validite.");
   }
 
-  // Google Apps Script ne traite que l'outbox e-mail.
-  // Le Web Push est dispatché directement par pg_cron vers /api/cron/posologie
-  // avec son jeton dédié conservé dans Supabase Vault.
   const response = UrlFetchApp.fetch(workerUrl, {
     method: "get",
     headers: {
       Authorization: "Bearer " + cronSecret,
-      "x-vercel-protection-bypass": vercelBypassSecret
+      "x-vercel-protection-bypass": bypassSecret
     },
     muteHttpExceptions: true,
     followRedirects: false
   });
+
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) {
     throw new Error("Worker e-mail NAXA HTTP " + status + " (redirection/refus ou erreur serveur).");
@@ -112,28 +136,26 @@ function processNaxaNotificationQueue() {
   } catch (_) {
     throw new Error("Réponse JSON invalide du worker e-mail NAXA.");
   }
-  if (!result || typeof result !== "object" || Array.isArray(result)
-      || ["claimed", "sent", "retried", "dead"].some(function(key) {
-        return typeof result[key] !== "number";
-      })) {
-    throw new Error("Contrat JSON du worker e-mail NAXA invalide.");
-  }
+
+  ["claimed", "sent", "retried", "dead"].forEach(function(key) {
+    if (!result || typeof result[key] !== "number") {
+      throw new Error("Contrat JSON du worker e-mail NAXA invalide : " + key);
+    }
+  });
 
   const summary = {
     httpStatus: status,
     claimed: result.claimed,
     sent: result.sent,
     retried: result.retried,
-    dead: result.dead
+    dead: result.dead,
+    syncErrors: Array.isArray(result.syncErrors) ? result.syncErrors.length : 0
   };
   console.log("NAXA email worker: " + JSON.stringify(summary));
   return summary;
 }
 
-/**
- * À exécuter une seule fois manuellement après configuration des propriétés.
- * Remplace tout ancien déclencheur de ce handler pour éviter les doublons.
- */
+/** À exécuter une seule fois après configuration des propriétés. */
 function installNaxaNotificationTrigger() {
   const handler = "processNaxaNotificationQueue";
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
@@ -143,7 +165,7 @@ function installNaxaNotificationTrigger() {
   return "Déclencheur NAXA installé : toutes les 5 minutes.";
 }
 
-/** Arrêt d'urgence du déclencheur de notifications. */
+/** Arrêt d'urgence du déclencheur e-mail. */
 function removeNaxaNotificationTrigger() {
   const handler = "processNaxaNotificationQueue";
   let removed = 0;
