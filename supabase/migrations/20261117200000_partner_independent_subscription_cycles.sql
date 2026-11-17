@@ -102,7 +102,7 @@ select
   d.partner_id, d.universe_slug, d.monthly_fee_fcfa,
   'pending_payment',
   case
-    when pa.status='active' and pu.enabled and ap.statut='actif' and ap.echeance>=current_date
+    when pa.status='active' and pu.enabled and ap.statut='actif' and ap.echeance>=(now() at time zone 'Africa/Douala')::date
       then ap.echeance
     else null
   end
@@ -159,7 +159,7 @@ as $fn$
           and s.period_start<=current_date and s.due_date>=current_date)
         or (s.first_confirmed_payment_at is null
           and s.legacy_access_until is not null
-          and s.legacy_access_until>=current_date)
+          and s.legacy_access_until>=(now() at time zone 'Africa/Douala')::date)
       )
   );
 $fn$;
