@@ -251,7 +251,10 @@ async function assertClientSession(profile, session) {
   assert.equal(visibleProfile.role, "client");
   assert.equal(visibleProfile.actif, true);
   assert.equal(visibleProfile.age_verified, true);
-  console.log("PASS précontrôle JWT Client — profil personnel lisible, identité active et âge vérifié.");
+  const { error: purchasesError } = await client.from("client_achats")
+    .select("reservation_id").order("achat_le", { ascending: false, nullsFirst: false }).limit(1);
+  if (purchasesError) throw new Error("Lecture de la vue client_achats sous le JWT Client impossible : " + purchasesError.message);
+  console.log("PASS précontrôle JWT Client — profil personnel lisible, identité active, âge vérifié et vue client_achats accessible.");
 }
 
 async function signOutSession(session) {
