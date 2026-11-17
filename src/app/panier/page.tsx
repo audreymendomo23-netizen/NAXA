@@ -12,14 +12,15 @@ export default function Panier() {
   const { lignes, pret, changerQuantite, retirer, vider } = usePanier();
   const bebeMaman = lignes.filter(line => line.type_article === "bebe-maman");
   const medicaments = lignes.filter(line => line.type_article !== "bebe-maman");
-  const pharmacies = Array.from(medicaments.reduce((groups, line) => {
+  const groupesPharmacies = new Map<string, (typeof medicaments)[number][]>();
+  medicaments.forEach((line) => {
     const ownerId = line.pharmacie_id ?? (line.owner_type === "pharmacie" ? line.owner_id : undefined);
-    if (!ownerId || (line.owner_type && line.owner_type !== "pharmacie")) return groups;
-    const group = groups.get(ownerId) ?? [];
+    if (!ownerId || (line.owner_type && line.owner_type !== "pharmacie")) return;
+    const group = groupesPharmacies.get(ownerId) ?? [];
     group.push(line);
-    groups.set(ownerId, group);
-    return groups;
-  }, new Map<string, typeof medicaments>()));
+    groupesPharmacies.set(ownerId, group);
+  });
+  const pharmacies = Array.from(groupesPharmacies.entries());
   const lignesSansPharmacie = medicaments.filter(line => {
     const ownerId = line.pharmacie_id ?? (line.owner_type === "pharmacie" ? line.owner_id : undefined);
     return !ownerId || (line.owner_type && line.owner_type !== "pharmacie");
