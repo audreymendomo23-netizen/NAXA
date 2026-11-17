@@ -12,6 +12,8 @@ on:
       - "src/app/pharmacie/promoteur/layout.tsx"
       - "src/app/pharmacie/promoteur/livraisons/page.tsx"
       - "src/components/pharmacie/NavPromoteur.tsx"
+      - "src/middleware.ts"
+      - "src/app/api/pharmacies/gardes/route.ts"
   workflow_dispatch:
 
 permissions:
