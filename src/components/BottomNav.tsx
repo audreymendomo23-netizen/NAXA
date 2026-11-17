@@ -65,7 +65,7 @@ export function BottomNav() {
    const utilisateur=utilisateurForce===undefined?(await sb.auth.getUser()).data.user:utilisateurForce;
    if(!actif)return;
    if(!utilisateur){setAvatarUrl(null);setInitiales("C");setProfileVerified(false);return;}
-   const [{data:profile},{data:prefs}]=await Promise.all([sb.from("profiles").select("first_name,last_name,avatar_url").eq("id",utilisateur.id).maybeSingle(),sb.from("client_preferences").select("adresse_defaut").eq("user_id",utilisateur.id).maybeSingle()]);
+   const [{data:profile},{data:prefs}]=await Promise.all([sb.from("profiles").select("first_name,last_name").eq("id",utilisateur.id).maybeSingle(),sb.from("client_preferences").select("adresse_defaut").eq("user_id",utilisateur.id).maybeSingle()]);
    if(!actif)return;
    const meta=utilisateur.user_metadata??{};
    const prenom=typeof profile?.first_name==="string"&&profile.first_name.trim()?profile.first_name.trim():typeof meta.first_name==="string"?meta.first_name.trim():typeof meta.given_name==="string"?meta.given_name.trim():"";
@@ -73,7 +73,7 @@ export function BottomNav() {
    const nomComplet=[prenom,nom].filter(Boolean).join(" ").trim()||String(meta.full_name??meta.name??utilisateur.email?.split("@")[0]??"Client");
    const lettres=nomComplet.split(/[\s._-]+/).filter(Boolean).slice(0,2).map((part:string)=>Array.from(part)[0]?.toLocaleUpperCase("fr-FR")??"").join("");
    setInitiales(lettres||"C");
-   let photo: string | null = typeof profile?.avatar_url === "string" ? profile.avatar_url : typeof meta.avatar_url === "string" ? meta.avatar_url : typeof meta.picture === "string" ? meta.picture : typeof meta.photo_url === "string" ? meta.photo_url : null;
+   let photo: string | null = typeof meta.avatar_url === "string" ? meta.avatar_url : typeof meta.picture === "string" ? meta.picture : typeof meta.photo_url === "string" ? meta.photo_url : null;
    try {
     const localPhoto = window.localStorage.getItem(`naxa-client-profile-photo-v1:${utilisateur.id}`);
     if (localPhoto) photo = localPhoto;
