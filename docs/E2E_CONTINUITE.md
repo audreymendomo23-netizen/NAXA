@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§195)  
+**Dernière mise à jour :** 17 novembre 2026 (§198)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `c4bd6d0f5a4c0126c7f64fc945f5149ec1386f69`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -7143,3 +7143,42 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Test automatisé ajouté au glob `npm test` (`scripts/test-*.cjs`). Son exécution CI après push reste la preuve attendue ; aucune exécution locale n'est revendiquée.
 - Recette navigateur à refaire sur mobile : ouvrir les trois traits ; vérifier que le panneau « Que recherchez-vous ? » reste derrière le menu ; cliquer « Espace client » puis vérifier l'arrivée sur la connexion client ; revenir et tester « Espace pharmacie ».
 - Statut : **CORRECTION VERSIONNÉE — validation CI et test navigateur en attente.** Aucun déploiement Production ni changement Supabase.
+
+
+## 198. Reprise simultanée — audit SQL, Caisse et sécurité Replay — 17/11/2026
+
+### État réel recontrôlé
+
+- HEAD main observé avant cette mise à jour : afbcc9f1a21388452cda92c4bd8c6fb34e9183c8 (commit de documentation du correctif de superposition du menu public).
+- Replay pwfftcsjyeibxxqhwysw : ACTIVE_HEALTHY, PostgreSQL 17.11. Aucun accès Production.
+- Les migrations Replay sont présentes jusqu'à 20261117131435 fix_delivery_pos_physical_stock_debit dans l'historique consulté.
+- Le type enum mode_paiement_caisse contient déjà especes, mobile_money, carte, autre, credit, orange_money et mtn_momo. La prise en charge des canaux Orange/MTN est donc bloquée par la fonction de remboursement, pas par l'absence de valeurs enum.
+- La fonction structurée client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text) refuse explicitement tout mode autre que especes. La surcharge historique client_credit_rembourser(uuid,integer,text,text) lève toujours une exception d'obsolescence.
+- La fonction conserve le verrouillage FOR UPDATE, le contrôle du solde, le périmètre pharmacie et la session Caisse ouverte détenue par l'acteur. Ces gardes doivent être préservées.
+- client_credit_operations ne contient pas de clé d'idempotence ni de champs de preuve de contrôle visuel. tresorerie_mouvements ne contient ni canal ni clé d'idempotence ; sa contrainte source_type n'autorise que depense, vente, ajustement, transfert. tresorerie_comptes n'identifie pas séparément Orange et MTN.
+- La page src/app/pharmacie/caisse/page.tsx contient encore un avertissement « Paiements électroniques indisponibles » et aucun parcours de remboursement du crédit. Le crédit de vente ne constitue pas un parcours de recouvrement.
+- Les advisors Supabase Replay ont été relancés : sécurité = 73 tables RLS sans policy (INFO), 4 fonctions SECURITY DEFINER exécutables par anon (WARN), 259 fonctions SECURITY DEFINER exécutables par authenticated (WARN), protection des mots de passe compromis désactivée (WARN). Performance = 248 clés étrangères sans index couvrant, 25 policies avec réévaluation auth par ligne, 150 index non utilisés, 47 tables avec policies permissives multiples. Santé = aucun finding remonté.
+- Ces compteurs sont globaux. Une table privée RLS sans policy peut être intentionnelle ; une RPC SECURITY DEFINER peut être une API métier autorisée si ses gardes et ACL sont correctes. Aucun retrait global de droits, aucune policy permissive ajoutée et aucun changement de configuration Auth n'ont été appliqués.
+- Le statut combiné GitHub du commit afbcc9f... ne retourne aucun statut CI enregistré ; cela ne prouve ni un succès ni un échec des tests.
+
+### Causes racines et décisions
+
+1. **Recouvrement crédit multicanal : NON VERT.** Les valeurs enum existent ; la garde espèces-only dans la RPC, l'absence d'idempotence, l'absence de mapping trésorerie par canal et l'absence d'écran empêchent encore la clôture.
+2. **Sécurité globale : NON VERT / revue ciblée requise.** Les findings ne doivent pas être « corrigés » par révocation générale. Il faut inventorier les ACL et les contrats de chaque RPC exposée, puis traiter les tables publiques sans policy selon leur usage réel ; les objets du schéma private doivent rester non exposés.
+3. **Performance globale : NON VERT / priorisation requise.** Les index inutilisés ne doivent pas être supprimés sans période d'observation représentative ; les clés étrangères et policies doivent être corrigées par table après analyse des plans et des chemins d'accès.
+4. **Protection des mots de passe compromis : NON VERT.** La protection est désactivée dans Auth. Aucun paramètre n'a été modifié dans cette passe.
+
+### Actions de cette passe
+
+- Audit lecture seule du projet Replay, des fonctions SQL, des colonnes/contraintes, de la page Caisse et des advisors.
+- Aucune migration, aucune mutation de données, aucun compte/mouvement de trésorerie, aucun changement de code métier.
+- Aucun accès Production et aucun déploiement.
+- Mise à jour documentaire uniquement ; aucun vert métier ou sécurité revendiqué.
+
+### Reprise technique priorisée
+
+- Créer une migration additive versionnée pour l'idempotence, la preuve de contrôle visuel, le mapping explicite pharmacie/canal/compte et l'écriture trésorerie atomique ; préserver l'outbox comptable existante et la clôture espèces-only.
+- Tester sur Replay les chemins espèces/Orange/MTN, les doubles soumissions, les refus de sécurité et le rollback en absence de mapping avant de raccorder l'interface Caisse.
+- Traiter séparément la configuration Auth leaked-password protection et les ACL des quatre RPC anon ; inventorier les 259 RPC authenticated sans retrait global.
+- Établir une liste nominative des 73 tables RLS sans policy et 47 ensembles de policies multiples, puis corriger uniquement les écarts démontrés. Indexer les FK à fort trafic après analyse ; ne pas supprimer les index inutilisés sans observation.
+- Statut global : **NON VERT**. Les constats sont maintenant actualisés et classés ; aucune preuve d'exécution métier positive n'a été fabriquée.
