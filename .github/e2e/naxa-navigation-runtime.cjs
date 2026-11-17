@@ -440,7 +440,73 @@ async function run() {
     await expectPath(partnerPage, "/partenaire/examens", "Réservations partenaire → Centres et examens");
     await partnerContext.close();
 
-    console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Partenaire depuis Catalogue et Réservations.");
+    // Client E2E : session d'un profil Client Replay déjà existant.
+    // Les données panier/favori ci-dessous sont locales, marquées démo et supprimées par les actions UI.
+    const clientContext = await browserContext(browser, partnerSession, { width: 390, height: 844 });
+    const clientPage = await clientContext.newPage();
+    clientPage.setDefaultTimeout(20000);
+    await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/client", "Ouverture espace Client");
+    await expectPageHeading(clientPage, "Espace Client");
+    await clientPage.evaluate(() => {
+      window.localStorage.setItem("naxa-favoris-v1", JSON.stringify([{
+        id: "naxa-e2e-ui-favori-local",
+        nom: "Article local de recette",
+        dosage: "1 unité",
+        photo_url: null,
+        prix: 1000,
+        pharmacie: "Fixture locale isolée",
+        demo: true,
+        savedAt: Date.now()
+      }]));
+      window.localStorage.setItem("naxa-panier-v1", JSON.stringify([{
+        produit_id: "naxa-e2e-ui-panier-local",
+        nom: "Article local de recette",
+        dosage: "1 unité",
+        quantite: 1,
+        type_article: "medicament",
+        prix_unitaire_fcfa: 1000,
+        quantite_max: 10
+      }]));
+    });
+
+    await clientPage.goto(BASE_URL + "/client/profil/favoris", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/client/profil/favoris", "Client → Favoris");
+    await clientPage.getByRole("heading", { name: /Mes favoris/ }).waitFor({ state: "visible" });
+    await clientPage.getByText("Article local de recette", { exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByRole("button", { name: "Retirer Article local de recette des favoris", exact: true }).click();
+    await clientPage.getByText("Votre liste est encore vide", { exact: true }).waitFor({ state: "visible" });
+    console.log("PASS Client — affichage et retrait UI d'un favori local démo (aucune écriture métier).");
+
+    await clientPage.goto(BASE_URL + "/panier", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/panier", "Client → Panier");
+    await clientPage.getByRole("heading", { name: "Mon panier", exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByText("Article local de recette", { exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByRole("button", { name: "+", exact: true }).click();
+    await clientPage.getByText("2", { exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByRole("button", { name: "Retirer", exact: true }).click();
+    await clientPage.getByText("Votre panier est vide.", { exact: true }).waitFor({ state: "visible" });
+    console.log("PASS Client — quantité et retrait UI du panier local démo.");
+
+    await clientPage.goto(BASE_URL + "/resultats?q=paracetamol", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/resultats", "Client → Recherche Marketplace");
+    await clientPage.getByRole("textbox", { name: "Médicament recherché" }).waitFor({ state: "visible" });
+    await clientPage.locator('[aria-label="Filtres de recherche"]').waitFor({ state: "visible" });
+    await clientPage.getByRole("combobox", { name: "Filtrer par ville" }).selectOption("Yaoundé");
+    await clientPage.getByRole("button", { name: /Assurance/ }).click();
+    await clientPage.locator("#assurance-options").waitFor({ state: "visible" });
+    console.log("PASS Client — recherche Marketplace, filtre ville et panneau Assurance interactifs.");
+
+    await clientPage.goto(BASE_URL + "/client/historique", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/client/historique", "Client → Historique");
+    await clientPage.getByRole("heading", { name: "Historique", exact: true }).waitFor({ state: "visible" });
+    await clientPage.locator("#history-period").selectOption("all");
+    await clientPage.locator("#history-search").fill("aucune commande E2E");
+    await clientPage.getByText("Aucun élément ne correspond à ces critères.", { exact: true }).waitFor({ state: "visible" });
+    console.log("PASS Client — historique, filtre de période et recherche sans commande résiduelle.");
+    await clientContext.close();
+
+    console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Partenaire, Client (favoris/panier locaux, recherche/filtres, historique).");
   } finally {
     const shutdownFailures = [];
     try {
