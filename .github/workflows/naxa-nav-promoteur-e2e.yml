@@ -19,6 +19,10 @@ on:
       - "src/components/AccueilClient.tsx"
       - "src/app/client/profil/page.tsx"
       - "src/app/resultats/page.tsx"
+      - "src/app/panier/page.tsx"
+      - "src/lib/panier.tsx"
+      - "src/app/commande/nouvelle/page.tsx"
+      - "src/app/commande/bebe-maman/page.tsx"
       - "supabase/migrations/**"
   workflow_dispatch:
 
