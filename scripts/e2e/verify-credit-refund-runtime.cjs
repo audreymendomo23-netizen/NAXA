@@ -66,6 +66,8 @@ async function run(env = process.env) {
   let promoterToken = null;
   let cashierToken = null;
   let creditId = null;
+  let creditCreatedByRuntime = false;
+  let creditOriginalBalance = null;
   let cashierSessionId = null;
   let clientId = null;
   let clientFicheExisted = false;
@@ -199,9 +201,16 @@ async function run(env = process.env) {
 
     if (operationsDeleted && creditId) {
       try {
-        await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId), {
-          admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage compte crédit E2E",
-        });
+        if (creditCreatedByRuntime) {
+          await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId), {
+            admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage compte crédit créé par le runtime E2E",
+          });
+        } else {
+          await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId), {
+            admin: true, method: "PATCH", body: { solde: creditOriginalBalance },
+            prefer: "return=minimal", label: "Restauration du solde initial du compte crédit E2E réutilisé",
+          });
+        }
       } catch (error) { errors.push(error.message); }
     }
     if (operationsDeleted && !clientFicheExisted && clientId) {
@@ -253,9 +262,14 @@ async function run(env = process.env) {
     if (operationsDeleted && creditId) {
       try {
         const remainingCredits = await adminRows(
-          "client_credits?select=id&id=eq." + encodeURIComponent(creditId) + "&limit=2"
+          "client_credits?select=id,solde&id=eq." + encodeURIComponent(creditId) + "&limit=2"
         );
-        if (remainingCredits.length) errors.push("Le compte crédit E2E subsiste après nettoyage.");
+        if (creditCreatedByRuntime) {
+          if (remainingCredits.length) errors.push("Le compte crédit créé par le runtime E2E subsiste après nettoyage.");
+        } else if (remainingCredits.length !== 1
+          || Number(remainingCredits[0].solde) !== Number(creditOriginalBalance)) {
+          errors.push("Le compte crédit E2E réutilisé n'a pas retrouvé son solde initial.");
+        }
       } catch (error) { errors.push(error.message); }
     }
     if (operationsDeleted && treasuryAccountIds.length) {
@@ -310,12 +324,33 @@ async function run(env = process.env) {
     clientFicheExisted = existingFiche.length > 0;
 
     const existingCredits = await adminRows(
-      "client_credits?select=id,solde&client_id=eq." + encodeURIComponent(clientId)
+      "client_credits?select=id,solde,actif&client_id=eq." + encodeURIComponent(clientId)
         + "&pharmacie_id=eq." + encodeURIComponent(pharmacyId) + "&limit=2"
     );
-    if (existingCredits.length) {
-      throw new Error("Le Client technique possède déjà un compte crédit dans cette pharmacie ; aucun encours existant ne sera modifié.");
+    if (existingCredits.length > 1) {
+      throw new Error("Plusieurs comptes crédit existent pour le Client technique ; la recette refuse toute sélection arbitraire.");
     }
+    if (existingCredits.length === 1) {
+      const existingCredit = existingCredits[0];
+      if (existingCredit.actif !== true || Number(existingCredit.solde) !== 0) {
+        throw new Error("Le compte crédit technique existant doit être actif et à solde nul ; aucun encours existant ne sera modifié.");
+      }
+      creditId = existingCredit.id;
+      creditCreatedByRuntime = false;
+      creditOriginalBalance = Number(existingCredit.solde);
+    } else {
+      creditId = await rpc("client_credit_configurer", promoterToken, {
+        p_client: clientId, p_pharmacie: pharmacyId, p_plafond: 10000,
+      }, "Création du compte crédit test");
+      if (typeof creditId !== "string") throw new Error("La configuration Promoteur n'a pas retourné d'identifiant de compte crédit.");
+      creditCreatedByRuntime = true;
+      creditOriginalBalance = 0;
+    }
+
+    await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId), {
+      admin: true, method: "PATCH", body: { solde: seedBalance },
+      prefer: "return=minimal", label: "Préparation temporaire du solde de crédit Replay",
+    });
 
     for (const plan of plans) {
       const existingRows = await adminRows(
