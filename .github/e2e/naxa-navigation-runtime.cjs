@@ -547,24 +547,6 @@ async function run() {
   state.originalPharmacieId = comptable.pharmacie_id;
   saveState();
 
-  const { data: insertedAssignment, error: assignmentError } = await admin.from("naxa_professional_assignments")
-    .insert({
-      profile_id: comptable.id,
-      pharmacie_id: PHARMACY_ID,
-      fonction: "comptable",
-      role_code: "comptable",
-      statut: "active",
-      motif: "Navigation runtime E2E temporaire " + RUN_LABEL,
-      nature_affectation: "ordinaire",
-      commence_at: new Date().toISOString(),
-      accorde_par: promoter.id,
-    })
-    .select("id").single();
-  if (assignmentError) throw assignmentError;
-  state.assignmentId = insertedAssignment.id;
-  saveState();
-  console.log("INFO : affectation Comptable temporaire ajoutée à un profil Auth existant.");
-
   const sessions = [];
   let browser;
   try {
@@ -582,6 +564,28 @@ async function run() {
       historyFixtures.reservationA, historyFixtures.reservationB
     );
     await cleanupClientHistoryFixtures();
+
+    // Do not assign a professional function to Client B until its Client RLS
+    // history has been checked. The same account becomes Comptable only after
+    // the A/B isolation proof is complete.
+    const { data: insertedAssignment, error: assignmentError } = await admin.from("naxa_professional_assignments")
+      .insert({
+        profile_id: comptable.id,
+        pharmacie_id: PHARMACY_ID,
+        fonction: "comptable",
+        role_code: "comptable",
+        statut: "active",
+        motif: "Navigation runtime E2E temporaire " + RUN_LABEL,
+        nature_affectation: "ordinaire",
+        commence_at: new Date().toISOString(),
+        accorde_par: promoter.id,
+      })
+      .select("id").single();
+    if (assignmentError) throw assignmentError;
+    state.assignmentId = insertedAssignment.id;
+    saveState();
+    console.log("INFO : affectation Comptable temporaire ajoutée après la recette Client A/B.");
+
     const adminProfile = await profileByUsername("e2e_admin_261104");
     assert.equal(adminProfile.role, "admin", "Le compte Admin E2E n'a plus le rôle Admin.");
     const adminSession = await createExistingUserSession(adminProfile);
