@@ -15,7 +15,7 @@ for (const channel of ["especes", "orange_money", "mtn_momo"]) {
 }
 
 assert.match(ui, /p_idempotency_key:\s*idempotencyKey/);
-assert.match(ui, /const idempotencyKey = refundIdempotencyKey \?\? crypto\.randomUUID\(\)/);
+assert.match(ui, /const idempotencyKey = pending\?\.idempotencyKey \?\? refundIdempotencyKey \?\? crypto\.randomUUID\(\)/);
 assert.equal((ui.match(/setRefundIdempotencyKey\(null\);/g) || []).length, 2,
   "The idempotency key is cleared only after success or a confirmed server rejection");
 assert.match(ui, /localStorage\.setItem\(refundPendingStorageKey/);
