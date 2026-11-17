@@ -251,10 +251,26 @@ async function assertClientSession(profile, session) {
   assert.equal(visibleProfile.role, "client");
   assert.equal(visibleProfile.actif, true);
   assert.equal(visibleProfile.age_verified, true);
-  const { error: purchasesError } = await client.from("client_achats")
-    .select("reservation_id").order("achat_le", { ascending: false, nullsFirst: false }).limit(1);
+  const { data: purchases, error: purchasesError } = await client.from("client_achats")
+    .select("reservation_id").order("achat_le", { ascending: false, nullsFirst: false }).limit(2000);
   if (purchasesError) throw new Error("Lecture de la vue client_achats sous le JWT Client impossible : " + purchasesError.message);
   console.log("PASS précontrôle JWT Client — profil personnel lisible, identité active, âge vérifié et vue client_achats accessible.");
+  return Array.from(new Set((purchases || []).map((row) => row.reservation_id).filter(Boolean)));
+}
+
+async function assertClientHistoryIsolation(profileA, sessionA, profileB, sessionB) {
+  assert.notEqual(profileA.id, profileB.id, "Les deux comptes Client doivent être distincts.");
+  const [historyA, historyB] = await Promise.all([
+    assertClientSession(profileA, sessionA),
+    assertClientSession(profileB, sessionB),
+  ]);
+  assert.ok(historyA.length > 0, "Fixture insuffisante : le Client A doit avoir au moins un achat payé/retiré pour prouver l'isolation.");
+  assert.ok(historyB.length > 0, "Fixture insuffisante : le Client B doit avoir au moins un achat payé/retiré pour prouver l'isolation.");
+  const idsA = new Set(historyA);
+  const idsB = new Set(historyB);
+  const overlap = historyA.filter((id) => idsB.has(id));
+  assert.deepEqual(overlap, [], "Fuite d'historique : des réservations sont visibles dans les historiques A et B : " + overlap.join(", "));
+  console.log("PASS isolation historique A/B — deux JWT Client distincts, achats présents des deux côtés et aucun identifiant de réservation partagé.");
 }
 
 async function signOutSession(session) {
@@ -400,7 +416,9 @@ async function run() {
     sessions.push(comptableSession);
     const clientSession = await createExistingUserSession(partnerOwner);
     sessions.push(clientSession);
-    await assertClientSession(partnerOwner, clientSession);
+    const clientBSession = await createExistingUserSession(comptable);
+    sessions.push(clientBSession);
+    await assertClientHistoryIsolation(partnerOwner, clientSession, comptable, clientBSession);
     const adminProfile = await profileByUsername("e2e_admin_261104");
     assert.equal(adminProfile.role, "admin", "Le compte Admin E2E n'a plus le rôle Admin.");
     const adminSession = await createExistingUserSession(adminProfile);
