@@ -6055,3 +6055,26 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 **Lot B : JAUNE / PARTIEL.** Les 7 tests SQL passent et les résidus suivis sont à zéro. Le parcours UI Client desktop/mobile n'est pas encore prouvé ; la commande réelle et ses refus/annulation via interface ne sont pas encore exécutés. Le dernier workflow qualité connu est en échec sur une assertion de harnais désormais corrigée ; les nouveaux workflows doivent terminer PASS. Le SKIP Partenaire est justifié par l'absence de partenaire payé sur Replay et ne constitue pas un PASS Partenaire.
 
 **Point de reprise exact :** HEAD après retrait du nom de fixture partenaire ; récupérer le dernier run `NAXA navigation Promoteur E2E Replay` et `NAXA quality`, puis corriger toute erreur prouvée et poursuivre le parcours Client. Aucun changement Production, aucune migration Production, aucun déploiement Vercel.
+
+
+## §163 — Reprise de la recette navigateur avec les comptes Replay existants (17/11/2026)
+
+**Inventaire en lecture seule avant test :**
+- 11 identités Auth confirmées et 11 profils actifs/majeurs retrouvés sur Replay : Admin, Promoteur, Client acheteur, Gestionnaire Stock, Caisse, Livreur, Comptable, Pharmacien et comptes spécialisés de recette péremption.
+- 8 affectations professionnelles actives déjà présentes, dont Stock, Caisse, Comptable, Pharmacien, Livreur et Responsable ; les comptes sont reliés aux pharmacies démo Mvan et à la pharmacie technique non commerciale.
+- Aucun compte Auth supplémentaire ni changement de mot de passe requis. Le runner utilise des liens de connexion ponctuels émis par Supabase pour les identités existantes ; aucun mot de passe n'est lu ou journalisé.
+- Avant fixture, Replay ne contenait aucun partenaire, dossier partenaire, abonnement partenaire ni règlement partenaire. Aucune adhésion Partenaire active n'était disponible ; la garde RLS de l'accès Partenaire exige un paiement confirmé.
+
+**Adaptation du harnais navigateur :**
+- Commit `bd91d0c819efd4c859c2392f76b58eba1609dfac` sur `main`.
+- Le harnais crée une fixture Partenaire temporaire sur Replay, rattachée au compte Promoteur déjà existant, et une destination de paiement explicitement marquée non réelle.
+- La déclaration passe par `partner_soumettre_reglement_abonnement` avec référence `NAXA-E2E-REPLAY`; le paiement doit rester `pending` avant décision Admin. Le compte Admin existant confirme ensuite via `admin_confirmer_reglement_partenaire`. Assertions attendues : reçu, cycle actif, lecture RLS refusée avant confirmation et autorisée après.
+- Le paiement, la destination, le partenaire, l'adhésion et les notifications associées sont des données synthétiques exclusivement Replay ; le nettoyage de secours les supprime et vérifie leur disparition. Aucune transaction financière réelle n'est effectuée.
+
+**Exécution en cours :**
+- GitHub Actions : [44034937608 — NAXA navigation Promoteur E2E Replay](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44034937608).
+- HEAD testé : `bd91d0c819efd4c859c2392f76b58eba1609dfac`.
+- Précontrôle secrets strictement Replay : PASS ; installation dépendances : PASS ; installation Playwright/Chromium : EN COURS au dernier contrôle.
+- Aucune assertion navigateur de cette nouvelle exécution n'est encore déclarée PASS. Attendre le résultat final du job et le contrôle post-nettoyage.
+
+**Périmètre :** Replay uniquement, comptes existants uniquement, branche `main`. Aucun changement Production, aucun déploiement Vercel.
