@@ -6698,3 +6698,110 @@ Le calcul automatique du total et de la monnaie rendue existe déjà et a été 
 **Écarts à corriger :** unifier l'écran et les RPC de vente comptoir autour du choix de canal ; autoriser la validation manuelle explicite Orange/MTN sans rapprochement SMS pour le client physiquement présent ; conserver les montants reçu/dû et la monnaie rendue ; alimenter exactement une fois les trois sous-comptes depuis le ledger commun POS + Marketplace ; ajouter la vue Promoteur et le rapprochement par canal. Les contrôles Marketplace distants restent distincts et ne doivent pas être affaiblis par cette règle du comptoir.
 
 **Statut : NON VERT** — audit et décision documentés ; aucune correction de code, migration Replay, modification Production ou déploiement réalisés dans cette passe.
+
+
+## 190. Audit approfondi — conformité du POS comptoir, calcul du dû/rendu et trésorerie — 17/11/2026
+
+### Périmètre et version
+
+- Dépôt : `audreymendomo23-netizen/NAXA`, branche `main`.
+- HEAD documentaire observé : `853206e099e4b5edeed28f56a8d0f30be9c64e72` (commit de documentation de la section 189).
+- Code POS contrôlé : `src/app/pharmacie/caisse/page.tsx`, blob `64a17ef248860f6fd9f0895cd61c1cb9d3814db0` ; calculs `src/lib/caisse/calculs.ts`.
+- Base interrogée : Replay `pwfftcsjyeibxxqhwysw`. Aucune écriture SQL, migration ou mutation de données effectuée pendant cet audit ; Production non consultée ni modifiée.
+
+### 1. Parcours client sans compte NAXA
+
+**CONFORME pour la vente comptant anonyme.**
+- `ventes.client_id` est nullable.
+- `vente_creer(p_session, p_client)` accepte `p_client = NULL`.
+- L'écran indique explicitement « Client (facultatif pour une vente comptant) » ; la sélection proposée est celle des clients avec compte de crédit.
+- Le client sans compte NAXA peut donc acheter au comptoir sans création de compte ni association obligatoire à un profil.
+- Limite : le parcours anonyme ne collecte pas de nom/téléphone client. Le sélecteur visible sert à rattacher un compte de crédit, pas à créer une fiche client comptant.
+
+### 2. Total dû calculé automatiquement
+
+**CONFORME dans le flux de modification de panier existant.**
+- `vente_lignes.total_ligne` est une colonne générée PostgreSQL : `quantite * prix_unitaire`.
+- `vente_ajouter_produit` récupère le prix de la pharmacie dans `stocks.prix`, contrôle le stock vendable, insère la ligne puis appelle `vente_recalculer_totaux`.
+- `vente_produit_retirer` recalcule également les totaux après suppression.
+- `vente_recalculer_totaux` calcule `total_brut = SUM(total_ligne)` et `total_net = greatest(total_brut - remise, 0)`.
+- L'écran recalcule l'affichage avec `totalPanier(lignes.map(line => line.total))`. La RPC d'encaissement utilise le `ventes.total_net` conservé côté base, et non le total envoyé par le navigateur.
+- Les mutations directes des tables POS ne sont pas accordées à `authenticated` ; les opérations passent par les RPC contrôlées. `vente_recalculer_totaux` n'est pas exécutable directement par `authenticated`.
+
+**Réserve :** la RPC finale ne relance pas elle-même `vente_recalculer_totaux` ; elle dépend du recalcul effectué à chaque ajout/retrait autorisé. Ce couplage est actuellement cohérent avec les voies de modification identifiées, mais mérite un test d'intégration de bout en bout après toute évolution des RPC du panier.
+
+### 3. Montant reçu, monnaie rendue, reçu
+
+**CONFORME pour les espèces.**
+- La caissière saisit `percu`; l'écran refuse les valeurs non entières, nulles ou inférieures au total.
+- `monnaieARendre` calcule `max(montant reçu - total dû, 0)`.
+- `vente_encaisser_finaliser` verrouille la vente et la session, vérifie le rôle Caisse actif, la pharmacie, le panier non vide et l'absence de paiement antérieur ; elle refuse un montant reçu inférieur au total.
+- La RPC recalcule la monnaie rendue côté PostgreSQL, insère `vente_paiements` avec `montant = total dû`, `montant_percu = montant reçu`, `monnaie_rendue = différence`, puis marque la vente payée dans la même transaction.
+- Le ticket affiche le montant dû encaissé, le mode de paiement, le montant reçu et la monnaie rendue. La réimpression relit les paiements persistés.
+- La clôture espèces calcule l'entrée nette dans le tiroir à partir du montant dû (`vente_paiements.montant`), et non du montant remis par le client ; c'est correct puisque la monnaie rendue a déjà quitté le tiroir.
+- Une recette Replay antérieure a prouvé un encaissement espèces de 1 000 FCFA, ticket, événement, débit de stock et clôture à écart nul.
+
+### 4. Événement, identité de la caissière, stock et anti-doublon
+
+**CONFORME sur les contrôles source/DB vérifiés.**
+- Le paiement est lié à la vente ; `created_by` est l'identité de l'acteur et `created_at` l'horodatage du paiement.
+- Les triggers `naxa_caisse_audit_append` journalisent les insertions de `vente_paiements` et les changements de `ventes` dans la chaîne d'audit de caisse, avec acteur, horodatage, transaction PostgreSQL et chaînage SHA-256.
+- Le trigger `compta_outbox_vente_encaissee` émet l'événement métier lorsque le statut de la vente change.
+- `naxa_pos_debit_before_sale_paid` déclenche le débit physique du stock au passage à payée et évite le second débit lorsqu'une réservation a déjà consommé le stock.
+- La RPC refuse un second paiement si un paiement existe déjà et verrouille la ligne de vente ; la finalisation et le paiement sont atomiques.
+- Replay au moment du contrôle : 21 événements d'insertion de paiement et 21 mises à jour de vente payée dans la chaîne d'audit ; ce comptage est une observation de base, pas une nouvelle recette navigateur.
+
+### 5. Orange Money / MTN MoMo au comptoir
+
+**NON CONFORME — blocage explicite dans le parcours courant.**
+- L'énumération `mode_paiement_caisse` connaît `orange_money` et `mtn_momo`, mais l'écran POS ne propose aucun sélecteur de canal et affiche « Paiements électroniques indisponibles ».
+- `vente_encaisser_finaliser` ne reçoit aucun canal et inscrit toujours `especes`.
+- Les RPC `vente_encaisser` et `vente_ajouter_paiement` rejettent explicitement Orange Money, MTN MoMo et Mobile Money, au motif qu'une confirmation opérateur officielle serait nécessaire.
+- Il n'existe donc pas de commande de validation visuelle par la caissière pour un client physiquement présent. Le parcours actuel impose une condition que la règle métier a expressément exclue : API opérateur / confirmation officielle / rapprochement SMS.
+- Il manque également la persistance du canal mobile choisi et la preuve opérationnelle minimale (acteur, heure et déclaration de vérification visuelle). Une référence affichée par le client pourrait être conservée à titre de traçabilité, sans la rendre obligatoire ni l'utiliser comme rapprochement SMS.
+
+### 6. Marketplace et Livraison
+
+**PARTIELS et séparés du POS comptoir ; pas de trésorerie commune.**
+- `vente_reservation_encaisser` accepte plusieurs canaux, vérifie le code de réservation, recalcule le total des articles de réservation et enregistre le paiement. C'est le parcours de retrait d'une réservation Marketplace, pas le POS anonyme de vente immédiate.
+- `naxa_delivery_pos_encaisser` constitue un flux spécifique de remise/livraison avec contrôle de déclaration, canal, référence et état du dossier de paiement. Il ne doit pas être confondu avec le client présent au comptoir.
+- Ces flux créent des ventes et des lignes de `vente_paiements`, mais l'audit des fonctions et triggers ne trouve aucune écriture correspondante dans `tresorerie_mouvements`. Leurs recettes ne sont donc pas consolidées dans les comptes de trésorerie demandés.
+
+### 7. Trois soldes Promoteur et mouvements de trésorerie
+
+**NON CONFORME à l'objectif de gestion.**
+- Replay contient actuellement 0 compte `tresorerie_comptes` et 0 mouvement `tresorerie_mouvements`.
+- Le type `tresorerie_compte_type` ne distingue pas nativement Orange Money et MTN MoMo : les deux seraient de type générique `mobile_money` et devraient être distingués par leur nom. Plusieurs comptes nommés sont techniquement possibles, mais aucun compte n'est configuré dans Replay et l'opérateur n'est pas garanti par le type.
+- Les types de mouvements ne proposent que `encaissement` et `decaissement`. Le champ `source_type` autorise `vente`, `depense`, `ajustement` et `transfert`, mais l'audit SQL des fonctions trouve un seul écrivain de `tresorerie_mouvements` : `depense_valider`.
+- Aucune fonction identifiée ne poste les encaissements POS, les paiements Marketplace, les remboursements, les retraits ou les deux jambes d'un transfert dans ce ledger.
+- Les tables de trésorerie sont en lecture seule pour `authenticated` ; les écritures passent par des RPC. La création de compte existe via `tresorerie_creer_compte`, mais ne suffit pas à alimenter les soldes.
+- `caisse_cloturer` rapproche uniquement le tiroir espèces (fond initial, encaissements espèces, remboursements espèces et décaissements de session). Cette portée est cohérente pour clôturer un tiroir, mais elle ne constitue pas la vue globale des trois canaux.
+- Aucun écran/agrégat complet n'a été démontré pour afficher au Promoteur espèces + Orange Money + MTN MoMo + total et écarts par canal.
+
+### Matrice finale de conformité
+
+| Domaine | Verdict |
+|---|---|
+| Vente comptant sans compte NAXA | **CONFORME** |
+| Total automatique du panier | **CONFORME** |
+| Montant reçu saisi par la caissière | **CONFORME espèces uniquement** |
+| Monnaie rendue calculée et persistée | **CONFORME espèces uniquement** |
+| Ticket avec dû/reçu/rendu | **CONFORME espèces** |
+| Identité/heure et événement d'encaissement | **CONFORME via paiement + chaîne d'audit + outbox** |
+| Débit de stock et anti-double paiement | **CONFORME sur les gardes identifiées** |
+| Choix des trois canaux au comptoir | **NON CONFORME** |
+| Validation visuelle Orange/MTN sans SMS | **NON CONFORME** |
+| Paiements Marketplace intégrés au même ledger | **NON CONFORME** |
+| Trois soldes distincts et total Promoteur | **NON CONFORME** |
+| Dépenses, retraits, remboursements et transferts multi-canaux | **NON CONFORME / incomplet** |
+
+### Plan de correction à reprendre
+
+1. Conserver le calcul actuel du total et de la monnaie rendue ; l'étendre proprement au modèle de paiement par canal sans régression.
+2. Ajouter au POS un sélecteur Espèces / Orange Money / MTN MoMo. Espèces : montant reçu librement supérieur ou égal au dû et rendu calculé. Mobile au comptoir : montant reçu égal au dû, vérification visuelle et validation explicite de la caissière, sans SMS/API/rapprochement.
+3. Faire accepter le canal par une RPC atomique qui vérifie le rôle/session, interdit les doublons, persiste canal, dû, reçu, rendu, référence facultative, acteur/heure, événement et ticket ; déclencher le stock une seule fois.
+4. Définir trois comptes de trésorerie typés sans ambiguïté et alimenter le ledger commun depuis les encaissements comptoir, réservations Marketplace et paiements de livraison de la pharmacie, avec source conservée et idempotence.
+5. Ajouter les mouvements sortants et transferts en paire équilibrée, les remboursements et le rapprochement entre solde théorique NAXA et solde réel déclaré par canal.
+6. Ajouter la vue Promoteur détaillant espèces, Orange Money, MTN MoMo, total et écarts ; garder la clôture du tiroir espèces distincte.
+
+**Statut : NON VERT.** Audit approfondi documenté ; aucune correction de code, migration Replay, mutation de données, modification Production ou déploiement effectués. Les tests fonctionnels mobiles et le ledger restent à construire et à prouver.
