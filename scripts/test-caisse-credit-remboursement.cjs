@@ -4,8 +4,9 @@ const path = require("node:path");
 
 const read = (relativePath) => fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
 const ui = read("src/app/pharmacie/caisse/page.tsx");
+const projectionMigration = read("supabase/migrations/20261117172316_caisse_credit_refund_accounts_rpc.sql");
 const migration = read("supabase/migrations/20261117173913_caisse_credit_repayment_multichannel_atomic.sql");
-const accountMigration = read("supabase/migrations/20261117180000_caisse_credit_treasury_account_create_atomic.sql");
+const accountMigration = read("supabase/migrations/20261117175003_caisse_credit_treasury_account_create_atomic.sql");
 const e2e = read("supabase/tests/302_caisse_credit_repayment_multichannel_e2e.sql");
 
 for (const channel of ["especes", "orange_money", "mtn_momo"]) {
@@ -35,6 +36,7 @@ assert.match(ui, /Imprimer le reçu/);
 // Sale settlement remains guarded separately; this change does not claim operator confirmation.
 assert.match(ui, /Paiements électroniques indisponibles/);
 
+assert.match(projectionMigration, /caisse_credit_remboursement_comptes_lister/);
 assert.match(migration, /pg_advisory_xact_lock/);
 assert.match(migration, /create unique index if not exists client_credit_operations_idempotency_uidx/);
 assert.match(migration, /create unique index if not exists tresorerie_mouvements_credit_refund_source_uidx/);
