@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§129)  
+**Dernière mise à jour :** 17 novembre 2026 (§134)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `1916357a3e3eeebdf1e9f0468a133f5b2a716fa6`  
+**HEAD contrôlé avant cette mise à jour :** `0413223c8b23236e22805d633752775d1d338d79`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5239,3 +5239,51 @@ Liens de preuve :
 - Annulation, indisponibilité après ajout au panier et historique Client restent à prouver en parcours utilisateur complet. Aucun test n'est présenté comme navigateur si ce n'était qu'une assertion SQL.
 
 **Verdict B2 : JAUNE / PARTIEL.** Les contrats SQL de publication, disponibilité, recherche et sécurité des favoris sont prouvés sur Replay ; le refus Promoteur navigateur reste acquis. La chaîne positive de commande, favoris UI, annulation, indisponibilité et historique Client attend un scénario navigateur authentifié et des fixtures Marketplace isolées publiables. Aucune écriture Production, migration Production ou déploiement.
+
+
+## 134. Lot B2 — seconde passe ciblée avec comptes Client et pharmacie E2E (17/11/2026)
+
+**Périmètre de cette passe :** Supabase Replay `pwfftcsjyeibxxqhwysw` exclusivement. Lecture des comptes, profils, affectations et stocks ; scénarios SQL transactionnels annulés par `ROLLBACK`. Aucune donnée persistante modifiée, aucune migration, aucun déploiement.
+
+### Comptes et environnement réellement disponibles
+
+- Le compte Client acheteur `naxa_e2e_acheteur` existe : profil `dcb2242b-50fb-46c8-8c90-e01d42fa4175`, rôle `client`, sans pharmacie rattachée.
+- Les comptes `naxa_e2e_stock`, `naxa_e2e_caisse` et `naxa_e2e_pharmacien` existent et ont des affectations actives Gestionnaire stock / Caisse / Pharmacien sur la pharmacie Mvan, mais cette pharmacie est marquée `est_demo=true` : elle ne peut pas publier d'offre Marketplace.
+- Le Promoteur E2E existe, mais aucune relation Promoteur→pharmacie ni affectation professionnelle n'a été relevée pour lui dans cette vérification.
+- La pharmacie `NAXA E2E — Pharmacie de recette (non commerciale)` (`1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`) est non-démo et active, mais `visible_recherche=false`. Elle possède deux lignes de stock ; une seule est positive et exploitable : Produit crédit comptoir, 1 000 FCFA, quantité 3, fraîcheur physique récente, sans lots.
+- Les autres pharmacies ayant du stock sont des pharmacies de test marquées démo. Le constat initial « zéro offre publiable » venait donc de l'état de visibilité de la pharmacie non commerciale et du caractère démo des autres pharmacies, pas d'une absence totale de stock.
+
+### Tests supplémentaires exécutés
+
+- **PASS SQL — disponibilité positive réelle sous rôle anon :** dans une transaction, visibilité de la seule pharmacie E2E non commerciale temporairement activée ; appel de `public.marketplace_offre_stock_disponible` sous `SET LOCAL ROLE anon` ; résultat `prix=1000`, `quantite=3`. `ROLLBACK` final : la pharmacie reste masquée après le test.
+- **PASS SQL — cycle ajout/lecture/retrait d'un favori :** avec l'identité Client acheteur et le rôle SQL `authenticated`, insertion du favori sur le produit E2E, lecture propriétaire confirmée (`own_favorite_visible=1`), suppression exécutée sans erreur, puis `ROLLBACK`. Aucune ligne persistante.
+- Les preuves précédentes d'isolation inter-Clients et des tests 300–305 restent celles du §133 ; elles ne sont pas requalifiées en tests UI.
+
+### Contradiction et cause racine de la recette encore incomplète
+
+- Les comptes professionnels existants sont affectés à une pharmacie démo, exclue par conception du Marketplace public.
+- La pharmacie E2E non commerciale qui porte un stock positif est masquée de la recherche. Son offre devient disponible sous anon uniquement pendant la transaction de test lorsque sa visibilité est temporairement activée.
+- Les comptes et affectations de recette ne constituent donc pas encore un environnement navigateur positif persistant et publiable. Aucun identifiant de connexion ou mot de passe utilisable n'a été exposé par les outils connectés ; aucune session navigateur interactive n'est disponible dans cette exécution.
+- Le connecteur GitHub ne fournit pas de navigateur Playwright/Computer Use pour piloter les écrans Client. Les requêtes SQL prouvent les gardes de données et le RLS, pas les clics, le panier, la soumission d'une commande ou l'historique affiché.
+
+### Verdict et point de reprise exact
+
+**Lot B2 : JAUNE / PARTIEL — pas AU VERT.**
+
+| Scénario | État après cette passe |
+|---|---|
+| Recherche / offre positive sous anon | PASS SQL transactionnel ; UI Client non prouvée |
+| Refus des offres non éligibles / Promoteur | PASS SQL antérieur et refus Promoteur navigateur antérieur (§128) |
+| Favori ajouter / lire / retirer | PASS SQL sous identité Client ; synchronisation UI/local-compte non prouvée |
+| Isolation favoris entre deux Clients | PASS SQL réel simulant les JWT (§133) |
+| Panier et commande positive | NON TESTÉ en parcours Client |
+| Indisponibilité après ajout au panier | NON TESTÉ en parcours Client |
+| Annulation et restitution du stock | NON TESTÉ sur une commande créée par le parcours Client |
+| Historique Client | NON TESTÉ en parcours Client |
+| Assurance et ordonnance dans le Lot B global | Ne pas déclarer vert sur la base des seuls tests ci-dessus ; conserver leurs preuves et réserves propres dans les sections antérieures |
+
+**Action corrective non exécutée :** ne pas rendre publiquement visible de façon persistante une pharmacie de recette ni réaffecter des rôles sur simple commodité de test. Préparer un fixture isolé explicitement étiqueté recette, non commercial, avec visibilité et affectations temporaires réversibles, puis un véritable harnais navigateur authentifié qui crée, suit et annule une commande. Ne pas utiliser les comptes ou données de pharmacies commerciales.
+
+**CI :** le run qualité `43988879675` a été contrôlé : le job « Tests, TypeScript et lint » est `cancelled`, et seul le contrôle de syntaxe des workflows est PASS. Il ne valide pas le HEAD documentaire `0413223c8b23236e22805d633752775d1d338d79`. Ne pas annoncer de CI verte.
+
+**Aucune correction applicative, migration, donnée persistante, Production, Vercel ou Play Store n'a été modifiée dans cette passe.**
