@@ -5,6 +5,8 @@ declare
  v_definition text;
  v_policy text;
  v_table text;
+ v_capability text;
+ v_public text;
  v_required text[] := array['exam_centers','exam_services','exam_packs','exam_center_hours','exam_slots'];
 begin
  select lower(pg_get_functiondef(
@@ -34,6 +36,17 @@ begin
   raise exception 'La lecture membre de partners ne reprend pas les gardes d''accès';
  end if;
 
+ select lower(pg_get_functiondef('private.exam_has_capability(uuid,text)'::regprocedure)) into v_capability;
+ if position('naxa_partner_has_confirmed_payment' in v_capability)=0 then
+  raise exception 'Les droits du personnel ne sont pas subordonnés à l''accès partenaire';
+ end if;
+ select lower(pg_get_functiondef('private.universe_partner_is_public(uuid,text)'::regprocedure)) into v_public;
+ if position('naxa_partner_has_confirmed_payment' in v_public)=0 then
+  raise exception 'La publication publique ne respecte pas les verrous du partenaire';
+ end if;
+ if exists(select 1 from pg_policies where schemaname='public' and tablename='exam_center_hours' and policyname='exam_hours_partner_manage') then
+  raise exception 'Une ancienne policy permissive des horaires reste active';
+ end if;
  foreach v_table in array v_required loop
   select lower(coalesce(qual,'') || ' ' || coalesce(with_check,''))
   into v_policy
@@ -49,6 +62,15 @@ begin
      or position('profiles' in v_policy)=0
      or position('owner' in v_policy)=0 or position('manager' in v_policy)=0 then
    raise exception 'Policy de gestion % incomplète : %',v_table,v_policy;
+  end if;
+ end loop;
+ foreach v_table in array array['exam_appointments','exam_pack_items'] loop
+  select lower(coalesce(qual,'') || ' ' || coalesce(with_check,''))
+   into v_policy from pg_policies
+   where schemaname='public' and tablename=v_table
+    and policyname=case v_table when 'exam_appointments' then 'exam_appointments_partner_read' else 'exam_pack_items_partner_manage' end;
+  if v_policy is null or position('naxa_partner_has_confirmed_payment' in v_policy)=0 then
+   raise exception 'Policy partenaire % non alignée',v_table;
   end if;
  end loop;
 end
