@@ -343,22 +343,39 @@ async function run(env = process.env) {
       if (Number(stockBeforeRecovery) + stockToRestore !== 4) {
         throw new Error("La récupération ne correspond pas exactement au stock initial de quatre unités ; restitution bloquée.");
       }
-      const restored = await rpc("gestionnaire_stock_quantite_ajuster", cashierToken, {
-        p_pharmacie: PHARMACY_ID,
-        p_produit: PRODUCT_ID,
-        p_delta: stockToRestore,
-        p_type: "retour",
-        p_motif: "Restitution contrôlée du stock après récupération d'une recette POS interrompue",
-        p_lot: null,
-      }, "Restitution du stock de recette après récupération");
-      if (restored !== true) throw new Error("La restitution du stock de recette n'a pas été confirmée.");
-      const finalStock = await rows(
-        "stocks?select=quantite&pharmacie_id=eq." + encodeURIComponent(PHARMACY_ID)
-          + "&produit_id=eq." + encodeURIComponent(PRODUCT_ID) + "&limit=2"
-      );
-      const quantity = Number((await ensureSingle(finalStock, "Stock après récupération Caisse")).quantite);
-      if (quantity !== 4) {
-        throw new Error("Le stock de recette n'est pas revenu à la quantité cible quatre après récupération.");
+      const selectedStockRole = await rpc("naxa_select_active_role", cashierToken, {
+        p_role_code: "gestionnaire_stock", p_pharmacie_id: PHARMACY_ID,
+      }, "Activation du rôle Gestionnaire Stock pour la restitution de fixture");
+      if (selectedStockRole !== true
+        || await rpc("naxa_business_function", cashierToken, {}, "Vérification rôle Gestionnaire Stock") !== "gestionnaire_stock") {
+        throw new Error("Le rôle Gestionnaire Stock n'a pas été activé pour restituer le stock de fixture.");
+      }
+      try {
+        const restored = await rpc("gestionnaire_stock_quantite_ajuster", cashierToken, {
+          p_pharmacie: PHARMACY_ID,
+          p_produit: PRODUCT_ID,
+          p_delta: stockToRestore,
+          p_type: "retour",
+          p_motif: "Restitution contrôlée du stock après récupération d'une recette POS interrompue",
+          p_lot: null,
+        }, "Restitution du stock de recette après récupération");
+        if (restored !== true) throw new Error("La restitution du stock de recette n'a pas été confirmée.");
+        const finalStock = await rows(
+          "stocks?select=quantite&pharmacie_id=eq." + encodeURIComponent(PHARMACY_ID)
+            + "&produit_id=eq." + encodeURIComponent(PRODUCT_ID) + "&limit=2"
+        );
+        const quantity = Number((await ensureSingle(finalStock, "Stock après récupération Caisse")).quantite);
+        if (quantity !== 4) {
+          throw new Error("Le stock de recette n'est pas revenu à la quantité cible quatre après récupération.");
+        }
+      } finally {
+        const selectedCashierRole = await rpc("naxa_select_active_role", cashierToken, {
+          p_role_code: "caisse", p_pharmacie_id: PHARMACY_ID,
+        }, "Retour au rôle Caisse après restitution du stock");
+        if (selectedCashierRole !== true
+          || await rpc("naxa_business_function", cashierToken, {}, "Vérification du retour au rôle Caisse") !== "caisse") {
+          throw new Error("Le compte de recette n'a pas retrouvé son rôle Caisse après restitution.");
+        }
       }
     }
   }
