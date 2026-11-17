@@ -7294,3 +7294,29 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **En attente :** exécution complète des scripts JWT et navigateur multicanal sur Replay ; résultat final du build/TypeScript/lint de la relance qualité.
 - **Non revendiqué :** validation opérateur automatisée Orange/MTN ; recette de vente POS encaissée par ces opérateurs ; publication Production.
 - Le sous-parcours SQL multicanal est vert. Le parcours complet navigateur + qualité globale reste **PARTIEL / EN ATTENTE** jusqu'aux deux runs terminaux ; ne pas déclarer le chantier global vert avant preuves.
+
+
+## Section 202 — Correction du chargement initial des comptes de trésorerie Caisse (17 novembre 2026)
+
+### Cause racine vérifiée sur Replay
+- Le run Replay 44192308451 (commit b2dc61cd89fd3e62d5f4a1a10e98a68648e335cb) a exécuté avec succès le remboursement JWT, mais l'étape navigateur s'est arrêtée sur Compte non configuré pour les trois canaux.
+- Les trois lignes de public.tresorerie_comptes existaient pourtant sur la pharmacie technique 1a4f1ce5-cccf-477e-9a5b-474c8c9fc713, actives et affectées respectivement à especes, orange_money et mtn_momo.
+- La page Caisse ne chargeait caisse_credit_tresorerie_comptes_lister qu'après un clic de création/configuration. Aucun chargement initial n'alimentait refundTreasuryAccounts. Le bouton restait donc désactivé même avec les comptes présents en base.
+
+### Correction versionnée
+- src/app/pharmacie/caisse/page.tsx : ajout d'un chargement contrôlé des comptes déjà affectés au montage et à chaque changement de pharmacie ; l'effet annule ses mises à jour après démontage et bloque le parcours en cas d'échec de lecture.
+- scripts/test-credit-pos-browser.cjs : assertion statique dédiée pour empêcher la régression du chargement initial des comptes par canal.
+- La création à 0 FCFA, le changement manuel de compte, le contrôle de preuve Orange/MTN et le rapprochement atomique restent inchangés.
+
+### État de la fixture Replay après le run interrompu
+- Session Caisse b8b29ce1-1f34-417e-8fde-ae02890c6dbc : clôturée ; total théorique 1 000 FCFA, total compté 1 000 FCFA, écart 0.
+- Compte crédit technique : solde 0 FCFA après remboursement compensatoire de récupération ; aucune session Caisse n'est restée ouverte.
+- Stock du produit technique : 4 unités, valeur initiale vérifiée.
+- Trois comptes de trésorerie : présents, actifs et reliés aux trois canaux sur Replay.
+
+### Preuves et limites conservées
+- Recette SQL 302_caisse_credit_repayment_multichannel_e2e.sql réexécutée directement sur Replay le 17 novembre 2026 : PASS ; le script termine par ROLLBACK.
+- Dernier script runtime authentifié avant cette correction : PASS pour les trois canaux via un vrai JWT Caisse Replay.
+- La recette navigateur des trois canaux doit être relancée sur ce correctif ; aucun PASS navigateur n'est revendiqué avant le résultat du run post-correction.
+- Le dernier run groupé a aussi signalé un échec indépendant du test de réutilisation de refresh token Auth. Il reste séparé du remboursement Caisse et ne doit pas être masqué par un résultat vert SQL.
+- Aucun changement de schéma n'est requis pour ce défaut ; aucune migration Production, écriture Production ni publication Vercel n'est autorisée ou effectuée dans ce passage.

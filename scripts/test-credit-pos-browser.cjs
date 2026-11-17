@@ -10,6 +10,20 @@ const source = fs.readFileSync(
   "utf8",
 );
 
+const caisseSource = fs.readFileSync(
+  path.join(__dirname, "../src/app/pharmacie/caisse/page.tsx"),
+  "utf8",
+);
+
+test("les comptes de trésorerie affectés sont rechargés à l'initialisation et au changement de pharmacie", () => {
+  assert.match(caisseSource, /Les affectations de trésorerie doivent être rechargées au montage et à chaque changement de pharmacie/);
+  assert.match(caisseSource, /useEffect\(\(\) => \{\s*let active = true;\s*if \(!pid\) \{\s*setRefundTreasuryAccounts\(\[\]\);/);
+  assert.match(caisseSource, /sb\.rpc\("caisse_credit_tresorerie_comptes_lister", \{ p_pharmacie: pid \}\)/);
+  assert.match(caisseSource, /setRefundTreasuryAccounts\(rows\.map\(\(row\) => \(\{/);
+  assert.match(caisseSource, /\}, \[pid, sb\]\);/);
+  assert.match(caisseSource, /refundTreasuryAccounts\.some\(\(item\) => item\.channel === refundChannel\)/);
+});
+
 test("la recette navigateur crédit est épinglée à Replay uniquement", () => {
   assert.match(source, /const PROJECT_REF = "pwfftcsjyeibxxqhwysw"/);
   assert.match(source, /function assertReplayUrl\(value\)/);
