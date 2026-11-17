@@ -205,10 +205,27 @@ export async function POST(request: Request) {
       }).select("id").single();
       if (eventError?.code === "23505") return NextResponse.json({ received: true, status: "duplicate" }, { status: 409 });
       if (eventError || !event) return NextResponse.json({ error: "Conservation de l'evenement Admin impossible." }, { status: 503 });
-      await notifyAdmins(db, "SMS de crédit reçu, mais aucune déclaration de débit Promoteur correspondante n'existe. Le SMS seul ne crée ni règlement ni renouvellement. Référence " + reference + ".");
+
+      // Le trigger DB rapproche aussi le SMS bénéficiaire avec les déclarations Partenaire.
+      const { data: partnerPayment } = await db.from("partner_subscription_payments")
+        .select("id,receipt_number,period_start,period_end,confirmation_source")
+        .eq("merchant_capture_event_id", event.id).eq("status", "confirmed").maybeSingle();
+      if (partnerPayment) {
+        return NextResponse.json({
+          received: true, eventId: event.id,
+          partnerSubscriptionPaymentId: partnerPayment.id,
+          status: "auto_confirmed_partner_subscription",
+          receipt: partnerPayment.receipt_number,
+          periodStart: partnerPayment.period_start,
+          periodEnd: partnerPayment.period_end,
+          confirmationSource: partnerPayment.confirmation_source,
+        }, { status: 200 });
+      }
+
+      await notifyAdmins(db, "SMS de crédit reçu, mais aucune paire complète de preuves ne correspond à un règlement Promoteur ou Partenaire. Le SMS seul ne crée ni règlement ni renouvellement. Référence " + reference + ".");
       return NextResponse.json({
         received: true, eventId: event.id, status: "manual_review",
-        message: "SMS de crédit conservé. Le Promoteur doit d'abord transmettre sa preuve de débit, ou l'Admin doit procéder à une vérification manuelle.",
+        message: "SMS de crédit conservé. Le SMS de débit du titulaire Partenaire doit être rapproché, ou l'Admin doit procéder à une vérification manuelle.",
       }, { status: 202 });
     }
 
