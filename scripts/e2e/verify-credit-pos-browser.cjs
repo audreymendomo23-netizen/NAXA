@@ -682,7 +682,7 @@ async function run(env = process.env) {
 
       try {
         await cashierPage.waitForFunction(() => {
-          const button = document.querySelector('#caisse-remboursements-credit button');
+          const button = document.querySelector('#caisse-credit-refund-submit');
           return Boolean(button && !button.disabled);
         }, null, { timeout: 20000 });
       } catch {
