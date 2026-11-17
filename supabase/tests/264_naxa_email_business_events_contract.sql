@@ -40,5 +40,6 @@ begin
     or not has_function_privilege('service_role','public.emettre_rappels_conventions_prestations_email()','execute') then
     raise exception '264 FAIL: droits worker service_role absents';
   end if;
-end $$;
+end $;
+select '264 business email events contract PASS' as resultat;
 rollback;
