@@ -108,7 +108,7 @@ export default async function PartnerSubscriptionPage({
                   <h2 className="text-xl font-extrabold">{item.partner_name}</h2>
                   <p className="mt-1 text-sm text-slate-600">Tarif contractuel : <strong>{money(item.monthly_fee_fcfa)}</strong></p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statusLabel(sub.status)}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{sub.first_confirmed_payment_at === null && sub.legacy_access_until ? "Accès historique conservé" : statusLabel(sub.status)}</span>
               </div>
 
               <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
