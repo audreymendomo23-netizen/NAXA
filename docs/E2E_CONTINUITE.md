@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§143)  
+**Dernière mise à jour :** 17 novembre 2026 (§144)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `0d9fa32c49be4218fda6e933d3ee2b802b24dabd`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -5477,3 +5477,32 @@ La fonction `public.naxa_delivery_monthly_due` incluait auparavant `commission_n
 - GitHub combined status du HEAD : aucun statut publié ; CI non vérifiée.
 
 **Point de reprise exact :** créer une identité Auth E2E dédiée au rôle Partenaire et son organisation de recette via le processus normal, puis exécuter le navigateur sur les routes Promoteur Livraisons, Client Marketplace, Ordonnance et Assurance. Ne pas convertir un compte Client en Partenaire, ni donner un rôle métier à un compte Promoteur pour contourner la séparation des espaces.
+
+## 144. Test transactionnel Admin — création d'un dossier Partenaire Examens sur Production (17/11/2026)
+
+**Demande utilisateur :** vérifier le parcours directement sur le projet principal, sans créer de dossier commercial réel ni détourner durablement un compte.
+
+**Projet contrôlé :**
+- Supabase principal Naxa, ref `eouwtuusnsuxaejsxknf`, état `ACTIVE_HEALTHY`.
+- Aucun changement de schéma, migration, déploiement ou écriture persistante demandé ni effectué.
+
+**État avant test :**
+- Fonction `public.admin_create_partner_dossier(...)` présente, `SECURITY DEFINER`, avec le type de partenaire `centre_examen` et l'univers `examens`.
+- Univers `examens` présent.
+- Comptes disponibles répondant aux contrôles de profil client (actif, âge vérifié, date de naissance, consentement et email confirmé) : 7 ; profil Admin actif : 1.
+- Dossiers Partenaires : 0 ; membres Partenaires : 0 ; centres d'examens : 0 ; rattachements à l'univers examens : 0.
+
+**Exécution contrôlée — SQL / sous-transaction annulée :**
+1. Le contexte JWT SQL a été réglé sur l'identité Admin existante ; `auth.uid()` a retourné cette identité et `public.is_admin()` a validé le rôle Admin.
+2. La fonction de création a été appelée avec un compte Client existant répondant aux contrôles de profil, un dossier technique de centre d'examens et des coordonnées de test.
+3. L'appel a atteint le point de création sans erreur ; une exception sentinelle a ensuite forcé le rollback de la sous-transaction. Toute erreur métier autre que cette sentinelle aurait fait échouer le test.
+4. Contrôle après rollback : `partners=0`, `partner_members=0`, `exam_centers=0`, rattachements `examens=0`, événements `partner.dossier_created=0`, et le compte Client utilisé est toujours actif.
+
+**Résultat : PASS du chemin SQL de création avec rollback.** Aucune ligne de dossier, adhésion, centre ou événement d'audit n'a été conservée ; aucun compte n'a été suspendu durablement.
+
+**Réserve découverte pendant l'audit de la fonction :**
+- Dans le corps de `admin_create_partner_dossier`, le contrôle de `p_owner_user_id` vérifie seulement que le profil existe. La fonction ne vérifie pas elle-même que ce profil est un Client actif, majeur, âge vérifié, avec consentement accepté et email confirmé.
+- Le test positif a utilisé un Client admissible ; il ne prouve pas le rejet d'un profil non admissible. Avant toute création persistante, ajouter et tester explicitement ces gardes côté serveur, sans se fier uniquement à l'interface.
+- Cette passe valide le moteur SQL avec identité Admin simulée, pas une connexion HTTP réelle ni le rendu du parcours navigateur. Aucun outil de navigation authentifiée n'était disponible pour prouver l'interface.
+
+**Verdict :** test SQL direct Production réussi et intégralement annulé ; parcours Partenaire Examens global **JAUNE / PARTIEL**, tant que les gardes serveur d'éligibilité et le test UI ne sont pas prouvés. Aucune création réelle ni modification persistante Production.
