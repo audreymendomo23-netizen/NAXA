@@ -23,7 +23,11 @@ Le Client conserve un seul accès panier. Les lignes et les finalisations resten
 
 ## Vérifications
 
-Modifications poussées directement sur `main`. Les fichiers ont été relus après écriture via GitHub. Aucun test TypeScript, ESLint, test automatisé, build ou parcours E2E n'a été exécuté dans cet environnement pendant cette intervention.
+- Correction de syntaxe poussée sur `main` : `5f11914f2a5f62792d72069c3d9ceead07573519` (page panier), puis `b2adaca37ffcb600487114970b0580b05db29c7c` (contexte panier).
+- Le run précédent `44051283097` avait exécuté 572 tests avec 572 réussites, mais TypeScript avait échoué sur les deux fichiers ci-dessus.
+- Après correction, les workflows ont été relancés sur le commit `b2adaca37ffcb600487114970b0580b05db29c7c` : qualité `44052340432` et navigation Promoteur E2E Replay `44052340453`. Dernier état consulté : en attente (`pending`), sans résultat de job disponible.
+- En conséquence, aucune réussite TypeScript, lint, build ou E2E post-correction n'est encore démontrée. Le chantier reste non vert.
+- Aucun déploiement Vercel ni changement Supabase n'a été effectué.
 
 ## Limites restantes
 
