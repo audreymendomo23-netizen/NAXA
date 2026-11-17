@@ -5941,3 +5941,15 @@ Requête SQL en lecture seule du 17/11 :
 - Le run qualité complet reste à obtenir sur un commit actuel ; le dernier run cité est annulé.
 
 **Verdict :** Lot B reste **JAUNE / PARTIEL**. Le runner Playwright local fonctionne et a prouvé les écrans Promoteur/Comptable ; le parcours Client a un échec de navigation non diagnostiqué avant le correctif de journalisation. Le prochain point exact est le résultat du workflow déclenché par le commit `6c109d4`, puis correction de la cause démontrée et relance jusqu'aux assertions Client. Ne pas déclarer AU VERT avant PASS navigateur Client et tests métier positifs/négatifs complets.
+
+
+## 156. Vérification de la facturation indépendante partenaire (17/11/2026)
+
+- Le moteur est déjà présent dans Replay : tables `partner_subscriptions` / `partner_subscription_payments`, RPC de soumission, confirmation Admin ou rapprochement SMS double preuve, cycle, reçu, expiration et rappel J-5.
+- Contrôle positif : RLS activé et policies de lecture par membre actif/Admin ; exécution des fonctions d'expiration/rappel et du worker global limitée à `service_role` ; job pg_cron actif toutes les heures à la minute 20.
+- Contrôle de frontière : la confirmation d'abonnement Client `naxa_universe_payment_confirmations` reste distincte ; le règlement Promoteur ne réactive pas les partenaires indépendants.
+- Contrôle négatif / preuve manquante : zéro dossier et zéro paiement sur Replay pour les univers facturables Parapharmacie, Examens, Prestations. Aucun E2E métier réel possible sans fixture/structure.
+- Blocage de versionnement : au moins trois fichiers de migration sur `main` portent des timestamps différents de ceux enregistrés dans `supabase_migrations.schema_migrations` (ex. 20261117200000 vs 20261117060519). Ne pas exécuter de `db push` avant réalignement des onze fichiers du lot.
+- Aucun write métier Supabase, aucune migration appliquée pendant ce contrôle, aucun déploiement Production.
+
+**Verdict du lot : JAUNE / PARTIEL.** Reprise exacte : réaligner les timestamps des fichiers sur l'historique Replay, puis créer une fixture de structure isolée et tester le cycle complet en transaction annulée.
