@@ -6011,3 +6011,47 @@ La prochaine passe est dédiée à la fermeture du Lot B, sans ouvrir un nouveau
 
 
 Contrôle de données Replay (lecture seule, 17/11/2026) : `admin_partner_dossiers = 0`, `partner_subscriptions = 0`, `partner_subscription_payments = 0`. Aucun dossier partenaire n'est disponible pour exécuter le scénario E2E.
+
+
+## §163. Reprise simultanée du Lot B — diagnostic, SQL et harnais (17/11/2026)
+
+### Audit du run navigateur antérieur
+
+- Run [44027615028](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44027615028), commit testé `9d09298`, FAIL.
+- Les logs établissent PASS Promoteur desktop/mobile et PASS des six destinations Comptable. Le premier timeout est l'ouverture de `/partenaire/catalogue`; le parcours Client n'a pas été atteint.
+- Cause racine confirmée par les policies Replay : `partners_member_read` et `partner_universes_member_read` exigent `private.naxa_partner_has_confirmed_payment(id)`. Le harnais créait un partenaire/dossier validé sans abonnement ni paiement confirmé ; RLS le masquait correctement. Ce n'était pas une preuve de panne de l'espace Client.
+- État Replay lu : 0 partenaire actif, 0 adhésion, 0 abonnement partenaire, 0 réservation. Aucun paiement ne doit être fabriqué pour débloquer le test.
+
+### Correction du harnais sur main
+
+- Commit `9553b17e9871c536ca9fad6cdd62231699bffac0` : suppression de la fixture Partenaire non payée ; navigation Partenaire exécutée uniquement si le compte Promoteur possède déjà un centre actif avec abonnement actif et premier paiement confirmé ; sinon SKIP explicite, puis poursuite du Client. Ajout d'un contrôle d'ouverture Client desktop avant les interactions Client mobile.
+- Le premier contrôle qualité de ce commit a échoué sur une assertion statique devenue obsolète (`partner_universes` attendu après suppression volontaire de la fixture). Le build de navigation a été arrêté par le même échec de test préalable ; il ne s'agit pas d'une erreur TypeScript établie.
+- Commit `4c15bdd83d3760ade3aa734b06c6541be3a0fefc` : assertion statique alignée sur le nouveau contrat de paiement confirmé, sans réintroduire de fixture ou de paiement fictif.
+- Un nouveau commit retire ensuite le nom de fixture partenaire devenu inutilisé. Les workflows qualité et Chromium sont déclenchés automatiquement sur ce nouveau HEAD ; résultats à récupérer avant verdict.
+
+### Tests SQL Replay rejoués
+
+Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBACK :
+
+| Test | Résultat |
+|---|---|
+| 306 — Marketplace Client, favori, réservation, anti-survente, annulation et historique | **PASS** |
+| 307 — Lots, mouvements, perte, inventaire et stock agrégé | **PASS** |
+| 308 — Réception fournisseur, lot et stock | **PASS** |
+| 309 — Préparation multi-commandes et publication des offres Livreur | **PASS** |
+| 310 — Passage Stock vers acceptation Livreur | **PASS** |
+| 311 — Retrait, arrivée, remise, confirmation Client et suivi `delivered` | **PASS** |
+| 312 — Rapport Promoteur, périmètre réseau et commissions NAXA nulles | **PASS** |
+
+### Contrôles de propreté après ROLLBACK
+
+- Réservations : 0 ; partenaires actifs : 0 ; adhésions : 0 ; abonnements : 0.
+- Missions et offres Livreur : 0 ; fournisseurs et commandes fournisseur de test : 0 ; lots et inventaires de test : 0.
+- Pharmacie non commerciale du test 306 : `visible_recherche=false` restauré ; stock produit : 3 unités, valeur attendue restaurée.
+- Aucun compte Auth créé. Les fixtures temporaires du runner précédent ont été nettoyées.
+
+### Verdict intermédiaire
+
+**Lot B : JAUNE / PARTIEL.** Les 7 tests SQL passent et les résidus suivis sont à zéro. Le parcours UI Client desktop/mobile n'est pas encore prouvé ; la commande réelle et ses refus/annulation via interface ne sont pas encore exécutés. Le dernier workflow qualité connu est en échec sur une assertion de harnais désormais corrigée ; les nouveaux workflows doivent terminer PASS. Le SKIP Partenaire est justifié par l'absence de partenaire payé sur Replay et ne constitue pas un PASS Partenaire.
+
+**Point de reprise exact :** HEAD après retrait du nom de fixture partenaire ; récupérer le dernier run `NAXA navigation Promoteur E2E Replay` et `NAXA quality`, puis corriger toute erreur prouvée et poursuivre le parcours Client. Aucun changement Production, aucune migration Production, aucun déploiement Vercel.
