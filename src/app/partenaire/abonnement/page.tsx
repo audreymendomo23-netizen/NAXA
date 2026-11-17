@@ -146,6 +146,7 @@ export default async function PartnerSubscriptionPage({
                   <div className="sm:col-span-2">
                     <h3 className="font-bold">Déclarer le paiement de cette structure</h3>
                     <p className="text-xs text-slate-500">Montant généré depuis le contrat : {money(item.monthly_fee_fcfa)}. NAXA vérifiera l’encaissement avant d’activer le cycle.</p>
+                    <p className="text-xs text-slate-600">Rapprochement automatique possible : partagez le SMS original de débit depuis le téléphone Partenaire enrôlé. NAXA le compare au SMS de crédit reçu sur le téléphone Admin enrôlé. Une notification seule ne suffit pas ; à défaut, l’Administration vérifie manuellement.</p>
                   </div>
                   <label className="text-sm font-semibold">Canal
                     <select name="canal" required className="champ mt-1">
