@@ -6985,3 +6985,11 @@ Les tests SQL exécutés avec ROLLBACK n'ont pas laissé de données de test per
 ### Point d'arrêt
 
 La reprise a confirmé le moteur de crédit et identifié le prochain manque fonctionnel concret : l'enregistrement partenaire des remboursements, en particulier les canaux mobiles, et leur visibilité/écriture en trésorerie. La présente passe est un audit + tests de contrats et worker ; aucune modification de code, migration, écriture métier Replay, modification Production ou déploiement n'a été effectuée. Statut : NON VERT.
+
+
+### Contrôle complémentaire des données et permissions Replay
+
+- Répartition des opérations : 21 octrois (mode_paiement NULL) et 21 remboursements (tous mode_paiement='especes'). Aucun remboursement Orange Money ou MTN MoMo n'est actuellement enregistré dans Replay.
+- Répartition des demandes : 21 demandes Comptoir approuvées, 1 demande Comptoir rejetée et 21 demandes Marketplace rejetées ; aucune demande en attente dans cet instantané.
+- Les tables client_credits, client_credit_requests et client_credit_operations n'accordent à authenticated que SELECT ; les écritures métier passent par les RPC contrôlées. Leurs politiques de lecture limitent les lignes au Client concerné, à l'Admin ou aux profils ayant accès à la pharmacie.
+- tresorerie_mouvements est également en lecture seule pour authenticated, avec filtrage Admin / accès pharmacie. Toute alimentation doit passer par une RPC contrôlée, pas par INSERT client.
