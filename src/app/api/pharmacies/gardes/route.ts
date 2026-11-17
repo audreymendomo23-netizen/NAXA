@@ -14,7 +14,7 @@ type VerifiedDutyRow = {
   lat: number | null;
   lng: number | null;
   photo_url: string | null;
-  photo_verified_at: string | null;
+  photo_verifiee_le: string | null;
   garde_debut: string;
   garde_fin: string;
   garde_source_url: string;
