@@ -145,15 +145,22 @@ function processNaxaNotificationQueue() {
     }
   });
 
+  const syncErrors = Array.isArray(result.syncErrors) ? result.syncErrors : [];
+  const deliveryErrors = Array.isArray(result.deliveryErrors) ? result.deliveryErrors : [];
   const summary = {
     httpStatus: status,
     claimed: result.claimed,
     sent: result.sent,
     retried: result.retried,
     dead: result.dead,
-    syncErrors: Array.isArray(result.syncErrors) ? result.syncErrors.length : 0
+    syncErrors: syncErrors.length,
+    deliveryErrors: deliveryErrors.length
   };
   console.log("NAXA email worker: " + JSON.stringify(summary));
+  if (syncErrors.length || deliveryErrors.length) {
+    throw new Error("Worker NAXA incomplet : synchronisations=" +
+      syncErrors.join(",") + " ; délivrance=" + deliveryErrors.join(","));
+  }
   return summary;
 }
 
