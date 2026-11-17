@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§161)  
+**Dernière mise à jour :** 17 novembre 2026 (§162)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `6c109d4407d15ee52dbf68a0aaf4565339dda074`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -5969,3 +5969,33 @@ Après le commit de diagnostic `6c109d4407d15ee52dbf68a0aaf4565339dda074`, le ha
 Cette vérification confirme la propreté des quatre catégories suivies ; elle ne remplace pas les logs du job et ne prouve pas le passage des assertions Client. Le résultat du précontrôle JWT ajouté et le résultat final du navigateur ne sont pas disponibles dans les sorties d'exécution accessibles dans cette reprise. Ils restent donc **NON CONFIRMÉS**, sans extrapolation.
 
 **Reprise exacte :** récupérer le résultat du run déclenché par `6c109d4` dans GitHub Actions. Si le précontrôle JWT passe, diagnostiquer la redirection dans Chromium à partir des lignes `CLIENT route`, console et requêtes ; si le précontrôle échoue, corriger uniquement la session/RLS mise en évidence. Relancer ensuite le parcours Client et obtenir un run qualité complet. Aucun nettoyage manuel supplémentaire n'est requis pour les quatre fixtures ci-dessus.
+
+
+## 162. Objectif impératif de la prochaine passe — Lot B AU VERT (17/11/2026)
+
+### Engagement de recette
+
+La prochaine passe est dédiée à la fermeture du Lot B, sans ouvrir un nouveau chantier. L'objectif est **AU VERT avant clôture de cette passe**, sous réserve que toutes les preuves ci-dessous soient effectivement obtenues. Une impossibilité technique externe, une panne Replay ou un test encore rouge doit être signalé comme blocage explicite ; aucune preuve simulée ni statut vert administratif ne sera substitué à un test réel.
+
+### Séquence obligatoire, dans cet ordre
+
+1. **Reprendre le runner sur le HEAD réel de `main`** et récupérer les logs du workflow déclenché par le diagnostic `6c109d4`. Le précontrôle JWT et la première route fautive doivent être identifiés par les logs, pas supposés.
+2. **Corriger la cause racine** du parcours Partenaire/Client uniquement après l'avoir démontrée. Vérifier que le compte Client existant peut ouvrir son espace sous sa propre session, sans élargir les policies RLS.
+3. **Exécuter Chromium desktop et mobile** sur Replay : recherche Marketplace, filtres pertinents, visibilité des offres, favoris, panier, navigation vers la commande, historique. Les favoris/panier locaux ne valent pas preuve de commande réelle.
+4. **Exécuter les scénarios métier positifs et négatifs** avec fixtures E2E temporaires et nettoyage vérifié : disponibilité/indisponibilité, création de commande, refus pharmacie, annulation client, libération/restauration exacte du stock, historique et absence de double débit/double restauration. Réutiliser les comptes existants ; ne créer de compte que si un rôle indispensable ne peut pas être couvert par les profils de recette disponibles.
+5. **Rejouer les tests SQL 306 à 312** sur Replay après correction et contrôler les résidus métier et temporaires à zéro.
+6. **Lancer le contrôle qualité complet disponible** (TypeScript, lint, build et workflow navigateur). Un run annulé ou non déclenché n'est pas PASS.
+7. **Mettre à jour cette continuité** avec commit(s), résultats nommés, preuves, résidus à zéro et verdict. AU VERT seulement si chaque critère Lot B est PASS.
+
+### Définition stricte de AU VERT
+
+- Parcours UI Client prouvé dans Chromium, desktop et mobile, sur l'environnement Replay correspondant au code testé.
+- Parcours de commande et de cycle de vie réellement exécuté, pas uniquement données locales ou appels SQL isolés.
+- Contrôles métier et sécurité PASS : prix/stock/offres réels, refus, indisponibilité, annulation, restauration exactement une fois, historique cohérent, aucun survente ni écriture hors périmètre.
+- Tests SQL 306–312 PASS sur le même état fonctionnel corrigé.
+- Nettoyage des comptes/données/affectations temporaires vérifié.
+- TypeScript, lint, build et workflow navigateur non annulés et PASS, ou limites explicitement déclarées hors critères selon la gouvernance en vigueur. Aucun faux vert.
+
+**Point de départ exact :** commit de diagnostic runtime `6c109d4407d15ee52dbf68a0aaf4565339dda074`, dernière rectification documentaire `71105c5595a9b12f7f70a45139cc9a27509c44b9`. Les commits plus récents de `main` doivent être contrôlés avant d'exécuter la recette : ne pas tester un ancien HEAD ni supposer que le run correspondant au commit existe.
+
+**Périmètre inchangé :** Replay uniquement, branche `main`, aucun déploiement Vercel ni migration Production. Lot B reste JAUNE jusqu'à obtention des preuves ci-dessus.
