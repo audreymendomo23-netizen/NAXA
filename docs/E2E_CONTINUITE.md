@@ -6865,3 +6865,56 @@ La catégorie d'événement ne doit jamais être déduite du canal, ni le canal 
 7. Vérifier que les anciennes opérations sont conservées, que les données non classifiables restent explicitement non déterminées et qu'aucun solde n'est doublé.
 
 **Statut : NON VERT — spécification ajoutée avant l'implémentation.** À la date de cette section, aucune correction de code, migration, écriture de données Replay, modification Production ou déploiement n'a été effectué pour cette nouvelle exigence. La cartographie approfondie et la conception détaillée restent à finaliser avant toute modification applicative.
+
+
+## 192. Audit transversal complémentaire — outbox comptable, crédit et preuves de livraison — 17/11/2026
+
+### Correction importante du diagnostic précédent
+
+L'audit SQL plus large révèle une infrastructure comptable déjà présente. Il faut distinguer trois couches qui ne doivent pas être confondues :
+
+1. **Événement métier / outbox** : table compta_evenement, avec evenement_type, source_type, source_id, cle_idempotence et donnees JSONB ; elle possède un worker, un mécanisme de claim/retry et une finalisation.
+2. **Comptabilité en partie double** : compta_ecriture et compta_ligne, alimentées par compta_traiter_evenement après validation de la période et des mappings.
+3. **Trésorerie opérationnelle par canal** : tresorerie_comptes et tresorerie_mouvements, qui doivent représenter les fonds réellement encaissés/décaissés. Cette couche reste non démontrée comme alimentée de manière unifiée.
+
+La conclusion de la section 190 doit donc être précisée : NAXA possède déjà un outbox comptable idempotent et un moteur de comptabilisation ; cela ne prouve pas l'existence du journal de trésorerie multi-canaux demandé.
+
+### Preuves SQL Replay supplémentaires
+
+- Trigger ventes.compta_outbox_vente_encaissee : appelle compta_emettre_evenement_metier() après changement de statut. La fonction crée vente_encaissee lorsque la vente devient payée, mais ignore les ventes dont ventes.mode_paiement = credit. Pour les ventes payées, elle somme vente_paiements.montant en excluant les références ASSURANCE:%.
+- La même fonction émet vente_annulee après annulation approuvée d'une vente déjà payée.
+- Triggers client_credit_operations.compta_outbox_credit_octroi et compta_outbox_credit_remboursement : les fonctions compta_emettre_octroi_credit() et compta_emettre_remboursement_credit() émettent respectivement credit_octroi et credit_remboursement. La table client_credit_operations porte nature, montant, mode_paiement, vente_id, caisse_session_id, acteur et date.
+- Le moteur comptable traite une liste blanche d'événements (vente_encaissee, depense_validee, vente_annulee, assurance_prise_en_charge, assurance_remboursement_recu, credit_octroi, credit_remboursement) et de sources. Les écritures sont idempotentes via cle_idempotence et soumises à période ouverte + mappings validés.
+- Les fonctions d'émission actuelles placent surtout montant, date comptable et référence dans donnees JSONB ; le couple origine métier + canal normalisé n'est pas explicitement ajouté par ces fonctions. Le worker comptable n'expose pas non plus ces deux attributs comme colonnes métier normalisées dans son contrat.
+- La fonction vente_encaisser_finaliser(p_vente,p_montant_percu) est strictement espèces : elle insère mode='especes', calcule le rendu et finalise atomiquement. Le nouveau sélecteur de canal doit donc passer par une nouvelle signature/version contrôlée ou une évolution compatible de la RPC, et pas par une simple modification d'état UI.
+- naxa_delivery_pos_encaisser accepte déjà especes, orange_money, mtn_momo et mobile_money, vérifie le dossier de paiement de livraison, le montant/canal/référence déclarés et la session Caisse, puis crée vente + paiement. Ce contrôle distant/à la remise est plus strict que le parcours comptoir visuel et doit rester intact.
+- naxa_delivery_payment_records possède une trace détaillée : mode, montant attendu/déclaré, référence, espèces reçues/rendu, statut, déclarant/validateur, dates, source de preuve, champs extraits SMS et statut de rapprochement. Ces données doivent être reliées à l'événement Marketplace · Livraison, sans les remplacer par les preuves comptoir.
+- vente_reservation_encaisser a une ancienne surcharge qui refuse explicitement l'usage et redirige vers la surcharge actuelle avec canal et code de paiement. Les deux signatures doivent être examinées avant migration pour éviter de casser les clients SQL/JS encore attachés à l'ancienne.
+- Le schéma de compta_evenement est une bonne base d'intégration asynchrone, mais son traitement est orienté écriture comptable ; il ne constitue pas, seul, un ledger de liquidités par Orange/MTN/Espèces. Le ledger de trésorerie a toujours ses tables dédiées et son modèle de mouvements séparé.
+- Le schéma tresorerie_mouvements ne possède actuellement ni colonne canal explicite, ni clé d'idempotence dédiée, ni lien vers un mouvement frère pour transfert. source_type/source_id ne suffisent pas à garantir une seule écriture par paiement si les sources ont plusieurs représentations.
+- La taxonomie Crédit doit différencier l'octroi (créance, sans entrée de trésorerie) et le remboursement (encaissement réel, canal obligatoire). Les triggers comptables actuels créent déjà les deux types d'événements, mais la provenance Marketplace vs Comptoir doit être déterminée depuis les liens fiables (origine de la demande / vente / réservation), jamais supposée.
+
+### Architecture cible retenue pour préparer l'implémentation
+
+- Réutiliser compta_evenement comme **outbox d'événements métier** et enrichir son payload / son contrat pour exposer explicitement event_origin, payment_channel, payment_provider et les références source, avec compatibilité pour les événements historiques.
+- Créer ou faire évoluer une couche de trésorerie idempotente dédiée, alimentée depuis les événements d'encaissement réellement reçus. Ne pas utiliser compta_ecriture comme substitut du solde bancaire/mobile/caisse et ne pas poster un octroi de crédit comme encaissement.
+- Pour le ledger, ajouter un modèle explicite du canal/fournisseur et une clé d'idempotence unique par pharmacie/source ; les transferts doivent posséder un identifiant de groupe commun et deux mouvements de sens opposé. Préserver les lignes historiques sans origine fiable.
+- Faire du couple (événement, canal) un contrat partagé par les RPC, les types TS, les reçus et les écrans ; les libellés ne doivent pas être recodés indépendamment dans chaque page.
+- Conserver les contrôles de permission existants : Caisse active pour encaissement comptoir/livraison, périmètre pharmacie, session ouverte, crédit approuvé et délégation Promoteur/Responsable selon les limites. Les fonctions SECURITY DEFINER devront vérifier explicitement acteur, pharmacie, rôle et session ; aucun droit ne doit être accordé par simple exposition d'une RPC.
+- La prochaine phase d'implémentation doit d'abord livrer le contrat SQL + tests de non-régression Replay, puis connecter POS, Marketplace réservation, livraison, crédits/remboursements, vues historiques et vue Promoteur. Pas de migration ni modification Production avant validation Replay.
+
+### Verdict approfondi
+
+| Domaine | État vérifié |
+|---|---|
+| Outbox métier idempotent | **EXISTE** |
+| Comptabilité partie double | **EXISTE**, sous périodes/mappings validés |
+| Origine + canal dans contrat commun explicite | **NON DÉMONTRÉ / À AJOUTER** |
+| Encaissement POS comptoir multicanal | **NON CONFORME** |
+| Livraison avec preuve et validation dédiée | **EXISTE**, à relier à l'origine/canal transverse |
+| Réservation avec canal/code | **EXISTE**, compatibilité des surcharges à vérifier |
+| Octroi et remboursement de crédit en événements | **EXISTE**, origine Marketplace/Comptoir à préciser et canal de remboursement à vérifier |
+| Trésorerie liquide consolidée et idempotente par canal | **NON CONFORME / NON DÉMONTRÉ** |
+| Affichage partenaire « Événement + Canal » transversal | **NON DÉMONTRÉ** |
+
+**Statut global : NON VERT.** La documentation initiale a été enregistrée avant tout début d'implémentation ; cet audit approfondit le diagnostic et corrige la distinction entre outbox comptable et trésorerie. Aucune écriture Replay, migration, modification Production, correction de code ni déploiement n'a été effectué dans cette passe.
