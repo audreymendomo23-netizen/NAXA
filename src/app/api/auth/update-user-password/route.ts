@@ -25,16 +25,16 @@ export async function POST(request: NextRequest) {
     }, { status: 400 });
   }
 
-  const server = supabaseServer();
-  const { data: auth, error: authError } = await server.auth.getUser();
-  if (authError || !auth.user) {
-    return NextResponse.json({ ok: false, error: "Session expirée. Recommencez la vérification." }, { status: 401 });
-  }
-  if (!auth.user.email_confirmed_at) {
-    return NextResponse.json({ ok: false, error: "Confirmez d’abord votre adresse e-mail." }, { status: 403 });
-  }
-
   try {
+    const server = supabaseServer();
+    const { data: auth, error: authError } = await server.auth.getUser();
+    if (authError || !auth.user) {
+      return NextResponse.json({ ok: false, error: "Session expirée. Recommencez la vérification." }, { status: 401 });
+    }
+    if (!auth.user.email_confirmed_at) {
+      return NextResponse.json({ ok: false, error: "Confirmez d’abord votre adresse e-mail." }, { status: 403 });
+    }
+
     const ip = trustedRequestIp(request);
     const userKey = "password:" + auth.user.id;
     const ipGate = await rateLimit("ip_password", ip, "attempt", 5, 600, 30, 900);
@@ -67,11 +67,17 @@ export async function POST(request: NextRequest) {
     await rateLimit("ip_password", ip, "success", 5, 600, 30, 900);
     await rateLimit("password_user", userKey, "success", 20, 3600, 900, 900);
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
+  } catch (error) {
+    console.error("NAXA_USER_PASSWORD_UPDATE_FAILED", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      ...(typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+        ? { errorCode: error.code }
+        : {}),
+    });
     return NextResponse.json({
       ok: false,
-      code: "PASSWORD_CHECK_UNAVAILABLE",
-      error: "La vérification de sécurité du mot de passe est momentanément indisponible. Réessayez.",
+      code: "PASSWORD_UPDATE_UNAVAILABLE",
+      error: "Mise à jour du mot de passe momentanément indisponible. Réessayez.",
     }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }
