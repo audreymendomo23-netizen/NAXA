@@ -16,12 +16,12 @@ begin
   if auth.uid() <> v_actor or not public.naxa_caisse_actor_for_pharmacy(v_pharmacie) then
     raise exception 'FAIL: acteur Caisse E2E non autorisé sur la pharmacie';
   end if;
-  v_cash_account := public.tresorerie_creer_compte(v_pharmacie,'E2E 302 espèces','especes',0);
-  perform public.caisse_credit_tresorerie_canal_configurer(v_pharmacie,'especes',v_cash_account);
-  v_orange_account := public.tresorerie_creer_compte(v_pharmacie,'E2E 302 Orange Money','mobile_money',0);
-  perform public.caisse_credit_tresorerie_canal_configurer(v_pharmacie,'orange_money',v_orange_account);
-  v_mtn_account := public.tresorerie_creer_compte(v_pharmacie,'E2E 302 MTN MoMo','mobile_money',0);
-  perform public.caisse_credit_tresorerie_canal_configurer(v_pharmacie,'mtn_momo',v_mtn_account);
+  v_cash_account := public.caisse_credit_tresorerie_compte_creer(v_pharmacie,'especes');
+  if v_cash_account <> public.caisse_credit_tresorerie_compte_creer(v_pharmacie,'especes') then
+    raise exception 'FAIL: création du compte espèces non idempotente';
+  end if;
+  v_orange_account := public.caisse_credit_tresorerie_compte_creer(v_pharmacie,'orange_money');
+  v_mtn_account := public.caisse_credit_tresorerie_compte_creer(v_pharmacie,'mtn_momo');
   v_session := public.caisse_ouvrir(v_caisse,0);
   insert into public.client_credits(pharmacie_id,client_id,solde,plafond,actif,created_by)
   values(v_pharmacie,v_client,10000,10000,true,v_actor) returning id into v_credit;
