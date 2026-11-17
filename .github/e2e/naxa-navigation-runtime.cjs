@@ -395,10 +395,20 @@ async function run() {
       { label: "Plan comptable & mappings", href: "/pharmacie/comptabilite/plan" },
     ];
     for (const item of comptableLinks) {
+      // Revenir par le lien réel de la sidebar plutôt que recharger la même URL :
+      // cela évite d'interrompre une navigation App Router encore en cours.
+      if (new URL(comptablePage.url()).pathname !== "/pharmacie/comptable") {
+        const dashboardNav = comptablePage.locator("aside")
+          .filter({ hasText: "Compte Comptable" })
+          .locator('nav[aria-label="Navigation Comptable"]');
+        const dashboardLink = dashboardNav.locator('a[href="/pharmacie/comptable"]');
+        await dashboardLink.waitFor({ state: "visible" });
+        await dashboardLink.click();
+        await expectPath(comptablePage, "/pharmacie/comptable", "Retour sidebar au tableau de bord Comptable");
+        await expectPageHeading(comptablePage, "Retour tableau de bord Comptable");
+      }
       // Cibler explicitement la sidebar du layout, pas la navigation de cartes
       // rendue aussi dans le dashboard. Vérifier le texte et le href réels.
-      await comptablePage.goto(BASE_URL + "/pharmacie/comptable", { waitUntil: "domcontentloaded" });
-      await expectPath(comptablePage, "/pharmacie/comptable", "Retour au tableau de bord Comptable");
       const sidebar = comptablePage.locator("aside").filter({ hasText: "Compte Comptable" });
       const sidebarNav = sidebar.locator('nav[aria-label="Navigation Comptable"]');
       await sidebarNav.waitFor({ state: "visible" });
