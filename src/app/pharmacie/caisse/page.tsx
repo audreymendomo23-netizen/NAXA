@@ -269,24 +269,15 @@ export default function CaissePage() {
   async function creerCompteTresorerieRemboursement(channel: RefundChannel) {
     if (!pid || refundTreasuryBusy) return;
     setRefundTreasuryBusy(true);
-    const accountName = channel === "especes" ? "Caisse — Espèces" : channel === "orange_money" ? "Compte — Orange Money" : "Compte — MTN MoMo";
     try {
-      const { data, error } = await sb.rpc("tresorerie_creer_compte", {
+      const { data, error } = await sb.rpc("caisse_credit_tresorerie_compte_creer", {
         p_pharmacie: pid,
-        p_nom: accountName,
-        p_type: channel === "especes" ? "especes" : "mobile_money",
-        p_solde_initial: 0,
+        p_canal: channel,
       });
       if (error) throw error;
       if (!data) throw new Error("La création du compte n’a pas été confirmée.");
-      const { error: mappingError } = await sb.rpc("caisse_credit_tresorerie_canal_configurer", {
-        p_pharmacie: pid,
-        p_canal: channel,
-        p_compte: String(data),
-      });
-      if (mappingError) throw mappingError;
       await chargerComptesTresorerieRemboursement();
-      setMsg("Compte " + accountName + " créé à 0 FCFA et rattaché au canal. Aucun encaissement n’a été simulé.");
+      setMsg("Compte du canal créé ou déjà configuré à 0 FCFA. Aucun encaissement n’a été simulé.");
     } catch (error) {
       setMsg(error instanceof Error ? error.message : "Impossible de créer le compte de trésorerie.");
     } finally {
