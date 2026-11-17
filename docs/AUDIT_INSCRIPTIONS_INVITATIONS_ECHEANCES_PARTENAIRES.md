@@ -247,3 +247,22 @@ Le RPC \`promoteur_soumettre_reglement\` n'accepte plus les titulaires de dossie
 - Aucun build/TypeScript/CI ni parcours HTTP/Android n'a été exécuté. Aucun Production ni déploiement Vercel touché.
 
 **Verdict : PARTIEL.** Les frontières A sont appliquées côté DB et testées par transactions annulées. L'activation fonctionnelle réelle dépend des feature flags, des destinations de paiement, puis du run qualité et du parcours Android/Admin.
+
+
+## Historique final Replay — migrations appliquées
+
+Les onze migrations du lot sont présentes dans l'historique Supabase Replay, dans cet ordre :
+
+1. \`20261117060519 partner_independent_subscription_cycles\`
+2. \`20261117060614 partner_subscription_read_api_and_date_guard\`
+3. \`20261117060720 partner_subscription_read_api_fix\`
+4. \`20261117060758 partner_subscription_cron_schedule\`
+5. \`20261117060937 partner_subscription_cancelled_payment_guard\`
+6. \`20261117060948 partner_subscription_disciplinary_access_guard\`
+7. \`20261117061242 partner_subscription_paired_sms_verification\`
+8. \`20261117061423 partner_subscription_sms_distinct_actor_guard\`
+9. \`20261117061753 decouple_partner_validation_from_promoteur_subscription\`
+10. \`20261117061839 isolate_partner_and_promoteur_payment_references\`
+11. \`20261117061911 exclude_non_billable_partner_universes\`
+
+Le job \`naxa-partner-subscription-cycle-hourly\` est présent à \`20 * * * *\`. L'Advisor sécurité ne signale aucun finding sur les deux nouvelles tables ; trois index d'audit FK restent signalés INFO/unused car Replay ne contient aucun règlement. 
