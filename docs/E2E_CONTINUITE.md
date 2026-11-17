@@ -6078,3 +6078,15 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Aucune assertion navigateur de cette nouvelle exécution n'est encore déclarée PASS. Attendre le résultat final du job et le contrôle post-nettoyage.
 
 **Périmètre :** Replay uniquement, comptes existants uniquement, branche `main`. Aucun changement Production, aucun déploiement Vercel.
+
+
+### §163 — Résultat du premier run et correction du harnais (17/11/2026)
+
+- Run initial [44034937608](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44034937608) : échec avant démarrage du serveur local et avant toute navigation ; le nettoyage indique qu'aucune fixture n'avait été créée.
+- Le précontrôle Replay, `npm ci` et l'installation Playwright/Chromium sont PASS.
+- La suite de contrats a exécuté 572 tests : **571 PASS / 1 FAIL**. Échec unique : test 320 `les écritures Replay temporaires disposent d'un nettoyage vérifié`, qui attendait dans le harnais un filtre explicite `.eq("status", "active")` sur la lecture de l'abonnement. Le contrôle fonctionnel de statut actif était déjà présent par assertion ; le contrat statique attendait aussi le filtre de requête.
+- Correction du harnais sur `main` : commit `fd2ba7c8109be2a3b991e95a89d46fb27f7e7c06`, ajout du filtre explicite `status=active` à la requête de vérification.
+- Nouvelle exécution déclenchée sur ce HEAD : [44035108623](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44035108623), statut **PENDING** au dernier contrôle.
+- Vérification Replay après le premier run : `partners=0`, `admin_partner_dossiers=0`, `partner_subscriptions=0`, `partner_subscription_payments=0`, `naxa_payment_destinations=0`. Aucune fixture n'a été laissée.
+
+**Verdict intermédiaire :** aucune navigation E2E nouvelle n'est encore prouvée. Attendre le run 44035108623 ; ne pas déclarer PASS ni AU VERT avant le résultat navigateur et le nettoyage final.
