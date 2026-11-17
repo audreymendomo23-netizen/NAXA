@@ -6215,3 +6215,18 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Limites relevées dans les logs du même run : le Client a déclenché un `PAGEERROR` ServiceWorker (`URL object could not be cloned`) et des réponses console HTTP 400 ; plusieurs requêtes interrompues pendant les changements de page (`ERR_ABORTED`). Le workflow est vert selon ses assertions, mais ces signaux ne sont pas effacés ni considérés comme validés.
 - Le parcours Client couvre ici des interactions locales de favoris/panier, recherche/filtres et historique ; il ne prouve pas la création et le cycle persistant d'une commande Marketplace. Le run ne constitue pas non plus une preuve de réception d'un e-mail Gmail par Apps Script.
 - Statut : Qualité GitHub VERT sur le HEAD courant ; recette navigation Chromium Replay PASS sur le même code applicatif ; E2E globale NAXA et livraison réelle des e-mails non déclarées vertes. Aucun changement Supabase Production, aucun déploiement Vercel, aucun accès Play Store.
+
+
+## §173 — Clôture de la vérification du run Chromium Replay (17/11/2026)
+
+- Run [44045123797](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44045123797), job `133908804047`, HEAD applicatif `4861e1e0bc6ed2bdd83b4112dd09e63405d5632f` : conclusion SUCCESS.
+- Étapes vérifiées dans le job : précontrôle des secrets Replay, `npm ci`, installation Playwright/Chromium, build Next.js Replay, démarrage serveur local, scénario navigateur et nettoyage de secours : toutes PASS. Étape de logs serveur en cas d'échec : SKIPPED normalement, car aucune défaillance bloquante n'a été détectée.
+- Promoteur : navigation desktop et mobile vers Livraisons du réseau : PASS.
+- Comptable : ouverture de l'espace et navigation/rendu des six rubriques contrôlées (créances & bordereaux, rejets & relances, rapports & exports, documents, assureurs & fournisseurs, plan comptable & mappings) : PASS.
+- Partenaire : RPC de déclaration et confirmation Admin, reçu, cycle et garde RLS : PASS ; catalogue partenaire → Centres et examens, formulaire visible, retour depuis les réservations : PASS ; aucune erreur API/page relevée sur ce segment.
+- Client : espace desktop/mobile, favoris et panier de démonstration locaux, recherche/filtre ville/panneau assurance, historique et filtres : PASS selon les assertions du harnais.
+- Nettoyage : fixtures temporaires présentes dans le registre supprimées et contrôlées ; seconde commande de nettoyage indique qu'il ne reste aucune fixture : PASS.
+- Contrôle qualité sur le HEAD documentaire courant `95fbb195807d60b11f436dd730e7fa53d33651f9` : run [44045158171](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44045158171) SUCCESS ; syntaxe Actions, tests, TypeScript, lint et build Next.js : PASS.
+- Réserve à conserver : pendant les transitions Client, logs `ERR_ABORTED` sur plusieurs requêtes interrompues ; le navigateur a aussi signalé `PAGEERROR` ServiceWorker `URL object could not be cloned` et deux erreurs console HTTP 400. Ces signaux ne sont pas effacés par le succès du job et restent à diagnostiquer avant une validation plus large du parcours Client.
+- Limite métier : le Client n'a testé que favoris/panier locaux, recherche/filtres et historique ; aucune commande Marketplace persistée n'a été créée ni suivie. Cette recette ne valide donc pas le cycle Client transactionnel.
+- Verdict : recette de navigation Promoteur/Comptable/Partenaire/Client sur Replay = PASS selon le périmètre exécuté ; qualité GitHub = PASS ; nettoyage Replay = PASS. E2E globale NAXA et cycle Marketplace Client restent PARTIELS. Aucun changement Production, aucune migration Production, aucun déploiement Vercel, aucun accès Play Store.
