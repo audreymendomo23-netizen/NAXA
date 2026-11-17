@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§146)  
+**Dernière mise à jour :** 17 novembre 2026 (§147)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `240af73beb5e7aa0100a29df1c62ff7743f19729`  
+**HEAD contrôlé avant cette mise à jour :** `a976cb95dbd1d9228cbf5f711381edaff36e3b42`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -125,7 +125,7 @@ Les autres historiques et preuves de sécurité restent référencés dans `STAT
 
 1. Préparer des comptes Auth et affectations Replay réels pour la matrice Admin/Promoteur ; conserver `require_role_matrix=false` tant qu'ils ne sont pas prêts.
 2. **Clos sur Replay (§146) :** trigger `naxa_audit_session_delete` corrigé ; la suppression Auth avec sessions actives et la révocation ordinaire sont couvertes. Ne pas migrer Production sans autorisation explicite.
-3. Auditer le parcours UI Partenaire Examens (route, garde d'accès, chargement des espaces et adhésion owner) ; préparer une identité Partenaire E2E via le processus Auth normal, sans insertion SQL directe dans `auth.users`.
+3. **Bloqué par décision métier (§147) :** définir le traitement de `profiles.actif` du titulaire lors de la validation d'un dossier Partenaire ; ensuite aligner la visibilité `partners_member_read` et les policies d'écriture des tables Examens sur le même contrôle d'accès.
 4. Poursuivre par le parcours navigateur métier réservation → Stock → Livreur → Client → paiement/clôture, puis les recettes Android sur téléphones enrôlés : caméra, galerie/PDF/OCR, GPS/Bluetooth, SMS/FCM et offline.
 
 ## 7. Journal de continuité
@@ -5563,6 +5563,34 @@ La RPC `public.admin_create_partner_dossier` vérifiait seulement l'existence d'
 - Contrôle fonction : `SECURITY DEFINER=true`, `search_path=pg_catalog, public`, `anon EXECUTE=false`, `authenticated EXECUTE=false`, garde d'existence du parent présente.
 - Aucune donnée métier ou session persistante modifiée par le test.
 - Production non consultée ni modifiée dans cette passe ; aucun déploiement Vercel ou Play Store.
-- CI non vérifiée ; aucune recette navigateur Auth interactive exécutée.
+- CI non vérifiée ; aucune recette navigateur Auth interactive exécutée. L'audit statique suivant a également identifié une contradiction bloquante dans l'accès partenaire après validation du dossier (§147).
 
 **Verdict :** défaut de suppression Auth corrigé et validé sur Replay. Le point trigger/audit est clos pour Replay ; le parcours Partenaire Examens et les recettes UI restent ouverts. Aucun statut global AU VERT n'est revendiqué.
+
+
+## 147. Audit statique — incohérence d'accès après validation d'un dossier Partenaire Examens (17/11/2026)
+
+### Contradiction démontrée dans les définitions Replay
+
+1. `public.admin_create_partner_dossier` met `public.profiles.actif=false` pour le titulaire après vérification de son éligibilité.
+2. `public.admin_valider_dossier_partenaire` met le dossier à `validated`, puis calcule le statut du partenaire selon l'abonnement et les suspensions ; la fonction ne réactive pas `profiles.actif` (audit `identity_actif_mutated=false`).
+3. `private.naxa_partner_has_confirmed_payment` exige pourtant `owner_profile.actif=true`.
+4. La policy `partners_member_read` exige `private.naxa_partner_has_confirmed_payment(id)`. La page `/partenaire/examens` lit `partner_members` avec une jointure interne sur `partners` et redirige vers `/` si aucun membre n'est retourné.
+
+**Conséquence logique :** pour un titulaire dont le profil est suspendu par la création du dossier, même un dossier ensuite validé et un abonnement courant ne suffisent pas à rendre le partenaire lisible par son propre membre. La route ne peut donc pas charger son espace partenaire via ce chemin RLS tant que `profiles.actif` reste faux.
+
+### Deuxième écart — policies d'écriture Examens
+
+- Les Server Actions de `src/app/partenaire/examens/actions.ts` vérifient que le membre est `owner` ou `manager` et que `partners.status='active'` avant les écritures.
+- Les policies RLS `exam_centers_partner_manage`, `exam_services_partner_manage`, `exam_packs_partner_manage`, `exam_hours_partner_manage` et `exam_slots_partner_manage` vérifient seulement l'adhésion `partner_members` et le rôle `owner/manager`. Elles ne reprennent pas le contrôle du statut partenaire ni le verrou d'abonnement.
+- Les Server Actions ne remplacent pas la RLS : un appel direct Data API doit être soumis au même périmètre serveur. Cette différence doit être corrigée avant de considérer les écritures Examens sécurisées.
+
+### Portée et état
+
+- Audit statique des sources GitHub `main` : `src/app/partenaire/examens/page.tsx` et `actions.ts`.
+- Audit SQL en lecture seule sur Replay : définitions des fonctions `admin_create_partner_dossier`, `admin_valider_dossier_partenaire`, `private.naxa_partner_has_confirmed_payment`, policy `partners_member_read` et policies RLS des tables Examens.
+- Aucun dossier, compte, membre, centre, service, pack, horaire ou créneau créé ; aucune modification SQL dans cette étape.
+- Aucun test UI navigateur ; aucune preuve d'accès interactif.
+- Le point ne doit pas être corrigé par réactivation aveugle du profil : cela pourrait réactiver une identité suspendue pour une autre raison. La règle métier doit préciser si la validation Admin réactive le compte titulaire lorsque l'abonnement est courant, ou si l'accès Partenaire doit être séparé de `profiles.actif` avec un garde dédié à la suspension générale.
+
+**Verdict : ROUGE / BLOQUANT pour l'accès Partenaire Examens après validation tant que la règle d'activation du titulaire n'est pas tranchée et que les policies RLS d'écriture ne sont pas alignées.** Aucun changement Production ; aucun déploiement.
