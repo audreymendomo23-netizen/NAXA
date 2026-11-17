@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§134)  
+**Dernière mise à jour :** 17 novembre 2026 (§135)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `0413223c8b23236e22805d633752775d1d338d79`  
+**HEAD contrôlé avant cette mise à jour :** `f0d7a87aa337a1189c2faf5fdcdc15ce4660ca12`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5287,3 +5287,28 @@ Liens de preuve :
 **CI :** le run qualité `43988879675` a été contrôlé : le job « Tests, TypeScript et lint » est `cancelled`, et seul le contrôle de syntaxe des workflows est PASS. Il ne valide pas le HEAD documentaire `0413223c8b23236e22805d633752775d1d338d79`. Ne pas annoncer de CI verte.
 
 **Aucune correction applicative, migration, donnée persistante, Production, Vercel ou Play Store n'a été modifiée dans cette passe.**
+
+
+## 135. Lot B2 — scénario transactionnel Client complet ajouté et exécuté (17/11/2026)
+
+**Correction de couverture versionnée sur main :**
+- Nouveau test `supabase/tests/306_lot_b2_client_marketplace_transaction.sql`.
+- Commit du test : `f0d7a87aa337a1189c2faf5fdcdc15ce4660ca12`.
+- Le scénario est explicitement limité aux fixtures Replay E2E, active temporairement la visibilité de la pharmacie non commerciale dans sa transaction, utilise l'identité Client acheteur sous le rôle SQL `authenticated`, puis termine par `ROLLBACK`.
+
+**Exécution effective sur Replay : PASS**
+- Offre publique positive : 1 000 FCFA, 3 unités.
+- Favori : ajout, lecture par le propriétaire, retrait.
+- Réservation des 3 unités via `private.reserve_stock`.
+- Vérification que le stock disponible tombe à 0 pendant le hold.
+- Tentative d'une seconde réservation d'une unité : refusée pour stock insuffisant ; aucune survente.
+- Annulation par le Client via `public.set_reservation_status`.
+- Vérification du retour exact à 3 unités disponibles et de la ligne de réservation annulée dans l'historique propre au Client.
+- Résultat terminal : `LOT_B2_CLIENT_FAVORITES_RESERVATION_OVERSELL_CANCEL_HISTORY PASS`.
+- Nettoyage transactionnel : `ROLLBACK`. La visibilité de la pharmacie, le favori et la réservation temporaires ne persistent pas.
+
+**Portée exacte de la preuve :** cette exécution couvre le moteur transactionnel et les RPC avec le JWT Client simulé côté PostgreSQL ; elle ne prouve toujours pas le rendu ni les interactions de l'interface Web (recherche visuelle, clic favori, panier, soumission et affichage de l'historique). Le scénario d'indisponibilité après ajout au panier est couvert par l'appel métier de seconde réservation refusée après le hold, mais pas par une session navigateur.
+
+**Verdict révisé B2 :** les parcours SQL métier positifs et négatifs favoris/offre/réservation/anti-survente/annulation/historique sont maintenant PASS sur Replay. La recette navigateur positive reste NON PROUVÉE. Le Lot B2 demeure donc **JAUNE / PARTIEL**, et ne doit pas être annoncé AU VERT tant que le parcours Client navigateur n'est pas exécuté et que les autres composantes du Lot B global (notamment assurance et ordonnance) ne sont pas chacune clôturées avec leurs preuves.
+
+**Aucune donnée persistante, Production, migration ou déploiement n'a été modifié.**
