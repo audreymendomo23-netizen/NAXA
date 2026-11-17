@@ -6528,3 +6528,32 @@ Aucune modification de schéma ou donnée Replay/Production, aucune migration, a
 **Verdict : VERT — isolation des historiques Client A/B prouvée en Replay.** La vue, le schéma et les politiques RLS n'ont pas été modifiés ; aucun changement au panier ; aucune donnée Production touchée ; aucun déploiement.
 
 **Point distinct conservé ouvert :** la branche du trigger `log_reservation_event()` qui référence `reservation_events.to_value` en présence d'une référence de paiement non nulle reste une anomalie Replay à traiter séparément. Le présent contournement ne prétend pas la corriger et ne constitue pas une validation du flux de paiement complet.
+
+## 186. Re-audit après preuve historique Client A/B — 17/11/2026
+
+**HEAD courant :** `a4517a3a48ae89ee2fcdefdfa008bc470311880a` (commit documentaire dont le parent est `6d30dff120d694a2582d637f8c0a1bfe867d8a6f`). Le code applicatif du scénario Replay est donc identique au code exécuté sur le parent ; le HEAD courant a en plus passé le workflow qualité.
+
+**Contrôles sur le code courant :**
+- `src/app/client/page.tsx` contient deux lectures de `client_achats` (chargement initial et rafraîchissement). Aucune ne filtre sur `client_id` ; les réservations directes restent filtrées par `client_id = user.id`.
+- Le chargement initial conserve le commentaire contractuel : la vue `client_achats` applique déjà `auth.uid()` et n'expose pas `client_id`.
+- Le panier Pharmacie résout les propriétaires historiques (`owner_type/owner_id`, puis `pharmacie_id/partner_id`) pour quantité et retrait.
+
+**Résultats automatisés :**
+- Qualité `44063737340`, sur le HEAD exact `a4517a3` : SUCCESS. Jobs « Tests, TypeScript et lint » et « GitHub Actions syntax and expression checks » : SUCCESS. Le lint affiche toutefois 226 warnings, 0 erreur.
+- Replay Chromium `44062737464`, sur le parent applicatif `6d30dff` : SUCCESS, `RESULTAT NAVIGATION : PASS`. Il couvre Promoteur desktop/mobile, les six entrées Comptable, Client desktop/mobile, favoris/panier locaux, recherche/filtres et historique.
+- Historique Client : deux JWT distincts voient chacun leur achat payé et aucun achat de l'autre ; les fixtures sont nettoyées. Le scénario confirme explicitement l'absence de HTTP 400 sur `client_achats`.
+- Panier multi-pharmacies : log explicite `PASS Client — même produit, deux propriétaires : quantité et retrait isolés par pharmacie.` Le scénario confirme que la quantité et le retrait de la pharmacie A ne modifient pas la ligne de la pharmacie B.
+- Nettoyage final Replay : PASS.
+
+**Anomalie encore observée :**
+- Le navigateur émet toujours `DataCloneError: Failed to execute 'postMessage' on 'ServiceWorker': URL object could not be cloned`, dans un chunk compilé Next.js `1za_7vw9enae5.js`. Le stack ne remonte pas au fichier source ; l'émetteur n'est donc pas attribué et aucune correction sûre n'est démontrée.
+- Plusieurs `net::ERR_ABORTED` sont consignés pendant les transitions de routes ; le harnais les classe comme annulations/navigation et non comme erreurs HTTP métier. Ils restent à qualifier si un parcours métier dépend de l'une de ces requêtes.
+
+**Limite fonctionnelle majeure du chantier panier :**
+- La preuve E2E actuelle couvre le panier local : séparation des lignes homonymes, quantité et retrait par pharmacie.
+- Elle ne prouve toujours pas la finalisation de deux commandes persistées distinctes, ni le débit puis la restauration du stock pour chaque propriétaire. Les fixtures d'historique A/B sont des réservations créées par le harnais et le log précise qu'aucune ligne de stock n'a été débitée.
+
+**Verdict :**
+- **VERT** pour les contrôles qualité sur le HEAD courant, pour la recette navigation Replay complète enregistrée sur le même arbre applicatif, pour l'isolation des historiques Client A/B et pour le cas ciblé du panier local multi-pharmacies.
+- **PAS VERT GLOBAL** pour le chantier panier multi-pharmacies de bout en bout : cycle de deux commandes et stock non prouvé ; anomalie ServiceWorker toujours présente.
+- Aucun changement de schéma ou de données Production, aucune migration, aucun déploiement Vercel, aucune action Play Store.
