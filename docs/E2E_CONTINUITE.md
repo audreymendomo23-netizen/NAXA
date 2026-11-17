@@ -6008,3 +6008,6 @@ La prochaine passe est dédiée à la fermeture du Lot B, sans ouvrir un nouveau
 **Preuves :** les 11 fichiers historiques existent sur `main` ; les 11 versions `20261117060519`, `20261117060614`, `20261117060720`, `20261117060758`, `20261117060937`, `20261117060948`, `20261117061242`, `20261117061423`, `20261117061753`, `20261117061839` et `20261117061911` sont toujours listées comme appliquées sur Replay.
 
 **Périmètre non exécuté :** aucune migration SQL rejouée, aucune donnée métier écrite, aucun test E2E du cycle de paiement faute de dossiers partenaires de test sur Replay. Aucun déploiement Production. Verdict facturation indépendante : JAUNE / PARTIEL, jusqu'à preuve E2E.
+
+
+Contrôle de données Replay (lecture seule, 17/11/2026) : `admin_partner_dossiers = 0`, `partner_subscriptions = 0`, `partner_subscription_payments = 0`. Aucun dossier partenaire n'est disponible pour exécuter le scénario E2E.
