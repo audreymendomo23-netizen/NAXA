@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§149)  
+**Dernière mise à jour :** 17 novembre 2026 (§152)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `6e1fb36c9c28fcc9c21785cb0d178592d0ccb624`  
+**HEAD contrôlé avant cette mise à jour :** `a1d6636d7cff277c4da29ff355560e6097c3efd3`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5711,3 +5711,35 @@ Après le rejeu, les compteurs Replay sont tous à zéro pour : réservations, l
 - **Playwright installé/disponible : PASS. Navigation réelle vers l'application : BLOQUÉE par la politique réseau/DNS de l'environnement.**
 - **Lot B UI : toujours NON PROUVÉ / JAUNE.** Pour reprendre sans fausse preuve, il faut un runner Playwright ayant accès réseau au Preview du HEAD courant, et une session Client E2E utilisable (ou un mécanisme d'authentification de test sécurisé).
 - Aucun déploiement, aucune modification Production, aucune mutation Replay, aucune création de compte ni aucun changement de rôle lors de cette tentative.
+
+
+## 152. Reprise Playwright sur runner GitHub Actions — recette UI Client ajoutée (17/11/2026)
+
+**Cause racine du blocage précédent (§151)**
+
+- Playwright et Chromium étaient disponibles dans le container conversation, mais la politique réseau/DNS empêchait toute navigation vers le domaine Vercel.
+- Le dépôt disposait déjà d'un runner GitHub Actions fonctionnel pour la navigation E2E : `.github/workflows/naxa-nav-promoteur-e2e.yml`. Il installe les dépendances, installe Playwright/Chromium, construit NAXA localement avec les variables Replay, puis exécute le navigateur contre `http://127.0.0.1:3000`.
+- Ce mécanisme évite entièrement le Preview Vercel obsolète et ne déclenche aucun déploiement.
+
+**Mesure appliquée sur main**
+
+- Commit code : `a1d6636d7cff277c4da29ff355560e6097c3efd3`.
+- Extension de `.github/e2e/naxa-navigation-runtime.cjs` : réutilisation du compte Client Replay existant `naxa_e2e_acheteur` et de sa session ponctuelle Supabase SSR.
+- Ajout de contrôles Chromium mobiles sur : ouverture de l'espace Client ; affichage/retrait d'un favori local démo ; affichage, changement de quantité et retrait d'un article panier local démo ; ouverture de la recherche Marketplace, filtre ville et panneau Assurance ; ouverture de l'historique, filtre période et recherche.
+- Les favoris et l'article panier utilisés pour ces contrôles sont des fixtures locales marquées `demo: true), injectées dans le navigateur puis supprimées par les actions UI. Elles ne sont pas publiées en offre, ne créent aucune réservation et ne sont pas synchronisées comme données métier.
+- Le test réutilise les fixtures Auth déjà présentes. Aucun nouveau compte Auth, mot de passe persistant, affectation ou modification de rôle n'est créé pour le volet Client.
+- Le workflow conserve son précontrôle strict de l'URL Replay, son build local et son nettoyage de secours. Le déclenchement par modification du runtime est automatique.
+
+**Exécution**
+
+- Run GitHub Actions : [`44026734192` — Navigation Promoteur E2E Replay](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44026734192).
+- État à l'enregistrement de cette section : `IN_PROGRESS` ; installation Playwright/Chromium en cours. Aucun PASS navigateur Client n'est encore revendiqué.
+- Qualité logicielle sur le commit code : run `44026734123` en attente au moment de cette mise à jour. Le dernier run qualité terminé avant cette modification reste `44025837100` SUCCESS sur `dc540ee`.
+
+**Limites conservées**
+
+- Le volet Client couvre ici les interactions d'interface sur données locales démo et les filtres de recherche ; il ne prouve pas encore la création réelle d'une réservation à partir d'une offre partenaire réelle, le refus pharmacie, l'annulation/restauration du stock, ni la visibilité complète de l'historique transactionnel.
+- Le projet Replay ne possède pas de fiches BDPM dans `medicaments_referentiel_sources` au contrôle SQL du 17/11 ; les résultats catalogue ne peuvent donc pas être présumés disponibles dans cette recette.
+- Les pharmacies et stocks visibles dans Replay sont majoritairement des fixtures démo. Aucune n'a été rendue publiquement visible pour forcer artificiellement une offre.
+- Lot B reste **JAUNE / PARTIEL** jusqu'au résultat du run navigateur et aux preuves positives/négatives manquantes. Les recettes SQL 306–312 restent PASS (§150).
+- Aucun déploiement Vercel, aucune mutation Production et aucune migration Replay n'ont été effectués par cette mesure.
