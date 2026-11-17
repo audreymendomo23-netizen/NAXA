@@ -6182,3 +6182,14 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Commits sur `main` : correction initiale `0742bdb1ca4041352dc9a41bdcd628ff20572c92`, ajustement de l'expression de test `0ef5ca1d27a4c5f7ff738a0bb2cc047f3a5947d7`.
 - Le run 44042299247 ne constitue pas une preuve de recette Partenaire : son parcours navigateur a été ignoré. Statut Partenaire Examens : JAUNE / non validé.
 - Prochaine preuve requise : nouveau run sur le HEAD `0ef5ca1d27a4c5f7ff738a0bb2cc047f3a5947d7), contrôler le build, puis seulement si celui-ci passe, la navigation authentifiée et le nettoyage Replay. Aucun accès Production, aucune migration Production, aucun déploiement Vercel.
+
+
+## §170 — Diagnostic du run Partenaire et correction des tests prébuild (17/11/2026)
+
+- Le run navigateur initial [44042299247](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44042299247) est terminé en échec avant le serveur Next.js : étape « Construire NAXA » en échec, navigation E2E ignorée.
+- Le nettoyage de secours Replay a réussi : `aucune fixture temporaire à nettoyer`.
+- Cause racine confirmée : `npm run build` exécute `prebuild` (`npm run quality`), donc les tests unitaires obsolètes interrompaient le build. Résultat : 570/572 PASS ; deux assertions dans `scripts/test-naxa-communications-scheduler.cjs` n'étaient plus alignées sur le worker e-mail Google Apps Script et le dispatch Push séparé.
+- Correctif du contrat URL présent sur `main` : commit `0ef5ca1d27a4c5f7ff738a0bb2cc047f3a5947d7`. Le test Apps Script vérifie désormais l'absence de dispatch Push dans cette passerelle et conserve le contrôle du worker e-mail dédié. Ne pas attribuer ces défauts au parcours Partenaire Examens.
+- Un nouveau run qualité a été déclenché sur ce HEAD : [44044186294](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44044186294), en attente au moment de la note. Un run antérieur sur le HEAD intermédiaire est également en cours ; ne pas le prendre comme preuve du HEAD final.
+- La recette Partenaire Examens reste NON TESTÉE / JAUNE : aucun navigateur n'a démarré. Reprendre uniquement après validation de la suite qualité, puis relancer le job Chromium sur Replay et vérifier les assertions Partenaire ainsi que le nettoyage final.
+- Aucun critère Lot B ajouté ; aucun accès ou changement Production ; aucun déploiement.
