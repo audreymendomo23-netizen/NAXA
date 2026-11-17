@@ -6433,3 +6433,31 @@ La revalidation navigateur complète sur le HEAD réunissant ces modifications e
 - L'interface affiche le nom de la pharmacie sur chaque sous-panier au lieu de deux titres identiques.
 
 **Limites :** ce test prouve l'isolation locale des lignes, de la quantité et du retrait. Il ne prouve pas encore la création de deux commandes persistées ni le débit de stock réel. Aucun coût métier n'est inventé pour les lignes Replay. Aucun schéma ou donnée Replay/Production n'est modifié ; aucun déploiement Vercel.
+
+
+## 182. Re-audit panier multi-pharmacies — 17/11/2026
+
+**HEAD audité :** `3e4b736d7c5d0f840b227df2c419f26646656c84` (`fix(e2e): isoler le panier multi-pharmacies en navigateur`).
+
+**Contrôles qualité :**
+- Workflow qualité `44054040235` : SUCCESS. Les étapes « Qualité complète + build Next.js (Node 22) » et « Validate all active workflows » sont PASS.
+- Le build, les contrôles TypeScript/lint/tests et la syntaxe des workflows sont donc validés sur ce HEAD.
+
+**Preuve fonctionnelle ciblée :**
+- Workflow navigateur Replay `44054040159`, job `133938650641` : le scénario Client atteint le panier.
+- Log explicite : `PASS Client — même produit, deux propriétaires : quantité et retrait isolés par pharmacie.`
+- Cette preuve valide l'isolation locale des lignes homonymes entre deux pharmacies, la modification de quantité et le retrait indépendant.
+- Les fixtures temporaires ont été nettoyées avec succès.
+
+**Échec global distinct observé dans le même scénario :**
+- Le workflow navigateur termine en FAILURE après le passage du panier, à l'étape Client → Historique.
+- Les logs montrent deux réponses HTTP 400 sur `/rest/v1/client_achats?keys=client_id,...`, code PostgreSQL `42703`, message `column client_achats.client_id does not exist`.
+- Cela empêche de déclarer la recette navigateur globale verte. Ce défaut concerne la vue d'historique Client, pas le test ciblé d'isolation du panier. Il faut toutefois le traiter avant de considérer la suite E2E complète comme verte.
+- Le `DataCloneError` ServiceWorker (URL object could not be cloned) est également encore observé dans cette exécution ; son producteur reste à identifier.
+
+**Verdict panier :**
+- **VERT partiel sur la qualité technique et le cas ciblé multi-pharmacies** : compilation/qualité PASS et isolation quantité/retrait prouvée en navigateur.
+- **Pas de VERT global du chantier** : la recette E2E complète échoue sur l'historique Client. La preuve actuelle ne couvre pas encore deux commandes persistées distinctes, ni le débit/restauration du stock par propriétaire.
+- Ne pas confondre l'échec de l'historique avec un échec du test panier : les logs montrent explicitement le PASS du cas multi-propriétaires avant l'échec ultérieur.
+
+Aucune modification de schéma ou donnée Replay/Production, aucune migration, aucun déploiement Vercel, aucune action Play Store.
