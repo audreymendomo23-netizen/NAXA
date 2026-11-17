@@ -288,3 +288,13 @@ L'historique Replay contient les versions appliquées `20261117060519 partner_in
 Replay ne contient actuellement aucun dossier Parapharmacie, Examens ou Prestations, ni abonnement ou règlement correspondant. Le job et les droits sont prouvés au niveau configuration, mais aucun parcours réel de soumission→confirmation→cycle→J-5→expiration ne peut être déclaré PASS. Aucune donnée métier de test n'a été créée.
 
 **Verdict : PARTIEL.** Le moteur est implémenté et planifié sur Replay ; l'alignement des fichiers de migration et le test E2E avec structure réelle restent bloquants. Aucun changement Production ni déploiement Vercel.
+
+
+## 2026-11-17 — réalignement des migrations de facturation partenaire
+
+- Contradiction constatée : Replay avait déjà appliqué les 11 versions `20261117060519` à `20261117061911`, tandis que `main` contenait des doublons SQL identiques sous des versions `20261117200000` à `20261117214000`.
+- Comparaison stricte du contenu : les 9 migrations dont les versions historiques existaient déjà étaient identiques octet pour octet aux doublons récents.
+- Les deux fichiers historiques manquants (`20261117061839` et `20261117061911`) ont été restaurés à partir de leurs fichiers correspondants, puis les 11 doublons récents ont été supprimés.
+- Contrôle final : les 11 fichiers historiques existent sur `main` et les 11 versions sont toujours présentes dans `supabase_migrations.schema_migrations` sur Replay.
+- Aucune migration n'a été rejouée sur Replay. Aucun enregistrement métier n'a été créé ou modifié.
+- Limite inchangée : aucun dossier partenaire de test n'existe sur Replay ; le parcours complet déclaration → confirmation → cycle → rappel → expiration reste non testé E2E. Statut : JAUNE / PARTIEL.
