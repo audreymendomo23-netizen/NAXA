@@ -7242,3 +7242,55 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Migration commit : `e78c9f51eeacb6927a04ba62124e0000df5eb60d`.
 - UI commit : `9396f0ee824c6a3420883b5b8a4a34a9bca1ed42`.
 - Test contract commit : `75a0173e644128a45be8e306ef2c5b821698a0a7`.
+
+
+## Section 201 — Remboursements crédit Caisse : trois canaux, trésorerie atomique et recette Replay (17 novembre 2026)
+
+### Périmètre et garde-fous
+- Travail effectué sur le dépôt `audreymendomo23-netizen/NAXA`, branche `main`, et sur Supabase Replay `pwfftcsjyeibxxqhwysw` uniquement.
+- Aucune migration Production, aucune écriture Production, aucun déploiement Vercel, aucune branche ni PR.
+- La section 200 décrit l'état historique « espèces uniquement ». La présente section la remplace pour l'état courant des remboursements crédit.
+
+### Contrat SQL versionné et appliqué sur Replay
+- `20261117172316_caisse_credit_refund_accounts_rpc` : RPC contrôlée qui expose l'identifiant du crédit et les informations client à la Caisse ; contrôle Auth + périmètre pharmacie.
+- `20261117173913_caisse_credit_repayment_multichannel_atomic` : remboursement espèces / Orange Money / MTN MoMo ; clé d'idempotence, preuves mobiles, compte canal, écriture de trésorerie dans la même transaction.
+- `20261117175003_caisse_credit_treasury_account_create_atomic` : création idempotente d'un compte de trésorerie à solde initial nul par canal, dans la pharmacie autorisée.
+- `20261117181007_caisse_credit_refund_idempotency_proof_guard` : renforce le rejeu d'une même demande ; la clé est liée à l'auteur, au crédit, au montant, au mode, à la référence, au motif et aux trois déclarations de contrôle.
+- Historique Supabase Replay relu après application : les quatre versions ci-dessus sont présentes.
+
+### Règles transactionnelles garanties
+- Un remboursement réduit le solde du crédit, insère une opération `client_credit_operations` et un mouvement `tresorerie_mouvements` de type `credit_remboursement` ; ces écritures sont atomiques.
+- Le mouvement conserve le compte canal, le canal de paiement et l'origine `comptoir` séparément. Les comptes espèces, Orange Money et MTN MoMo sont distincts.
+- Orange/MTN exigent une référence ainsi que trois contrôles visuels enregistrés : bénéficiaire, montant et confirmation affichée sur le téléphone du client. L'acteur et l'heure du contrôle sont conservés. Aucune confirmation opérateur/API n'est prétendue.
+- Une clé identique rejoue la même opération uniquement avec les mêmes paramètres et le même auteur. Une clé réutilisée avec un payload ou une preuve différente est refusée.
+- En l'absence de compte actif affecté au canal, la transaction est refusée avant toute baisse du crédit.
+- L'insertion du mouvement et les déclencheurs comptables existants sont conservés ; l'outbox comptable reçoit un seul événement par opération.
+- La clôture Caisse ne comptabilise dans le tiroir physique que les remboursements en espèces, pas les montants Orange/MTN.
+
+### Intégration Caisse
+- La page `src/app/pharmacie/caisse/page.tsx` propose les trois canaux, la configuration des comptes par canal, les contrôles visuels mobiles et un reçu imprimable portant l'origine, le canal, la référence, l'opération, le montant et le solde restant.
+- Les comptes manquants peuvent être créés depuis le parcours à 0 FCFA ; cette création ne simule pas un encaissement.
+- En cas de réponse réseau incertaine, la demande et sa clé d'idempotence sont conservées dans le navigateur ; les paramètres sont verrouillés et l'utilisateur peut réessayer exactement la même demande, sans créer un deuxième débit.
+- L'encaissement de vente POS par opérateur reste soumis à son propre parcours de preuve ; cette correction ne prétend pas l'avoir rendu disponible.
+
+### Recette SQL Replay exécutée
+- `supabase/tests/302_caisse_credit_repayment_multichannel_e2e.sql` exécuté avec résultat : **PASS**.
+- Le test utilise un acteur Caisse Replay autorisé, crée les trois comptes via la RPC officielle, ouvre une session, crée un crédit de recette, puis exécute les remboursements espèces 100 FCFA, Orange 200 FCFA et MTN 300 FCFA.
+- Vérifications PASS : les trois canaux distincts ; trois opérations uniques ; trois mouvements de trésorerie liés aux comptes correspondants ; origine comptoir ; preuves Orange/MTN et acteur/horodatage ; un événement d'outbox par remboursement ; rejeu idempotent sans double débit.
+- Vérifications négatives PASS : clé réutilisée avec montant ou preuve différente ; preuve mobile incomplète ; mapping MTN absent ; montant supérieur au solde. Les refus ne modifient ni le solde, ni les opérations, ni la trésorerie.
+- Vérification de clôture PASS : 600 FCFA remboursés tous canaux, dont 100 FCFA seulement dans le tiroir espèces ; écart nul.
+- Le script est enveloppé dans une transaction avec `ROLLBACK` : les fixtures et mouvements SQL de recette ne sont pas conservés.
+
+### Recette automatisée complète — statut non encore terminal
+- `scripts/e2e/verify-credit-refund-runtime.cjs` couvre le parcours authentifié Replay pour les trois canaux, la création/liste des comptes, le rejeu de chaque clé, les refus de sécurité, les mouvements, l'outbox, la clôture espèces-only et le nettoyage.
+- `scripts/e2e/verify-credit-pos-browser.cjs` a été étendu pour réaliser les trois remboursements depuis l'interface Caisse, lire les reçus et rapprocher les trois mouvements, les preuves mobiles et le tiroir espèces.
+- Le précédent run navigateur a révélé un bouton de remboursement encore désactivé pendant le chargement asynchrone des comptes. La recette a été corrigée pour attendre le bouton de soumission exact et vérifier l'activation réelle avant le clic.
+- Run GitHub Actions Replay `44190663683` : en cours au dernier contrôle, installation Playwright/Chromium terminée en attente. Les étapes JWT remboursement et navigateur multicanal n'avaient pas encore rendu leur résultat terminal.
+- Le run qualité `44190993476` a été relancé après correction d'un test Admin périmé sur l'identifiant historique `dispositifs`. Ce test vérifie maintenant que l'identifiant reste technique mais que les dispositifs ne figurent pas parmi les quatre univers publics configurables. Résultat terminal de cette relance non encore disponible au dernier contrôle.
+- Un run qualité précédent a exécuté 581 tests : 580 PASS, 1 FAIL sur cette assertion Admin obsolète. Aucun résultat TypeScript, lint ou build n'est revendiqué pour ce run, car `npm test` s'est arrêté sur l'échec.
+
+### État honnête à cette reprise
+- **Vert :** migrations des trois canaux appliquées sur Replay ; sécurité idempotence/proof guard appliquée ; recette SQL 302 PASS avec rollback ; intégration UI et reçu versionnés ; tests statiques multicanaux ajoutés.
+- **En attente :** exécution complète des scripts JWT et navigateur multicanal sur Replay ; résultat final du build/TypeScript/lint de la relance qualité.
+- **Non revendiqué :** validation opérateur automatisée Orange/MTN ; recette de vente POS encaissée par ces opérateurs ; publication Production.
+- Le sous-parcours SQL multicanal est vert. Le parcours complet navigateur + qualité globale reste **PARTIEL / EN ATTENTE** jusqu'aux deux runs terminaux ; ne pas déclarer le chantier global vert avant preuves.
