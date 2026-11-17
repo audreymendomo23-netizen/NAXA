@@ -5999,3 +5999,12 @@ La prochaine passe est dédiée à la fermeture du Lot B, sans ouvrir un nouveau
 **Point de départ exact :** commit de diagnostic runtime `6c109d4407d15ee52dbf68a0aaf4565339dda074`, dernière rectification documentaire `71105c5595a9b12f7f70a45139cc9a27509c44b9`. Les commits plus récents de `main` doivent être contrôlés avant d'exécuter la recette : ne pas tester un ancien HEAD ni supposer que le run correspondant au commit existe.
 
 **Périmètre inchangé :** Replay uniquement, branche `main`, aucun déploiement Vercel ni migration Production. Lot B reste JAUNE jusqu'à obtention des preuves ci-dessus.
+
+
+## §157 — Réalignement des migrations de facturation indépendante partenaire (17/11/2026)
+
+**Correction effectuée sur `main` :** les 11 migrations déjà appliquées sur Replay avaient des doublons SQL sous de nouveaux horodatages. Les 9 paires dont les fichiers historiques existaient ont été comparées strictement et étaient identiques. Les deux fichiers historiques manquants `20261117061839_isolate_partner_and_promoteur_payment_references.sql` et `20261117061911_exclude_non_billable_partner_universes.sql` ont été restaurés à partir des fichiers correspondants. Les 11 fichiers aux versions récentes `20261117200000` à `20261117214000` ont ensuite été supprimés.
+
+**Preuves :** les 11 fichiers historiques existent sur `main` ; les 11 versions `20261117060519`, `20261117060614`, `20261117060720`, `20261117060758`, `20261117060937`, `20261117060948`, `20261117061242`, `20261117061423`, `20261117061753`, `20261117061839` et `20261117061911` sont toujours listées comme appliquées sur Replay.
+
+**Périmètre non exécuté :** aucune migration SQL rejouée, aucune donnée métier écrite, aucun test E2E du cycle de paiement faute de dossiers partenaires de test sur Replay. Aucun déploiement Production. Verdict facturation indépendante : JAUNE / PARTIEL, jusqu'à preuve E2E.
