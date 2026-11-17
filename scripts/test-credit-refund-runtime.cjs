@@ -54,6 +54,17 @@ test("credit refund runtime verifies atomic treasury movements, origin, accounti
   assert.match(runtimeSource, /totalAllRefunds !== 600/);
 });
 
+test("credit refund runtime reuses only a zero-balance active credit and restores it after cleanup", () => {
+  assert.match(runtimeSource, /existingCredits\.length > 1/);
+  assert.match(runtimeSource, /existingCredit\.actif !== true/);
+  assert.match(runtimeSource, /Number\(existingCredit\.solde\) !== 0/);
+  assert.match(runtimeSource, /creditCreatedByRuntime = false/);
+  assert.match(runtimeSource, /creditOriginalBalance = Number\(existingCredit\.solde\)/);
+  assert.match(runtimeSource, /creditCreatedByRuntime = true/);
+  assert.match(runtimeSource, /body: \{ solde: creditOriginalBalance \}/);
+  assert.match(runtimeSource, /remainingCredits\.length !== 1/);
+});
+
 test("credit refund runtime rejects invalid states and performs guarded cleanup on Replay", () => {
   assert.match(runtimeSource, /idempotencyConflictRejected/);
   assert.match(runtimeSource, /missingProofRejected/);
