@@ -57,7 +57,7 @@ begin
     lower(pg_get_functiondef(
       'public.admin_create_partner_dossier(uuid,text,text,text,text,text,text,numeric,numeric,text,bigint,text,jsonb)'::regprocedure
     )),
-    '\\s+', '', 'g'
+    '[[:space:]]+', '', 'g'
   ) into v_definition;
 
   -- Comparer le SQL normalisé : les retours à la ligne et espaces de formatage
