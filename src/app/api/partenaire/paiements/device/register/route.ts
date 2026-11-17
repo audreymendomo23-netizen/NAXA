@@ -48,10 +48,10 @@ async function activePartnerMemberships(db: ReturnType<typeof supabaseAdmin>, us
     : { data: [] as Array<{ partner_id: string; universe_slug: string; dossier_status: string }> };
   const payablePendingOwners = new Set((validatedDossiers ?? []).map((row) => row.partner_id));
   return normalized
-    .filter((row) => row.partner?.id === row.partnerId && (
+    .filter((row) => Boolean(row.partner && row.partner.id === row.partnerId && (
       row.partner.status === "active" ||
       (row.partner.status === "pending" && row.memberRole === "owner" && payablePendingOwners.has(row.partnerId))
-    ))
+    )))
     .map((row) => ({ id: row.partnerId, name: row.partner!.name }));
 }
 
