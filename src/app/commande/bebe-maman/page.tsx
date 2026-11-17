@@ -113,7 +113,11 @@ export default function FinaliserBebeMamanPage() {
         throw new Error("Réponse serveur de réservation invalide.");
       }
       setCreated(reservations);
-      bebeMaman.forEach(line => retirer(line.produit_id));
+      bebeMaman.forEach(line => retirer(
+        line.produit_id,
+        line.owner_type ?? (line.pharmacie_id ? "pharmacie" : line.partner_id ? "parapharmacie" : undefined),
+        line.owner_id ?? line.pharmacie_id ?? line.partner_id,
+      ));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Une erreur inattendue est survenue.");
     } finally {
