@@ -31,16 +31,18 @@ test("la recette navigateur couvre refus avant décision, reprise du même broui
   assert.match(source, /getByText\("Session ouverte", \{ exact: true \}\)/);
 });
 
-test("la recette couvre le remboursement réel, l'outbox et le rapprochement Caisse", () => {
+test("la recette soumet le remboursement depuis l'interface Caisse et vérifie reçu, trésorerie et clôture", () => {
+  assert.match(source, /refundSection/);
+  assert.match(source, /Confirmer le remboursement/);
+  assert.match(source, /NAXA · Reçu de remboursement crédit/);
   assert.match(source, /client_credit_rembourser/);
   assert.match(source, /credit_remboursement/);
   assert.match(source, /caisse_cloturer/);
-  assert.match(source, /Number\(closed\.ecart\) !== 0/);
+  assert.match(source, /Number\\(closed\\.ecart\\) !== 0/);
   assert.match(source, /accountAfterRefund/);
-  assert.match(source, /p_idempotency_key: refundIdempotencyKey/);
   assert.match(source, /caisse_credit_tresorerie_compte_creer/);
   assert.match(source, /tresorerie_mouvements/);
-  assert.match(source, /Rejeu idempotent du remboursement POS/);
+  assert.match(source, /refundReference/);
 });
 
 test("la pharmacie de recette reste active et masquée au catalogue public", () => {
