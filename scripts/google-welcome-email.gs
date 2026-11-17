@@ -14,8 +14,10 @@
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  let locked = false;
   try {
+    lock.waitLock(15000);
+    locked = true;
     const payload = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     const props = PropertiesService.getScriptProperties();
     const expectedSecret = props.getProperty("NAXA_WELCOME_SECRET");
@@ -59,7 +61,7 @@ function doPost(e) {
     console.error("NAXA email gateway failure: " + String(error));
     return json_({ sent: false, error: "send_failed" });
   } finally {
-    lock.releaseLock();
+    if (locked) lock.releaseLock();
   }
 }
 
