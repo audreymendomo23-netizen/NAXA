@@ -7212,3 +7212,33 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Audit ciblé réalisé ; aucune modification applicative ou SQL exécutée dans ce passage.
 - Aucun point n'est déclaré vert. Les remboursements multi-canaux, leur preuve visuelle, l'idempotence, la liaison trésorerie et l'interface restent rouges tant que les migrations, l'interface et les tests Replay correspondants ne sont pas réalisés.
 - Prochaine reprise exacte : concevoir et versionner le contrat SQL complet (identifiant crédit exposé par RPC contrôlée, preuve visuelle, idempotence, compte de trésorerie par canal et mouvement atomique), puis intégrer le formulaire Caisse et les reçus ; tester sur Replay avant toute déclaration de vert.
+
+
+## Section 200 — Implémentation Caisse : remboursement crédit espèces (17 novembre 2026)
+
+### Corrections réellement appliquées sur main
+- Migration ajoutée : `supabase/migrations/20261117182000_caisse_credit_refund_accounts_rpc.sql`.
+- Nouvelle RPC `caisse_credit_remboursement_comptes_lister(uuid)` : expose `credit_id` et les informations client nécessaires à la Caisse sans lecture directe de `client_credits`, contrôle `auth.uid()` + `naxa_caisse_actor_for_pharmacy`, ne retourne que les crédits actifs avec solde positif.
+- ACL vérifiées : `anon` ne peut pas exécuter la RPC ; `authenticated` le peut.
+- Intégration UI dans `src/app/pharmacie/caisse/page.tsx` : section « Remboursement des crédits clients », sélection du compte, montant, référence/motif facultatifs, appel à `client_credit_rembourser` en espèces uniquement, mise à jour locale du solde après confirmation serveur et message avec identifiant d'opération.
+- Le parcours conserve le contrôle serveur existant : montant positif, solde disponible, crédit actif, périmètre pharmacie et session Caisse ouverte appartenant au caissier.
+- Les modes Orange Money et MTN MoMo restent explicitement exclus de ce formulaire ; aucune fausse confirmation opérateur n'est introduite.
+
+### Tests Replay exécutés
+- Migration appliquée sur Replay : succès.
+- Vérification SQL de la nouvelle RPC et de ses ACL : `301_caisse_credit_refund_accounts_rpc PASS`.
+- Contrat de session du remboursement : `248_credit_repayment_cash_session PASS`.
+- Rapprochement des remboursements à la clôture : `250_caisse_credit_repayment_reconciliation PASS`.
+- Contrat du mode espèces / exclusion du tiroir espèces pour d'autres modes : `254_credit_repayment_payment_mode PASS`.
+- Les tests SQL sont structurels et exécutés sans créer de remboursement métier.
+
+### Limites qui empêchent encore le vert E2E
+- Aucun couple crédit actif + session Caisse ouverte appartenant au caissier n'a été trouvé dans Replay au moment du test ; le scénario réel de remboursement avec mutation puis rollback n'a donc pas été exécuté.
+- Le build TypeScript/Next.js n'a pas été lancé dans cet environnement ; le statut GitHub du commit applicatif ne publie aucun check.
+- Reçu dédié de remboursement, idempotence anti-double soumission, Orange Money, MTN MoMo et écriture trésorerie atomique ne sont pas livrés par cette correction.
+- Par conséquent, le sous-parcours UI + RPC de remboursement espèces est implémenté et ses contrats SQL passent, mais le point global « remboursements crédit Caisse » reste PARTIEL, pas vert E2E.
+
+### Références
+- Migration commit : `e78c9f51eeacb6927a04ba62124e0000df5eb60d`.
+- UI commit : `9396f0ee824c6a3420883b5b8a4a34a9bca1ed42`.
+- Test contract commit : `75a0173e644128a45be8e306ef2c5b821698a0a7`.
