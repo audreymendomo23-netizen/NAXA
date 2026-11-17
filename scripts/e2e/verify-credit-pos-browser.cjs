@@ -627,31 +627,50 @@ async function run(env = process.env) {
 
     const refundReference = "NAXA-E2E-CREDIT-BROWSER-" + crypto.randomUUID();
     const cashTreasuryAccountId = await ensureCashTreasuryAccount();
-    const refundIdempotencyKey = crypto.randomUUID();
-    const refundArgs = {
-      p_credit: creditId,
-      p_montant: REFUND_AMOUNT,
-      p_mode: "especes",
-      p_reference: refundReference,
-      p_motif: "Recette E2E interne non commerciale — remboursement complet du crédit POS",
-      p_idempotency_key: refundIdempotencyKey,
-      p_verification_beneficiaire: false,
-      p_verification_montant: false,
-      p_confirmation_client_vue: false,
-    };
-    const refund = await rpc("client_credit_rembourser", cashierToken, refundArgs,
-      "Remboursement runtime du crédit POS");
-    if (typeof refund !== "string") throw new Error("Le RPC de remboursement n'a pas retourné un identifiant.");
+
+    // The actual refund is submitted through the Caisse UI. Reload after sale
+    // so the refund-only account projection sees the newly positive credit balance.
+    await cashierPage.reload();
+    await cashierPage.getByRole("heading", { name: "Poste de caisse" }).waitFor();
+    await cashierPage.getByText("Session ouverte", { exact: true }).waitFor();
+    const refundSection = cashierPage.locator("#caisse-remboursements-credit");
+    await refundSection.getByRole("heading", { name: "Remboursement des crédits clients", exact: true }).waitFor();
+    const refundClientSelect = refundSection.locator("label").filter({
+      hasText: "Client et compte crédit",
+    }).locator("select");
+    await refundClientSelect.waitFor({ state: "visible" });
+    await refundClientSelect.selectOption(creditId);
+    const refundChannelSelect = refundSection.locator("label").filter({
+      hasText: "Canal du remboursement",
+    }).locator("select");
+    if (await refundChannelSelect.inputValue() !== "especes") {
+      await refundChannelSelect.selectOption("especes");
+    }
+    await refundSection.locator("label").filter({
+      hasText: "Montant remboursé (FCFA)",
+    }).locator("input").fill(String(REFUND_AMOUNT));
+    await refundSection.locator("label").filter({
+      hasText: "Référence de transaction",
+    }).locator("input").fill(refundReference);
+
+    await refundSection.getByRole("button", { name: "Confirmer le remboursement", exact: true }).click();
+    const refundTicket = cashierPage.locator("#refund-ticket");
+    await refundTicket.getByRole("heading", { name: "NAXA · Reçu de remboursement crédit", exact: true }).waitFor();
+    const receiptText = (await refundTicket.textContent()) || "";
+    if (!receiptText.includes(refundReference) || !receiptText.includes("Origine")) {
+      throw new Error("Le reçu imprimable Caisse ne contient pas la référence et l'origine comptoir.");
+    }
 
     const refundOps = await rows(
       "client_credit_operations?select=id,nature,montant,mode_paiement,caisse_session_id,created_by,reference"
-        + "&id=eq." + encodeURIComponent(refund) + "&limit=1"
+        + "&reference=eq." + encodeURIComponent(refundReference) + "&limit=2"
     );
-    const refundOp = await ensureSingle(refundOps, "Opération de remboursement");
+    const refundOp = await ensureSingle(refundOps, "Opération de remboursement créée par l'interface Caisse");
+    const refund = refundOp.id;
     if (refundOp.nature !== "remboursement" || Number(refundOp.montant) !== REFUND_AMOUNT
       || refundOp.mode_paiement !== "especes" || refundOp.caisse_session_id !== sessionId
       || refundOp.created_by !== cashierUserId || refundOp.reference !== refundReference) {
-      throw new Error("Le remboursement n'est pas rattaché au Caisse, au titulaire ou au compte crédit attendu.");
+      throw new Error("L'interface Caisse n'a pas enregistré le remboursement lié au titulaire/session attendus.");
     }
     const refundMovementRows = await rows(
       "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,source_id,canal_paiement,origine"
@@ -663,9 +682,6 @@ async function run(env = process.env) {
       || refundMovement.origine !== "comptoir") {
       throw new Error("Le remboursement POS n'a pas généré son mouvement espèces dans le compte trésorerie correspondant.");
     }
-    const replayedRefund = await rpc("client_credit_rembourser", cashierToken, refundArgs,
-      "Rejeu idempotent du remboursement POS");
-    if (replayedRefund !== refund) throw new Error("Le rejeu du remboursement POS a créé une seconde opération.");
 
     const outbox = await rows(
       "compta_evenement?select=id,evenement_type,source_type,source_id,donnees"
