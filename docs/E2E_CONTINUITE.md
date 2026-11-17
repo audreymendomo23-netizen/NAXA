@@ -5862,3 +5862,28 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - Aucun déploiement Production ni Vercel.
 
 **État : 🟡 PARTIEL.** Le moteur SQL de rapprochement croisé est prouvé par transaction annulée ; l'intégration réseau réelle reste à valider.
+
+
+## 158. Découplage complet Promoteur / abonnements partenaires (17/11/2026)
+
+**Contradictions corrigées**
+- La validation d'un dossier partenaire ne consulte plus l'abonnement Promoteur et ne peut plus activer une structure sans son propre cycle confirmé (ou un accès historique valide). Les univers Aide et autres univers non pris en charge sont refusés par cette validation.
+- La confirmation d'un règlement Promoteur ne réactive plus les partenaires indépendants du même titulaire.
+- La synchronisation Pharmacie/Promoteur ne crée plus de verrou Promoteur à partir de dossiers Parapharmacie/Examens/Prestations ; elle gère uniquement les abonnements Promoteur/Pharmacie.
+- \`promoteur_soumettre_reglement\` exige désormais un profil actif de rôle Promoteur. Le titulaire d'une autre structure utilise le RPC de sa structure.
+- Les références de transaction sont contrôlées entre règlements Promoteur, abonnements partenaires et confirmations de réservation Client.
+
+**Tests transactionnels Replay (ROLLBACK)**
+- Validation Admin avec univers/feature flag activés uniquement dans la transaction : dossier validé, partenaire reste \`pending\`, univers reste désactivé, abonnement propre reste \`pending_payment\`. Le bloc est annulé et les flags restent désactivés.
+- J-5 : premier appel = 1 rappel ; deuxième appel = 0 nouveau rappel.
+- Expiration : contrat propre échu = \`expired\`, partenaire reste actif, profil global reste actif ; aucune suspension transversale.
+- Le test d'auto-pairing SMS §157 reste PASS.
+- Contrôle après annulation : zéro ligne temporaire et zéro notification de test persistante.
+
+**Configuration Replay non activée**
+- Les trois univers Parapharmacie, Examens et Prestations ont leurs flags désactivés.
+- Aucune destination active dans \`naxa_payment_destinations\` pour MTN/Orange.
+- Aucun build/TypeScript/CI ni parcours HTTP/Android complet exécuté.
+- Aucun déploiement Production/Vercel.
+
+**État : 🟡 PARTIEL.** Le découplage métier, la preuve transactionnelle du paiement SMS et les rappels/expirations sont intégrés sur Replay ; les paramètres de lancement et les tests applicatifs réels restent à faire.
