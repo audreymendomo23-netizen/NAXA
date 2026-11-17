@@ -6172,3 +6172,13 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 - Run lancé automatiquement sur ce commit : [44042299247 — Navigation Promoteur / Partenaire / Client sur Replay](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44042299247), job `133899526085`.
 - Précontrôle secret Replay : PASS ; `npm ci` : PASS ; installation Playwright/Chromium : EN COURS au dernier contrôle. Le build, la recette navigateur et le nettoyage restent à exécuter ; aucun résultat de recette n'est anticipé.
 - Le lot reste JAUNE jusqu'au résultat final du navigateur et au PASS du nettoyage. Aucun accès Production, aucune migration Production, aucun déploiement.
+
+
+## §170 — Diagnostic du run Partenaire et correction du blocage de build (17/11/2026)
+
+- Run [44042299247](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44042299247), job `133899526085`, terminé en échec au build ; le serveur local et la recette navigateur ont été ignorés. Le nettoyage de secours Replay a réussi : aucune fixture temporaire à nettoyer.
+- Le build a échoué sur 2 assertions obsolètes parmi 572 tests (570 PASS / 2 FAIL), toutes deux dans `scripts/test-naxa-communications-scheduler.cjs`. Elles attendaient (1) un ancien message d'erreur générique au lieu du message actuel qui impose l'URL exacte `https://nnaxa.vercel.app/api/cron/validite`, et (2) un commentaire historique affirmant que Google Apps Script ne dispatchait pas Web Push par pg_cron. Le script actuel ne gère que le worker e-mail ; le worker Push est séparé dans `src/app/api/cron/posologie/route.ts`.
+- Correction limitée aux assertions de test : vérification du message contractuel exact de `NAXA_WORKER_URL` et vérification que le script Apps Script ne contient pas de dispatch Posologie/Web Push/pg_cron. Aucun changement de logique métier, de configuration, de schéma ou de secrets.
+- Commits sur `main` : correction initiale `0742bdb1ca4041352dc9a41bdcd628ff20572c92`, ajustement de l'expression de test `0ef5ca1d27a4c5f7ff738a0bb2cc047f3a5947d7`.
+- Le run 44042299247 ne constitue pas une preuve de recette Partenaire : son parcours navigateur a été ignoré. Statut Partenaire Examens : JAUNE / non validé.
+- Prochaine preuve requise : nouveau run sur le HEAD `0ef5ca1d27a4c5f7ff738a0bb2cc047f3a5947d7), contrôler le build, puis seulement si celui-ci passe, la navigation authentifiée et le nettoyage Replay. Aucun accès Production, aucune migration Production, aucun déploiement Vercel.
