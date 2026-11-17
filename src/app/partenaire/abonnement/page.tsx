@@ -63,7 +63,7 @@ export default async function PartnerSubscriptionPage({
   if (!auth.user) redirect("/connexion?retour=/partenaire/abonnement");
 
   const { data: memberships, error: membershipError } = await sb.from("partner_members")
-    .select("partner_id,member_role,partners!inner(id,name,status)")
+    .select("partner_id,member_role")
     .eq("user_id", auth.user.id)
     .eq("member_role", "owner");
 
