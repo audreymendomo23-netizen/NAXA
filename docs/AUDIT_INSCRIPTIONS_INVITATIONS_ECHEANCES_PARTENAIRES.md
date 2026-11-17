@@ -298,3 +298,6 @@ Replay ne contient actuellement aucun dossier Parapharmacie, Examens ou Prestati
 - Contrôle final : les 11 fichiers historiques existent sur `main` et les 11 versions sont toujours présentes dans `supabase_migrations.schema_migrations` sur Replay.
 - Aucune migration n'a été rejouée sur Replay. Aucun enregistrement métier n'a été créé ou modifié.
 - Limite inchangée : aucun dossier partenaire de test n'existe sur Replay ; le parcours complet déclaration → confirmation → cycle → rappel → expiration reste non testé E2E. Statut : JAUNE / PARTIEL.
+
+
+Contrôle de données Replay (lecture seule, 17/11/2026) : `admin_partner_dossiers = 0`, `partner_subscriptions = 0`, `partner_subscription_payments = 0`. Aucun dossier partenaire n'est disponible pour exécuter le scénario E2E.
