@@ -5887,3 +5887,20 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - Aucun déploiement Production/Vercel.
 
 **État : 🟡 PARTIEL.** Le découplage métier, la preuve transactionnelle du paiement SMS et les rappels/expirations sont intégrés sur Replay ; les paramètres de lancement et les tests applicatifs réels restent à faire.
+
+
+## 159. Clôture de passe — état vérifié sur Replay et main (17/11/2026)
+
+**Historique Supabase Replay confirmé :** 11 migrations du lot, de \`20261117060519 partner_independent_subscription_cycles\` à \`20261117061911 exclude_non_billable_partner_universes\`, toutes visibles dans l'historique appliqué.
+
+**Job confirmé :** \`naxa-partner-subscription-cycle-hourly\`, job 13, \`20 * * * *\`.
+
+**Contrôles finaux :**
+- Aucun finding Advisor sécurité sur \`partner_subscriptions\` / \`partner_subscription_payments\`.
+- Trois index FK signalés INFO/unused, explicable par les tables vides sur Replay.
+- Les feature flags des trois univers restent désactivés ; aucune destination MTN/Orange active sur Replay.
+- \`vercel.json\` conserve \`git.deploymentEnabled.main=false\`.
+- Aucun statut CI ou run GitHub Actions attaché au dernier HEAD ; build/TypeScript non prouvés.
+- Aucun déploiement Vercel ni changement Production.
+
+**Continuation exacte :** configurer les destinations réelles et activer les univers selon décision métier, puis exécuter build/TypeScript et un parcours HTTP/Android Admin/Partenaire sur Replay avec données autorisées. Ne pas déclarer AU VERT avant ces preuves.
