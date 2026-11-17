@@ -5180,3 +5180,26 @@ Liens de preuve :
 
 **Verdict : NON VERT — cause localisée au service Supabase Auth Replay, hors du chemin d'exécution NAXA testé. Aucun changement de code NAXA effectué car il ne pourrait pas corriger le comportement mesuré.**
 
+
+
+## 132. Renforcement API — neutralisation de l'énumération des comptes par récupération de mot de passe (17/11/2026)
+
+**Audit → contradiction → cause racine**
+- Le middleware src/middleware.ts exclut volontairement toutes les routes /api/* du contrôle générique d'authentification ; chaque route API doit donc appliquer son propre contrôle.
+- L'ancienne route src/app/api/auth/forgot-password/route.ts renvoyait HTTP 404 avec un message distinct lorsqu'un nom d'utilisateur était inconnu, et ne posait aucun rate limit applicatif avant la recherche du profil.
+- Cette différence de réponse permettait de sonder l'existence de comptes NAXA. La route reste publique pour permettre la récupération d'accès : exiger une session serait contradictoire avec sa fonction.
+
+**Correction appliquée sur main**
+- Réponse publique uniforme pour nom syntaxiquement valide inconnu, profil non finalisé et compte finalisé : même statut HTTP 200 et même message générique.
+- Rate limit par IP avant toute recherche de profil (ip_password_reset, 5 tentatives / 10 minutes), avec réponse 429 commune en cas de dépassement.
+- Contrôle de taille du corps, réponses Cache-Control: no-store, et journaux d'erreur sans nom d'utilisateur, adresse e-mail ni détails de compte.
+- Le code OTP n'est envoyé que si le profil existe, est finalisé et possède une identité Auth avec e-mail ; aucun compte n'est créé.
+- Test de contrat ajouté : uniformité des réponses, ordre rate limit avant lookup, et absence de cache.
+
+**Limites et preuves**
+- Ce correctif réduit l'énumération par réponse HTTP ; il ne prétend pas supprimer toute différence temporelle possible ni remplacer les protections de débit natives Supabase.
+- Aucun mot de passe, OTP, e-mail, secret ou token n'a été lu ou ajouté au dépôt.
+- Les tests locaux, TypeScript, lint et build ne sont pas exécutés par le connecteur GitHub ; le statut CI déclenché par le commit doit être consulté avant de qualifier la correction de PASS.
+- Le rejeu refresh T1/T3 reste un défaut Supabase Auth distinct, inchangé. Aucune migration ni écriture Supabase, aucune action Production, Vercel ou Play Store.
+
+**Verdict : CORRECTION VERSIONNÉE — validation CI en attente ; point non déclaré vert avant le run.**
