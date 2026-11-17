@@ -53,7 +53,7 @@ function ClientPageContent(){
  const [{data:p,error:profileError},{data:r,error:reservationError},{data:historique,error:historiqueError},{data:homeServiceData,error:homeServiceError},{data:examData,error:examError}]=await Promise.all([
   sb.from("profiles").select("username,first_name,last_name,role").eq("id",user.id).single(),
   sb.from("reservations").select("id,statut,mode,paiement_statut,paiement_mode,commande_statut,total,expires_at,created_at,paiement_ref,pharmacie_id,pharmacies(nom,ville,quartier,adresse),reservation_items(quantite,prix_unitaire,produits(id,nom,dci,dosage,forme,photo_url))").eq("client_id",user.id).order("created_at",{ascending:false}).limit(200),
-  sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").eq("client_id",user.id).order("achat_le",{ascending:false,nullsFirst:false}).limit(500),
+  sb.from("client_achats").select("reservation_id,produit_id,medicament,dci,dosage,forme,photo_url,quantite,prix_unitaire,total_ligne,total_transaction,reference_paiement,reservation_creee_le,pharmacie_id,pharmacie,ville,quartier,adresse,confirmee_le,paiement_declare_le,payee_le,retiree_le,achat_le,horodatage_achat_exact,statut").order("achat_le",{ascending:false,nullsFirst:false}).limit(500),
   sb.from("home_service_requests").select("id,status,offer_name,category,price_fcfa,service_area_label,preferred_at,created_at").eq("client_id",user.id).order("created_at",{ascending:false}).limit(100),
   sb.from("exam_appointments").select("id,item_name,price_fcfa,status,ticket_code,created_at,exam_centers(display_name,address_label,phone_public),exam_slots(starts_at,ends_at)").eq("client_id",user.id).order("created_at",{ascending:false}).limit(100)
  ]);
@@ -68,6 +68,8 @@ function ClientPageContent(){
  setReservations(rows);
  setHomeServicesAvailable(!homeServiceError);setHomeServiceRequests((homeServiceData??[]) as HomeServiceRequest[]);
  setExamAvailable(!examError);setExamAppointments(!examError?(examData??[]) as unknown as ExamAppointment[]:[]);
+ // La vue client_achats est déjà bornée à auth.uid() dans sa définition
+ // (security_invoker=true) : elle ne possède donc pas de colonne client_id.
  // Priorité à la vue canonique : elle fournit les horodatages issus des
  // événements de statut. Repli sur les réservations si la migration n'est
  // pas encore installée dans l'environnement Supabase courant.
