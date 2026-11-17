@@ -15,7 +15,7 @@ for (const channel of ["especes", "orange_money", "mtn_momo"]) {
   assert.ok(e2e.includes(channel), `Replay E2E must cover ${channel}`);
 }
 
-assert.match(ui, /p_idempotency_key:\s*idempotencyKey/);
+assert.match(ui, /p_idempotency_key:\s*request\.idempotencyKey/);
 assert.match(ui, /const idempotencyKey = pending\?\.idempotencyKey \?\? refundIdempotencyKey \?\? crypto\.randomUUID\(\)/);
 assert.equal((ui.match(/setRefundIdempotencyKey\(null\);/g) || []).length, 2,
   "The idempotency key is cleared only after success or a confirmed server rejection");
