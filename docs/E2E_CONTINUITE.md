@@ -6612,3 +6612,50 @@ La recette a été exécutée dans `BEGIN … ROLLBACK` ; elle n'a donc laissé 
 **Limite explicite :** cette preuve valide le circuit métier de paiement espèces au comptoir et son reçu POS. Elle ne constitue pas une transaction réelle MTN/Orange ni une preuve de rapprochement SMS/opérateur. Le test utilise les identités des comptes Replay via les claims SQL ; ce n'est pas une recette navigateur avec cookies/JWT HTTP.
 
 **Verdict : VERT sur Replay** pour le défaut `to_value`, la journalisation d'une référence initiale et le parcours métier réservation → confirmation Stock → encaissement Caisse → reçu → historique Client → clôture sans écart. Aucune modification Production, aucun déploiement.
+
+## 188. Commandes Marketplace — correction du débit POS et recette multi-pharmacies — 17/11/2026
+
+**Périmètre demandé :** commandes et stock, puis qualité. ServiceWorker explicitement hors périmètre de cette passe.
+
+### Audit des logs et cause racine
+
+- Les logs PostgreSQL Replay des essais SQL précédents montrent une erreur de syntaxe de bloc PL/pgSQL (unterminated dollar-quoted string) due à un délimiteur d'ouverture/fermeture différent dans la commande SQL copiée. Le test versionné utilise désormais un délimiteur unique.
+- L'ancien test de paiement validait une réservation comptoir (mode='reservation'), pas une commande Livraison (mode='commande') : il ne prouvait donc pas le flux demandé.
+- Cause métier du défaut de stock : private.reserve_stock crée une réservation et un hold de quantité disponible sans décrémenter le stock physique (stock_decremented=false). Mais public.naxa_delivery_pos_encaisser insérait la vente avec stock_decremented_at_draft=true. Le trigger trg_naxa_pos_debit_before_sale_paid ne déclenche private.naxa_pos_debit_stock que lorsque ce marqueur est faux. La commande Livraison était donc considérée à tort comme déjà débitée au brouillon ; le stock physique pouvait rester inchangé après encaissement.
+- Préconditions Replay mises au jour pendant la recette : Mvan est une pharmacie est_demo=true, volontairement exclue du Marketplace ; sa fixture POS devait aussi posséder un coût d'achat dans stocks_couts. Ces deux préconditions sont préparées exclusivement dans la transaction de test, puis annulées.
+
+### Correction à la source
+
+- Migration ajoutée : supabase/migrations/20261117143000_fix_delivery_pos_physical_stock_debit.sql.
+- Dans naxa_delivery_pos_encaisser, la vente brouillon est créée avec stock_decremented_at_draft=false. Le passage brouillon → payée déclenche alors le débit physique POS ; le trigger marque ensuite la vente et la réservation consommée.
+- Migration appliquée au projet Replay pwfftcsjyeibxxqhwysw uniquement. Aucun changement Production.
+- Contrat de non-régression ajouté à scripts/test-delivery-commercial-flow.cjs.
+- Recette transactionnelle ajoutée : supabase/tests/20261117144000_delivery_pos_stock_debit_replay.sql.
+
+### Preuve transactionnelle Replay
+
+Comptes Replay existants utilisés : Client naxa_e2e_acheteur, Gestionnaire de stock naxa_e2e_stock, Caisse naxa_e2e_caisse, Livreur naxa_e2e_livreur. Claims JWT distincts et rôle actif/pharmacie contrôlés par les RPC métier.
+
+| Vérification | Résultat observé |
+|---|---:|
+| Commande A créée pour pharmacie A | PASS |
+| Hold A : stock physique avant/après | 3 → 3 |
+| Annulation Client A : disponible après libération du hold | 3 |
+| Commande B créée pour pharmacie B | PASS |
+| Confirmation Stock → préparation → mission Livreur | PASS |
+| Acceptation, retrait, arrivée et déclaration espèces | PASS |
+| Encaissement POS commande B | 2 500 FCFA |
+| Débit physique pharmacie B | 3 → 2 |
+| reservations.stock_decremented | true |
+| Commande finale | livree |
+| Écart de clôture Caisse | 0 FCFA |
+
+La vente POS est liée à la réservation B ; le débit constaté est exactement d'une unité. L'annulation A ne modifie pas le stock physique et libère intégralement le disponible de son propre propriétaire.
+
+**Nettoyage :** test exécuté dans BEGIN … ROLLBACK. Les commandes, vente, session Caisse, devis, coûts et stock Mvan sont temporaires ; le marqueur est_demo et les paramètres de pharmacie sont restaurés par rollback. Aucun compte Auth ni profil permanent créé.
+
+### Qualité et périmètre
+
+- Le workflow qualité sur le HEAD 2c317eabe62864231266db8d3ad127f6405bcf70 est lancé ; résultat final à reporter après clôture.
+- Chromium n'a pas été utilisé pour ce diagnostic précis : l'incohérence se situe dans le trigger PostgreSQL de débit POS. La preuve couvre la chaîne RPC réelle avec les identités Replay, pas une recette navigateur du checkout.
+- Aucun changement de ServiceWorker, aucun déploiement, aucune migration Production, aucune action Play Store.
