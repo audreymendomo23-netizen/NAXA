@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§137)  
+**Dernière mise à jour :** 17 novembre 2026 (§138)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `166490b274fad2efc0bae2e961ca5e21ab33bf04`  
+**HEAD contrôlé avant cette mise à jour :** `3bf31501ec7ef20abbe52dd825ef122a9c29f4b0`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5353,3 +5353,23 @@ Liens de preuve :
 **Limite :** cette preuve ferme les mouvements simples par lot et l'inventaire complet positif/négatif sur une ligne de stock. Elle ne couvre pas encore la réception fournisseur, les transferts inter-pharmacies, les lots bloqués/périmés pendant une opération, les inventaires multi-lignes, ni la préparation concurrente de plusieurs commandes. Les scénarios SQL ne remplacent pas la recette UI.
 
 **Verdict Lot B1 : JAUNE / PARTIEL.** Les lots, mouvements et inventaires sont maintenant prouvés sur Replay. La route Promoteur Livraisons reste absente ; les scénarios de réception fournisseur et de préparation multi-commandes restent à exécuter. Aucune donnée persistante, Production ou déploiement n'a été modifié.
+
+
+## 138. Lot B1 — réception fournisseur et synchronisation lot/stock (17/11/2026)
+
+**Test ajouté sur main :**
+- Fichier : `supabase/tests/308_lot_b1_supplier_receipt.sql`.
+- Commit : `3bf31501ec7ef20abbe52dd825ef122a9c29f4b0`.
+- Projet Replay uniquement, compte Gestionnaire stock E2E, pharmacie Mvan démo.
+- Création transactionnelle d'un fournisseur, d'une commande envoyée et d'une ligne de commande ; réception par le RPC métier sous JWT authentifié ; `ROLLBACK) final.
+
+**Exécution effective : PASS**
+- Réception de 4 unités avec numéro de lot, péremption et emplacement.
+- Le lot est créé et porte 4 unités.
+- Le stock agrégé passe de 0 à 4, sans divergence avec la somme des lots.
+- La commande fournisseur passe à `recue` et le reçu de réception existe.
+- Résultat terminal : `LOT_B1_SUPPLIER_RECEIPT_LOT_STOCK_SYNC PASS`.
+
+**Couverture B1 désormais prouvée par RPC/SQL sur Replay :** mouvements retour/perte, création de lot, inventaire complet avec écart, réception fournisseur et synchronisation lot/stock. Les tests sont versionnés en 307 et 308, tous deux exécutés et annulés.
+
+**Toujours non prouvé :** préparation concurrente de plusieurs commandes Marketplace et passage du Gestionnaire stock vers le Livreur, transferts inter-pharmacies, inventaires multi-lignes, scénarios de lots bloqués/périmés en cours de réception/préparation, parcours navigateur. La route Promoteur Livraisons signalée §136 reste absente. Ne pas déclarer B1 vert.
