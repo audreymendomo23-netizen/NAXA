@@ -5203,3 +5203,38 @@ Liens de preuve :
 - Le rejeu refresh T1/T3 reste un défaut Supabase Auth distinct, inchangé. Aucune migration ni écriture Supabase, aucune action Production, Vercel ou Play Store.
 
 **Verdict : CORRECTION VERSIONNÉE — validation CI en attente ; point non déclaré vert avant le run.**
+
+
+## 133. Lot B2 — campagne bulk SQL Marketplace / favoris / publication (17/11/2026)
+
+**Cible et isolation**
+- Supabase Replay uniquement : naxa-ci-replay-2, projet pwfftcsjyeibxxqhwysw.
+- Les migrations Marketplace de fraîcheur 48 h, wrappers de recherche, visibilité pharmacie, publication propriétaire pharmacie, portée Promoteur et favoris sont présentes dans l'historique Replay.
+- Inventaire courant : 21 fiches produit, 102 lignes de stock, 0 offre en stock actuellement rattachée à une pharmacie active, visible, non-démo et non-archivée ; 0 favori persistant et 0 réservation créée sur les 7 derniers jours. Cela limite les scénarios UI positifs exécutables avec les données persistantes du projet.
+
+**Résultats exécutés sur Replay**
+- PASS — test 300 : contrat du moteur privé de disponibilité, fraîcheur basée sur le journal physique, filtre pharmacie, lots bloqués/périmés, holds et verrouillage de réservation.
+- PASS — test 301 : wrappers de recherche, délégation au moteur privé, bornes d'entrée, RLS catalogue, refus des identifiants inconnus, tableaux de quantités incohérents et quantités >10 sous rôle SQL anon.
+- PASS — test 302 : journal physique prioritaire et fallback updated_at seulement pour stock sans historique.
+- PASS — test 303 : une modification de prix seule ne rafraîchit pas l'horodatage de fraîcheur.
+- PASS — test 304 : exactement 48 h reste publiable ; au-delà, l'offre est masquée.
+- PASS — test 305 : l'ancien helper privé n'est pas exécutable par anon/authenticated, le wrapper public reste accessible.
+- PASS — test 20261115200000 : RLS et publication d'une fiche sous responsabilité de la pharmacie, sans validation centrale.
+- PASS — test 20261115202000 : portée Promoteur, droits de lecture interne et visibilité de la fiche même si le stock est nul.
+- PASS — test 20261105145307 : tables, colonnes, RLS, policy, grants, RPC d'acceptation et trigger d'achat.
+- PASS — test 20261109070000 : le trigger d'achat reste attaché mais ne peut pas être appelé directement par les rôles API.
+- PASS — sonde B2-FAVORITES-OWNERSHIP : policy favoris_client_self impose user_id=auth.uid() en USING et WITH CHECK ; aucun accès anon ; RPC d'acceptation authentifiée seulement.
+- PASS — le parcours Marketplace navigateur de refus Promoteur déjà acquis au §128 est conservé comme preuve ; non rejoué.
+
+**Contradiction / correction des tests obsolètes**
+- Les anciens tests 300/301 inspectaient le wrapper public comme s'il contenait directement la logique SQL et exigeaient fiche_validee=true / des wrappers INVOKER. Ces assertions ne correspondaient plus au modèle final : la pharmacie est propriétaire de ses fiches et la recherche délègue au moteur privé gardé.
+- Inspection Replay : le wrapper public de disponibilité délègue à private.marketplace_offre_stock_disponible_guarded ; les moteurs privés filtrent pharmacie active/publiée/non-démo/non-archivée, fraîcheur 48 h, lots et réservations, sans verrou fiche_validee. Les wrappers de recherche délèguent aux moteurs privés ; l'ancien helper privé d'offre n'est pas directement exécutable par les rôles Client.
+- Les contrats 300 et 301 ont été actualisés sur main pour vérifier ce modèle réel, puis exécutés avec succès sur Replay. Aucun changement de schéma ou de donnée persistante n'a été effectué par ces tests.
+
+**Limites de preuve**
+- Le §118 conserve la preuve SQL positive et négative de visibilité Marketplace sous anon avec stock/lot fictifs créés en transaction puis rollbackés : offre positive 1 200 FCFA / 5 unités, puis cas masqué, inactif, démo, archivé, lot expiré/bloqué, stock nul et historique >48 h.
+- Le scénario navigateur de refus Promoteur est déjà PASS (§128). Aucun scénario navigateur positif de commande Marketplace n'a été exécuté dans cette campagne : aucune offre persistante publiable n'existe actuellement dans Replay.
+- Le schéma et le cloisonnement favoris sont validés ; aucune identité Client de recette ni données persistantes de favoris n'ont été mutées pour simuler un clic utilisateur. Le test UI favoris (ajout, retrait, synchronisation locale/compte) reste à exécuter avec un navigateur authentifié.
+- Annulation, indisponibilité après ajout au panier et historique Client restent à prouver en parcours utilisateur complet. Aucun test n'est présenté comme navigateur si ce n'était qu'une assertion SQL.
+
+**Verdict B2 : JAUNE / PARTIEL.** Les contrats SQL de publication, disponibilité, recherche et sécurité des favoris sont prouvés sur Replay ; le refus Promoteur navigateur reste acquis. La chaîne positive de commande, favoris UI, annulation, indisponibilité et historique Client attend un scénario navigateur authentifié et des fixtures Marketplace isolées publiables. Aucune écriture Production, migration Production ou déploiement.
