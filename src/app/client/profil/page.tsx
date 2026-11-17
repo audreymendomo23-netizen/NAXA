@@ -127,7 +127,7 @@ export default function ProfilClientPage() {
       if (!user) { router.replace("/connexion?retour=" + encodeURIComponent("/client/profil")); return; }
       photoStorageKey = `${PHOTO_KEY}:${user.id}`;
       setCurrentUserId(user.id);
-      const { data: row } = await sb.from("profiles").select("username,first_name,last_name,avatar_url").eq("id", user.id).maybeSingle();
+      const { data: row } = await sb.from("profiles").select("username,first_name,last_name").eq("id", user.id).maybeSingle();
       const { data: prefs } = await sb.from("client_preferences").select("adresse_defaut,quartier").eq("user_id", user.id).maybeSingle();
       const { count } = await sb.from("reservations").select("id", { count: "exact", head: true }).eq("client_id", user.id);
       let savedPhoto: string | null = null;
@@ -150,7 +150,7 @@ export default function ProfilClientPage() {
           }
         }
       } catch { /* Les préférences Supabase restent le repli si le stockage local est indisponible. */ }
-      const photo = savedPhoto || (typeof row?.avatar_url === "string" ? row.avatar_url : null) || (typeof meta.avatar_url === "string" ? meta.avatar_url : null);
+      const photo = savedPhoto || (typeof meta.avatar_url === "string" ? meta.avatar_url : null) || (typeof meta.picture === "string" ? meta.picture : null) || (typeof meta.photo_url === "string" ? meta.photo_url : null);
       setProfile({ name, phone, email, address, photo, orders: count ?? 0 });
       setDraft({ name, phone, email });
       setLoaded(true);
@@ -282,9 +282,8 @@ export default function ProfilClientPage() {
     try { if (user) window.localStorage.removeItem(`${PHOTO_KEY}:${user.id}`); } catch {}
     let remoteFailed = false;
     if (user) {
-      const { error: profileError } = await sb.from("profiles").update({ avatar_url: null }).eq("id", user.id);
       const { error: metadataError } = await sb.auth.updateUser({ data: { avatar_url: null, picture: null, photo_url: null } });
-      remoteFailed = Boolean(profileError || metadataError);
+      remoteFailed = Boolean(metadataError);
     }
     setProfile(p => ({ ...p, photo: null }));
     window.dispatchEvent(new Event(PROFILE_EVENT));
