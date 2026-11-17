@@ -7320,3 +7320,39 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - La recette navigateur avec le nouveau chemin UI doit également rendre un résultat terminal PASS avant de déclarer le remboursement E2E global vert.
 - Le test Auth de détection de réutilisation de refresh token avait un échec indépendant dans un run antérieur ; il ne doit pas être présenté comme un échec de remboursement Caisse ni être masqué.
 - Aucune migration ni écriture Production et aucun déploiement Vercel ne sont effectués dans ce passage.
+## Section 203 — Résultats consolidés du remboursement crédit multicanal (17 novembre 2026)
+
+### Qualité du code sur le HEAD 8c80559796c22774c4c5cc968007714141e5bcf4
+- Run GitHub Actions 44197708501 : **SUCCESS**.
+- npm test : 584 tests, 584 PASS, 0 FAIL.
+- TypeScript tsc --noEmit : inclus dans le job qualité, terminé avec succès.
+- ESLint : inclus dans le job qualité, terminé avec succès (warnings existants, aucun échec).
+- Build Next.js : compilation réussie et 156/156 pages statiques générées.
+- Validation actionlint de tous les workflows GitHub Actions : PASS.
+
+### Parcours Caisse confirmé
+- Recette SQL 302_caisse_credit_repayment_multichannel_e2e.sql : PASS sur Replay avec rollback.
+- Recette JWT Caisse du run Replay 44196261458 : remboursements espèces, Orange Money et MTN MoMo authentifiés ; clés distinctes rejouées sans double débit ; erreurs de preuve, compte absent, payload différent et dépassement refusés.
+- Parcours navigateur du même run : assertions Crédit terminées avec browser_failures=0. Vente à crédit, suivi Client, remboursement Caisse, mouvements et reçus ont passé. Le scénario navigateur a produit trois remboursements de recette : 100 FCFA espèces, 300 FCFA Orange Money et 600 FCFA MTN MoMo, rattachés au même caissier et à la même session.
+- Clôture de cette session : statut cloturee, total théorique 100 FCFA, total compté 100 FCFA, écart 0. Les 900 FCFA mobiles ne sont pas inclus dans le tiroir espèces.
+- Reçu imprimable et détails d'opération sont couverts par les assertions du parcours navigateur. Le contrôle comptable Promoteur a aussi validé la création des comptes, journaux et quatre mappings techniques, puis nettoyé ces seules lignes de configuration.
+
+### Chaînage comptable sur les trois événements réels
+- Les outbox générées pour les remboursements espèces, Orange et MTN sont bien présentes, une par opération.
+- Le worker compta_traiter_evenement a été exécuté transactionnellement sur ces trois événements réels après création temporaire d'une période ouverte, de deux comptes comptables, des mappings débit/crédit et du journal.
+- Résultat : 3 événements traités, 3 écritures, total débit 1 000 FCFA et total crédit 1 000 FCFA. Test exécuté dans une transaction annulée.
+- Vérification après ROLLBACK : les 3 événements sont revenus à a_traiter, 0 écriture comptable de recette et 0 période temporaire subsistent.
+- Limite opérationnelle : la pharmacie technique Replay n'a pas de plan comptable/journal/période valides permanents pour ces événements. Le worker réel attend donc le paramétrage comptable de la pharmacie ; le test transactionnel prouve le traitement positif sans prétendre que les écritures de test sont durablement postées.
+
+### Résultat du workflow E2E global et réserves séparées
+- Le run Replay 44196261458 a terminé le provisionnement, le build de recette, Web Push, JWT remboursement et Storage avec succès. Le job navigateur a eu browser_failures=0.
+- Ce run a néanmoins échoué au contrôle indépendant verify-auth-session-lifecycle.cjs : la réutilisation du refresh token courant n'a pas révoqué le jeton de session courant. Les deux rotations et le rejet d'un ancien ancêtre hors fenêtre de tolérance ont passé. Cette alerte concerne la politique de rotation/révocation Supabase Auth, pas le remboursement Caisse ; elle reste ouverte et ne doit pas être neutralisée.
+- Le nouveau run Replay 44197708312, sur le HEAD 8c80559796c22774c4c5cc968007714141e5bcf4, a commencé ; au dernier contrôle, il avait provisionné ses fixtures et était encore à l'installation Playwright/Chromium. Aucun résultat terminal n'est revendiqué pour ce nouveau run.
+- Les modifications récentes du runtime E2E réutilisent uniquement les comptes de trésorerie déjà affectés et un compte crédit existant uniquement s'il est actif et à solde nul ; en fin de test, elles restaurent le solde initial ou suppriment seulement les fixtures qu'elles ont créées.
+
+### Statut honnête
+- **Vert :** contrat serveur des trois canaux ; idempotence ; contrôles visuels mobiles ; mouvements de trésorerie atomiques ; reçu UI ; tests SQL 302 ; JWT Caisse multicanal ; assertions navigateur Crédit (browser_failures=0) ; worker comptable positif sur les trois événements réels sous plan/période temporaires ; qualité complète du HEAD 8c805 (584 tests + TypeScript + lint + build).
+- **Condition de mise en service :** chaque pharmacie doit disposer d'une période ouverte, d'un plan de comptes validé, des deux mappings crédit/remboursement et du journal comptable correspondant pour que le worker poste durablement les événements.
+- **Rouge distinct :** contrôle Auth refresh-token-reuse du workflow global. Il n'est pas corrigé et reste indépendant du parcours Caisse.
+- **Non livré dans ce chantier :** encaissement de vente POS via confirmation automatisée Orange/MTN ; le parcours ici porte sur les remboursements de crédit au comptoir avec vérification visuelle humaine.
+- Aucune migration ni mutation Production et aucun déploiement Vercel n'ont été exécutés.
