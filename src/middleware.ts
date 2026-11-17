@@ -20,10 +20,8 @@ const protectedPrefixes = [
   "/panier",
   "/verification-age",
   "/parapharmacie",
-  "/bebe-maman",
   "/examens",
   "/prestations",
-  "/suivi",
 ];
 
 export async function middleware(req: NextRequest) {
@@ -72,21 +70,12 @@ export async function middleware(req: NextRequest) {
   // La policy RLS publique de public.universes ne retourne que les espaces actifs.
   const universParcours = [
     { prefix: "/parapharmacie", slug: "parapharmacie" },
-    { prefix: "/bebe-maman", slug: "bebe-maman" },
     { prefix: "/examens", slug: "examens" },
     { prefix: "/centre-examens", slug: "examens" },
     { prefix: "/prestations", slug: "prestations" },
     { prefix: "/partenaire/prestations", slug: "prestations" },
-    { prefix: "/suivi", slug: "suivi" },
   ];
-  // L'accréditation et l'espace professionnel du suivi privé ne sont pas
-  // l'univers commercial public. Ils restent protégés par l'authentification,
-  // le flag suivi_connecte, l'agrément et les politiques RLS.
-  const suiviPrivateRoute =
-    path === "/suivi" ||
-    path === "/suivi/professionnel" ||
-    path.startsWith("/suivi/professionnel/");
-  let universVerrouillable = suiviPrivateRoute ? undefined : universParcours.find(
+  let universVerrouillable = universParcours.find(
     (item) => path === item.prefix || path.startsWith(item.prefix + "/")
   );
   if (path === "/partenaire/catalogue" || path.startsWith("/partenaire/catalogue/")) {
@@ -95,8 +84,6 @@ export async function middleware(req: NextRequest) {
       ?? req.cookies.get("naxa-ecosysteme")?.value;
     if (ecosystemeCatalogue === "parapharmacie") {
       universVerrouillable = { prefix: "/partenaire/catalogue", slug: "parapharmacie" };
-    } else if (ecosystemeCatalogue === "bebe-maman") {
-      universVerrouillable = { prefix: "/partenaire/catalogue", slug: "bebe-maman" };
     }
   }
   if (universVerrouillable) {
@@ -106,7 +93,7 @@ export async function middleware(req: NextRequest) {
     try {
       if (!supabaseUrl || !anonKey) throw new Error("public_supabase_not_configured");
       const statusUrl = new URL("/rest/v1/universes", supabaseUrl);
-      statusUrl.searchParams.set("select", "slug");
+      statusUrl.searchParams.set("select", "slug,enabled");
       statusUrl.searchParams.set("slug", `eq.${universVerrouillable.slug}`);
       const statusResponse = await fetch(statusUrl.toString(), {
         method: "GET",
@@ -120,7 +107,7 @@ export async function middleware(req: NextRequest) {
       if (!statusResponse.ok) throw new Error("universe_status_unavailable");
       const rows = await statusResponse.json();
       enabled = Array.isArray(rows) && rows.some(
-        (row) => row && row.slug === universVerrouillable.slug
+        (row) => row && row.slug === universVerrouillable.slug && row.enabled === true
       );
     } catch {
       // Fail closed : un état Admin inconnu ne doit jamais ouvrir un univers.
