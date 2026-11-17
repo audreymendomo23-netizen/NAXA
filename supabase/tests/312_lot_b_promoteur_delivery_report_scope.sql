@@ -23,6 +23,8 @@ declare
   v_allowed uuid := '76dd4983-273a-4a83-ae3d-9a7838d3aa35';
   v_outside uuid := 'f97647dc-86d0-4c06-abca-f7bed12b5e6d';
   v_rejected boolean := false;
+  v_subscription_total integer;
+  v_due_total integer;
 begin
   v_report := public.naxa_delivery_fees_report(current_date - 30,current_date,null);
   v_monthly := public.naxa_delivery_monthly_due(date_trunc('month',current_date)::date);
@@ -39,6 +41,24 @@ begin
     where p->>'pharmacie_id' = v_outside::text
   ) then
     raise exception 'B_PROMOTEUR_MONTHLY_SCOPE_LEAK';
+  end if;
+
+  if coalesce((v_monthly->'totaux'->>'commissions_livraison')::integer, -1) <> 0
+     or coalesce((v_monthly->'totaux'->>'commissions_deja_reglees')::integer, -1) <> 0 then
+    raise exception 'B_PROMOTEUR_MONTHLY_COMMISSION_NOT_ZERO';
+  end if;
+
+  select coalesce(sum((p->>'abonnement_mensuel')::integer),0),
+         coalesce(sum((p->>'total_mensuel_du')::integer),0)
+    into v_subscription_total,v_due_total
+  from jsonb_array_elements(v_monthly->'par_pharmacie') p;
+  if v_due_total <> v_subscription_total
+     or (v_monthly->'totaux'->>'total_a_payer')::integer <> v_subscription_total then
+    raise exception 'B_PROMOTEUR_MONTHLY_DUE_MUST_EQUAL_SUBSCRIPTIONS_ONLY';
+  end if;
+
+  if position('commission_naxa' in pg_get_functiondef('public.naxa_delivery_monthly_due(date)'::regprocedure)) > 0 then
+    raise exception 'B_PROMOTEUR_MONTHLY_FUNCTION_STILL_REFERENCES_NAXA_COMMISSION';
   end if;
 
   if jsonb_typeof(v_report->'par_pharmacie') <> 'array'
