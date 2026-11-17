@@ -40,7 +40,6 @@ let state = {
   originalPharmacieId: null,
   assignmentId: null,
   partnerId: null,
-  partnerOwnerId: null,
 };
 
 function saveState() {
@@ -276,7 +275,7 @@ async function cleanup() {
   }
 
   fs.unlinkSync(STATE_FILE);
-  console.log("PASS nettoyage — affectation Comptable, rôle actif, partenaire et adhésion temporaires supprimés.");
+  console.log("PASS nettoyage — fixtures temporaires présentes dans le registre supprimées et contrôlées.");
 }
 
 async function run() {
@@ -285,28 +284,23 @@ async function run() {
   const promoter = await profileByUsername("naxa_e2e_promoteur");
   const comptable = await profileByUsername("naxa_e2e_expiry_overflow");
   const partnerOwner = await profileByUsername("naxa_e2e_acheteur");
-  const partnerMember = promoter;
   assert.equal(promoter.role, "promoteur", "Le profil Promoteur existant a changé de rôle.");
   assert.equal(comptable.role, "client", "Le profil de recette destiné au rôle temporaire n'est plus Client.");
   assert.equal(partnerOwner.role, "client", "Le profil Client destiné au partenaire n'est plus Client.");
   assert.equal(comptable.fonction_interne, null, "Le profil Comptable de recette possède déjà une fonction interne.");
   assert.equal(comptable.pharmacie_id, null, "Le profil Comptable de recette possède déjà une pharmacie active.");
 
-  const [activeRole, assignment, partnersByName, memberships, pharmacy, promoterLink] = await Promise.all([
+  const [activeRole, assignment, pharmacy, promoterLink] = await Promise.all([
     admin.from("naxa_profile_active_roles").select("profile_id").eq("profile_id", comptable.id).maybeSingle(),
     admin.from("naxa_professional_assignments").select("id").eq("profile_id", comptable.id).eq("role_code", "comptable").eq("statut", "active"),
-    admin.from("partners").select("id").eq("name", TEMP_PARTNER_NAME),
-    admin.from("partner_members").select("partner_id").eq("user_id", partnerMember.id),
     admin.from("pharmacies").select("id,actif,est_demo").eq("id", PHARMACY_ID).single(),
     admin.from("promoteur_pharmacies").select("pharmacie_id,actif").eq("promoteur_id", promoter.id).eq("pharmacie_id", PHARMACY_ID).eq("actif", true).maybeSingle(),
   ]);
-  for (const result of [activeRole, assignment, partnersByName, memberships, pharmacy, promoterLink]) {
+  for (const result of [activeRole, assignment, pharmacy, promoterLink]) {
     if (result.error) throw result.error;
   }
   assert.equal(activeRole.data, null, "Une sélection de rôle préexistante empêche un test réversible.");
   assert.equal((assignment.data || []).length, 0, "Une affectation Comptable préexistante empêche un test réversible.");
-  assert.equal((partnersByName.data || []).length, 0, "Collision de nom de fixture partenaire.");
-  assert.equal((memberships.data || []).length, 0, "Le Promoteur de recette possède déjà une adhésion partenaire.");
   assert.equal(pharmacy.data.actif, true, "La pharmacie de recette n'est pas active.");
   assert.equal(pharmacy.data.est_demo, true, "La pharmacie sélectionnée n'est pas une pharmacie E2E.");
   assert.ok(promoterLink.data, "Le Promoteur existant n'est pas propriétaire de la pharmacie de recette.");
@@ -314,7 +308,6 @@ async function run() {
   state.comptableProfileId = comptable.id;
   state.originalFonctionInterne = comptable.fonction_interne;
   state.originalPharmacieId = comptable.pharmacie_id;
-  state.partnerOwnerId = partnerMember.id;
   saveState();
 
   const { data: insertedAssignment, error: assignmentError } = await admin.from("naxa_professional_assignments")
@@ -334,42 +327,6 @@ async function run() {
   state.assignmentId = insertedAssignment.id;
   saveState();
   console.log("INFO : affectation Comptable temporaire ajoutée à un profil Auth existant.");
-
-  const { data: insertedPartner, error: partnerError } = await admin.from("partners")
-    .insert({
-      name: TEMP_PARTNER_NAME,
-      partner_type: "centre_examen",
-      city: "Yaoundé",
-      status: "active",
-      created_by: partnerMember.id,
-    })
-    .select("id").single();
-  if (partnerError) throw partnerError;
-  state.partnerId = insertedPartner.id;
-  saveState();
-
-  const { error: universeError } = await admin.from("partner_universes").insert({
-    partner_id: state.partnerId,
-    universe_slug: "examens",
-    enabled: true,
-  });
-  if (universeError) throw universeError;
-  const { error: dossierError } = await admin.from("admin_partner_dossiers").insert({
-    partner_id: state.partnerId,
-    promoteur_id: partnerMember.id,
-    universe_slug: "examens",
-    monthly_fee_fcfa: 1,
-    dossier_status: "validated",
-    created_by: partnerMember.id,
-  });
-  if (dossierError) throw dossierError;
-  const { error: membershipError } = await admin.from("partner_members").insert({
-    partner_id: state.partnerId,
-    user_id: partnerMember.id,
-    member_role: "owner",
-  });
-  if (membershipError) throw membershipError;
-  console.log("INFO : partenaire temporaire, univers et dossier validé rattachés au Promoteur Replay existant ; aucun compte Auth créé.");
 
   const sessions = [];
   let browser;
@@ -466,28 +423,61 @@ async function run() {
     }
     await comptableContext.close();
 
-    const partnerContext = await browserContext(browser, promoterSession, { width: 1440, height: 900 });
-    const partnerPage = await partnerContext.newPage();
-    partnerPage.setDefaultTimeout(15000);
-    await partnerPage.goto(BASE_URL + "/partenaire/catalogue", { waitUntil: "domcontentloaded" });
-    await expectPath(partnerPage, "/partenaire/catalogue", "Ouverture du catalogue partenaire");
-    const catalogueExamensLink = partnerPage.getByRole("link", { name: "Centres et examens", exact: true });
-    await catalogueExamensLink.waitFor({ state: "visible" });
-    await catalogueExamensLink.click();
-    await expectPath(partnerPage, "/partenaire/examens", "Catalogue partenaire → Centres et examens");
-    await partnerPage.getByRole("heading", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
-    await partnerPage.getByText("Créer la fiche de ton centre", { exact: true }).waitFor({ state: "visible" });
-    console.log("PASS rendu — Partenaire → Centres et examens");
+    // L'accès partenaire est volontairement conditionné par un paiement confirmé en base.
+    // Ne jamais fabriquer une confirmation de paiement pour débloquer un test de navigation.
+    const { data: partnerMemberships, error: partnerMembershipError } = await admin.from("partner_members")
+      .select("partner_id,member_role,partners!inner(id,name,status,partner_type)")
+      .eq("user_id", promoter.id)
+      .eq("partners.status", "active")
+      .eq("partners.partner_type", "centre_examen")
+      .in("member_role", ["owner", "manager"]);
+    if (partnerMembershipError) throw partnerMembershipError;
+    const partnerIds = (partnerMemberships || []).map((membership) => membership.partner_id);
+    let confirmedPartnerIds = [];
+    if (partnerIds.length) {
+      const { data: subscriptions, error: subscriptionError } = await admin.from("partner_subscriptions")
+        .select("partner_id,status,first_confirmed_payment_at")
+        .in("partner_id", partnerIds)
+        .eq("status", "active")
+        .not("first_confirmed_payment_at", "is", null);
+      if (subscriptionError) throw subscriptionError;
+      confirmedPartnerIds = [...new Set((subscriptions || []).map((subscription) => subscription.partner_id))];
+    }
+    if (confirmedPartnerIds.length) {
+      const partnerContext = await browserContext(browser, promoterSession, { width: 1440, height: 900 });
+      const partnerPage = await partnerContext.newPage();
+      partnerPage.setDefaultTimeout(15000);
+      await partnerPage.goto(BASE_URL + "/partenaire/catalogue", { waitUntil: "domcontentloaded" });
+      await expectPath(partnerPage, "/partenaire/catalogue", "Ouverture du catalogue partenaire");
+      const catalogueExamensLink = partnerPage.getByRole("link", { name: "Centres et examens", exact: true });
+      await catalogueExamensLink.waitFor({ state: "visible" });
+      await catalogueExamensLink.click();
+      await expectPath(partnerPage, "/partenaire/examens", "Catalogue partenaire → Centres et examens");
+      await partnerPage.getByRole("heading", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
+      await partnerPage.getByText("Créer la fiche de ton centre", { exact: true }).waitFor({ state: "visible" });
+      console.log("PASS rendu — Partenaire → Centres et examens");
 
-    await partnerPage.goto(BASE_URL + "/partenaire/reservations", { waitUntil: "domcontentloaded" });
-    await expectPath(partnerPage, "/partenaire/reservations", "Ouverture des réservations partenaire");
-    await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
-    await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).click();
-    await expectPath(partnerPage, "/partenaire/examens", "Réservations partenaire → Centres et examens");
-    await partnerContext.close();
+      await partnerPage.goto(BASE_URL + "/partenaire/reservations", { waitUntil: "domcontentloaded" });
+      await expectPath(partnerPage, "/partenaire/reservations", "Ouverture des réservations partenaire");
+      await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).waitFor({ state: "visible" });
+      await partnerPage.getByRole("link", { name: "Centres et examens", exact: true }).click();
+      await expectPath(partnerPage, "/partenaire/examens", "Réservations partenaire → Centres et examens");
+      await partnerContext.close();
+    } else {
+      console.log("SKIP Partenaire UI — aucun centre Replay actif avec abonnement et premier paiement confirmés pour le compte Promoteur ; aucun paiement fictif créé.");
+    }
 
     // Client E2E : session d'un profil Client Replay déjà existant.
     // Les données panier/favori ci-dessous sont locales, marquées démo et supprimées par les actions UI.
+    const clientDesktopContext = await browserContext(browser, clientSession, { width: 1440, height: 900 });
+    const clientDesktopPage = await clientDesktopContext.newPage();
+    clientDesktopPage.setDefaultTimeout(20000);
+    await clientDesktopPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
+    await expectPath(clientDesktopPage, "/client", "Ouverture espace Client desktop");
+    await expectPageHeading(clientDesktopPage, "Espace Client desktop");
+    await clientDesktopContext.close();
+    console.log("PASS Client desktop — espace personnel rendu sous la session Client.");
+
     const clientContext = await browserContext(browser, clientSession, { width: 390, height: 844 });
     const clientPage = await clientContext.newPage();
     clientPage.setDefaultTimeout(20000);
@@ -558,7 +548,7 @@ async function run() {
     console.log("PASS Client — historique, filtre de période et recherche sans commande résiduelle.");
     await clientContext.close();
 
-    console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Partenaire, Client (favoris/panier locaux, recherche/filtres, historique).");
+    console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Client desktop/mobile (favoris/panier locaux, recherche/filtres, historique). Partenaire : PASS si paiement Replay confirmé, sinon SKIP documenté.");
   } finally {
     const shutdownFailures = [];
     try {
