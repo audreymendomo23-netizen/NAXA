@@ -36,7 +36,7 @@ export async function GET() {
     const verificationMin = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabasePublic(30)
       .from("pharmacies")
-      .select("id,nom,ville,region,quartier,adresse,lat,lng,photo_url,photo_verified_at,garde_debut,garde_fin,garde_source_url,garde_verifiee_le")
+      .select("id,nom,ville,region,quartier,adresse,lat,lng,photo_url,photo_verifiee_le,garde_debut,garde_fin,garde_source_url,garde_verifiee_le")
       .eq("actif", true)
       .eq("visible_recherche", true)
       .eq("est_demo", false)
@@ -61,7 +61,7 @@ export async function GET() {
 
     const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const pharmacies = ((data ?? []) as VerifiedDutyRow[]).map((row) => {
-      const photoUrl = row.photo_url && row.photo_verified_at
+      const photoUrl = row.photo_url && row.photo_verifiee_le
         && base && row.photo_url.startsWith(`${base}/storage/v1/object/public/pharmacies-photos/`)
         ? row.photo_url : null;
       return {
