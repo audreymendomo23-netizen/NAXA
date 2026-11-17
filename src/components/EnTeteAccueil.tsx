@@ -41,15 +41,6 @@ export function EnTeteAccueil({
   const conteneur = useRef<HTMLDivElement>(null);
   const bouton = useRef<HTMLButtonElement>(null);
   const t = textes[langue];
-  const universes = [
-    { label: t.universPharmacie, href: "/", available: false },
-    { label: t.universParapharmacie, href: "/parapharmacie", available: false },
-    { label: t.universBebeMaman, href: "/bebe-maman", available: false },
-    { label: t.universDispositifs, href: "/suivi", available: true },
-    { label: t.universExamens, href: "/examens", available: false },
-    { label: t.universPrestations, href: "/prestations", available: false },
-  ];
-
   useEffect(() => {
     if (!ouvert) return;
 
