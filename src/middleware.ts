@@ -20,8 +20,10 @@ const protectedPrefixes = [
   "/panier",
   "/verification-age",
   "/parapharmacie",
+  "/bebe-maman",
   "/examens",
   "/prestations",
+  "/suivi",
 ];
 
 export async function middleware(req: NextRequest) {
