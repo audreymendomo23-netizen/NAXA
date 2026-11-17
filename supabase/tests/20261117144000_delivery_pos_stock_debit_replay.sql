@@ -78,7 +78,8 @@ BEGIN
   IF v_stock_b_before<>3 THEN RAISE EXCEPTION 'Fixture stock Mvan incorrecte'; END IF;
 
   -- Les deux pharmacies sont activées pour la livraison uniquement dans cette transaction.
-  UPDATE public.pharmacies SET visible_recherche=true,livraison_active=true,rayon_livraison_km=10
+  -- Mvan est une fixture demo ; on désactive ce marqueur uniquement dans la transaction pour tester le même garde Marketplace qu'une pharmacie réelle. ROLLBACK le restaure.
+  UPDATE public.pharmacies SET visible_recherche=true,est_demo=false,livraison_active=true,rayon_livraison_km=10
   WHERE id IN (v_pharmacy_a,v_pharmacy_b);
 
   -- Devis routiers Replay valides consommés par le trigger serveur.
