@@ -81,8 +81,14 @@ test("les accusés de réception chargent toutes les lignes des avis affichés s
   assert.match(notices, /if\(re\)\{setError\("Impossible de charger les accusés de réception\."/);
 });
 
-test("le statut DB 'suivi' est aussi exposé sous l'identifiant UI 'dispositifs'", () => {
-  assert.match(ecosystemes, /id: "dispositifs"/);
-  assert.match(universeStatusRoute, /if \(slug === "suivi"\) universes\.dispositifs = enabled/);
-  assert.match(universeStatusRoute, /universes\[slug\] = enabled/);
+test("les dispositifs historiques ne sont pas proposés comme univers autonome", () => {
+  const catalogue = ecosystemes.slice(
+    ecosystemes.indexOf("export const ECOSYSTEMES:"),
+    ecosystemes.indexOf("export const ECOSYSTEME_PAR_ID:"),
+  );
+  assert.match(ecosystemes, /\| "dispositifs"/);
+  assert.doesNotMatch(catalogue, /id: "dispositifs"/);
+  assert.equal((catalogue.match(/id:/g) || []).length, 4);
+  assert.doesNotMatch(universeStatusRoute, /slug === "suivi"/);
+  assert.match(universeStatusRoute, /CONFIGURABLE_UNIVERSES = \[/);
 });
