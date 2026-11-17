@@ -8,7 +8,8 @@ Le système repose sur une outbox privée Supabase, un worker Next.js protégé 
 
 - `supabase/migrations/20261117120000_naxa_universal_email_outbox.sql` — file universelle, idempotence, verrouillage, reprises et ACL service_role.
 - `supabase/migrations/20261117143000_naxa_email_business_events.sql` — activation de compte, invitations Examens/Livreur, acceptation/révocation et rappels d'expiration J-1.
-- `supabase/migrations/20261117151000_naxa_email_partner_lifecycle.sql` — décisions de dossiers partenaires, notifications d'abonnements indépendants, activation de convention Prestations à domicile et rappel J-5.
+- `supabase/migrations/20261117151000_naxa_email_partner_lifecycle.sql` — décisions de dossiers partenaires, activation de convention Prestations à domicile et rappel J-5.
+- `supabase/migrations/20261117160000_naxa_email_subscription_universe_fix.sql` et `20261117161000_naxa_email_prevent_duplicate_subscription_mail.sql` — correctifs de routage et suppression du double envoi potentiel.
 - `src/app/api/cron/validite/route.ts` — distribution de l'outbox historique et de l'outbox universelle, synchronisations indépendantes et compteurs.
 - `scripts/google-welcome-email.gs` — passerelle Gmail, contrôle du secret, clé d'idempotence, déclencheur périodique et arrêt d'urgence.
 - `supabase/tests/263_naxa_universal_email_outbox_contract.sql` — contrat structurel et ACL.
@@ -31,7 +32,7 @@ Le système repose sur une outbox privée Supabase, un worker Next.js protégé 
 
 Les invitations gardent leurs jetons, règles d'acceptation, conditions d'identité et pages existantes. Les affectations directes Examens ne sont pas transformées artificiellement en invitations. Bébé & Maman reste hors périmètre conformément au verrouillage métier.
 
-Les abonnements Parapharmacie, Examens et Prestations conservent leur indépendance. Aide n'est pas assimilé à un abonnement mensuel. Les conventions Prestations sont rappelées selon leur propre date d'expiration. Les notifications métier existantes restent la source de vérité ; le canal e-mail leur est ajouté sans remplacer le Push ou le centre de notifications.
+Les abonnements Parapharmacie, Examens et Prestations conservent leur indépendance. Leurs notifications de paiement et de rappel restent envoyées par l'outbox historique déjà raccordée à ces types : le système ne les duplique pas dans la nouvelle file universelle. Aide n'est pas assimilé à un abonnement mensuel. Les conventions Prestations sont rappelées selon leur propre date d'expiration. Les notifications métier existantes restent la source de vérité ; le canal e-mail leur est ajouté sans remplacer le Push ou le centre de notifications.
 
 ## Sécurité et fiabilité
 
@@ -69,7 +70,7 @@ Projet : `pwfftcsjyeibxxqhwysw`.
 - Migration événements comptes/invitations : appliquée avec succès.
 - Migration événements partenaires/conventions : appliquée avec succès.
 - Test SQL 263 : `263 universal email outbox contract PASS`.
-- Test SQL 264 : `264 business email events contract PASS`.
+- Test SQL 264 : `264 business email events contract PASS` (inclut la vérification anti-double-envoi des abonnements).
 - Test SQL 265 : `265 email outbox state machine PASS`.
 - Test transactionnel réel du déclencheur Livreur : création d'une invitation de contrôle → événement outbox avec le bon lien `/invitation/livreur?token=...` ; PASS ; transaction annulée ensuite.
 - Test transactionnel réel d'une notification de rappel d'abonnement : insertion d'une notification métier → événement outbox ciblant le titulaire ; PASS ; transaction annulée ensuite.
