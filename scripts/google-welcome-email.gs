@@ -50,7 +50,8 @@ function doPost(e) {
 
     MailApp.sendEmail(String(payload.to), payload.subject.trim(), plainText, {
       htmlBody: payload.html,
-      name: fromName
+      name: fromName,
+      replyTo: "naxa.home@gmail.com"
     });
 
     // Enregistrer seulement après que MailApp a accepté l'envoi.
