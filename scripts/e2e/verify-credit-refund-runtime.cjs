@@ -45,14 +45,29 @@ async function run(env = process.env) {
 
   const marker = REFERENCE_PREFIX + Date.now().toString(36).toUpperCase()
     + "-" + crypto.randomBytes(4).toString("hex").toUpperCase();
-  const amount = 250;
-  const seedBalance = 500;
+  const seedBalance = 1000;
+  const plans = [
+    { channel: "especes", amount: 100, suffix: "ESPECES", verify: false },
+    { channel: "orange_money", amount: 200, suffix: "ORANGE", verify: true },
+    { channel: "mtn_momo", amount: 300, suffix: "MTN", verify: true },
+  ];
   const sessions = [];
+  const operationIds = [];
+  const treasuryAccountIds = [];
+  const referenceByChannel = Object.fromEntries(plans.map(plan => [plan.channel, marker + "-" + plan.suffix]));
+  const attemptedReferences = [
+    ...plans.map(plan => referenceByChannel[plan.channel]),
+    marker + "-ORANGE-SANS-PREUVE",
+    marker + "-MTN-SANS-COMPTE",
+    marker + "-DEPASSEMENT",
+  ];
+  const idempotencyByChannel = Object.fromEntries(plans.map(plan => [plan.channel, crypto.randomUUID()]));
+  const treasuryAccountByChannel = {};
   let promoterToken = null;
   let cashierToken = null;
   let creditId = null;
   let cashierSessionId = null;
-  let operationId = null;
+  let clientId = null;
   let clientFicheExisted = false;
   let sessionClosed = false;
   let mainError = null;
@@ -107,92 +122,131 @@ async function run(env = process.env) {
     return rows;
   }
 
+  function inFilter(ids) {
+    return "in.(" + [...new Set(ids)].join(",") + ")";
+  }
+
+  async function findOperationsByReferences() {
+    const found = [];
+    for (const reference of attemptedReferences) {
+      const rows = await adminRows(
+        "client_credit_operations?select=id,reference&reference=eq."
+          + encodeURIComponent(reference) + "&limit=2"
+      );
+      found.push(...rows);
+    }
+    return [...new Map(found.map(row => [row.id, row])).values()];
+  }
+
   async function closeSessionSafely() {
     if (!cashierSessionId || sessionClosed || !cashierToken) return;
     const rows = await adminRows(
       "client_credit_operations?select=montant&caisse_session_id=eq."
-        + encodeURIComponent(cashierSessionId) + "&nature=eq.remboursement"
+        + encodeURIComponent(cashierSessionId)
+        + "&nature=eq.remboursement&mode_paiement=eq.especes"
     ).catch(() => []);
-    const refundTotal = rows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
+    const physicalCashRefunds = rows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
     const closed = await rpc("caisse_cloturer", cashierToken, {
-      p_session: cashierSessionId, p_total_compte: refundTotal,
+      p_session: cashierSessionId, p_total_compte: physicalCashRefunds,
     }, "Clôture de la session E2E");
     const row = Array.isArray(closed) ? closed[0] : closed;
-    if (!row || Number(row.total_theorique) !== refundTotal || Number(row.ecart) !== 0) {
-      throw new Error("La clôture technique de la session Caisse n'a pas été rapprochée à zéro.");
+    if (!row || Number(row.total_theorique) !== physicalCashRefunds || Number(row.ecart) !== 0) {
+      throw new Error("La clôture Caisse n'est pas rapprochée au montant espèces uniquement.");
     }
     sessionClosed = true;
   }
 
   async function cleanup() {
     const errors = [];
-    if (!operationId && clientId) {
+    if (!operationIds.length && clientId) {
       try {
-        const matches = await adminRows(
-          "client_credit_operations?select=id&reference=eq." + encodeURIComponent(marker) + "&limit=2"
-        );
-        if (matches.length === 1) operationId = matches[0].id;
+        operationIds.push(...(await findOperationsByReferences()).map(row => row.id));
       } catch (error) { errors.push(error.message); }
     }
 
-    let operationDeleted = !operationId;
-    if (operationId) {
+    let operationsDeleted = true;
+    for (const id of [...new Set(operationIds)]) {
+      let movementsDeleted = false;
       try {
-        // Remove the temporary operation first. Keep its outbox if this fails,
-        // so a failed cleanup never leaves an orphan accounting event.
-        await call("/rest/v1/client_credit_operations?id=eq." + encodeURIComponent(operationId),
-          { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage opération crédit" });
+        await call("/rest/v1/tresorerie_mouvements?source_type=eq.credit_remboursement&source_id=eq."
+          + encodeURIComponent(id), {
+          admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage mouvement trésorerie temporaire",
+        });
+        movementsDeleted = true;
+      } catch (error) { errors.push(error.message); }
+      if (!movementsDeleted) { operationsDeleted = false; continue; }
+
+      let operationDeleted = false;
+      try {
+        await call("/rest/v1/client_credit_operations?id=eq." + encodeURIComponent(id), {
+          admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage opération crédit",
+        });
         operationDeleted = true;
       } catch (error) { errors.push(error.message); }
-      if (operationDeleted) {
-        try {
-          await call("/rest/v1/compta_evenement?source_type=eq.credit_operation&source_id=eq."
-            + encodeURIComponent(operationId) + "&evenement_type=eq.credit_remboursement",
-          { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage outbox crédit" });
-        } catch (error) { errors.push(error.message); }
-      }
-    }
-    if (creditId && operationDeleted) {
+      if (!operationDeleted) { operationsDeleted = false; continue; }
+
       try {
-        await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId),
-          { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage compte crédit E2E" });
+        await call("/rest/v1/compta_evenement?source_type=eq.credit_operation&source_id=eq."
+          + encodeURIComponent(id) + "&evenement_type=eq.credit_remboursement", {
+          admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage outbox crédit",
+        });
       } catch (error) { errors.push(error.message); }
     }
-    if (!clientFicheExisted && operationDeleted) {
+
+    if (operationsDeleted && creditId) {
+      try {
+        await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId), {
+          admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage compte crédit E2E",
+        });
+      } catch (error) { errors.push(error.message); }
+    }
+    if (operationsDeleted && !clientFicheExisted && clientId) {
       try {
         await call("/rest/v1/client_fiches?client_id=eq."
-          + encodeURIComponent(clientId) + "&pharmacie_id=eq." + encodeURIComponent(pharmacyId),
-        { admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage fiche Client E2E" });
+          + encodeURIComponent(clientId) + "&pharmacie_id=eq." + encodeURIComponent(pharmacyId), {
+          admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage fiche Client E2E",
+        });
       } catch (error) { errors.push(error.message); }
     }
-    // Close only after removing the temporary transaction: the retained session
-    // audit then accurately records the actual remaining cash. If deletion failed,
-    // closeSessionSafely reconciles any still-present refund operation.
+
     if (cashierSessionId && !sessionClosed) {
       try { await closeSessionSafely(); }
       catch (error) { errors.push(error.message); }
     }
 
-    if (operationId && operationDeleted) {
+    if (operationsDeleted) {
+      for (const id of [...new Set(treasuryAccountIds)]) {
+        try {
+          await call("/rest/v1/tresorerie_comptes?id=eq." + encodeURIComponent(id), {
+            admin: true, method: "DELETE", prefer: "return=minimal", label: "Nettoyage compte trésorerie E2E",
+          });
+        } catch (error) { errors.push(error.message); }
+      }
+    }
+
+    if (operationsDeleted && clientId && attemptedReferences.length) {
       try {
         const remainingOps = await adminRows(
-          "client_credit_operations?select=id&reference=eq." + encodeURIComponent(marker) + "&limit=2"
+          "client_credit_operations?select=id&reference=in."
+            + "(" + attemptedReferences.map(value => '"' + value.replace(/"/g, "") + '"').join(",") + ")&limit=20"
         );
-        const remainingEvents = await adminRows(
-          "compta_evenement?select=id&source_type=eq.credit_operation&source_id=eq."
-            + encodeURIComponent(operationId) + "&evenement_type=eq.credit_remboursement&limit=2"
-        );
-        if (remainingOps.length || remainingEvents.length) {
-          errors.push("Des lignes de remboursement ou outbox subsistent après nettoyage.");
-        }
+        if (remainingOps.length) errors.push("Des opérations de remboursement subsistent après nettoyage.");
       } catch (error) { errors.push(error.message); }
     }
-    if (creditId && operationDeleted) {
+    if (operationsDeleted && creditId) {
       try {
         const remainingCredits = await adminRows(
           "client_credits?select=id&id=eq." + encodeURIComponent(creditId) + "&limit=2"
         );
-        if (remainingCredits.length) errors.push("Le compte crédit de fixture subsiste après nettoyage.");
+        if (remainingCredits.length) errors.push("Le compte crédit E2E subsiste après nettoyage.");
+      } catch (error) { errors.push(error.message); }
+    }
+    if (operationsDeleted && treasuryAccountIds.length) {
+      try {
+        const remainingAccounts = await adminRows(
+          "tresorerie_comptes?select=id&id=in.(" + [...new Set(treasuryAccountIds)].join(",") + ")&limit=10"
+        );
+        if (remainingAccounts.length) errors.push("Des comptes trésorerie E2E subsistent après nettoyage.");
       } catch (error) { errors.push(error.message); }
     }
     if (cashierSessionId && sessionClosed) {
@@ -204,7 +258,7 @@ async function run(env = process.env) {
         const row = closedRows[0];
         if (!row || row.statut !== "cloturee" || Number(row.total_theorique) !== 0
           || Number(row.total_compte) !== 0 || Number(row.ecart) !== 0) {
-          errors.push("La session d'audit Caisse n'est pas clôturée à zéro après le nettoyage du test.");
+          errors.push("La session Caisse E2E doit être clôturée à zéro après nettoyage des fixtures.");
         }
       } catch (error) { errors.push(error.message); }
     }
@@ -217,7 +271,6 @@ async function run(env = process.env) {
     return errors;
   }
 
-  let clientId = null;
   try {
     const promoter = await login(PROMOTER_EMAIL, promoterPassword, "Promoteur");
     promoterToken = promoter.token;
@@ -247,6 +300,41 @@ async function run(env = process.env) {
       throw new Error("Le Client technique possède déjà un compte crédit dans cette pharmacie ; aucun encours existant ne sera modifié.");
     }
 
+    const existingTreasuryMappings = [];
+    for (const plan of plans) {
+      const rows = await adminRows(
+        "tresorerie_comptes?select=id,canal_paiement&pharmacie_id=eq."
+          + encodeURIComponent(pharmacyId) + "&canal_paiement=eq."
+          + encodeURIComponent(plan.channel) + "&actif=eq.true&limit=2"
+      );
+      existingTreasuryMappings.push(...rows);
+    }
+    if (existingTreasuryMappings.length) {
+      throw new Error("Des comptes de trésorerie existent déjà pour un canal de la pharmacie E2E ; la recette ne les réaffecte ni ne les supprime.");
+    }
+
+    for (const plan of plans) {
+      const id = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
+        p_pharmacie: pharmacyId, p_canal: plan.channel,
+      }, "Création compte trésorerie " + plan.channel);
+      if (typeof id !== "string") throw new Error("Compte de trésorerie non créé pour " + plan.channel + ".");
+      treasuryAccountByChannel[plan.channel] = id;
+      treasuryAccountIds.push(id);
+      const retryId = await rpc("caisse_credit_tresorerie_compte_creer", cashierToken, {
+        p_pharmacie: pharmacyId, p_canal: plan.channel,
+      }, "Vérification idempotence compte " + plan.channel);
+      if (retryId !== id) throw new Error("Création compte non idempotente pour " + plan.channel + ".");
+    }
+
+    const listedAccounts = await rpc("caisse_credit_tresorerie_comptes_lister", cashierToken, {
+      p_pharmacie: pharmacyId,
+    }, "Lecture comptes trésorerie Caisse");
+    if (!Array.isArray(listedAccounts)
+      || plans.some(plan => !listedAccounts.some(row => row.canal_paiement === plan.channel
+        && row.account_id === treasuryAccountByChannel[plan.channel]))) {
+      throw new Error("La Caisse ne retrouve pas ses trois comptes de règlement distincts.");
+    }
+
     creditId = await rpc("client_credit_configurer", promoterToken, {
       p_client: clientId, p_pharmacie: pharmacyId, p_plafond: 10000,
     }, "Création du compte crédit test");
@@ -254,7 +342,7 @@ async function run(env = process.env) {
 
     await call("/rest/v1/client_credits?id=eq." + encodeURIComponent(creditId), {
       admin: true, method: "PATCH", body: { solde: seedBalance },
-      prefer: "return=minimal", label: "Préparation du solde technique de test",
+      prefer: "return=minimal", label: "Préparation du solde technique Replay",
     });
 
     const registers = await adminRows(
@@ -277,76 +365,175 @@ async function run(env = process.env) {
       "client_credits?select=id,solde,plafond,actif&id=eq." + encodeURIComponent(creditId) + "&limit=1"
     );
     if (before.length !== 1 || Number(before[0].solde) !== seedBalance || before[0].actif !== true) {
-      throw new Error("Le solde initial technique du compte crédit ne correspond pas à la fixture.");
+      throw new Error("Le solde initial technique du compte crédit ne correspond pas à la fixture Replay.");
     }
 
-    operationId = await rpc("client_credit_rembourser", cashierToken, {
-      p_credit: creditId, p_montant: amount, p_mode: "especes",
-      p_reference: marker, p_motif: "Test runtime automatisé Replay ; sans créance commerciale",
-    }, "Exécution authentifiée du RPC de remboursement");
-    if (typeof operationId !== "string") throw new Error("Le remboursement n'a pas retourné un identifiant d'opération.");
-
-    const after = await adminRows(
-      "client_credits?select=solde&id=eq." + encodeURIComponent(creditId) + "&limit=1"
-    );
-    if (after.length !== 1 || Number(after[0].solde) !== seedBalance - amount) {
-      throw new Error("Le solde Client n'a pas été diminué exactement du montant remboursé.");
+    const refunds = [];
+    for (const plan of plans) {
+      const reference = referenceByChannel[plan.channel];
+      const idempotencyKey = idempotencyByChannel[plan.channel];
+      const args = {
+        p_credit: creditId,
+        p_montant: plan.amount,
+        p_mode: plan.channel,
+        p_reference: reference,
+        p_motif: "Recette E2E technique Replay — " + plan.channel,
+        p_idempotency_key: idempotencyKey,
+        p_verification_beneficiaire: plan.verify,
+        p_verification_montant: plan.verify,
+        p_confirmation_client_vue: plan.verify,
+      };
+      const id = await rpc("client_credit_rembourser", cashierToken, args,
+        "Remboursement authentifié " + plan.channel);
+      if (typeof id !== "string") throw new Error("Le remboursement " + plan.channel + " n'a pas retourné d'identifiant.");
+      operationIds.push(id);
+      const replayedId = await rpc("client_credit_rembourser", cashierToken, args,
+        "Rejeu idempotent " + plan.channel);
+      if (replayedId !== id) throw new Error("Le rejeu " + plan.channel + " a créé une seconde opération.");
+      refunds.push({ ...plan, reference, id, idempotencyKey });
     }
 
-    const operations = await adminRows(
-      "client_credit_operations?select=id,nature,montant,mode_paiement,caisse_session_id,created_by,reference"
-        + "&id=eq." + encodeURIComponent(operationId) + "&limit=1"
-    );
-    const op = operations[0];
-    if (!op || op.nature !== "remboursement" || Number(op.montant) !== amount
-      || op.mode_paiement !== "especes" || op.caisse_session_id !== cashierSessionId
-      || op.created_by !== cashier.id || op.reference !== marker) {
-      throw new Error("L'opération de remboursement n'est pas correctement liée au compte, au titulaire et à la session de Caisse.");
-    }
+    let idempotencyConflictRejected = false;
+    try {
+      await rpc("client_credit_rembourser", cashierToken, {
+        p_credit: creditId, p_montant: 101, p_mode: "especes",
+        p_reference: referenceByChannel.especes,
+        p_motif: "Recette E2E technique Replay — especes",
+        p_idempotency_key: idempotencyByChannel.especes,
+        p_verification_beneficiaire: false,
+        p_verification_montant: false,
+        p_confirmation_client_vue: false,
+      }, "Refus d'une clé idempotence avec payload différent");
+    } catch { idempotencyConflictRejected = true; }
+    if (!idempotencyConflictRejected) throw new Error("Une clé idempotence réutilisée avec un montant différent a été acceptée.");
 
-    const events = await adminRows(
-      "compta_evenement?select=id,evenement_type,source_type,source_id,statut,donnees"
-        + "&source_type=eq.credit_operation&source_id=eq." + encodeURIComponent(operationId)
-        + "&evenement_type=eq.credit_remboursement&limit=2"
-    );
-    if (events.length !== 1 || events[0].source_id !== operationId
-      || events[0].evenement_type !== "credit_remboursement"
-      || events[0].source_type !== "credit_operation"
-      || events[0].donnees?.montant_fcfa !== String(amount)) {
-      throw new Error("L'outbox comptable du remboursement n'a pas été émise une seule fois.");
-    }
+    let missingProofRejected = false;
+    try {
+      await rpc("client_credit_rembourser", cashierToken, {
+        p_credit: creditId, p_montant: 50, p_mode: "orange_money",
+        p_reference: marker + "-ORANGE-SANS-PREUVE",
+        p_motif: "Contrôle preuve mobile incomplète",
+        p_idempotency_key: crypto.randomUUID(),
+        p_verification_beneficiaire: false,
+        p_verification_montant: true,
+        p_confirmation_client_vue: true,
+      }, "Refus preuve Orange incomplète");
+    } catch { missingProofRejected = true; }
+    if (!missingProofRejected) throw new Error("Orange Money a été accepté sans contrôle visuel complet.");
 
-    let rejected = false;
+    await rpc("caisse_credit_tresorerie_canal_configurer", cashierToken, {
+      p_pharmacie: pharmacyId, p_canal: "mtn_momo", p_compte: null,
+    }, "Retrait temporaire mapping MTN pour test négatif");
+    let missingAccountRejected = false;
+    try {
+      await rpc("client_credit_rembourser", cashierToken, {
+        p_credit: creditId, p_montant: 50, p_mode: "mtn_momo",
+        p_reference: marker + "-MTN-SANS-COMPTE",
+        p_motif: "Contrôle compte MTN absent",
+        p_idempotency_key: crypto.randomUUID(),
+        p_verification_beneficiaire: true,
+        p_verification_montant: true,
+        p_confirmation_client_vue: true,
+      }, "Refus compte MTN non configuré");
+    } catch { missingAccountRejected = true; }
+    await rpc("caisse_credit_tresorerie_canal_configurer", cashierToken, {
+      p_pharmacie: pharmacyId, p_canal: "mtn_momo", p_compte: treasuryAccountByChannel.mtn_momo,
+    }, "Rétablissement mapping MTN");
+    if (!missingAccountRejected) throw new Error("MTN MoMo a été accepté sans compte de trésorerie affecté.");
+
+    let balanceExceededRejected = false;
     try {
       await rpc("client_credit_rembourser", cashierToken, {
         p_credit: creditId, p_montant: seedBalance, p_mode: "especes",
-        p_reference: marker + "-OVER", p_motif: "Vérification de la borne supérieure",
-      }, "Contrôle du dépassement de solde");
-    } catch {
-      rejected = true;
-    }
-    if (!rejected) throw new Error("Un remboursement supérieur au solde restant a été accepté.");
-    const afterRejected = await adminRows(
+        p_reference: marker + "-DEPASSEMENT",
+        p_motif: "Contrôle dépassement solde",
+        p_idempotency_key: crypto.randomUUID(),
+        p_verification_beneficiaire: false,
+        p_verification_montant: false,
+        p_confirmation_client_vue: false,
+      }, "Refus remboursement supérieur au solde");
+    } catch { balanceExceededRejected = true; }
+    if (!balanceExceededRejected) throw new Error("Un remboursement supérieur au solde restant a été accepté.");
+
+    const expectedBalance = seedBalance - plans.reduce((sum, plan) => sum + plan.amount, 0);
+    const after = await adminRows(
       "client_credits?select=solde&id=eq." + encodeURIComponent(creditId) + "&limit=1"
     );
-    if (afterRejected.length !== 1 || Number(afterRejected[0].solde) !== seedBalance - amount) {
-      throw new Error("Le refus du montant excessif a modifié le solde.");
+    if (after.length !== 1 || Number(after[0].solde) !== expectedBalance) {
+      throw new Error("Le solde final n'est pas égal à 400 FCFA après les trois canaux et les refus.");
+    }
+
+    const idsFilter = inFilter(operationIds);
+    const operations = await adminRows(
+      "client_credit_operations?select=id,nature,montant,mode_paiement,caisse_session_id,created_by,reference,verification_beneficiaire,verification_montant,confirmation_client_vue,verification_effectuee_par,verification_effectuee_at"
+        + "&id=" + idsFilter + "&limit=10"
+    );
+    if (operations.length !== 3) throw new Error("La base ne contient pas exactement trois opérations uniques.");
+    for (const refund of refunds) {
+      const op = operations.find(row => row.id === refund.id);
+      if (!op || op.nature !== "remboursement" || Number(op.montant) !== refund.amount
+        || op.mode_paiement !== refund.channel || op.caisse_session_id !== cashierSessionId
+        || op.created_by !== cashier.id || op.reference !== refund.reference) {
+        throw new Error("L'opération " + refund.channel + " n'est pas liée au client, au caissier et à la session Caisse.");
+      }
+      if (refund.verify && (op.verification_beneficiaire !== true || op.verification_montant !== true
+        || op.confirmation_client_vue !== true || op.verification_effectuee_par !== cashier.id
+        || !op.verification_effectuee_at)) {
+        throw new Error("Les preuves visuelles " + refund.channel + " ne sont pas persistées.");
+      }
+    }
+
+    const movements = await adminRows(
+      "tresorerie_mouvements?select=id,compte_id,nature,montant,source_type,source_id,canal_paiement,origine"
+        + "&source_type=eq.credit_remboursement&source_id=" + idsFilter + "&limit=10"
+    );
+    if (movements.length !== 3) throw new Error("La trésorerie doit contenir exactement un mouvement par opération.");
+    for (const refund of refunds) {
+      const movement = movements.find(row => row.source_id === refund.id);
+      if (!movement || movement.compte_id !== treasuryAccountByChannel[refund.channel]
+        || Number(movement.montant) !== refund.amount || movement.nature !== "encaissement"
+        || movement.canal_paiement !== refund.channel || movement.origine !== "comptoir") {
+        throw new Error("Le mouvement trésorerie " + refund.channel + " est absent ou mal rapproché.");
+      }
+    }
+
+    const events = await adminRows(
+      "compta_evenement?select=id,evenement_type,source_type,source_id,donnees"
+        + "&source_type=eq.credit_operation&source_id=" + idsFilter
+        + "&evenement_type=eq.credit_remboursement&limit=10"
+    );
+    if (events.length !== 3 || events.some(event => event.source_type !== "credit_operation"
+      || event.evenement_type !== "credit_remboursement"
+      || !operationIds.includes(event.source_id))) {
+      throw new Error("L'outbox comptable doit émettre exactement un événement par remboursement.");
+    }
+    for (const refund of refunds) {
+      const event = events.find(row => row.source_id === refund.id);
+      if (!event || event.donnees?.montant_fcfa !== String(refund.amount)) {
+        throw new Error("L'événement comptable du canal " + refund.channel + " ne reflète pas son montant.");
+      }
     }
 
     const sessionRefundRows = await adminRows(
       "client_credit_operations?select=montant&caisse_session_id=eq."
+        + encodeURIComponent(cashierSessionId) + "&nature=eq.remboursement"
+    );
+    const totalAllRefunds = sessionRefundRows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
+    const cashRows = await adminRows(
+      "client_credit_operations?select=montant&caisse_session_id=eq."
         + encodeURIComponent(cashierSessionId) + "&nature=eq.remboursement&mode_paiement=eq.especes"
     );
-    const sessionRefundTotal = sessionRefundRows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
-    if (sessionRefundTotal !== amount) {
-      throw new Error("Le registre des remboursements espèces ne rattache pas exactement 250 FCFA à la session Caisse.");
+    const cashDrawerTotal = cashRows.reduce((sum, row) => sum + Number(row.montant || 0), 0);
+    if (totalAllRefunds !== 600 || cashDrawerTotal !== 100) {
+      throw new Error("La session doit distinguer 600 FCFA remboursés au total, dont 100 FCFA seulement en espèces.");
     }
 
-    process.stdout.write("PASS — remboursement exécuté via JWT du compte Caisse Replay authentifié.\n");
-    process.stdout.write("PASS — solde diminué exactement de 250 FCFA ; opération espèces reliée à la session personnelle.\n");
-    process.stdout.write("PASS — outbox credit_remboursement émise une seule fois ; dépassement de solde refusé sans mutation.\n");
-    process.stdout.write("PASS — registre espèces de la session : remboursement lié de 250 FCFA ; nettoyage des lignes avant clôture d'audit.\n");
-    process.stdout.write("INFO — le solde initial de 500 FCFA a été préchargé uniquement par le service Replay pour tester le RPC de remboursement ; ce test ne simule pas une vente ni une créance commerciale.\n");
+    process.stdout.write("PASS — JWT Caisse Replay : remboursement espèces, Orange Money et MTN MoMo authentifiés.\n");
+    process.stdout.write("PASS — solde client : 1 000 → 400 FCFA ; 3 opérations et 3 mouvements trésorerie, sans double débit.\n");
+    process.stdout.write("PASS — une écriture par canal : compte associé, nature encaissement, origine comptoir et outbox comptable unique.\n");
+    process.stdout.write("PASS — rejouabilité des trois clés ; conflit de payload, preuve mobile absente, compte absent et dépassement refusés sans débit.\n");
+    process.stdout.write("PASS — session Caisse : 600 FCFA remboursés, dont 100 FCFA en espèces comptabilisées au tiroir.\n");
+    process.stdout.write("INFO — le solde initial a été préchargé uniquement par le service Replay ; aucune vente ni créance commerciale n'est simulée.\n");
   } catch (error) {
     mainError = error;
   } finally {
@@ -364,7 +551,7 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().catch(error => {
-    process.stderr.write("CREDIT REFUND RUNTIME E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\n");
+    process.stderr.write("CREDIT REFUND MULTICHANNEL E2E BLOQUÉ — " + (error?.message || "erreur inconnue") + "\n");
     process.exitCode = 1;
   });
 }
