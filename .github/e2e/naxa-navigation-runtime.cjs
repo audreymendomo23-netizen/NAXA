@@ -35,6 +35,9 @@ const admin = createClient(supabaseUrl, adminKey, {
 
 let state = {
   runLabel: RUN_LABEL,
+  historyReservationIds: [],
+  historyPharmacyId: null,
+  historyOriginalVisibleRecherche: null,
   comptableProfileId: null,
   originalFonctionInterne: null,
   originalPharmacieId: null,
@@ -258,19 +261,159 @@ async function assertClientSession(profile, session) {
   return Array.from(new Set((purchases || []).map((row) => row.reservation_id).filter(Boolean)));
 }
 
-async function assertClientHistoryIsolation(profileA, sessionA, profileB, sessionB) {
+async function assertClientHistoryIsolation(profileA, sessionA, profileB, sessionB, expectedReservationA, expectedReservationB) {
   assert.notEqual(profileA.id, profileB.id, "Les deux comptes Client doivent être distincts.");
+  assert.ok(expectedReservationA && expectedReservationB && expectedReservationA !== expectedReservationB,
+    "Les fixtures d'achat doivent être deux réservations distinctes.");
   const [historyA, historyB] = await Promise.all([
     assertClientSession(profileA, sessionA),
     assertClientSession(profileB, sessionB),
   ]);
-  assert.ok(historyA.length > 0, "Fixture insuffisante : le Client A doit avoir au moins un achat payé/retiré pour prouver l'isolation.");
-  assert.ok(historyB.length > 0, "Fixture insuffisante : le Client B doit avoir au moins un achat payé/retiré pour prouver l'isolation.");
+  assert.ok(historyA.includes(expectedReservationA), "Le Client A ne voit pas son achat E2E.");
+  assert.ok(historyB.includes(expectedReservationB), "Le Client B ne voit pas son achat E2E.");
+  assert.ok(!historyA.includes(expectedReservationB), "Fuite d'historique : le Client A voit l'achat du Client B.");
+  assert.ok(!historyB.includes(expectedReservationA), "Fuite d'historique : le Client B voit l'achat du Client A.");
   const idsA = new Set(historyA);
   const idsB = new Set(historyB);
   const overlap = historyA.filter((id) => idsB.has(id));
   assert.deepEqual(overlap, [], "Fuite d'historique : des réservations sont visibles dans les historiques A et B : " + overlap.join(", "));
-  console.log("PASS isolation historique A/B — deux JWT Client distincts, achats présents des deux côtés et aucun identifiant de réservation partagé.");
+  console.log("PASS isolation historique A/B — deux JWT distincts ; chaque Client voit son achat payé et aucun achat de l'autre compte.");
+}
+
+async function createClientHistoryFixtures(profileA, profileB) {
+  assert.notEqual(profileA.id, profileB.id, "Les comptes clients A/B doivent être distincts avant seed.");
+  const historyPharmacyId = "1a4f1ce5-cccf-477e-9a5b-474c8c9fc713";
+  const expectedPharmacyName = "NAXA E2E — Pharmacie de recette (non commerciale)";
+  const { data: pharmacy, error: pharmacyError } = await admin.from("pharmacies")
+    .select("id,nom,actif,est_demo,visible_recherche,archivee_le")
+    .eq("id", historyPharmacyId).single();
+  if (pharmacyError) throw pharmacyError;
+  assert.equal(pharmacy.nom, expectedPharmacyName, "La pharmacie fixture Replay a changé d'identité.");
+  assert.equal(pharmacy.actif, true, "La pharmacie fixture Replay doit être active.");
+  assert.equal(pharmacy.est_demo, false, "La pharmacie fixture doit être la pharmacie E2E non commerciale, pas une pharmacie démo.");
+  assert.equal(pharmacy.archivee_le, null, "La pharmacie fixture est archivée.");
+  assert.equal(pharmacy.visible_recherche, false, "La pharmacie fixture ne doit pas être déjà publiée avant le test.");
+
+  const { data: stock, error: stockError } = await admin.from("stocks")
+    .select("pharmacie_id,produit_id,prix,quantite")
+    .eq("pharmacie_id", historyPharmacyId).gt("quantite", 0).limit(1).maybeSingle();
+  if (stockError) throw stockError;
+  assert.ok(stock, "Aucun stock positif disponible dans la pharmacie interne de recette Replay.");
+  assert.ok(stock.prix > 0, "Le prix de la fixture produit doit être strictement positif.");
+
+  const { data: product, error: productError } = await admin.from("produits")
+    .select("id,nom").eq("id", stock.produit_id).single();
+  if (productError) throw productError;
+  assert.equal(product.nom, "NAXA E2E — Produit crédit comptoir",
+    "Le produit de fixture attendu a changé ; aucun autre produit ne sera publié par le test.");
+
+  state.historyPharmacyId = historyPharmacyId;
+  state.historyOriginalVisibleRecherche = pharmacy.visible_recherche;
+  state.historyReservationIds = [];
+  saveState();
+
+  const { data: publishedPharmacy, error: publishError } = await admin.from("pharmacies")
+    .update({ visible_recherche: true })
+    .eq("id", historyPharmacyId).eq("visible_recherche", false)
+    .select("id,visible_recherche").single();
+  if (publishError) throw publishError;
+  assert.equal(publishedPharmacy.visible_recherche, true, "La visibilité temporaire du produit de recette a échoué.");
+
+  const { data: productVisible, error: visibilityError } = await admin.rpc("marketplace_produit_visible", {
+    p_produit: stock.produit_id,
+  });
+  if (visibilityError) throw visibilityError;
+  assert.equal(productVisible, true, "Le produit E2E reste masqué par la règle de visibilité Marketplace.");
+
+  const reservationIds = [];
+  for (const fixture of [
+    { profile: profileA, suffix: "A" },
+    { profile: profileB, suffix: "B" },
+  ]) {
+    const paiementRef = "NAXA-E2E-HISTORY-" + RUN_LABEL + "-" + fixture.suffix;
+    const createdAt = new Date().toISOString();
+    const { data: reservation, error: reservationError } = await admin.from("reservations").insert({
+      client_id: fixture.profile.id,
+      pharmacie_id: historyPharmacyId,
+      statut: "payee",
+      total: stock.prix,
+      paiement_ref: paiementRef,
+      created_at: createdAt,
+      mode: "reservation",
+      paiement_statut: "effectue",
+      paiement_mode: "especes_retrait",
+      paiement_valide_at: createdAt,
+      stock_decremented: false,
+    }).select("id").single();
+    if (reservationError) throw reservationError;
+
+    state.historyReservationIds.push(reservation.id);
+    saveState();
+
+    const { error: itemError } = await admin.from("reservation_items").insert({
+      reservation_id: reservation.id,
+      produit_id: stock.produit_id,
+      quantite: 1,
+      prix_unitaire: stock.prix,
+    });
+    if (itemError) throw itemError;
+
+    const { error: eventError } = await admin.from("reservation_events").insert({
+      reservation_id: reservation.id,
+      client_id: fixture.profile.id,
+      pharmacie_id: historyPharmacyId,
+      event_type: "status_changed",
+      from_statut: "confirmee",
+      to_statut: "payee",
+      paiement_ref: paiementRef,
+      occurred_at: createdAt,
+      detail: { e2e: true, run_label: RUN_LABEL, test: "client_history_isolation_ab" },
+    });
+    if (eventError) throw eventError;
+
+    reservationIds.push(reservation.id);
+  }
+
+  console.log("PASS fixtures historique — deux achats E2E payés créés pour deux Clients distincts ; aucune ligne de stock n'a été débitée.");
+  return { reservationA: reservationIds[0], reservationB: reservationIds[1] };
+}
+
+async function cleanupClientHistoryFixtures() {
+  if (!state.historyPharmacyId && !(state.historyReservationIds || []).length) return;
+  const failures = [];
+  const marker = "NAXA-E2E-HISTORY-" + state.runLabel + "-";
+
+  const deleted = await admin.from("reservations").delete()
+    .like("paiement_ref", marker + "%").select("id");
+  if (deleted.error) failures.push("suppression des réservations A/B temporaires : " + deleted.error.message);
+
+  const remainingReservations = await admin.from("reservations")
+    .select("id", { count: "exact", head: true }).like("paiement_ref", marker + "%");
+  if (remainingReservations.error || (remainingReservations.count || 0) !== 0) {
+    failures.push("des réservations A/B temporaires sont toujours présentes.");
+  }
+
+  if (state.historyPharmacyId && typeof state.historyOriginalVisibleRecherche === "boolean") {
+    const restored = await admin.from("pharmacies")
+      .update({ visible_recherche: state.historyOriginalVisibleRecherche })
+      .eq("id", state.historyPharmacyId)
+      .select("visible_recherche").single();
+    if (restored.error || !restored.data
+      || restored.data.visible_recherche !== state.historyOriginalVisibleRecherche) {
+      failures.push("la visibilité Marketplace de la pharmacie interne n'a pas été restaurée.");
+    }
+  }
+
+  if (failures.length) {
+    console.error("ECHEC NETTOYAGE HISTORIQUE A/B — " + failures.join(" | "));
+    throw new Error("Les fixtures temporaires de l'historique Client ne sont pas propres.");
+  }
+
+  state.historyReservationIds = [];
+  state.historyPharmacyId = null;
+  state.historyOriginalVisibleRecherche = null;
+  saveState();
+  console.log("PASS nettoyage historique A/B — réservations et événements temporaires supprimés ; visibilité initiale restaurée.");
 }
 
 async function signOutSession(session) {
@@ -294,6 +437,14 @@ async function cleanup() {
   }
   state = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
   const failures = [];
+
+  if (state.historyPharmacyId || (state.historyReservationIds || []).length) {
+    try {
+      await cleanupClientHistoryFixtures();
+    } catch (error) {
+      failures.push("historique Client A/B : " + String(error && error.message ? error.message : error));
+    }
+  }
 
   if (state.paymentId) {
     const notificationDelete = await admin.from("notifications").delete().eq("related_entity_id", state.paymentId);
@@ -418,7 +569,12 @@ async function run() {
     sessions.push(clientSession);
     const clientBSession = await createExistingUserSession(comptable);
     sessions.push(clientBSession);
-    await assertClientHistoryIsolation(partnerOwner, clientSession, comptable, clientBSession);
+    const historyFixtures = await createClientHistoryFixtures(partnerOwner, comptable);
+    await assertClientHistoryIsolation(
+      partnerOwner, clientSession, comptable, clientBSession,
+      historyFixtures.reservationA, historyFixtures.reservationB
+    );
+    await cleanupClientHistoryFixtures();
     const adminProfile = await profileByUsername("e2e_admin_261104");
     assert.equal(adminProfile.role, "admin", "Le compte Admin E2E n'a plus le rôle Admin.");
     const adminSession = await createExistingUserSession(adminProfile);
