@@ -60,6 +60,7 @@ begin
   if position('owner_profile.role::text = ''client''' in v_definition)=0
      or position('owner_profile.actif is true' in v_definition)=0
      or position('owner_profile.age_verified is true' in v_definition)=0
+     or position('owner_profile.date_of_birth is not null' in v_definition)=0
      or position('owner_profile.date_of_birth <=' in v_definition)=0
      or position('owner_profile.consent_accepted_at is not null' in v_definition)=0
      or position('owner_auth.email_confirmed_at is not null' in v_definition)=0 then
@@ -173,6 +174,24 @@ begin
   set date_of_birth=(timezone('Africa/Douala', now())::date - interval '36 years')::date
   where id=v_owner;
 
+  -- Date de naissance absente.
+  update public.profiles set date_of_birth=null where id=v_owner;
+  begin
+    perform public.admin_create_partner_dossier(
+      v_owner,'NAXA TEST INVALID','centre_examen','examens','Yaoundé','Test',
+      'Adresse test',null,null,null,1,null,'{}'::jsonb
+    );
+    raise exception 'TEST_FAIL_MISSING_BIRTH_DATE_ACCEPTED';
+  exception when others then
+    get stacked diagnostics v_state = returned_sqlstate, v_message = message_text;
+    if v_state <> '23514' or position('Le titulaire doit être un Client actif' in v_message)=0 then
+      raise exception 'Le Client sans date de naissance a échoué pour une cause inattendue : SQLSTATE %, %', v_state, v_message;
+    end if;
+  end;
+  update public.profiles
+  set date_of_birth=(timezone('Africa/Douala', now())::date - interval '36 years')::date
+  where id=v_owner;
+
   -- Consentement absent.
   update public.profiles set consent_accepted_at=null where id=v_owner;
   begin
@@ -218,4 +237,4 @@ end
 $test$;
 
 rollback;
-select '313_admin_partner_dossier_owner_eligibility PASS — positif rollback + 6 refus + aucun résiduel' as resultat;
+select '313_admin_partner_dossier_owner_eligibility PASS — positif rollback + 7 refus + aucun résiduel' as resultat;
