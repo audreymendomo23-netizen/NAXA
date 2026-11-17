@@ -5795,3 +5795,12 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - Le dernier run qualité terminé et SUCCESS reste `44026881022` sur le code présent avant les deux derniers ajustements du harnais.
 
 **Verdict maintenu :** Lot B reste **JAUNE / PARTIEL**. Aucune interaction Client navigateur n'est encore prouvée. Le prochain run doit franchir le prébuild, terminer les navigations Promoteur/Comptable/Partenaire, puis exécuter les contrôles Client ajoutés. Aucun changement Production, aucune migration Replay et aucun déploiement Vercel.
+
+
+## 155. Décision sur le payeur des abonnements partenaires (17/11/2026)
+
+- Décision utilisateur : choix A — chaque structure contractante règle son propre abonnement. Aucun paiement collectif implicite du Promoteur pour les autres univers. Toute exception de groupe exige un contrat explicite, un payeur désigné et une répartition contractuelle.
+- Règle maintenue : cycle mensuel déclenché uniquement par la confirmation effective du premier règlement par NAXA ; validation de dossier, déclaration ou notification isolée ne déclenchent aucun cycle.
+- Contrôle Replay : `naxa_universe_payment_confirmations` concerne les paiements de réservations Client (`reservation_id`, `client_id`) et ne constitue pas une preuve d'abonnement professionnel.
+- Le flux `admin_confirmer_reglement_promoteur` reste spécifique à l'abonnement Promoteur. Aucun équivalent de règlement confirmé propre aux structures Parapharmacie, Examens et Prestations à domicile n'est établi à ce stade.
+- Aucun changement de schéma, écriture Replay, code applicatif ou déploiement Production effectué. Le lot demeure PARTIEL jusqu'à la définition et la preuve de la source de vérité de paiement par structure.
