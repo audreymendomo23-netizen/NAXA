@@ -5224,6 +5224,7 @@ Liens de preuve :
 - PASS — test 20261105145307 : tables, colonnes, RLS, policy, grants, RPC d'acceptation et trigger d'achat.
 - PASS — test 20261109070000 : le trigger d'achat reste attaché mais ne peut pas être appelé directement par les rôles API.
 - PASS — sonde B2-FAVORITES-OWNERSHIP : policy favoris_client_self impose user_id=auth.uid() en USING et WITH CHECK ; aucun accès anon ; RPC d'acceptation authentifiée seulement.
+- PASS — sonde RLS Client réelle dans une transaction : insertion d'un favori temporaire avec le JWT simulé du Client propriétaire ; un second Client ne peut ni le lire, ni le modifier, ni le supprimer ; le propriétaire le relit ; ROLLBACK final, aucune ligne persistante.
 - PASS — le parcours Marketplace navigateur de refus Promoteur déjà acquis au §128 est conservé comme preuve ; non rejoué.
 
 **Contradiction / correction des tests obsolètes**
