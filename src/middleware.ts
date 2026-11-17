@@ -41,7 +41,9 @@ export async function middleware(req: NextRequest) {
 
   // La déclaration d’âge ne doit pas protéger uniquement l’écran d’accueil :
   // les accès directs aux pages applicatives exigent aussi une déclaration adulte.
+  const isPublicStaticAsset = /\.(?:avif|gif|jpe?g|png|svg|webp|ico|woff2?)$/i.test(path);
   const ageExemptPath =
+    isPublicStaticAsset ||
     path === "/" ||
     path === "/conditions-utilisation" ||
     path.startsWith("/conditions-utilisation/") ||
