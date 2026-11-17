@@ -6364,3 +6364,30 @@ Commit de la suppression du dernier filtre : e1baa2af05a13baca07c294fc0502865e34
 Commit de cette mise à jour documentaire : à confirmer à la fin du commit.
 
 La revalidation navigateur complète sur le HEAD réunissant ces modifications est encore attendue. Le ServiceWorker DataCloneError reste un point rouge distinct.
+
+
+## 179. Audit des modifications panier multi-univers et échecs CI — 17/11/2026
+
+**HEAD observé avant correction :** `99394e8f833e1c199462410226075fcd0db6e18a`. Les commits ajoutés après le lot HTTP 400 modifient le panier Client pour isoler les lignes par univers et établissement propriétaire. Le document dédié `docs/audits/PANIER_CLIENT_MULTI_UNIVERS.md` précise le comportement attendu, mais indique explicitement qu'aucun contrôle TypeScript, lint, build ou E2E n'avait été exécuté au moment de sa rédaction.
+
+**Échec qualité 44051283097 et échec navigateur 44051264919 — causes prouvées par les logs :**
+- Les 572 tests automatisés passent (0 échec), mais TypeScript bloque avant lint/build : `src/app/panier/page.tsx(22,44): TS1005 ')' expected` et `src/lib/panier.tsx(6,2089): TS1005 ')' expected`.
+- Le premier défaut est une parenthèse fermante manquante autour de `Array.from(medicaments.reduce(...))` dans le regroupement des lignes Pharmacie.
+- Le second est une parenthèse manquante autour de l'appel `save(...)` dans le callback `retirer` du panier.
+- Le run navigateur échoue à l'étape `npm run build` pour les mêmes deux erreurs TypeScript ; le serveur et le scénario Chromium ne démarrent donc pas. Le nettoyage de secours Replay indique qu'aucune fixture temporaire n'était à supprimer.
+- La validation syntaxique GitHub Actions est PASS ; elle ne valide pas la syntaxe TS/TSX de l'application.
+
+**Corrections appliquées sur main :**
+- `3a40573112dbccea2787200a87b3040bc93b654c` : fermeture de l'expression `Array.from` dans `src/app/panier/page.tsx`.
+- `a305ce35270510b34f8b0334466fbc20b6b98044` : fermeture de `save` dans `retirer` et alignement du ciblage sur la clé propriétaire normalisée. Le retrait reconnaît maintenant les anciennes lignes qui n'ont que `pharmacie_id` ou `partner_id`, comme le fait déjà `changerQuantite`; il évite ainsi de laisser une ligne homonyme dans le panier après finalisation.
+
+**Revalidation :**
+- Deux runs qualité ont été déclenchés sur les commits de correction ; au moment de cette note, le run le plus récent sur `a305ce3` est encore en attente. Aucun PASS ne lui est attribué avant lecture du résultat final.
+- Le workflow navigateur ne surveillait pas les fichiers du panier et des deux pages de commande ; l'absence de run après une modification de ces fichiers était donc possible. Les chemins concernés doivent être ajoutés aux déclencheurs avant de considérer le panier validé en navigateur.
+- Les tests unitaires existants couvrent les règles générales du panier (572 tests au total), mais aucun résultat E2E prouvant deux établissements avec le même produit, la modification/retrait indépendant et les deux finalisations n'est encore enregistré.
+
+**Points toujours ouverts :**
+- Le ServiceWorker `DataCloneError` reste non attribué ; aucune correction arbitraire n'est appliquée.
+- Le cycle panier multi-propriétaires n'est pas encore prouvé en navigateur sur Replay.
+- La limite locale de 10 lignes est globale ; son adéquation au panier multi-univers reste à décider.
+- Aucun schéma, donnée ou projet Production modifié ; aucune migration, aucun déploiement Vercel, aucune action Play Store.
