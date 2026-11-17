@@ -11,10 +11,13 @@ declare
   v_caisse uuid := 'c3194cf5-7de3-4b90-9412-416b50e7ccbf';
   v_credit uuid; v_session uuid; v_cash_account uuid; v_orange_account uuid; v_mtn_account uuid;
   v_cash_op uuid; v_cash_retry uuid; v_orange_op uuid; v_mtn_op uuid;
-  v_balance integer; v_operations integer; v_movements integer; v_mapped integer; v_message text;
+  v_balance integer; v_operations integer; v_movements integer; v_mapped integer; v_total_refunds integer; v_cash_refunds integer; v_close record; v_message text;
 begin
   if auth.uid() <> v_actor or not public.naxa_caisse_actor_for_pharmacy(v_pharmacie) then
     raise exception 'FAIL: acteur Caisse E2E non autorisé sur la pharmacie';
+  end if;
+  if not public.naxa_select_active_role('caisse',v_pharmacie) then
+    raise exception 'FAIL: activation du poste Caisse E2E impossible';
   end if;
   v_cash_account := public.caisse_credit_tresorerie_compte_creer(v_pharmacie,'especes');
   if v_cash_account <> public.caisse_credit_tresorerie_compte_creer(v_pharmacie,'especes') then
@@ -89,6 +92,22 @@ begin
   if has_function_privilege('anon','public.client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text,uuid,boolean,boolean,boolean)','EXECUTE')
      or not has_function_privilege('authenticated','public.client_credit_rembourser(uuid,integer,mode_paiement_caisse,text,text,uuid,boolean,boolean,boolean)','EXECUTE') then
     raise exception 'FAIL: ACL RPC incohérentes';
+  end if;
+
+  select coalesce(sum(montant),0)::integer into v_total_refunds
+  from public.client_credit_operations
+  where caisse_session_id=v_session and nature='remboursement';
+  select coalesce(sum(montant),0)::integer into v_cash_refunds
+  from public.client_credit_operations
+  where caisse_session_id=v_session and nature='remboursement' and mode_paiement='especes';
+  if v_total_refunds <> 600 or v_cash_refunds <> 100 then
+    raise exception 'FAIL: session Caisse attend 600 tous canaux et 100 espèces, obtenu % / %',v_total_refunds,v_cash_refunds;
+  end if;
+
+  select * into v_close from public.caisse_cloturer(v_session,100);
+  if v_close.total_theorique <> 100 or v_close.total_compte <> 100 or v_close.ecart <> 0 then
+    raise exception 'FAIL: clôture Caisse doit compter les espèces seulement (100 FCFA), obtenu % / % / %',
+      v_close.total_theorique,v_close.total_compte,v_close.ecart;
   end if;
 end
 $test$;
