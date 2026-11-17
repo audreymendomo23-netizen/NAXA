@@ -63,7 +63,8 @@ begin
      or position('owner_profile.date_of_birth is not null' in v_definition)=0
      or position('owner_profile.date_of_birth <=' in v_definition)=0
      or position('owner_profile.consent_accepted_at is not null' in v_definition)=0
-     or position('owner_auth.email_confirmed_at is not null' in v_definition)=0 then
+     or position('owner_auth.email_confirmed_at is not null' in v_definition)=0
+     or position('update public.profiles set actif=false' in lower(v_definition))>0 then
     raise exception 'La RPC ne contient pas toutes les gardes d''éligibilité attendues';
   end if;
 
@@ -95,6 +96,9 @@ begin
     );
     if v_partner_id is null then
       raise exception 'La RPC n''a pas retourné de partenaire';
+    end if;
+    if not exists(select 1 from public.profiles where id=v_owner and actif is true) then
+      raise exception 'La création du dossier a modifié le statut global du profil';
     end if;
     raise exception '__NAXA_EXPECTED_ROLLBACK__';
   exception when others then
