@@ -5193,7 +5193,7 @@ Liens de preuve :
 - Réponse publique uniforme pour nom syntaxiquement valide inconnu, profil non finalisé et compte finalisé : même statut HTTP 200 et même message générique.
 - Rate limit par IP avant toute recherche de profil (ip_password_reset, 5 tentatives / 10 minutes), avec réponse 429 commune en cas de dépassement.
 - Contrôle de taille du corps, réponses Cache-Control: no-store, et journaux d'erreur sans nom d'utilisateur, adresse e-mail ni détails de compte.
-- Le code OTP n'est envoyé que si le profil existe, est finalisé et possède une identité Auth avec e-mail ; aucun compte n'est créé.
+- Le code OTP n'est envoyé que si le profil existe, est finalisé et possède une identité Auth avec e-mail ; aucun compte n'est créé. Même une erreur du fournisseur OTP conserve la réponse publique générique pour ne pas révéler l'existence du compte.
 - Test de contrat ajouté : uniformité des réponses, ordre rate limit avant lookup, et absence de cache.
 
 **Limites et preuves**
