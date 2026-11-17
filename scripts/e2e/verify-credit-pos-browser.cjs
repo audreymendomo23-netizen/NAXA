@@ -17,7 +17,6 @@ const CASHIER_USERNAME = "naxa_e2e_expiry_stock";
 const CLIENT_USERNAME = "naxa_e2e_acheteur";
 const CREDIT_LIMIT = 500;
 const SALE_AMOUNT = 1000;
-const REFUND_AMOUNT = 1000;
 
 function required(value, label) {
   const result = String(value || "").trim();
@@ -665,7 +664,6 @@ async function run(env = process.env) {
       hasText: "Référence de transaction",
     }).locator("input");
     const refundSubmit = refundSection.getByRole("button", { name: "Confirmer le remboursement", exact: true });
-    const refundOperationIds = [];
 
     for (const plan of refundPlans) {
       await refundChannelSelect.selectOption(plan.channel);
@@ -716,7 +714,6 @@ async function run(env = process.env) {
           + "&reference=eq." + encodeURIComponent(plan.reference) + "&limit=2"
       );
       const refundOp = await ensureSingle(refundOps, "Opération de remboursement " + plan.channel + " créée par l'interface Caisse");
-      refundOperationIds.push(refundOp.id);
       if (refundOp.nature !== "remboursement" || Number(refundOp.montant) !== plan.amount
         || refundOp.mode_paiement !== plan.channel || refundOp.caisse_session_id !== sessionId
         || refundOp.created_by !== cashierUserId || refundOp.reference !== plan.reference) {
