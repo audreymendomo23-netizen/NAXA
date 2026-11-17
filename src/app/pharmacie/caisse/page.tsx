@@ -958,26 +958,26 @@ export default function CaissePage() {
 
                   {creditAccounts.length === 0 ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aucun crédit client actif avec un solde à rembourser.</p> : <>
                     <label className="block text-sm font-semibold">Client et compte crédit
-                      <select className="champ mt-1 w-full" value={refundCreditId} onChange={(event) => { setRefundCreditId(event.target.value); setRefundIdempotencyKey(null); }} disabled={busy}>
+                      <select className="champ mt-1 w-full" value={refundCreditId} onChange={(event) => { setRefundCreditId(event.target.value); }} disabled={busy}>
                         <option value="">Sélectionner un compte crédit</option>
                         {creditAccounts.map((account) => <option key={account.creditId} value={account.creditId}>{account.label} · reste dû {fcfa(account.solde)}</option>)}
                       </select>
                     </label>
                     <label className="block text-sm font-semibold">Canal du remboursement
-                      <select className="champ mt-1 w-full" value={refundChannel} onChange={(event) => { setRefundChannel(event.target.value as RefundChannel); setRefundIdempotencyKey(null); setRefundVerifyBeneficiary(false); setRefundVerifyAmount(false); setRefundClientConfirmed(false); }}>
+                      <select className="champ mt-1 w-full" value={refundChannel} onChange={(event) => { setRefundChannel(event.target.value as RefundChannel); setRefundVerifyBeneficiary(false); setRefundVerifyAmount(false); setRefundClientConfirmed(false); }}>
                         <option value="especes">Espèces</option>
                         <option value="orange_money">Orange Money</option>
                         <option value="mtn_momo">MTN MoMo</option>
                       </select>
                     </label>
                     <label className="block text-sm font-semibold">Montant remboursé (FCFA)
-                      <input className="champ mt-1 w-full" type="number" min="1" step="1" inputMode="numeric" value={refundAmount} onChange={(event) => { setRefundAmount(event.target.value); setRefundIdempotencyKey(null); }} disabled={busy || !refundCreditId} />
+                      <input className="champ mt-1 w-full" type="number" min="1" step="1" inputMode="numeric" value={refundAmount} onChange={(event) => { setRefundAmount(event.target.value); }} disabled={busy || !refundCreditId} />
                     </label>
                     <label className="block text-sm font-semibold">Référence de transaction{refundChannel === "especes" ? " (facultative)" : " (obligatoire)"}
-                      <input className="champ mt-1 w-full" value={refundReference} onChange={(event) => { setRefundReference(event.target.value); setRefundIdempotencyKey(null); }} maxLength={120} disabled={busy || !refundCreditId} required={refundChannel !== "especes"} />
+                      <input className="champ mt-1 w-full" value={refundReference} onChange={(event) => { setRefundReference(event.target.value); }} maxLength={120} disabled={busy || !refundCreditId} required={refundChannel !== "especes"} />
                     </label>
                     <label className="block text-sm font-semibold">Motif (facultatif)
-                      <input className="champ mt-1 w-full" value={refundReason} onChange={(event) => { setRefundReason(event.target.value); setRefundIdempotencyKey(null); }} maxLength={240} disabled={busy || !refundCreditId} />
+                      <input className="champ mt-1 w-full" value={refundReason} onChange={(event) => { setRefundReason(event.target.value); }} maxLength={240} disabled={busy || !refundCreditId} />
                     </label>
                     {refundChannel !== "especes" && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 space-y-2">
                       <p className="font-bold">Contrôle visuel obligatoire — aucune confirmation opérateur automatique</p>
