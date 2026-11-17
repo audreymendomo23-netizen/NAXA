@@ -5161,3 +5161,22 @@ Liens de preuve :
 
 **Verdict : NON VERT — réglage déclaré coché par l'utilisateur, mais comportement Replay contraire au comportement documenté. Escalade Supabase nécessaire ; aucune modification de contournement.**
 
+## 131. Attribution technique : la recette de rejeu interroge directement Supabase Auth (17/11/2026)
+
+**Audit du script réel :** `scripts/e2e/verify-auth-session-lifecycle.cjs`, lu sur `main`.
+
+- La fonction `authRequest()` envoie directement les requêtes HTTP à `https://pwfftcsjyeibxxqhwysw.supabase.co/auth/v1/token` avec la clé anon.
+- Les deux rotations, le rejeu T1 et la vérification T3 après rejeu sont donc exécutés par le service Supabase Auth. Ils ne passent ni par une route API NAXA, ni par le middleware Next.js, ni par `supabaseServer()`.
+- Le scénario distinct de révocation explicite appelle également directement `/auth/v1/logout?scope=global`.
+- Le middleware NAXA protège les préfixes de pages applicatives listés dans `src/middleware.ts`, mais laisse volontairement les routes `/api/*` hors de son contrôle générique. Chaque API doit donc vérifier elle-même l'identité et les droits nécessaires.
+- Ajouter un contrôle NAXA dans le middleware ne peut pas modifier le résultat de l'appel direct au endpoint Supabase Auth utilisé par cette recette. Une table de révocation applicative ne peut pas non plus être alimentée automatiquement par un rejeu que Supabase ne signale pas à NAXA.
+
+### Décision technique corrigée
+
+1. Ne pas modifier le script pour faire passer artificiellement la recette ; son assertion mesure bien la révocation côté Supabase.
+2. Ne pas prétendre qu'un changement du middleware NAXA corrigera le rejeu du refresh token sur `/auth/v1/token`.
+3. Le défaut de révocation globale doit être corrigé dans Supabase Auth (ou dans le projet Replay lui-même). La preuve de correction reste : T1 rejeté, puis T3 rejeté, session absente.
+4. Un audit séparé des routes API NAXA reste pertinent pour vérifier leurs contrôles d'accès, mais il ne constitue pas le correctif de ce défaut Auth et ne doit pas être mélangé à cette recette.
+
+**Verdict : NON VERT — cause localisée au service Supabase Auth Replay, hors du chemin d'exécution NAXA testé. Aucun changement de code NAXA effectué car il ne pourrait pas corriger le comportement mesuré.**
+
