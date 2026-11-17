@@ -47,6 +47,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Échec de synchronisation des validités." }, { status: 500 });
   }
 
+  const { data: partnerExpired, error: partnerSyncError } = await sb.rpc(
+    "synchroniser_validite_abonnements_partenaires"
+  );
+  if (partnerSyncError) {
+    return NextResponse.json({ error: "Échec de synchronisation des abonnements partenaires." }, { status: 500 });
+  }
+
+  const { data: partnerReminders, error: partnerReminderError } = await sb.rpc(
+    "emettre_rappels_abonnements_partenaires_5j"
+  );
+  if (partnerReminderError) {
+    return NextResponse.json({ error: "Échec d'émission des rappels partenaires J-5." }, { status: 500 });
+  }
+
   const { data, error } = await sb.rpc("claim_notification_email_outbox", { p_limit: 25 });
   if (error) {
     return NextResponse.json({ error: "Impossible de réclamer la file e-mail." }, { status: 500 });
@@ -112,7 +126,14 @@ export async function GET(req: Request) {
     else retried++;
   }
 
-  return NextResponse.json({ claimed: items.length, sent, retried, dead });
+  return NextResponse.json({
+    partnerExpired: partnerExpired ?? 0,
+    partnerReminders: partnerReminders ?? 0,
+    claimed: items.length,
+    sent,
+    retried,
+    dead,
+  });
 }
 
 const escapeHtml = (value: unknown) =>
