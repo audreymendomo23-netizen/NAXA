@@ -107,7 +107,7 @@ test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable, Partena
   assert.match(runtime, /Sous-navigation Promoteur → Livraisons du réseau/);
   assert.match(runtime, /Navigation latérale Promoteur → Livraisons du réseau/);
   assert.match(runtime, /Retour sidebar au tableau de bord Comptable/);
-  assert.match(runtime, /dashboardLink\\.click\\(\\)/);
+  assert.ok(runtime.includes("dashboardLink.click()"));
   for (const route of ["/client", "/client/profil/favoris", "/panier", "/resultats?q=paracetamol", "/client/historique"]) {
     assert.ok(runtime.includes(route), "Route Client absente du scénario : " + route);
   }
