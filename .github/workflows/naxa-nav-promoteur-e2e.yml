@@ -83,7 +83,7 @@ jobs:
             echo "::error::Le serveur local NAXA n'a pas démarré."
             exit 1
           fi
-      - name: Recette navigateur Promoteur, Comptable et Partenaire
+      - name: Recette navigateur Promoteur, Comptable, Partenaire et Client
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
           NAXA_E2E_ALLOW_TEMP_FIXTURES: "true"
