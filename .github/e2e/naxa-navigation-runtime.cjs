@@ -192,6 +192,25 @@ async function setActiveComptableRole(profile, accessToken) {
   console.log("PASS session et périmètre — Comptable Replay");
 }
 
+async function assertClientSession(profile, session) {
+  const client = createClient(PROJECT_URL, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: "Bearer " + session.accessToken } },
+  });
+  const [{ data: authData, error: authError }, { data: visibleProfile, error: profileError }] = await Promise.all([
+    client.auth.getUser(session.accessToken),
+    client.from("profiles").select("id,username,role,actif,age_verified").eq("id", profile.id).maybeSingle(),
+  ]);
+  if (authError) throw new Error("Client E2E Auth token invalide : " + authError.message);
+  assert.equal(authData.user?.id, profile.id, "L'identité Auth Client ne correspond pas au profil Replay.");
+  if (profileError) throw new Error("Lecture RLS du profil Client impossible : " + profileError.message);
+  assert.ok(visibleProfile, "Le profil Client est invisible sous son propre JWT.");
+  assert.equal(visibleProfile.role, "client");
+  assert.equal(visibleProfile.actif, true);
+  assert.equal(visibleProfile.age_verified, true);
+  console.log("PASS précontrôle JWT Client — profil personnel lisible, identité active et âge vérifié.");
+}
+
 async function signOutSession(session) {
   if (!session || !session.accessToken) return;
   const response = await fetch(PROJECT_URL + "/auth/v1/logout?scope=local", {
@@ -361,6 +380,7 @@ async function run() {
     sessions.push(comptableSession);
     const clientSession = await createExistingUserSession(partnerOwner);
     sessions.push(clientSession);
+    await assertClientSession(partnerOwner, clientSession);
 
     await setActiveComptableRole(comptable, comptableSession.accessToken);
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
@@ -471,7 +491,13 @@ async function run() {
     const clientContext = await browserContext(browser, clientSession, { width: 390, height: 844 });
     const clientPage = await clientContext.newPage();
     clientPage.setDefaultTimeout(20000);
-    await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
+    clientPage.on("pageerror", (error) => console.error("CLIENT PAGEERROR — " + error.message));
+    clientPage.on("console", (message) => { if (message.type() === "error") console.error("CLIENT CONSOLE — " + message.text()); });
+    clientPage.on("requestfailed", (request) => console.error("CLIENT REQUEST FAILED — " + request.method() + " " + request.url() + " — " + (request.failure()?.errorText || "unknown")));
+    const clientResponse = await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
+    const clientCookies = await clientContext.cookies(BASE_URL);
+    console.log("INFO Client route — HTTP " + (clientResponse?.status() ?? "none") + ", URL " + clientPage.url()
+      + ", cookies " + JSON.stringify(clientCookies.map(cookie => ({ name: cookie.name, value: cookie.name === "naxa-age-status-v2" ? cookie.value : "[masked]" }))));
     await expectPath(clientPage, "/client", "Ouverture espace Client");
     await expectPageHeading(clientPage, "Espace Client");
     await clientPage.evaluate(() => {
