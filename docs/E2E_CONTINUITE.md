@@ -6628,7 +6628,7 @@ La recette a été exécutée dans `BEGIN … ROLLBACK` ; elle n'a donc laissé 
 
 - Migration ajoutée : supabase/migrations/20261117143000_fix_delivery_pos_physical_stock_debit.sql.
 - Dans naxa_delivery_pos_encaisser, la vente brouillon est créée avec stock_decremented_at_draft=false. Le passage brouillon → payée déclenche alors le débit physique POS ; le trigger marque ensuite la vente et la réservation consommée.
-- Migration appliquée au projet Replay pwfftcsjyeibxxqhwysw uniquement. Aucun changement Production.
+- Migration appliquée au projet Replay pwfftcsjyeibxxqhwysw uniquement ; version enregistrée : 20261117131435. Aucun changement Production.
 - Contrat de non-régression ajouté à scripts/test-delivery-commercial-flow.cjs.
 - Recette transactionnelle ajoutée : supabase/tests/20261117144000_delivery_pos_stock_debit_replay.sql.
 
@@ -6656,6 +6656,6 @@ La vente POS est liée à la réservation B ; le débit constaté est exactement
 
 ### Qualité et périmètre
 
-- Le workflow qualité sur le HEAD 2c317eabe62864231266db8d3ad127f6405bcf70 est lancé ; résultat final à reporter après clôture.
+- Le workflow qualité correspondant au HEAD documentaire courant 7f77eac975a8d6abd0ffce0b27a32f22a4141fcb est le run 44091674612 : contrôle de syntaxe GitHub Actions PASS ; job Tests, TypeScript et lint encore en cours au dernier contrôle. Le run précédent sur 2c317eabe a été annulé par le remplacement du HEAD.
 - Chromium n'a pas été utilisé pour ce diagnostic précis : l'incohérence se situe dans le trigger PostgreSQL de débit POS. La preuve couvre la chaîne RPC réelle avec les identités Replay, pas une recette navigateur du checkout.
 - Aucun changement de ServiceWorker, aucun déploiement, aucune migration Production, aucune action Play Store.
