@@ -610,6 +610,7 @@ async function run() {
     await clientPage.locator("main h1").filter({ hasText: /^Mon panier$/ }).waitFor({ state: "visible" });
     await clientPage.getByText("Article local de recette", { exact: true }).waitFor({ state: "visible" });
     await clientPage.getByRole("button", { name: "+", exact: true }).click();
+    // Le compteur de quantité est ciblé dans la ligne du panier, hors badges de navigation.
     await clientPage.locator("main li output").filter({ hasText: /^2$/ }).waitFor({ state: "visible" });
     await clientPage.getByRole("button", { name: "Retirer", exact: true }).click();
     await clientPage.getByText("Votre panier est vide.", { exact: true }).waitFor({ state: "visible" });
