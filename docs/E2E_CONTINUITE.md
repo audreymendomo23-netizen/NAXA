@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§140)  
+**Dernière mise à jour :** 17 novembre 2026 (§142)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `084c7324b10dcddc62e86145168895e31f822020`  
+**HEAD contrôlé avant cette mise à jour :** `768db553312fa35186a6fe09ba1a9e88745a2c62`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5417,3 +5417,49 @@ Liens de preuve :
 **LOT B : JAUNE / PARTIEL — PAS AU VERT.**
 
 Les chaînes SQL métier Stock→Livraison et Client→Marketplace sont maintenant largement prouvées sur Replay. Les rouges restants sont des lacunes de navigation/accès et des parcours UI non prouvés, pas des échecs SQL constatés. La correction finale exige de réparer l'écran Promoteur Livraisons, de fournir une adhésion partenaire de recette conforme, puis d'exécuter les parcours navigateur complets. Aucun contournement de droits, aucune écriture persistante Replay, aucune migration Production, aucun déploiement Vercel.
+
+
+## 141. Rectification de l'audit Promoteur Livraisons et contrôle du périmètre (17/11/2026)
+
+Le constat §136 « page de route absente » est **obsolète et rectifié** : le fichier `src/app/pharmacie/promoteur/livraisons/page.tsx` existe sur `main`. La page authentifie l'utilisateur, exige un profil actif et la fonction métier `promoteur`, puis affiche `DeliveryFeesReport`. Le menu et l'onglet Promoteur pointent bien vers cette route.
+
+### Contrôle serveur Replay
+
+- Compte : `naxa_e2e_promoteur`, profil actif, fonction métier `promoteur`.
+- Réseau actif vérifié : trois pharmacies de recette, dont Mvan et Essos visibles, et une pharmacie de recette non commerciale masquée.
+- RPC `naxa_delivery_fees_report` et `naxa_delivery_monthly_due` exécutés sous JWT authentifié Promoteur.
+- Le rapport réseau retourne la forme attendue ; le décompte mensuel contient exactement les trois pharmacies affectées.
+- La demande explicite du rapport pour Mvan est acceptée ; la demande pour Bastos, hors réseau, est rejetée avec `Pharmacie hors réseau Promoteur`.
+- Exécution de recette en transaction terminée par `ROLLBACK`.
+
+**Résultat :** la route n'est plus rouge pour absence de fichier. Le contrôle SQL du périmètre Promoteur est PASS. La navigation navigateur et le rendu UI de cette page restent à vérifier ; ne pas confondre présence de route + RPC avec recette visuelle complète.
+
+## 142. Correction de la règle commerciale sur le décompte mensuel des livraisons (17/11/2026)
+
+### Contradiction et cause racine
+
+La fonction `public.naxa_delivery_monthly_due` incluait auparavant `commission_naxa` dans `total_mensuel_du`. Même si la table Replay ne contenait aucune ligne de commission (ledger vide), cette logique contredisait la règle métier NAXA : aucun prélèvement NAXA sur les frais de livraison ; le Promoteur ne doit voir que les abonnements des pharmacies de son réseau.
+
+### Correction versionnée et appliquée
+
+- Migration : `supabase/migrations/20261117001000_promoteur_delivery_monthly_due_subscription_only.sql`.
+- Commit migration : `2ef14bc8a83ab1ea93b10d8d5f75d9cc2b3a90ca`.
+- Migration appliquée sur Replay `pwfftcsjyeibxxqhwysw` uniquement.
+- `total_mensuel_du` est maintenant égal à l'abonnement de la pharmacie ; les champs de compatibilité `commissions_livraison`, `commission_a_payer` et `commission_deja_reglee` restent à zéro.
+- Le décompte conserve les livraisons à titre informatif et filtre les pharmacies actives non archivées du réseau Promoteur.
+- Test : `supabase/tests/312_lot_b_promoteur_delivery_report_scope.sql`, commit `768db553312fa35186a6fe09ba1a9e88745a2c62`.
+- Résultat Replay : `LOT_B_PROMOTEUR_DELIVERY_REPORT_NETWORK_SCOPE PASS` ; le test vérifie le nombre de pharmacies du réseau, l'absence de pharmacie hors réseau, le refus d'un filtre hors réseau, la structure du rapport et l'absence de toute commission dans le calcul mensuel.
+- La table ledger était vide avant la correction : zéro ligne, zéro commission enregistrée. Aucun historique financier n'a été modifié.
+
+### État révisé des points à fermer
+
+| Point | État exact au 17/11/2026 |
+|---|---|
+| Route Promoteur Livraisons | **PASS code / PASS SQL scope** ; test navigateur encore requis |
+| Décompte abonnement Promoteur | **PASS SQL Replay**, règle sans commission corrigée |
+| Accès Partenaire Examens | **ROUGE** : Replay ne contient aucun partenaire ni membre ; aucun compte E2E dédié Partenaire n'est disponible. Ne pas réutiliser un compte Client/Promoteur en contournant les rôles |
+| Parcours navigateur Marketplace Client | **JAUNE** : non démontré dans cette passe |
+| Parcours UI Ordonnance et Assurance | **JAUNE** : les moteurs SQL antérieurs passent, mais les chaînes UI complètes restent non prouvées |
+| CI du HEAD | **NON VÉRIFIÉ** : GitHub ne retourne aucun status ni run associé au commit `768db553312fa35186a6fe09ba1a9e88745a2c62` |
+
+**Verdict Lot B : JAUNE / PARTIEL.** Le faux rouge de route absente est levé et le calcul des frais mensuels est aligné sur la règle commerciale. Le vrai blocage Partenaire et les parcours UI restent ouverts. Aucune modification Production ni aucun déploiement.
