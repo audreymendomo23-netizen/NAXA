@@ -649,6 +649,33 @@ async function run(env = process.env) {
     await cashierPage.getByText("Session ouverte", { exact: true }).waitFor();
     const refundSection = cashierPage.locator("#caisse-remboursements-credit");
     await refundSection.getByRole("heading", { name: "Remboursement des crédits clients", exact: true }).waitFor();
+
+    // Les comptes sont créés par la RPC officielle avant le rendu du formulaire.
+    // Forcer ensuite leur chargement via la même action visible qu'un caissier
+    // utilise lorsqu'un canal n'est pas encore affiché, puis attendre la sélection
+    // effective : la seule présence des comptes en base ne suffit pas.
+    for (const channel of refundPlans) {
+      const channelLabel = channel.channel === "especes" ? "Espèces"
+        : channel.channel === "orange_money" ? "Orange Money" : "MTN MoMo";
+      const channelLabelLocator = refundSection.locator("label").filter({ hasText: channelLabel }).first();
+      const channelSelect = channelLabelLocator.locator("select");
+      await channelSelect.waitFor({ state: "visible" });
+      if (!(await channelSelect.inputValue())) {
+        const channelRow = channelLabelLocator.locator("xpath=..");
+        const createAccountButton = channelRow.getByRole("button", { name: "Créer compte à 0 FCFA", exact: true });
+        await createAccountButton.waitFor({ state: "visible" });
+        await createAccountButton.click();
+      }
+      await cashierPage.waitForFunction((label) => {
+        const section = document.querySelector("#caisse-remboursements-credit");
+        if (!section) return false;
+        const field = [...section.querySelectorAll("label")]
+          .find(item => (item.textContent || "").trim().startsWith(label));
+        const select = field?.querySelector("select");
+        return Boolean(select && select.value);
+      }, channelLabel, { timeout: 30000 });
+    }
+
     const refundClientSelect = refundSection.locator("label").filter({
       hasText: "Client et compte crédit",
     }).locator("select");
