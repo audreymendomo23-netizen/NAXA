@@ -7099,3 +7099,23 @@ La reprise a confirmé le moteur de crédit et identifié le prochain manque fon
 Le chantier demeure **NON VERT**. Les blocages sont concrets et indépendants : contrat SQL espèces-only, absence d'interface Caisse de remboursement, absence de canal/idempotence et de RPC d'écriture trésorerie, absence de comptes de trésorerie Replay, absence de tests transactionnels multicanaux et de preuve E2E.
 
 Le vert exige, dans cet ordre : créer la migration avec la CLI dans le dépôt local ; implémenter le RPC versionné et idempotent + mapping obligatoire des comptes ; appliquer uniquement sur Replay ; tester espèces/Orange/MTN, autorisations, sessions, solde, doublons, rollback et outbox ; construire l'interface Caisse, reçu et journal partenaire ; exécuter la recette E2E et les contrôles de sécurité ciblés ; versionner les preuves sur `main`. Aucun remboursement ne doit être simulé ou posté dans la trésorerie pour obtenir artificiellement un résultat vert.
+
+
+## 196. Audit approfondi des dépendances SQL — contraintes, outbox et sécurité d'exécution — 17/11/2026
+
+### Vérifications complémentaires effectuées après la demande de remise au vert
+
+- Le schéma réel de `client_credit_operations` ne comporte actuellement ni clé d'idempotence ni colonnes de preuve de contrôle visuel. Les index recensés couvrent le périmètre pharmacie, la session Caisse, le mode de paiement et l'unicité d'une vente à crédit ; aucun index n'empêche deux remboursements distincts issus d'une double soumission.
+- Les colonnes réelles de `tresorerie_mouvements` et `tresorerie_comptes` ont été réinterrogées. Le compte ne porte aucune métadonnée opérateur (Orange/MTN), et le mouvement n'a pas de champ canal/idempotence.
+- La contrainte SQL `tresorerie_mouvements_source_type_check` n'autorise que `depense`, `vente`, `ajustement` et `transfert`. Une insertion de mouvement `credit_remboursement` échouerait avant même la question du compte cible. Toute migration doit faire évoluer cette contrainte explicitement et préserver les quatre valeurs historiques.
+- Les deux triggers existants sur `client_credit_operations` appellent `compta_emettre_octroi_credit()` et `compta_emettre_remboursement_credit()`. L'insertion du remboursement déclenche donc déjà l'outbox comptable : le futur contrat doit préserver ce déclenchement une seule fois, sans le dupliquer depuis le client.
+- Les helpers d'autorisation réellement utilisés ont été inspectés : `naxa_caisse_actor_for_pharmacy(uuid)`, `can_operate_pharmacy(uuid)` et `is_admin()`. Le nouveau RPC devra appeler le contrôle Caisse dédié et conserver la session ouverte détenue par `auth.uid()`, plutôt que de s'appuyer uniquement sur le rôle générique.
+- Le retour de l'advisor Supabase de Replay inclut des constats de sécurité globaux (RLS sans policy sur plusieurs tables et fonctions SECURITY DEFINER exposées). Ils ne sont pas corrigés en bloc : une correction non ciblée risquerait de casser des flux hors périmètre. Une revue fonction par fonction et table par table reste requise avant le vert sécurité global.
+
+### Décision d'architecture confirmée
+
+Le remboursement et son mouvement de trésorerie doivent être une seule unité transactionnelle. Le mapping pharmacie + canal vers un compte actif doit être explicite et administrable ; Orange Money et MTN MoMo ne doivent pas être fusionnés dans un compte générique sans identifiant de canal. Une clé idempotente doit être fournie par le client et persistée avec contrainte unique. La création du mouvement et l'insertion de l'opération doivent partager la même transaction PostgreSQL, de façon à ce que l'échec du mapping ou du mouvement annule également la baisse du solde crédit. L'outbox comptable existante doit être conservée comme source unique d'émission de l'événement comptable.
+
+### Limite de cette passe
+
+Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifié aucun écran. La base Replay ne dispose toujours d'aucun compte de trésorerie ; les tests positifs Orange/MTN ne peuvent pas être considérés réussis sans configuration explicite et acteurs Caisse autorisés. Aucun faux compte, faux utilisateur, remboursement ou mouvement n'a été créé pour produire un résultat artificiel. Le statut demeure **NON VERT**.
