@@ -53,6 +53,16 @@ test("la recette soumet le remboursement depuis l'interface Caisse et vérifie r
   assert.match(source, /verification_effectuee_par/);
   assert.match(source, /NAXA-E2E-CREDIT-BROWSER-ORANGE/);
   assert.match(source, /NAXA-E2E-CREDIT-BROWSER-MTN/);
+  assert.match(source, /async function ensureTreasuryAccount\(channel\)/);
+  assert.match(source, /treasuryAccountByChannel\[plan\.channel\]/);
+  assert.match(source, /refundSection\.locator\('input\[type="checkbox"\]'\)/);
+  assert.match(source, /confirmations\.count\(\) !== 3/);
+  assert.match(source, /waitForFunction\(\(\) => \{/);
+  assert.match(source, /refundTicket\.getByRole\("button", \{ name: "Fermer"/);
+  assert.match(source, /movement\.compte_id !== treasuryAccountByChannel\[plan\.channel\]/);
+  assert.match(source, /events\.length !== 1/);
+  assert.match(source, /cashDrawerTotal/);
+  assert.doesNotMatch(source, /ensureCashTreasuryAccount/);
 });
 
 test("la pharmacie de recette reste active et masquée au catalogue public", () => {
