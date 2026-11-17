@@ -1,6 +1,6 @@
 -- Contrat des événements métier e-mail NAXA. Aucun e-mail n'est envoyé.
 begin;
-do $$
+do $contract$
 declare v_table regclass;
 begin
   v_table:=to_regclass('private.email_delivery_outbox');
@@ -40,6 +40,6 @@ begin
     or not has_function_privilege('service_role','public.emettre_rappels_conventions_prestations_email()','execute') then
     raise exception '264 FAIL: droits worker service_role absents';
   end if;
-end $;
+end $contract$;
 select '264 business email events contract PASS' as resultat;
 rollback;
