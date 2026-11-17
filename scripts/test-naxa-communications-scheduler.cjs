@@ -80,7 +80,7 @@ test("Google Apps Script ne double-dispatche pas les rappels Push", () => {
   assert.equal(gasSource.split("UrlFetchApp.fetch(").length - 1, 1);
   assert.match(gasSource, /\/api\/cron\/validite/);
   assert.doesNotMatch(gasSource, /posologie|Web Push|pg_cron/i);
-  assert.match(gasSource, /NAXA_WORKER_URL doit cibler https:\/\/nnaxa\\.vercel\\.app\\/api\\/cron\\/validite/);
+  assert.match(gasSource, /NAXA_WORKER_URL doit cibler https:\/\/nnaxa\.vercel\.app\/api\/cron\/validite/);
 });
 
 test("le worker Push ne renvoie pas un faux vert lorsqu'un sous-traitement échoue", () => {
