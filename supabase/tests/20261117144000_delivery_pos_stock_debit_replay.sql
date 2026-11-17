@@ -76,6 +76,9 @@ BEGIN
     SET prix=1000,quantite=3,date_peremption=current_date+90,updated_at=now();
   SELECT quantite INTO v_stock_b_before FROM public.stocks WHERE pharmacie_id=v_pharmacy_b AND produit_id=v_product FOR UPDATE;
   IF v_stock_b_before<>3 THEN RAISE EXCEPTION 'Fixture stock Mvan incorrecte'; END IF;
+  INSERT INTO public.stocks_couts(pharmacie_id,produit_id,cout_unitaire)
+  VALUES(v_pharmacy_b,v_product,500)
+  ON CONFLICT(pharmacie_id,produit_id) DO UPDATE SET cout_unitaire=excluded.cout_unitaire,updated_at=now();
 
   -- Les deux pharmacies sont activées pour la livraison uniquement dans cette transaction.
   -- Mvan est une fixture demo ; on désactive ce marqueur uniquement dans la transaction pour tester le même garde Marketplace qu'une pharmacie réelle. ROLLBACK le restaure.
