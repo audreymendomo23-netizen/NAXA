@@ -6805,3 +6805,63 @@ Le calcul automatique du total et de la monnaie rendue existe déjà et a été 
 6. Ajouter la vue Promoteur détaillant espèces, Orange Money, MTN MoMo, total et écarts ; garder la clôture du tiroir espèces distincte.
 
 **Statut : NON VERT.** Audit approfondi documenté ; aucune correction de code, migration Replay, mutation de données, modification Production ou déploiement effectués. Les tests fonctionnels mobiles et le ledger restent à construire et à prouver.
+
+
+## 191. Exigence transversale — origine de l'opération et canal de paiement — 17/11/2026
+
+### Décision métier à intégrer avant toute modification du code
+
+Le partenaire (pharmacie / Promoteur selon ses droits) doit pouvoir identifier, pour chaque opération financière, **l'événement métier qui l'a générée** et **le canal ou mode de règlement utilisé**. Ces deux dimensions sont obligatoires, indépendantes et visibles ensemble dans les historiques, tickets/reçus, journaux, tableaux de bord et vues de trésorerie.
+
+**Dimension A — Événement / origine de l'opération**
+- **Marketplace · Réservation** : encaissement lié à une réservation Marketplace.
+- **Marketplace · Livraison** : encaissement lié à une commande remise/livrée via le parcours de livraison.
+- **Marketplace · Crédit** : opération de crédit initiée depuis le parcours Marketplace.
+- **Comptoir** : vente immédiate créée au POS physique, avec ou sans compte client.
+
+**Dimension B — Canal / mode de règlement**
+- **Espèces**.
+- **Orange Money**.
+- **Mobile Money (MTN MoMo)** — libellé métier « Mobile Money » ; le fournisseur doit rester identifiable en donnée pour éviter de confondre Orange et MTN.
+- **Crédit** — créance/vente à terme, et non encaissement de trésorerie. Un crédit ne doit pas augmenter artificiellement le solde d'un canal encaissé.
+
+Exemples qui doivent rester correctement distingués :
+- Marketplace · Réservation + Espèces.
+- Marketplace · Livraison + Orange Money.
+- Marketplace · Crédit + Crédit (créance Marketplace, sans encaissement).
+- Comptoir + Mobile Money (MTN MoMo).
+- Comptoir + Crédit (créance comptoir, sans encaissement).
+
+La catégorie d'événement ne doit jamais être déduite du canal, ni le canal déduit de l'événement. Une réservation réglée en espèces reste un événement Marketplace ; une vente comptoir réglée par Orange Money reste un événement Comptoir.
+
+### Règles de données et de cohérence
+
+1. Conserver séparément une origine métier normalisée (marketplace_reservation, marketplace_livraison, marketplace_credit, comptoir) et un canal normalisé (especes, orange_money, mobile_money avec fournisseur MTN explicite, credit). Les libellés affichés sont centralisés et cohérents dans toute l'application.
+2. Chaque opération doit garder ses identifiants de source (réservation, livraison/commande, dossier de crédit ou vente POS), pharmacie, montant dû, montant effectivement encaissé, éventuel rendu, devise FCFA, acteur, horodatage, statut et référence éventuelle. L'origine doit être conservée lors des conversions/rattachements à une vente et lors des réimpressions.
+3. **Crédit est un mode de financement / une créance, pas un encaissement.** L'ouverture d'un crédit ou la vente à crédit doit créer/mettre à jour la créance et son échéancier/solde sans mouvement d'entrée de trésorerie. Chaque remboursement ultérieur constitue un événement d'encaissement distinct, avec son propre canal réel et son lien vers le crédit d'origine.
+4. Pour les paiements comptoir en espèces, la caissière saisit le montant remis ; le système calcule le rendu et bloque si le reçu est inférieur au dû.
+5. Pour les paiements comptoir Orange Money / Mobile Money, le client présent montre sa confirmation sur son téléphone ; la caissière vérifie visuellement le bénéficiaire, le montant et la confirmation, puis valide explicitement. Aucun SMS à transmettre à NAXA, aucune API opérateur ni rapprochement automatique ne sont requis pour ce parcours physique. La preuve conserve au minimum l'acteur, l'heure et le fait que le contrôle visuel a été déclaré ; une référence peut être facultative.
+6. Les parcours Marketplace distants conservent leurs contrôles propres (réservation, livraison, crédit et preuve/validation déjà applicables). Ne pas étendre la validation visuelle comptoir aux paiements distants et ne pas affaiblir leurs gardes.
+7. Un seul événement financier source doit alimenter une seule fois le ledger commun, avec une clé d'idempotence stable. Les transferts entre comptes/canaux créent deux mouvements liés et équilibrés ; les remboursements, annulations et régularisations gardent le lien à l'opération initiale. Le crédit ne doit jamais être compté simultanément comme vente encaissée et créance.
+8. Le partenaire voit les colonnes/attributs « Événement » et « Canal » dans les listes et détails, ainsi que les soldes encaissés par canal. La vue Promoteur agrège les soldes espèces, Orange Money et MTN MoMo, plus total ; les créances Crédit restent séparées. La clôture du tiroir espèces reste distincte du rapprochement global de trésorerie.
+9. Les données historiques dont l'origine ne peut être prouvée ne doivent pas être reclassées par supposition. Prévoir une valeur historique « origine non déterminée » si nécessaire, et un contrôle de migration avant toute reprise des anciens paiements.
+
+### Audit complémentaire initial — éléments établis à ce stade
+
+- L'écran POS src/app/pharmacie/caisse/page.tsx présente actuellement un paiement espèces et un bouton de vente à crédit distinct ; il ne propose pas le choix Orange Money / Mobile Money et son ticket affiche principalement le mode de paiement, sans taxonomie unifiée de l'événement.
+- La base Replay expose déjà ventes.reservation_id, ventes.mode_paiement, ventes.paiement_ref, vente_paiements.mode, reservations.paiement_mode, reservations.paiement_statut, reservations.credit_request_id et les champs de cycle de livraison dans reservations. Ces champs fournissent des liens utiles, mais ne constituent pas à eux seuls une classification transverse normalisée et démontrée dans les vues partenaire.
+- tresorerie_mouvements possède source_type et source_id, mais pas de champ dédié et explicite pour le couple événement + canal ; tresorerie_comptes possède un type générique mobile_money, qui ne distingue pas à lui seul Orange Money de MTN MoMo. Il faut auditer les contraintes, RPC, triggers, vues et écrans avant de choisir une migration.
+- Le schéma de vente_paiements contient mode, montant dû, référence, acteur, date, montant perçu et monnaie rendue. Le schéma consulté ne montre pas de colonne dédiée à la vérification visuelle ; celle-ci doit être représentée de façon explicite et auditée si elle est introduite.
+- Le précédent audit section 190 a déjà établi que les flux POS, réservation et livraison sont distincts et que leur alimentation d'un ledger commun n'est pas démontrée. Le présent ajout ne doit pas créer un second moteur de paiement : il doit relier les flux existants à une classification commune et à un journal financier idempotent.
+
+### Préparation d'implémentation — ordre et critères de sortie
+
+1. Cartographier tous les producteurs et consommateurs d'opérations financières : POS, réservations, livraison, crédit et remboursements ; RPC, triggers, outbox, vues, hooks TypeScript, historiques, reçus, tableau Promoteur et trésorerie.
+2. Définir un contrat de données unique (origine, canal, fournisseur, statut, montants, source_id, idempotency_key, acteur/horodatage, preuve comptoir) et les règles de compatibilité des anciennes lignes.
+3. Concevoir une migration Replay additive, sécurisée RLS/RPC, sans modifier Production ; vérifier les contraintes et les écritures atomiques avant de la créer dans le dépôt.
+4. Brancher chaque flux existant sur le contrat commun sans changer les règles propres de validation Marketplace ; empêcher les doubles écritures et séparer encaissements et créances.
+5. Ajouter les libellés Événement + Canal dans les écrans partenaires, détails, tickets et vues Promoteur ; rendre les filtres cohérents.
+6. Tester sur Replay chaque combinaison utile : Réservation/Espèces, Réservation/Orange, Livraison/Mobile Money, Crédit/Crédit, Comptoir/Espèces avec rendu, Comptoir/Orange avec contrôle visuel, Comptoir/Mobile Money avec contrôle visuel, Comptoir/Crédit ; vérifier annulation, remboursement, idempotence, stock, ledger et agrégats.
+7. Vérifier que les anciennes opérations sont conservées, que les données non classifiables restent explicitement non déterminées et qu'aucun solde n'est doublé.
+
+**Statut : NON VERT — spécification ajoutée avant l'implémentation.** À la date de cette section, aucune correction de code, migration, écriture de données Replay, modification Production ou déploiement n'a été effectué pour cette nouvelle exigence. La cartographie approfondie et la conception détaillée restent à finaliser avant toute modification applicative.
