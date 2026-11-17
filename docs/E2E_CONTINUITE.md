@@ -6255,3 +6255,9 @@ Exécution séquentielle des scripts transactionnels, chacun terminé par ROLLBA
 **Décision technique :** ne pas remplacer aveuglément des objets `URL` par des chaînes ni modifier les RPC avant d'avoir la pile ServiceWorker et les réponses HTTP 400 capturées par ce run. Après réception des logs, corriger chaque cause prouvée, relancer la recette Replay, puis vérifier le nettoyage des fixtures.
 
 **Périmètre :** aucun changement de schéma ou de donnée Production, aucune migration, aucun déploiement Vercel, aucun changement Play Store.
+
+
+### Complément §174 — masquage et relance du 17/11/2026
+
+- Commit complémentaire [7971e7bcca9dc7a2f86bcd44213daa9c01196d37](https://github.com/audreymendomo23-netizen/NAXA/commit/7971e7bcca9dc7a2f86bcd44213daa9c01196d37) : correction du motif de masquage des préfixes téléphoniques internationaux dans les diagnostics.
+- Nouvelle exécution déclenchée sur ce HEAD : qualité [44048215108](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048215108) et navigateur Replay [44048214981](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44048214981). Les deux runs étaient encore en attente au dernier relevé ; aucun résultat de recette ne leur est attribué à ce stade.
