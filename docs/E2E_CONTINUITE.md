@@ -6993,3 +6993,13 @@ La reprise a confirmé le moteur de crédit et identifié le prochain manque fon
 - Répartition des demandes : 21 demandes Comptoir approuvées, 1 demande Comptoir rejetée et 21 demandes Marketplace rejetées ; aucune demande en attente dans cet instantané.
 - Les tables client_credits, client_credit_requests et client_credit_operations n'accordent à authenticated que SELECT ; les écritures métier passent par les RPC contrôlées. Leurs politiques de lecture limitent les lignes au Client concerné, à l'Admin ou aux profils ayant accès à la pharmacie.
 - tresorerie_mouvements est également en lecture seule pour authenticated, avec filtrage Admin / accès pharmacie. Toute alimentation doit passer par une RPC contrôlée, pas par INSERT client.
+
+### ServiceWorker — correction du DataCloneError et du nettoyage cache (17/11/2026)
+
+- Cause technique : le `SerwistProvider` active par défaut `cacheOnNavigation`. Son intégration intercepte `history.pushState` et `history.replaceState`, puis envoie l'argument de navigation au worker via `messageSW` dans `CACHE_URLS`. Un objet `URL` passé comme troisième argument de navigation n'est pas structurable-clonable par Chromium et provoque `DataCloneError`.
+- Correction appliquée : `cacheOnNavigation={false}` dans `src/app/layout.tsx`. Le provider ne poste plus les paramètres d'historique au worker. Les stratégies `NetworkFirst` définies dans `worker/sw.ts` restent responsables des routes publiques explicitement déclarées et de `/connexion`.
+- Second défaut corrigé : `CacheVersionGuard` supprime désormais uniquement les noms exacts des trois anciens caches connus (`naxa-pharmacy-login-v4`, `naxa-navigation-v4`, `naxa-production-refresh-20261018`). Les caches actifs `naxa-pharmacy-login-v5` et `naxa-navigation-public-v1` ne correspondent plus à la sélection de suppression.
+- Non-régression ajoutée dans `scripts/test-pwa-security.cjs` : présence de la désactivation du hook Serwist, démonstration de l'échec de structured clone sur le message contenant un objet `URL`, et vérification que les deux noms de caches actifs ne sont pas supprimés.
+- Périmètre : aucun changement au worker de notifications `/naxa-push-sw.js`, aux règles métier ERP, aux données Supabase ou aux variables d'environnement.
+- Preuve d'exécution : tests de contrat ajoutés au dépôt. Le cycle navigateur (installation/activation, navigation SPA, mode hors ligne et mise à jour du worker) doit encore être exécuté dans Chromium avant de déclarer l'ensemble PWA **VERT**. Aucun déploiement Production n'est demandé ni effectué dans cette correction.
+

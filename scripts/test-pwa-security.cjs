@@ -8,6 +8,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"))
 const nextConfig = fs.readFileSync(path.join(root, "next.config.mjs"), "utf8");
 const serwistConfig = fs.readFileSync(path.join(root, "serwist.config.js"), "utf8");
 const layout = fs.readFileSync(path.join(root, "src/app/layout.tsx"), "utf8");
+const cacheGuard = fs.readFileSync(path.join(root, "src/components/CacheVersionGuard.tsx"), "utf8");
 const worker = fs.readFileSync(path.join(root, "worker/sw.ts"), "utf8");
 
 test("la PWA utilise Serwist maintenu et retire next-pwa/Workbox legacy", () => {
@@ -25,7 +26,38 @@ test("la PWA utilise Serwist maintenu et retire next-pwa/Workbox legacy", () => 
   assert.match(serwistConfig, /additionalPrecacheEntries/);
   assert.match(serwistConfig, /url: "\/offline\.html"/);
   assert.match(layout, /SerwistProvider swUrl="\/sw\.js"/);
+  assert.match(layout, /cacheOnNavigation=\{false\}/);
   assert.match(worker, /new Serwist\(/);
+});
+
+test("Serwist ne poste plus les URL de navigation au ServiceWorker", () => {
+  assert.match(layout, /cacheOnNavigation=\{false\}/);
+  const navigationMessage = {
+    type: "CACHE_URLS",
+    payload: { urlsToCache: [new URL("https://naxa.example/catalogue")] },
+  };
+  assert.throws(() => structuredClone(navigationMessage), { name: "DataCloneError" });
+});
+
+test("le garde-cache supprime uniquement les anciennes générations exactes", () => {
+  assert.match(cacheGuard, /OBSOLETE_CACHE_NAMES = new Set/);
+  assert.match(cacheGuard, /OBSOLETE_CACHE_NAMES\.has\(name\)/);
+  assert.doesNotMatch(cacheGuard, /startsWith\("naxa-pharmacy-login"/);
+  assert.doesNotMatch(cacheGuard, /startsWith\("naxa-navigation"/);
+
+  const names = [
+    "naxa-pharmacy-login-v4",
+    "naxa-navigation-v4",
+    "naxa-production-refresh-20261018",
+    "naxa-pharmacy-login-v5",
+    "naxa-navigation-public-v1",
+  ];
+  const obsolete = new Set([
+    "naxa-pharmacy-login-v4",
+    "naxa-navigation-v4",
+    "naxa-production-refresh-20261018",
+  ]);
+  assert.deepEqual(names.filter((name) => obsolete.has(name)), names.slice(0, 3));
 });
 
 test("les caches navigation n'acceptent que les routes publiques déclarées", () => {
