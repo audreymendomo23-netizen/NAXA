@@ -60,11 +60,6 @@ export default function FinaliserBebeMamanPage() {
     );
   }, [bebeMaman]);
 
-  const proprietaire = (line: (typeof bebeMaman)[number]) => ({
-    type: line.owner_type ?? (line.pharmacie_id ? "pharmacie" : line.partner_id ? "parapharmacie" : undefined),
-    id: line.owner_id ?? line.pharmacie_id ?? line.partner_id,
-  });
-
   const total = bebeMaman.reduce(
     (sum, line) => sum + Number(line.prix_unitaire_fcfa || 0) * line.quantite,
     0,
