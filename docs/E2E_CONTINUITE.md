@@ -5135,3 +5135,29 @@ Liens de preuve :
 4. Ne pas assouplir le test, ne pas augmenter la fenêtre de réutilisation, et ne pas ajouter de garde applicative avant d'avoir établi l'état réel du paramètre natif.
 
 **Verdict : NON VERT — défaut de révocation complète observé dans Replay ; état ON/OFF du commutateur Dashboard encore inconnu.** Les deux autres points du lot (Web Push et Crédit) restent verts selon §128.
+
+## 130. Confirmation utilisateur du réglage de détection Auth (17/11/2026)
+
+**Périmètre :** Replay uniquement. Aucun changement de réglage, aucune écriture SQL, aucune modification de code applicatif, aucune action Production/Vercel/Play Store.
+
+### Information Dashboard confirmée par l'utilisateur
+
+- L'utilisateur confirme que l'option « Détecter et révoquer les jetons d'actualisation potentiellement compromis » apparaît cochée dans Supabase Replay. Il précise que le libellé est affiché en gris.
+- Cette confirmation est une observation utilisateur de l'interface ; aucune lecture machine de la configuration Auth n'est disponible via les connecteurs. Ne pas interpréter la couleur grise du libellé comme un état OFF.
+- L'intervalle reste 10 secondes et l'expiration du JWT d'accès reste 3 600 secondes. Aucun réglage n'est modifié.
+
+### Contradiction avec le comportement documenté
+
+- La documentation Supabase [User sessions](https://supabase.com/docs/guides/auth/sessions) (mise à jour le 19/10/2026) précise qu'un rejeu qui ne relève ni de la fenêtre de réutilisation, ni du parent du refresh token actif, doit terminer toute la session et révoquer tous les refresh tokens.
+- La séquence E2E T1→T2→T3, attente de 15 secondes, rejeu de T1, est construite pour être hors de ces deux exceptions. Les observations Replay du §129 montrent pourtant que T3 est accepté après le refus de T1 et que T4 est créé.
+- Avec l'option rapportée comme cochée, le réglage Dashboard n'est plus une explication suffisante à lui seul. La cause exacte reste non établie : défaut d'application côté instance Auth Replay ou comportement serveur à faire confirmer par Supabase. Ne pas attribuer la faute à l'application NAXA sans preuve.
+
+### Décision
+
+1. Ne pas modifier le commutateur ni les valeurs 10 s / 3 600 s.
+2. Ne pas modifier le test E2E et ne pas ajouter de contournement applicatif.
+3. Escalader auprès de Supabase avec le projet Replay `pwfftcsjyeibxxqhwysw`, l'ID de session `53e61ccd-0f96-4c30-9a88-38feacd65049`, le run [Replay E2E #261](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/43972075922), les heures `22:46:23.130Z` (T1 rejeté) et `22:46:23.502Z` (T3 accepté), ainsi que les états DB consignés au §129.
+4. Reprendre le verdict vert uniquement après une correction confirmée et une nouvelle preuve : T1 rejeté, T3 rejeté, session supprimée de `auth.sessions`.
+
+**Verdict : NON VERT — réglage déclaré coché par l'utilisateur, mais comportement Replay contraire au comportement documenté. Escalade Supabase nécessaire ; aucune modification de contournement.**
+
