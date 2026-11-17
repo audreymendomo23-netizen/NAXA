@@ -8,6 +8,7 @@ const { createServerClient } = require("@supabase/ssr");
 const { chromium } = require("playwright");
 
 const PROJECT_REF = "pwfftcsjyeibxxqhwysw";
+const TEMP_PARTNER_NAME = "NAXA E2E Replay — Centre examens";
 const PROJECT_URL = "https://" + PROJECT_REF + ".supabase.co";
 const BASE_URL = process.env.NAXA_E2E_WEB_BASE_URL || "http://127.0.0.1:3000";
 const PHARMACY_ID = "76dd4983-273a-4a83-ae3d-9a7838d3aa35";
