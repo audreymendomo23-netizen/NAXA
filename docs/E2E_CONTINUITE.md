@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§221)  
+**Dernière mise à jour :** 18 novembre 2026 (§226)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `cf3807fe248e454ceae1d4f8bf11c94c1089572f`  
+**HEAD contrôlé avant cette mise à jour documentaire :** commit de continuité Livechat §225 ; le commit exact est celui du dépôt `main` au moment de l'écriture.  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -8133,3 +8133,75 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - **Verdict : AU VERT pour le périmètre FAQ / Assistance / Livechat Client + tous les rôles professionnels listés, sur Supabase Replay.** Ce verdict est limité à ce périmètre et à l'environnement Replay ; il ne certifie pas le lancement global de NAXA.
 - Aucun accès ou changement Supabase Production, aucune migration Production et aucun déploiement. Les workflows ont explicitement vérifié et refusé la cible Production.
 - **Point de reprise :** aucun défaut restant identifié dans le périmètre testé. Conserver les runs `44392083795` (E2E) et `44392083818` (qualité) comme preuves de clôture.
+
+
+## §226 — Cahier des charges des appels audio Livechat — 18/11/2026
+
+**DÉCISION UTILISATEUR : OPTION 3 — ROUTAGE HYBRIDE VALIDÉ.**
+L'agent Admin affecté au ticket est sollicité en premier. En cas d'indisponibilité, de refus ou d'absence de réponse dans le délai, la demande bascule dans la file centrale des agents Admin autorisés et disponibles.
+
+### Périmètre fonctionnel V1
+
+- Appels audio uniquement, de bout en bout, depuis le Livechat et toujours liés à un ticket d'assistance existant.
+- Client et chacun des profils professionnels (Promoteur, Responsable, Pharmacien, Gestionnaire stock, Comptable, Caisse, Livreur) peuvent initier un appel avec l'Admin, sous réserve de leurs droits sur le ticket. Aucun passage obligatoire par le Promoteur ou le Responsable.
+- Le Livechat écrit, les pièces jointes, les notifications et le cycle de vie du ticket sont conservés.
+- Actions : demander, accepter, refuser, annuler, raccrocher, couper/rétablir le micro, activer/désactiver le haut-parleur, revenir au chat.
+- États visibles : demandé, recherche agent, agent sollicité, attente acceptation, connexion, en cours, reconnexion, terminé, refusé, annulé, échoué.
+- Un seul appel actif par ticket/demandeur et un seul agent participant responsable. L'acceptation concurrente est atomique.
+- Si aucun agent ne répond, retour au chat écrit et proposition de rappel ; aucun appel fantôme ou double appel.
+- V1 exclut vidéo, conférence, transfert agent-à-agent, appels sans ticket, appels téléphoniques/WhatsApp et enregistrement audio.
+
+### Routage hybride
+
+1. Solliciter l'agent Admin affecté au ticket s'il est actif, autorisé et disponible.
+2. En cas de refus, hors ligne ou expiration du délai de sonnerie, proposer la demande à la file centrale.
+3. Un agent central autorisé prend la demande ; une transaction/commande serveur atomique garantit qu'un seul agent gagne.
+4. Si aucun agent central n'est disponible avant expiration, terminer proprement la demande et conserver le chat comme canal de secours.
+5. Une fermeture de ticket, suspension ou révocation d'accès interdit ou interrompt l'appel.
+
+Valeurs initiales configurables proposées pour la recette : 20 secondes de sonnerie agent affecté, 60 secondes en file centrale, 20 secondes de tentative de reconnexion. Ce sont des paramètres proposés, non des délais déjà implémentés ou validés.
+
+### Architecture technique cible
+
+- Interface Livechat : contrôles d'appel, états, permissions micro et compatibilité mobile/desktop.
+- API serveur NAXA : authentification, autorisation ticket/agent, création de demande, routage, acceptation atomique, révocation et clôture.
+- PostgreSQL/Supabase : métadonnées d'appel, participants autorisés, états et journal d'événements ; RLS stricte par ticket et rôle.
+- Supabase Realtime : signalisation et synchronisation des états uniquement ; jamais le transport du flux audio.
+- WebRTC : transport audio chiffré entre participants.
+- STUN/TURN : découverte réseau et relais média. TURN opérationnel en production requis pour les réseaux mobiles, NAT et pare-feu.
+- Signalisation SDP/ICE sur canal authentifié privé, autorisée uniquement aux participants, avec durée de vie limitée.
+- Secrets TURN conservés côté serveur ; identifiants TURN temporaires ; HTTPS/WSS ; aucune clé de service dans le client.
+- Tables proposées, à confirmer après audit du schéma existant : `support_calls`, `support_call_participants`, `support_call_events`. Les données SDP/ICE sont éphémères, non conservées dans l'historique métier.
+- Cycle : validation serveur → autorisation courte → signalisation → permission micro explicite → ICE/WebRTC → média audio → clôture → révocation jetons/canaux → journal métadonnées.
+
+### Sécurité et confidentialité
+
+- Microphone jamais activé sans permission explicite du système et indicateur visible ; arrêt à la fin de l'appel.
+- Aucun enregistrement audio, fichier vocal ou transcription par défaut.
+- Pas de canal Realtime public ; pas d'accès au ticket complet pour les agents de file non encore autorisés.
+- Vérification serveur à chaque action sensible ; RLS et API doivent bloquer l'accès inter-ticket même si l'interface est contournée.
+- Suspension, fermeture ticket, révocation ou perte des droits entraînent le refus ou l'arrêt de la session.
+- Détection des sessions orphelines, expiration des demandes, anti-double acceptation et reconnexion bornée.
+- Métadonnées minimales : ticket, participants, horodatages, durée, état final, motif de fin ; aucune capture du contenu audio.
+
+### Critères de recette obligatoires sur Replay
+
+- Appel bidirectionnel Client↔Admin et pour chaque rôle professionnel cité.
+- Routage agent affecté prioritaire ; refus, absence, expiration et bascule centrale.
+- Acceptation simultanée de deux agents : un seul succès.
+- Isolation inter-ticket, contrôle des droits, suspension et clôture pendant appel.
+- Permission micro refusée/accordée, mute/unmute, haut-parleur et raccrochage.
+- Connexion directe ET appel réellement relayé par TURN ; Wi-Fi/mobile, perte réseau et reconnexion.
+- Annulation avant acceptation, expiration, absence de réponse et nettoyage des sessions.
+- Non-régression des messages, notifications, pièces jointes, statuts, résolution/réouverture et assistance professionnelle.
+- Vérification qu'aucun enregistrement ou résidu audio n'est créé.
+- Conserver les preuves reproductibles : logs expurgés, tests automatisés, vérification RLS/API, test TURN et démonstration navigateur/appareil.
+
+### État et limites
+
+- Décision de routage hybride : **VALIDÉE**.
+- Cahier des charges fonctionnel et technique : **DÉFINI** dans cette section.
+- Implémentation, audit du schéma/RLS, choix et configuration du fournisseur TURN, compatibilité appareils et recette audio : **NON EXÉCUTÉS / NON PROUVÉS**.
+- La réussite E2E du Livechat écrit au §225 ne constitue pas une preuve d'appel audio.
+- Aucun changement applicatif, migration Supabase, accès Production ou déploiement n'a été réalisé par cette mise à jour documentaire.
+- Prochaine reprise : auditer l'implémentation Livechat et les droits Admin sur `main`, inspecter le schéma Replay/RLS, puis choisir l'infrastructure TURN avant toute modification applicative. Développer et tester sur Replay uniquement ; Production et déploiement restent hors périmètre sans autorisation explicite.
