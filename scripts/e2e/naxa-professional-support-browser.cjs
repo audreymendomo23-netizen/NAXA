@@ -105,7 +105,7 @@ async function run(){
    await dialog.getByText("Temps réel actif",{exact:false}).waitFor({state:"visible",timeout:30000});
    console.log("PASS — création du dossier individuel "+fixture.role+" et abonnement Realtime.");
    await adminPage.reload({waitUntil:"domcontentloaded"});await adminPage.getByRole("heading",{name:subject,exact:true}).waitFor({state:"visible",timeout:20000});
-   await adminPage.getByText(fixture.role,{exact:false}).waitFor({state:"visible",timeout:20000});
+   await adminPage.getByText(new RegExp("·\\s*"+fixture.role+"$")).waitFor({state:"visible",timeout:20000});
    const response=await adminPage.request.post(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,contenu:reply}});
    assert.equal(response.status(),201,"Réponse Admin refusée pour "+fixture.role+".");
    await dialog.getByText(reply,{exact:true}).waitFor({state:"visible",timeout:30000});
