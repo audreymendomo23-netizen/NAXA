@@ -203,6 +203,15 @@ async function run(env = process.env) {
         const descendantClaims = readAccessTokenClaims(afterReuseDetection.data.access_token, "refresh descendant après détection");
         assertSameAuthSession(firstClaims, descendantClaims, "refresh descendant après détection");
       }
+      const diagnosticHoldMs = Math.max(0, Math.min(60000, Number(env.NAXA_E2E_DIAGNOSTIC_HOLD_MS || 0)));
+      if (diagnosticHoldMs > 0) {
+        process.stdout.write(
+          "DIAGNOSTIC — session_id=" + firstClaims.sessionId
+          + " ; refresh descendant accepté (HTTP " + afterReuseDetection.status
+          + "); inspection Replay ouverte pendant " + diagnosticHoldMs + " ms avant nettoyage.\\n"
+        );
+        await new Promise(resolve => setTimeout(resolve, diagnosticHoldMs));
+      }
       throw new Error(
         "La détection de réutilisation n'a pas révoqué la famille de session : "
         + "le jeton ancêtre a été refusé (HTTP " + replay.status + ", code=" + replayError + "), "
