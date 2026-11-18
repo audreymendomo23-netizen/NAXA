@@ -2,8 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { hasUsableRefreshTokenPair } = require("./e2e/refresh-session-check.cjs");
-const { readAuthErrorCode } = require("./e2e/verify-auth-session-lifecycle.cjs");
+const { hasUsableRefreshTokenPair, readAuthErrorCode } = require("./e2e/refresh-session-check.cjs");
 const { readAccessTokenFromCookies } = require("./e2e/read-ssr-access-token.cjs");
 
 test("a successful refresh response with both tokens is a usable session", () => {

@@ -3,7 +3,7 @@
 
 const fs = require("node:fs");
 const { chromium } = require("playwright");
-const { hasUsableRefreshTokenPair } = require("./refresh-session-check.cjs");
+const { hasUsableRefreshTokenPair, readAuthErrorCode } = require("./refresh-session-check.cjs");
 const { readAccessTokenFromCookies } = require("./read-ssr-access-token.cjs");
 
 const PROJECT_REF = "pwfftcsjyeibxxqhwysw";
@@ -43,15 +43,6 @@ function assertSameAuthSession(expected, actual, label) {
       + "La recette ne peut pas conclure à la révocation d'une même famille."
     );
   }
-}
-
-function readAuthErrorCode(data) {
-  if (!data || typeof data !== "object") return "non fourni";
-  // Supabase Auth can return a numeric HTTP-like `code` alongside the semantic
-  // `error_code`. Prefer the stable semantic code and ignore numeric transport codes.
-  const candidates = [data.error_code, data.code, data.error, data.error_description];
-  const value = candidates.find(candidate => typeof candidate === "string" && candidate.trim());
-  return value ? value.trim() : "non fourni";
 }
 
 function readSecret(path, label) {
@@ -303,4 +294,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assertReplayUrl, readAuthErrorCode };
+module.exports = { assertReplayUrl };
