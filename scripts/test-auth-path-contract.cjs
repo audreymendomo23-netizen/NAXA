@@ -77,3 +77,15 @@ test("le nettoyage après changement de mot de passe reste global et explicite",
   const recovery = source("src/app/(auth)/mot-de-passe-oublie/page.tsx");
   assert.match(recovery, /auth\.signOut\(\{\s*scope:\s*["']global["']\s*\}\)/);
 });
+
+test("le changement du mot de passe révoque globalement les sessions côté serveur avant succès", () => {
+  const update = source("src/app/api/auth/update-user-password/route.ts");
+  const ui = source("src/app/(auth)/mot-de-passe-oublie/page.tsx");
+  const updateIndex = update.indexOf("server.auth.updateUser({ password })");
+  const revokeIndex = update.indexOf('server.auth.signOut({ scope: "global" })');
+  const successIndex = update.indexOf("sessionsRevoked: true");
+  assert.ok(updateIndex >= 0 && revokeIndex > updateIndex && successIndex > revokeIndex);
+  assert.match(update, /sessionsRevoked:\s*false/);
+  assert.doesNotMatch(ui, /supabaseBrowser\(\)\.auth\.signOut/);
+  assert.match(ui, /result\?\.sessionsRevoked === false/);
+});
