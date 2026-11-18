@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const username = String(body.username ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
+    const remember = body.remember !== false;
     const requestedSpace = body.espace === "pharmacie" || body.espace === "client" ? body.espace : "auto";
 
     if (!username || !password) {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     // Resolve the active business function only after password authentication.
     // This is the same auth.uid()-scoped resolver used by the native session API.
     phase = "password_sign_in";
-    const supabase = supabaseServer();
+    const supabase = supabaseServer(undefined, { remember });
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
 
