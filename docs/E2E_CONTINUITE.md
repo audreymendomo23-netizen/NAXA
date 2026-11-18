@@ -8071,9 +8071,9 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 
 
 
-## 222 — Démarrage de la recette navigateur Client ↔ Admin — 18/11/2026
+## 222 — Historique de la recette navigateur Client ↔ Admin — 18/11/2026
 
-**ÉTAT : 🟠 RECETTE RÉELLE EN COURS — PAS AU VERT.**
+**ÉTAT : HISTORIQUE — les blocages et échecs initiaux ci-dessous ont été corrigés ; clôture probante au §223.**
 
 - Correction de méthode : Playwright est installé dans les workflows GitHub Actions ; Chromium est installé par le workflow navigateur. Le blocage n'était pas l'absence de Playwright, mais l'absence de scénario Support Client/Admin exécuté.
 - Identités Replay existantes vérifiées, sans création de comptes ni rotation de mots de passe : Client `naxa_e2e_acheteur` (profil actif, déclaration d'âge vérifiée) et Admin `e2e_admin_261104` (profil actif). Les sessions de recette utilisent un lien Auth ponctuel.
@@ -8085,7 +8085,7 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - Le premier contrôle actionlint a signalé `SC2155` dans l'export du secret de rate-limit ; correction appliquée en séparant déclaration et export. Le contrôle qualité du commit `4b68f227a975386601980e9eaebce5f219c13708` doit confirmer la correction.
 - Aucun compte n'a été créé, aucun mot de passe n'a été modifié, aucune migration Production ni aucun déploiement n'a été lancé. `vercel.json` conserve la désactivation des déploiements automatiques de `main`.
 
-**Point de reprise exact :** ce point a été clos par le run `44371841169` (résultat intégral PASS), voir §223 ci-dessous. Aucune étape R09-10 restante sur le périmètre FAQ/Support/Livechat.
+**Résolution :** les échecs intermédiaires et le correctif de reconnexion sont conservés ici comme historique d'audit. La recette complète est désormais réussie ; voir le verdict et les preuves au §223.
 
 - Run GitHub Actions `44371061245` : tous les contrôles jusqu'à la réouverture Admin sont PASS, y compris PDF signé Client/Admin et transitions de statut. L'étape de reprise a échoué sur `page.reload: net::ERR_ABORTED` après la simulation offline/online ; le nettoyage du run est PASS. Correctif du scénario : commit `2ff11515a66b03400ea1b237ee0f72307a789c5d`, qui attend `navigator.onLine` puis navigue vers `/client?e2e-reconnect=...` pour recréer le canal et vérifier le nouvel abonnement. Ce test certifie le réabonnement après reprise/navigation ; il ne prétend pas certifier une récupération automatique sans navigation.
 
@@ -8106,3 +8106,16 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - Contrôle SQL indépendant après exécution sur Replay : 0 ticket E2E, 0 message, 0 notification liée aux tickets de recette, 0 objet dans `naxa-support-attachments`.
 - **Qualité et documentation :** workflows NAXA quality et actionlint du commit documentaire `5d20c9059b40a4e211a47b66b9059da4c9c7ce5e` : SUCCESS. Les tests du workflow qualité affichent 616/616 PASS ; build Next.js réussi ; `/aide` figure dans les routes générées.
 - **Verdict R09-10 : AU VERT.** La recette navigateur Client/Admin du périmètre FAQ, assistance et Livechat est intégralement certifiée sur Replay. Aucun déploiement, aucune migration Production et aucune modification Production n'ont été réalisés. Ce verdict ne vaut pas déclaration globale de lancement de l'ensemble du produit NAXA.
+
+
+## §224 — Mise à jour de continuité après clôture R09-10 — 18/11/2026
+
+**ÉTAT : AU VERT — CONTINUITÉ SYNCHRONISÉE AVEC LES PREUVES.**
+
+- Référence de continuité : `docs/E2E_CONTINUITE.md`, dépôt `audreymendomo23-netizen/NAXA`, branche `main`.
+- Le §222 est explicitement requalifié en historique : ses échecs intermédiaires ne constituent plus le statut courant et renvoient à la clôture démontrée au §223.
+- Le §223 reste la preuve de clôture R09-10 : run navigateur Replay `44371841169` SUCCESS, job `135040419314`, parcours Client/Admin complet PASS, reconnexion après reprise/navigation PASS, non-régression `/aide` PASS, nettoyage PASS.
+- Le contrôle SQL post-recette Replay reste à zéro : ticket E2E, message, notification liée à la recette et objet Storage.
+- Dernier état de dépôt avant cette mise à jour : commit `6ca2193ca7dc95fe1167551c8ddbb88752894a42`. Cette mise à jour est documentaire uniquement ; elle ne modifie ni le code applicatif ni la base.
+- Aucun déploiement, aucune migration Production et aucune modification Production. Le verdict AU VERT porte exclusivement sur le chantier FAQ / Assistance Client / Livechat R09-10, et ne certifie pas à lui seul le lancement global de NAXA.
+- **Point de reprise :** aucun point R09-10 restant. Conserver les preuves des §§220–224 comme référence de clôture.
