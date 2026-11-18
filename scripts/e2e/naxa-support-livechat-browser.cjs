@@ -171,22 +171,30 @@ async function run() {
     clientPage = await clientContext.newPage();
     adminPage = await adminContext.newPage();
 
+    console.log("STEP — ouvrir l’espace Client /client.");
     await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
+    console.log("STEP — page Client chargée : " + new URL(clientPage.url()).pathname);
     const trigger = clientPage.getByRole("button", { name: "Ouvrir le livechat NAXA" });
     await trigger.waitFor({ state: "visible", timeout: 30000 });
     await trigger.click();
+    console.log("STEP — widget Client ouvert.");
     const dialog = clientPage.getByRole("dialog", { name: "Livechat avec l’équipe NAXA" });
     await dialog.waitFor({ state: "visible" });
     await dialog.getByRole("button", { name: "Écrire à NAXA", exact: true }).click();
     await dialog.getByLabel("Sujet").fill(subject);
     await dialog.getByLabel("Ton premier message").fill(firstMessage);
+    console.log("STEP — envoyer le premier message via RPC Livechat.");
     await dialog.getByRole("button", { name: "Démarrer la conversation" }).click();
     await dialog.getByText(subject, { exact: false }).waitFor({ state: "visible", timeout: 30000 });
+    console.log("STEP — le widget affiche le sujet du ticket créé.");
 
-    const { data: created, error: ticketError } = await admin.from("tickets_support")
+    const { data: createdRows, error: ticketError } = await admin.from("tickets_support")
       .select("id,reference_code,statut,type,auteur_profile_id").eq("auteur_profile_id", clientSession.profile.id)
-      .eq("sujet", subject).eq("type", "support_naxa").single();
+      .eq("sujet", subject).eq("type", "support_naxa").limit(2);
     if (ticketError) throw ticketError;
+    assert.equal((createdRows || []).length, 1,
+      "Ticket créé par le widget introuvable ou non unique côté Admin : " + JSON.stringify(createdRows));
+    const created = createdRows[0];
     assert.equal(created.statut, "ouvert");
     assert.equal(created.auteur_profile_id, clientSession.profile.id);
     createdTicketId = created.id;
@@ -194,11 +202,13 @@ async function run() {
     saveState();
     console.log("PASS — le Client ouvre une conversation réelle via le widget.");
 
+    console.log("STEP — ouvrir la boîte Admin.");
     await adminPage.goto(BASE_URL + "/admin/messagerie", { waitUntil: "domcontentloaded" });
     await adminPage.getByRole("heading", { name: "Messagerie", exact: true }).waitFor({ state: "visible", timeout: 30000 });
     const ticketButton = adminPage.getByRole("button").filter({ hasText: subject }).first();
     await ticketButton.waitFor({ state: "visible", timeout: 30000 });
     await ticketButton.click();
+    console.log("STEP — ticket sélectionné dans la boîte Admin.");
     await waitForText(adminPage, firstMessage, "création du ticket reçue dans la boîte Admin");
     await adminPage.getByLabel("Répondre au ticket").fill(adminReply);
     await adminPage.getByRole("button", { name: "Envoyer la réponse" }).click();
