@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     email?: string;
     first_name?: string;
     last_name?: string;
+    date_of_birth?: string;
     permissions?: string[];
   };
   try { body = await request.json(); } catch {
@@ -80,6 +81,15 @@ export async function POST(request: Request) {
   const email = String(body.email ?? "").trim().toLowerCase();
   const firstName = String(body.first_name ?? "").trim();
   const lastName = String(body.last_name ?? "").trim();
+  const dateOfBirth = String(body.date_of_birth ?? "").trim();
+  const birthDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth) ? new Date(dateOfBirth + "T00:00:00Z") : null;
+  let age = -1;
+  if (birthDate && !Number.isNaN(birthDate.getTime()) && birthDate.toISOString().slice(0,10) === dateOfBirth) {
+    const today = new Date();
+    age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+    if (today.getUTCMonth() < birthDate.getUTCMonth()
+      || (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate())) age -= 1;
+  }
   const requestedPermissions = Array.isArray(body.permissions) ? [...new Set(body.permissions)] : [
     "queue_view","ticket_view_assigned","ticket_reply",
   ];
@@ -87,6 +97,7 @@ export async function POST(request: Request) {
   if (!USERNAME.test(username) || !EMAIL.test(email)
     || firstName.length < 2 || firstName.length > 80
     || lastName.length < 2 || lastName.length > 80
+    || !birthDate || age < 18
     || requestedPermissions.some((permission) => typeof permission !== "string" || !ALLOWED_PERMISSIONS.has(permission))
     || !requestedPermissions.includes("ticket_view_assigned")) {
     return NextResponse.json({ error: "Identité, email ou permissions invalides." }, { status: 400 });
@@ -116,6 +127,9 @@ export async function POST(request: Request) {
     username,
     first_name: firstName,
     last_name: lastName,
+    date_of_birth: dateOfBirth,
+    age_verified_at: new Date().toISOString(),
+    consent_accepted_at: null,
     status: "active",
     presence: "unavailable",
     must_change_password: true,
