@@ -7820,3 +7820,15 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Création documentaire uniquement : aucune recette n'a encore été exécutée ; aucun défaut n'est confirmé par ces plans ; aucune correction fonctionnelle n'est revendiquée.
 - Commits de création successifs sur `main` : `624b2c9fbd34a115496abd1639098f2f293fca9e`, `31acba4778406ed7c170c2ddbd61e1b82a9825ba`, `67900baccb71fa7bbe4f31990c5660a60d569b61`, `13e529a853a8853a9414d1fbcc6ca36099b20634`, `9fe85553dbbb3f5c588dd435f7b54f7d2d6ee672`, `e36a37154bb10e99fd39ecba63dff4a0a379840f`, `c73e9dcc81230ac3b90ad1a227e6679646795086`, `a1afe3c34dd7f0da3d0f6ebb54356a752e22fbc3`, `be4492d49ab50f59006a2fcd6fead4e4c426504d`.
 - Point de reprise exact : exécuter la **Recette 09 — R09-01**, puis R09-02 à R09-08 dans l'ordre. Corriger toute contradiction P1 confirmée sur `main`, prouver sa correction et sa non-régression sur Replay, puis seulement débloquer la Recette 01.
+
+
+## 207 — Première exécution de la Recette 09 — R09-01 — 18/11/2026
+
+- Résultat : **ÉCHEC statique confirmé**, correction requise avant les recettes Client.
+- Preuves lues sur `main` : `src/lib/ecosystemes.ts` (6 IDs déclarés / 4 entrées réelles), `src/components/EnTeteClient.tsx` (déréférencement de `ECOSYSTEME_PAR_ID[ecosystemeActif]` sans fallback), `src/components/ParcoursClientShell.tsx` (routes `/bebe-maman` et `/suivi` incluses dans le shell), `src/app/api/universes/status/route.ts` (statuts configurables limités à Parapharmacie, Examens, Prestations ; Pharmacie forcée true).
+- Cause racine statique : référentiel typé de six univers incomplet ; assertion `Record<EcosystemeId, Ecosysteme>` qui masque les deux entrées manquantes. Les routes retournent pourtant les IDs manquants, puis l'en-tête lit leurs propriétés sans garde.
+- Autre contradiction UI confirmée par lecture : la recherche générale propose des actions vers Bébé & Maman et Dispositifs, mais la garde de verrouillage recherche la cible dans `ECOSYSTEMES` ; cible absente = garde non exécutée avant navigation. Cela ne prouve pas encore que les actions serveur sont accessibles.
+- Qualification : défaut de cohérence du référentiel confirmé par code ; crash navigateur et contournement serveur non encore testés. Ne pas annoncer ces effets comme observés.
+- R09-01 est documentée dans `docs/recettes/client/RECETTE_09_CONTRADICTIONS_TRANSVERSALES.md`. R09-02 à R09-08 restent à exécuter. Les recettes 01–08 restent bloquées.
+- Aucun correctif fonctionnel ni test UI/API/SQL exécuté à ce stade ; aucune écriture Production, migration Production ou déploiement Vercel.
+- Point de reprise exact : poursuivre R09-02 (routes et enveloppe Client) sur Replay, puis R09-03 (verrouillage serveur), sans rejouer Lot B2.
