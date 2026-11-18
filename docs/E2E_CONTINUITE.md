@@ -7691,3 +7691,43 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **Qualité du HEAD `f58233e` : AU VERT** (workflow `44255797510` SUCCESS).
 - **Réserve Auth séparée : ROUGE, hors périmètre fonctionnel B2.** La recette indépendante de réutilisation des refresh tokens a précédemment prouvé le rejeu de l'ancêtre rejeté HTTP 400 `refresh_token_already_used`, puis le refresh descendant de la même session accepté HTTP 200. Ce rouge n'invalide pas la clôture Marketplace B2, mais interdit de déclarer tout le cycle Auth / E2E NAXA global AU VERT.
 - Aucune migration Production, aucune écriture Production, aucun déploiement Vercel, aucun changement de configuration Auth.
+
+## 203. Vérification terminale après reprise du flux — Lot B2 — 18/11/2026
+
+### Reprise et référence du code
+- Reprise après interruption du flux de messages, sans redémarrer les recettes ni écraser l'état main.
+- HEAD main au moment de la clôture documentaire : 6b791894d05533b2fc5a07aff7ddbbaff07d9ec2.
+- Dernier commit applicatif B2 testé par Chromium : f58233e11593736a459dd2edd129b97355a61f2e. Les deux commits suivants 492a0cab76f3585ecb3765c8b6c97898fb347994 et 6b791894d05533b2fc5a07aff7ddbbaff07d9ec2 ne modifient que docs/E2E_CONTINUITE.md.
+- Environnement de recette exclusivement : Supabase Replay pwfftcsjyeibxxqhwysw ; aucun changement Production et aucun déploiement Vercel.
+
+### Preuve terminale Playwright
+- Run Chromium Replay 44255797365 : SUCCESS, job « Navigation Promoteur — Chromium sur Replay ». Build, démarrage serveur local, scénario navigateur, nettoyage de secours et arrêt serveur : tous SUCCESS.
+- Marqueurs des logs du run :
+  - PASS Lot B2 — offre Marketplace réelle, favori synchronisé en base puis retrait confirmé.
+  - PASS Lot B2 — Client B ne peut pas finaliser la quantité demandée pendant le hold du Client A.
+  - PASS Lot B2 — décision pharmacie depuis l'espace Gestionnaire de stock, JWT et périmètre de l'affectation.
+  - PASS Lot B2 — recherche et favori persistants, réservation Client, confirmation Gestionnaire Stock, annulation Client, stock restauré=3, historique Annulée.
+  - RESULTAT NAVIGATION : PASS.
+  - PASS nettoyage Lot B2 — réservation annulée/supprimée, stock restauré, favori supprimé, visibilité restaurée.
+- Séquence réellement traversée : offre Marketplace propriétaire publiée temporairement et trouvée par recherche Yaoundé ; favori créé et vérifié en base sous JWT Client A, puis retiré ; réservation Client A de 2 unités ; Client B distinct ne reçoit pas d'offre complète pour 2 unités pendant le hold ; compte affecté prend le rôle Gestionnaire Stock et confirme sous son JWT/périmètre ; Client consulte « Confirmée par la pharmacie », annule via le suivi ; le stock disponible revient exactement à 3 ; l'historique affiche la réservation « Annulée ».
+
+### Preuve SQL et qualité
+- Rejeu du fichier courant supabase/tests/306_lot_b2_client_marketplace_transaction.sql sur Replay, immédiatement avant cette clôture : marqueur LOT_B2_CLIENT_MARKETPLACE_FAVORITES_RESERVATION_PHARMACY_CONFIRM_CLIENT_CANCEL_HISTORY PASS. La transaction se termine par ROLLBACK.
+- Workflow qualité 44257021023, HEAD 6b791894d05533b2fc5a07aff7ddbbaff07d9ec2 : SUCCESS ; jobs « Tests, TypeScript et lint » et « GitHub Actions syntax and expression checks » PASS.
+- Le run Chromium 44255797365 couvre le code B2 f58233e ; les commits ultérieurs jusqu'au HEAD courant sont documentaires uniquement. La qualité complète est en outre repassée sur le HEAD documentaire courant.
+
+### Contrôle final de propreté Replay — lecture seule après les deux recettes
+Pour la pharmacie technique 1a4f1ce5-cccf-477e-9a5b-474c8c9fc713 et le produit dfd7313c-46a4-455a-b67d-50f0ce2a3686 :
+- visible_recherche=false : état initial masqué restauré.
+- Stock brut : 3 unités, identique au niveau initial du test navigateur.
+- Favoris résiduels Client A + Client B : 0.
+- Réservations récentes des deux Clients (fenêtre 4 h) : 0.
+- Holds actifs (en_attente ou confirmee) : 0.
+- Disponibilité publique : 0, conséquence attendue de la pharmacie masquée.
+- Aucun compte Auth créé, aucune donnée métier commerciale laissée par B2.
+
+### Verdict terminal
+- LOT B2 CLIENT & MARKETPLACE : AU VERT sur Replay. Recherche réelle, favoris persistants, réservation, contrôle anti-survente entre deux Clients, confirmation Gestionnaire Stock, suivi Client, annulation, restitution exacte du stock, historique, test SQL transactionnel et nettoyage ont tous des preuves terminales.
+- Qualité main : AU VERT sur le run 44257021023.
+- La réserve Auth refresh-token family reuse documentée au §202 demeure indépendante, hors périmètre du Lot B2 ; elle n'est ni masquée ni requalifiée comme verte par cette clôture.
+- Aucune écriture Supabase Production, aucune migration Production, aucun déploiement Vercel, aucun changement de configuration Auth.
