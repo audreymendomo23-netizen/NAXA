@@ -10,11 +10,12 @@ export default async function SupportAgentLayout({ children }: { children: React
   if (authError || !auth.user) redirect("/connexion?retour=%2Fequipe-support");
 
   const { data: agent, error } = await sb.from("support_agents")
-    .select("first_name,last_name,status")
+    .select("first_name,last_name,status,must_change_password")
     .eq("user_id", auth.user.id)
     .maybeSingle();
 
   if (error || !agent || agent.status !== "active") redirect("/");
+  if (agent.must_change_password) redirect("/activation-agent");
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
