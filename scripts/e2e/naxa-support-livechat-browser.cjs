@@ -28,7 +28,7 @@ const admin = createClient(PROJECT_URL, adminKey, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
 });
 
-let state = { ticketId: null, attachmentPaths: [] };
+let state = { ticketId: null, attachmentPaths: [], subject: null, clientId: null };
 function saveState() {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state), { mode: 0o600 });
 }
@@ -38,6 +38,14 @@ async function cleanup() {
     if (fs.existsSync(STATE_FILE)) {
       try { state = JSON.parse(fs.readFileSync(STATE_FILE, "utf8")); } catch { /* état incomplet */ }
     }
+  }
+  if (!state.ticketId && state.subject && state.clientId) {
+    const { data: candidates, error: candidateError } = await admin.from("tickets_support")
+      .select("id").eq("auteur_profile_id", state.clientId).eq("sujet", state.subject)
+      .eq("type", "support_naxa").limit(2);
+    if (candidateError) throw candidateError;
+    assert.ok((candidates || []).length <= 1, "Plusieurs tickets correspondent à la fixture E2E.");
+    state.ticketId = candidates?.[0]?.id || null;
   }
   if (!state.ticketId) {
     console.log("CLEANUP — aucun ticket de recette à supprimer.");
@@ -60,7 +68,7 @@ async function cleanup() {
   const { data: remaining, error: verifyError } = await admin.from("tickets_support").select("id").eq("id", state.ticketId);
   if (verifyError) throw verifyError;
   assert.equal((remaining || []).length, 0, "Le ticket E2E doit être supprimé après recette.");
-  state = { ticketId: null, attachmentPaths: [] };
+  state = { ticketId: null, attachmentPaths: [], subject: null, clientId: null };
   try { fs.unlinkSync(STATE_FILE); } catch { /* absent */ }
   console.log("CLEANUP PASS — ticket, messages, notifications et objets Storage de recette supprimés de Replay.");
 }
@@ -163,6 +171,9 @@ async function run() {
   const adminReply = "Réponse Admin temps réel — " + subject;
   const clientReply = "Réponse Client temps réel — " + subject;
   const reconnectReply = "Réponse après reconnexion — " + subject;
+  state.subject = subject;
+  state.clientId = clientSession.profile.id;
+  saveState();
 
   try {
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
@@ -184,22 +195,29 @@ async function run() {
     await dialog.getByLabel("Sujet").fill(subject);
     await dialog.getByLabel("Ton premier message").fill(firstMessage);
     console.log("STEP — envoyer le premier message via RPC Livechat.");
+    const rpcResponsePromise = clientPage.waitForResponse(response =>
+      new URL(response.url()).pathname.endsWith("/rest/v1/rpc/open_naxa_support_ticket"),
+    { timeout: 30000 });
     await dialog.getByRole("button", { name: "Démarrer la conversation" }).click();
-    await dialog.getByText(subject, { exact: false }).waitFor({ state: "visible", timeout: 30000 });
-    console.log("STEP — le widget affiche le sujet du ticket créé.");
-
-    const { data: createdRows, error: ticketError } = await admin.from("tickets_support")
-      .select("id,reference_code,statut,type,auteur_profile_id").eq("auteur_profile_id", clientSession.profile.id)
-      .eq("sujet", subject).eq("type", "support_naxa").limit(2);
-    if (ticketError) throw ticketError;
-    assert.equal((createdRows || []).length, 1,
-      "Ticket créé par le widget introuvable ou non unique côté Admin : " + JSON.stringify(createdRows));
-    const created = createdRows[0];
-    assert.equal(created.statut, "ouvert");
-    assert.equal(created.auteur_profile_id, clientSession.profile.id);
-    createdTicketId = created.id;
+    const rpcResponse = await rpcResponsePromise;
+    const rpcPayload = await rpcResponse.json().catch(() => null);
+    assert.equal(rpcResponse.status(), 200,
+      "RPC de création refusée : HTTP " + rpcResponse.status() + " — " + JSON.stringify(rpcPayload));
+    const rpcRow = Array.isArray(rpcPayload) ? rpcPayload[0] : rpcPayload;
+    assert.ok(rpcRow && /^[0-9a-f-]{36}$/i.test(String(rpcRow.ticket_id || "")),
+      "RPC Livechat sans ticket_id exploitable : " + JSON.stringify(rpcPayload));
+    createdTicketId = String(rpcRow.ticket_id);
     state.ticketId = createdTicketId;
     saveState();
+    await dialog.getByText(firstMessage, { exact: true }).waitFor({ state: "visible", timeout: 30000 });
+    console.log("STEP — premier message Client affiché dans le widget.");
+
+    const { data: created, error: ticketError } = await admin.from("tickets_support")
+      .select("id,reference_code,statut,type,auteur_profile_id").eq("id", createdTicketId).maybeSingle();
+    if (ticketError) throw ticketError;
+    assert.ok(created, "Ticket RPC absent de la lecture Admin Replay après création : " + createdTicketId);
+    assert.equal(created.statut, "ouvert");
+    assert.equal(created.auteur_profile_id, clientSession.profile.id);
     console.log("PASS — le Client ouvre une conversation réelle via le widget.");
 
     console.log("STEP — ouvrir la boîte Admin.");
