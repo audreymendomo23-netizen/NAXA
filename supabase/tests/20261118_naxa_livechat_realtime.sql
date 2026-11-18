@@ -2,6 +2,7 @@
 do $test$
 declare
   v_def text;
+  v_security_definer boolean;
 begin
   if to_regprocedure('public.open_naxa_support_ticket(text,text,text)') is null then
     raise exception 'RPC atomique livechat absente';
@@ -11,11 +12,14 @@ begin
     raise exception 'Privilèges RPC livechat incorrects';
   end if;
 
+  select p.prosecdef into v_security_definer
+  from pg_proc p
+  where p.oid='public.open_naxa_support_ticket(text,text,text)'::regprocedure;
   select pg_get_functiondef('public.open_naxa_support_ticket(text,text,text)'::regprocedure) into v_def;
-  if position('SECURITY INVOKER' in upper(v_def))=0
+  if coalesce(v_security_definer,true)
      or position('support_naxa' in v_def)=0
      or position('conseil_pharmacien' in v_def)>0 then
-    raise exception 'RPC livechat ne respecte pas l’isolation Client/Admin/pharmacie';
+    raise exception 'RPC livechat doit rester SECURITY INVOKER et isolée du chat pharmacie';
   end if;
 
   if not exists (
