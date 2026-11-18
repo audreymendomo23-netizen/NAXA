@@ -6,12 +6,15 @@ on:
     paths:
       - ".github/workflows/naxa-support-livechat-e2e.yml"
       - "scripts/e2e/naxa-support-livechat-browser.cjs"
+      - "scripts/e2e/naxa-professional-support-browser.cjs"
       - "src/components/NaxaSupportWidget.tsx"
       - "src/components/ParcoursClientShell.tsx"
       - "src/components/admin/AdminInbox.tsx"
       - "src/app/admin/messagerie/**"
       - "src/app/api/admin/messagerie/**"
       - "src/app/assistance/**"
+      - "src/app/faq/**"
+      - "src/components/FaqInteractive.tsx"
       - "src/app/aide/**"
       - "supabase/migrations/*naxa*support*"
       - "supabase/tests/*naxa*support*"
@@ -97,6 +100,13 @@ jobs:
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         run: node scripts/e2e/naxa-support-livechat-browser.cjs
+      - name: Recette navigateur Promoteur et Livreur ↔ Admin
+        env:
+          NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
+        run: node scripts/e2e/naxa-professional-support-browser.cjs
+      - name: Nettoyage de secours des recettes professionnelles Replay
+        if: always()
+        run: node scripts/e2e/naxa-professional-support-browser.cjs --cleanup
       - name: Nettoyage de secours Replay
         if: always()
         run: node scripts/e2e/naxa-support-livechat-browser.cjs --cleanup
