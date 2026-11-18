@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
-export function supabaseServer(response?: NextResponse) {
+export function supabaseServer(response?: NextResponse, sessionOptions?: { remember?: boolean }) {
   // Next.js 15+ exposes cookies() asynchronously. Keep this factory synchronous
   // for existing callers, but make the Supabase SSR cookie adapter async so it
   // always reads and writes the resolved request cookie store.
@@ -21,8 +21,16 @@ export function supabaseServer(response?: NextResponse) {
           try {
             const store = await cookieStore;
             list.forEach(({ name, value, options }) => {
-              if (response) response.cookies.set(name, value, options);
-              else store.set(name, value, options);
+              const effectiveOptions = { ...options };
+              // A non-persistent login must use a browser-session cookie.
+              // Omitting both lifetime attributes avoids turning "remember me"
+              // off into an immediately expired cookie.
+              if (sessionOptions?.remember === false) {
+                delete effectiveOptions.maxAge;
+                delete effectiveOptions.expires;
+              }
+              if (response) response.cookies.set(name, value, effectiveOptions);
+              else store.set(name, value, effectiveOptions);
             });
           } catch {
             // Server Components cannot mutate response cookies while rendering.
