@@ -32,7 +32,7 @@ begin
   if position('auteur_support_agent_id' in v_def)=0
     or position('support_ticket_assignments' in v_def)=0
     or position('ticket_reply' in v_def)=0 then
-    raise exception 'La notification ne vérifie pas l'affectation et la permission Agent'; end if;
+    raise exception 'La notification ne vérifie pas l''affectation et la permission Agent'; end if;
 end;
 $test$;
 select 'naxa_support_agent_message_author_and_reply_flow_pass' as test_name, true as passed;
