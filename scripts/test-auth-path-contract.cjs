@@ -75,7 +75,7 @@ test("le choix se souvenir de moi contrôle la durée des cookies de session", (
 
 test("la récupération révoque globalement les sessions depuis la route serveur", () => {
   const update = source("src/app/api/auth/update-user-password/route.ts");
-  assert.match(update, /server\\.auth\\.signOut\\(\\{\\s*scope:\\s*["']global["']\\s*\\}\\)/);
+  assert.match(update, /server\.auth\.signOut\(\{\s*scope:\s*["']global["']\s*\}\)/);
 });
 
 test("le changement du mot de passe révoque globalement les sessions côté serveur avant succès", () => {
