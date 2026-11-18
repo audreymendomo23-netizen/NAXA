@@ -72,9 +72,13 @@ begin
     raise exception 'Liste blanche des permissions absente';
   end if;
 
-  insert into public.support_agent_events(event_code,details)
-  values('test_immutable_event','{"test":true}'::jsonb)
+  insert into public.support_agent_events(actor_user_id,event_code,details)
+  values((select p.id from public.profiles p where p.role='admin'::public.role_type limit 1),
+    'test_immutable_event','{"test":true}'::jsonb)
   returning id into v_id;
+
+  -- Les FK peuvent être anonymisées lors d'une suppression Auth, sans modifier le contenu de l'audit.
+  update public.support_agent_events set actor_user_id=null where id=v_id;
 
   begin
     update public.support_agent_events set details='{"mutated":true}'::jsonb where id=v_id;
