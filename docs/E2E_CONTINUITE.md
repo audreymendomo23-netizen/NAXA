@@ -8837,3 +8837,51 @@ L'audit ACL avait isolé `public.naxa_sync_partner_subscription_dossier()` : fon
 3. Éviter les recettes navigateur concurrentes sur le même Replay si elles produisent des timeouts ; envisager un groupe de concurrence commun Support + Navigation après preuve de contention.
 4. Répéter la recette complète Agents puis Support (Client, Promoteur, Livreur, Agents) et Navigation sur un commit stabilisé.
 5. Reprendre ensuite l'audit Auth leaked-password et les intégrations Gmail/WebRTC ; le programme global reste NON VERT jusqu'aux tests réels OAuth et audio TURN.
+
+
+## §240 — Diagnostic Realtime Client, Marketplace bulk et stabilité des workflows — 18/11/2026
+
+### Support Livechat — nouvelle observation
+
+- Run `44410539237`, commit `1c87ed3` : le parcours Client/Admin a passé création, réponses initiales, pièces jointes, statuts, clôture et réouverture ; l'étape de reprise après reconnexion a échoué en attendant une réponse Admin dans le widget Client.
+- Le nettoyage du ticket, des messages, notifications et objets Storage de recette a réussi.
+- L'étape Promoteur/Livreur et l'étape Agents n'ont pas été atteintes dans ce run.
+- Le widget recrée son canal sur l'événement navigateur `online` et recharge l'historique. Le test recharge ensuite `/client`, attend l'état « Temps réel actif », puis fait répondre l'Admin. Le symptôme est donc circonscrit à la reprise/au choix du fil ou au réabonnement effectif, mais la cause n'est pas encore établie.
+- Le prochain run Support `44412115231` inclut le diagnostic Admin API activé par `NAXA_E2E_WEB_BASE_URL` et la vérification HTTP explicite du POST Agent. Il est en cours au dernier contrôle.
+
+### Marketplace — diagnostic supplémentaire
+
+- Run `44409581308`, commit `3840dfa` : le test a confirmé que la page Client ouvre la recherche Marketplace et que la fixture B2 est publiée avec produit visible et stock public=3 ; la carte de la pharmacie reste cependant introuvable dans le DOM.
+- Test SQL Replay transactionnel avec identité Client authentifiée et visibilité temporairement activée : `search_pharmacies_bulk` retourne bien une ligne, la lecture de la métadonnée pharmacie et du produit est autorisée, la lecture des conventions retourne zéro ligne sans erreur. Transaction annulée et visibilité restaurée.
+- Cela confirme le contrat SQL sous JWT Client, mais ne prouve pas que le navigateur déclenche/reçoit le même RPC ou que le rendu conserve la ligne.
+- Instrumentation ajoutée à `.github/e2e/naxa-navigation-runtime.cjs` (commit `7306619527f7c39d66e861bc8be8eb3190b94867`) : capture du statut/corps RPC `search_pharmacies_bulk` et du texte principal du DOM si la carte manque.
+- Run `44411978463` sur cette instrumentation : en cours au dernier contrôle.
+
+### Contrat statique Admin Messagerie et qualité
+
+- Le run qualité `44411246304` a échoué sur un test statique obsolète : il attendait trois appels littéraux `activeAdmin()`, alors que le POST utilise désormais `activeAdmin(requestId)` pour le traçage.
+- Le test `scripts/test-admin-messagerie.cjs` a été corrigé pour accepter les deux formes d'appel tout en exigeant les trois vérifications GET/POST/PATCH.
+- Run qualité `44412115015` sur commit `052daf8` : syntaxe GitHub Actions PASS ; tests/TypeScript/lint/build en cours au dernier contrôle.
+
+### ACL
+
+- La migration trigger-only `20261118221347_naxa_restrict_partner_dossier_trigger_function` reste présente dans le registre Replay.
+- Test ACL versionné PASS ; trois RPC publiques catalogue/Marketplace conservées, fonction trigger-only refusée à anon et authenticated.
+
+### Verdict
+
+- Qualité du commit précédent `1c87ed3` : **VERT CI**.
+- Qualité du commit courant `052daf8` : **EN COURS**.
+- ACL trigger-only Replay : **VERT**.
+- Support Client/Admin complet incluant reconnexion : **NON VERT**.
+- Recette Agents : **NON EXÉCUTÉE jusqu'au bout** sur les derniers runs, car un échec Livechat antérieur interrompt la séquence.
+- Marketplace bulk : **RPC SQL PASS sous JWT Client ; rendu navigateur NON VERT, diagnostic instrumenté en cours**.
+- Gmail OAuth et WebRTC/TURN : **NON IMPLÉMENTÉS**.
+- Aucun changement Production ni déploiement.
+
+### Point exact de reprise
+
+1. Lire les logs du run Navigation `44411978463` : comparer payload RPC, filtres et DOM ; corriger le défaut de rendu ou d'appel, pas l'assertion.
+2. Lire le run Support `44412115231` : obtenir les traces chronométrées Admin API et la nouvelle réponse HTTP Agent ; corriger la reconnexion Client ou l'API à partir des preuves.
+3. Rejouer les parcours Client/Admin, Promoteur/Livreur, Agents et Marketplace après stabilisation ; éviter toute validation globale si une étape amont interrompt la séquence.
+4. Vérifier le run qualité `44412115015`, puis rerun final sur le commit documentaire stabilisé.
