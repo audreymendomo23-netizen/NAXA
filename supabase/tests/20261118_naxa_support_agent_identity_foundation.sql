@@ -35,9 +35,14 @@ begin
       raise exception 'Privilèges serveur incomplets sur public.%', v_table;
     end if;
 
-    if v_table <> 'support_agents' and exists(select 1 from pg_policies p
-      where p.schemaname='public' and p.tablename=v_table) then
-      raise exception 'Une policy client inattendue expose public.%', v_table;
+    if v_table <> 'support_agents' and not exists(select 1 from pg_policies p
+      where p.schemaname='public' and p.tablename=v_table
+        and p.policyname=case v_table
+          when 'support_agent_permissions' then 'support_agent_permissions_server_only'
+          when 'support_ticket_assignments' then 'support_ticket_assignments_server_only'
+          else 'support_agent_events_server_only' end
+        and p.cmd='ALL' and p.qual='false' and p.with_check='false') then
+      raise exception 'Policy de refus direct authenticated absente sur public.%', v_table;
     end if;
   end loop;
 
