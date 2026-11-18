@@ -5,9 +5,7 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 const USERNAME = /^[a-z0-9][a-z0-9._-]{2,29}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_PERMISSIONS = new Set([
-  "queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note",
-  "ticket_assign","ticket_escalate","claims_handle","attachments_read",
-  "audio_call","gmail_read","gmail_reply","reports_view",
+  "queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note","attachments_read",
 ]);
 
 async function requireActiveAdmin() {
@@ -215,5 +213,5 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "La mise à jour Agent a été refusée : " + error.message }, { status: statusCode });
   }
 
-  return NextResponse.json({ success: true, user_id: userId, status, presence });
+  return NextResponse.json({ success: true, user_id: userId, status, presence: status === "active" ? presence : "unavailable" });
 }
