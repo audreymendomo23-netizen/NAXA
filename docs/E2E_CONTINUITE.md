@@ -8119,3 +8119,17 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - Dernier état de dépôt avant cette mise à jour : commit `6ca2193ca7dc95fe1167551c8ddbb88752894a42`. Cette mise à jour est documentaire uniquement ; elle ne modifie ni le code applicatif ni la base.
 - Aucun déploiement, aucune migration Production et aucune modification Production. Le verdict AU VERT porte exclusivement sur le chantier FAQ / Assistance Client / Livechat R09-10, et ne certifie pas à lui seul le lancement global de NAXA.
 - **Point de reprise :** aucun point R09-10 restant. Conserver les preuves des §§220–224 comme référence de clôture.
+
+
+## §225 — Clôture E2E globale FAQ / Assistance / Livechat Client et Professionnels — 18/11/2026
+
+**ÉTAT : AU VERT — RECETTES NAVIGATEUR, QUALITÉ ET NETTOYAGE PASS SUR REPLAY.**
+
+- Code testé : commit `1a11b2b64961c17217b1df2af5d90ddcb60292e2` sur `main`. Le correctif de ce commit limite le sélecteur Admin au ticket courant ; aucune modification métier ni migration SQL n'a été introduite par ce correctif.
+- **Preuve navigateur Client ↔ Admin :** workflow GitHub Actions `44392083795`, job `135112132060`, conclusion SUCCESS. Le journal confirme échanges Realtime dans les deux sens, notifications Admin/Client, statuts, fichiers privés et non-régression de `/aide` (chat pharmacie conservé et widget Assistance NAXA distinct). Résultat explicite : `RÉSULTAT — R09-10 navigateur Client ↔ Admin : PASS sur Replay`.
+- **Preuve navigateur des espaces individuels :** même workflow et job. Les comptes Client, Promoteur, Responsable, Pharmacien, Gestionnaire stock, Comptable, Caisse et Livreur passent chacun leur parcours individuel : widget et FAQ accessibles, création du dossier individuel, abonnement Realtime, réponse Admin reçue en direct, notifications, résolution, reprise/réouverture, blocage après clôture et suivi `/assistance`. Résultat explicite du journal : `RÉSULTAT — assistance professionnelle Promoteur + Livreur ↔ Admin : PASS sur Replay`.
+- **Nettoyage :** PASS pour les données Client et professionnelles ; tickets, messages, notifications et objets/fichiers Storage de recette supprimés. Le second nettoyage Client confirme qu'aucun ticket de recette ne reste. Le serveur local a été arrêté avec succès. L'étape conditionnelle « Logs serveur si échec » a été SKIPPED car le job a réussi ; ce n'est pas un échec.
+- **Preuve qualité :** workflow `44392083818` SUCCESS. Syntaxe GitHub Actions/actionlint PASS ; tests, TypeScript, lint et build Next.js PASS.
+- **Verdict : AU VERT pour le périmètre FAQ / Assistance / Livechat Client + tous les rôles professionnels listés, sur Supabase Replay.** Ce verdict est limité à ce périmètre et à l'environnement Replay ; il ne certifie pas le lancement global de NAXA.
+- Aucun accès ou changement Supabase Production, aucune migration Production et aucun déploiement. Les workflows ont explicitement vérifié et refusé la cible Production.
+- **Point de reprise :** aucun défaut restant identifié dans le périmètre testé. Conserver les runs `44392083795` (E2E) et `44392083818` (qualité) comme preuves de clôture.
