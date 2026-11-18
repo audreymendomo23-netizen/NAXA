@@ -210,7 +210,10 @@ export async function PATCH(request: Request) {
 
   if (!["active","suspended","revoked"].includes(status)
     || !["available","unavailable"].includes(presence)
-    || (permissions && permissions.some((permission) => !ALLOWED_PERMISSIONS.has(permission)))) {
+    || (permissions && (
+      permissions.some((permission) => !ALLOWED_PERMISSIONS.has(permission))
+      || (permissions.length > 0 && !permissions.includes("ticket_view_assigned"))
+    ))) {
     return NextResponse.json({ error: "Statut, présence ou permissions invalides." }, { status: 400 });
   }
 
