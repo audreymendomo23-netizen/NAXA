@@ -8,6 +8,7 @@ declare
   v_def text;
   v_update_rejected boolean := false;
   v_delete_rejected boolean := false;
+  v_minor_rejected boolean := false;
 begin
   foreach v_table in array array[
     'support_agents','support_agent_permissions',
@@ -65,6 +66,16 @@ begin
     raise exception 'Garde SQL de majorité Agent absente'; end if;
   select pg_get_functiondef('private.naxa_support_agent_age_guard()'::regprocedure) into v_def;
   if position('18 years' in v_def)=0 then raise exception 'Garde SQL de majorité Agent incorrecte'; end if;
+
+  begin
+    insert into public.support_agents(user_id,username,first_name,last_name,date_of_birth)
+    values(gen_random_uuid(),'e2eminor_guard','Test','Mineur',(current_date - interval '17 years')::date);
+  exception when check_violation then
+    v_minor_rejected := true;
+  end;
+  if not v_minor_rejected then
+    raise exception 'La base accepte un Agent déclaré mineur';
+  end if;
 
   if exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid
     join pg_namespace n on n.oid=t.typnamespace
