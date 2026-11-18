@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     first_name: firstName,
     last_name: lastName,
     date_of_birth: dateOfBirth,
-    age_verified_at: new Date().toISOString(),
+    age_attested_at: new Date().toISOString(),
     consent_accepted_at: null,
     status: "active",
     presence: "unavailable",
