@@ -49,7 +49,11 @@ test("la recette de configuration comptable passe par le Promoteur et valide les
   assert.match(accountingBrowserSource, /credit_octroi/);
   assert.match(accountingBrowserSource, /credit_remboursement/);
   assert.match(accountingBrowserSource, /Valider mapping/);
-  assert.match(accountingBrowserSource, /cleanupCreatedRows/);
+  assert.match(accountingBrowserSource, /compta_periodes/);
+  assert.match(accountingBrowserSource, /Ouvrir une vraie période mensuelle/);
+  assert.match(accountingBrowserSource, /const debitCode = "NAXAE2ECD"/);
+  assert.match(accountingBrowserSource, /const creditCode = "NAXAE2ECC"/);
+  assert.match(accountingBrowserSource, /configuration comptable de la seule pharmacie technique Replay est conservée/);
   assert.match(source, /compta_plan_valider_compte/);
   assert.match(source, /compta_config_valider_journal/);
   assert.match(source, /compta_plan_valider_mapping/);
