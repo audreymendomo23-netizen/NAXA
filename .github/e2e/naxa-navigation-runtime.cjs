@@ -1121,7 +1121,7 @@ async function run() {
     saveState();
     await clientPage.goto(BASE_URL + "/client/profil/favoris", { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/client/profil/favoris", "Lot B2 → favoris persistants du Client");
-    await clientPage.getByRole("heading", { name: "Mes favoris", exact: false }).waitFor({ state: "visible" });
+    await clientPage.locator("main h1").filter({ hasText: "Mes favoris" }).waitFor({ state: "visible" });
     await clientPage.getByText(MARKETPLACE_PRODUCT_NAME, { exact: true }).waitFor({ state: "visible" });
     const favoriteRow = await waitForClientFavorite(b2Client, true);
     assert.ok(favoriteRow && favoriteRow.demo === false, "Le favori n'est pas persisté comme offre réelle.");
