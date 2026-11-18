@@ -227,6 +227,7 @@ async function run() {
     saveState();
     console.log("PASS — pièce jointe PDF chargée, enregistrée en privé et reliée au message.");
 
+    await clientPage.getByRole("button", { name: "Fermer le livechat" }).click().catch(() => {});
     await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
     const reopenedTrigger = clientPage.getByRole("button", { name: "Ouvrir le livechat NAXA" });
     await reopenedTrigger.waitFor({ state: "visible", timeout: 30000 });
