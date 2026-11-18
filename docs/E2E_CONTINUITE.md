@@ -7516,3 +7516,25 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 2. Si nécessaire, appliquer le PATCH limité à ces deux champs, puis relire la configuration pour prouver les valeurs effectives.
 3. Relancer `scripts/e2e/verify-auth-session-lifecycle.cjs` avec les identifiants techniques Replay : l'ancêtre doit être refusé et le refresh token descendant courant doit lui aussi être refusé après détection de réutilisation.
 4. Exiger le PASS du job E2E final avant le vert global. Aucune migration Production ni aucun déploiement Vercel.
+
+## Section 210 — Confirmation du réglage Auth et investigation runtime (18 novembre 2026)
+
+### Décision utilisateur
+- L'utilisateur confirme que la rotation / détection de réutilisation des refresh tokens était déjà activée dans les paramètres Auth Replay avant ce contrôle. Ne pas lui demander de réactiver le même interrupteur et ne pas modifier la configuration à l'aveugle.
+- Cette confirmation décrit l'état affiché dans Dashboard ; la valeur effectivement chargée par le service Auth n'a pas pu être relue via les connecteurs disponibles dans cette session.
+
+### Traces Auth Replay corrélées au run 44234988988
+- À 04:19:14 UTC, le service Auth journalise une requête `grant_type=refresh_token` refusée en HTTP 400, code `refresh_token_already_used`, message `Possible abuse attempt`.
+- Dans la même seconde, le journal enregistre ensuite un échange de refresh token HTTP 200 et un événement d'audit `token_revoked`. Le run confirme que ce couple a été retourné par la requête de vérification du jeton descendant.
+- Cette séquence prouve le rejeu de l'ancêtre refusé puis une autre rotation acceptée ; elle ne suffit pas à elle seule à affirmer que les deux tokens testés portent le même `session_id`.
+
+### Durcissement immédiat de la recette sur main
+- Le script `scripts/e2e/verify-auth-session-lifecycle.cjs` compare désormais les claims `sub` et `session_id` des access tokens issus de la connexion initiale, de la première rotation, de la deuxième rotation et de la tentative de refresh descendant.
+- Si l'identité ou le `session_id` change durant les rotations, la recette échoue explicitement au lieu d'attribuer à tort le résultat à une famille unique.
+- Le script conserve uniquement des diagnostics non secrets des réponses Auth : statut/code d'erreur et en-têtes autorisés `sb-auth-refresh-token-rotated`, `sb-auth-refresh-token-reuse`, `sb-auth-refresh-token-counter`. Aucun access token ni refresh token brut n'est écrit dans les logs.
+
+### Suite de diagnostic
+1. Exécuter la nouvelle recette sur Replay.
+2. Si les rotations conservent le même `session_id` et que le refresh descendant répond encore HTTP 200 après le rejeu ancêtre refusé, comparer la configuration Auth effective du projet (Management API GET) avec celle affichée au Dashboard et escalader au niveau Auth service si elles concordent.
+3. Si les `session_id` diffèrent, corriger le scénario de test ou le flux de rotation précis qui crée une session différente ; ne pas changer le réglage Auth.
+4. Garder le statut Auth ROUGE jusqu'à preuve que le refresh descendant est refusé ou jusqu'à explication technique validée ; aucune modification Production et aucun déploiement Vercel.
