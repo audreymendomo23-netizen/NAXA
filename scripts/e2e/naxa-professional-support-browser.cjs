@@ -143,12 +143,29 @@ async function run(){
    assert.equal(reopened.statut,"en_cours","La réponse du professionnel ne reprend pas son dossier.");
    const resolved=await adminPage.request.patch(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,statut:"resolu"}});
    assert.equal(resolved.status(),200,"L’Admin n’a pas pu résoudre le dossier professionnel.");
-   await dialog.getByPlaceholder("Écrire un message…").fill("Réouverture après résolution "+fixture.role);
+   const reopenMessage="Réouverture après résolution "+fixture.role;
+   await dialog.getByPlaceholder("Écrire un message…").fill(reopenMessage);
+   const reopenResponsePromise=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith("/rest/v1/messages_support")&&r.request().method()==="POST",{timeout:20000});
    await dialog.getByRole("button",{name:"Envoyer le message"}).click();
-   await dialog.getByText("Réouverture après résolution "+fixture.role,{exact:true}).waitFor({state:"visible",timeout:20000});
-   const {data:reopenedAfterResolution,error:reopenError}=await admin.from("tickets_support").select("statut,resolved_at").eq("id",item.ticketId).single();if(reopenError)throw reopenError;
-   assert.equal(reopenedAfterResolution.statut,"en_cours","Le dossier résolu ne se rouvre pas pour "+fixture.role+".");
-   assert.equal(reopenedAfterResolution.resolved_at,null,"resolved_at doit être effacé à la reprise.");
+   const reopenResponse=await reopenResponsePromise;
+   const reopenBody=await reopenResponse.text().catch(()=>"");
+   assert.equal(reopenResponse.status(),201,"Insertion du message de réouverture refusée ("+reopenResponse.status()+") : "+reopenBody.slice(0,1200));
+   await dialog.locator("article").filter({hasText:reopenMessage}).waitFor({state:"visible",timeout:20000});
+   const {data:reopenMessages,error:reopenMessagesError}=await admin.from("messages_support").select("id,auteur_profile_id,contenu").eq("ticket_id",item.ticketId).eq("contenu",reopenMessage);
+   if(reopenMessagesError)throw reopenMessagesError;
+   assert.ok((reopenMessages||[]).some(m=>m.auteur_profile_id===session.profile.id),"Le message de réouverture n’est pas persisté au nom du demandeur "+fixture.role+".");
+   let reopenedAfterResolution=null;
+   let reopenError=null;
+   for(let attempt=0;attempt<20;attempt++){
+    const result=await admin.from("tickets_support").select("statut,resolved_at").eq("id",item.ticketId).single();
+    if(result.error){reopenError=result.error;break;}
+    reopenedAfterResolution=result.data;
+    if(reopenedAfterResolution.statut==="en_cours"&&reopenedAfterResolution.resolved_at===null)break;
+    await new Promise(resolve=>setTimeout(resolve,500));
+   }
+   if(reopenError)throw reopenError;
+   assert.equal(reopenedAfterResolution?.statut,"en_cours","Le message est persisté mais le trigger ne rouvre pas le dossier pour "+fixture.role+".");
+   assert.equal(reopenedAfterResolution?.resolved_at,null,"resolved_at doit être effacé à la reprise.");
    const closed=await adminPage.request.patch(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,statut:"ferme"}});
    assert.equal(closed.status(),200,"La clôture Admin a échoué.");
    const supabase=createClient(PROJECT_URL,anonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{headers:{Authorization:"Bearer "+session.accessToken}}});
