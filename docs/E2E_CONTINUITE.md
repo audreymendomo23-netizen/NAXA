@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§214)  
+**Dernière mise à jour :** 18 novembre 2026 (§215)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `5d60adf0086f7e361e2760bfb4aa7fc65f4ef3e7`  
+**HEAD contrôlé avant cette mise à jour :** `480f201753760939d5d5dc7b317ae7c9cd0b331b`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -5811,32 +5811,32 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 **Décision appliquée :** choix A, chaque structure Parapharmacie / Examens / Prestations règle son propre abonnement. Aucun paiement collectif implicite du Promoteur. L'abonnement Promoteur et les abonnements Pharmacie historiques ne sont pas remplacés par ce lot.
 
 **Source de vérité / modèle**
-- \`partner_subscriptions\` : un contrat par structure ; tarif miroir du dossier, univers, état, début/échéance, confirmation initiale, dernier règlement, éventuel accès historique.
-- \`partner_subscription_payments\` : déclarations séparées des décisions Admin, référence normalisée unique, canal, compte payeur, date déclarée, instantané de destination, reçu et période confirmée.
-- RPC titulaire : \`partner_soumettre_reglement_abonnement\`, \`partner_lire_abonnement\`.
-- RPC Admin : \`admin_lister_reglements_partenaires\`, \`admin_confirmer_reglement_partenaire\`, \`admin_refuser_reglement_partenaire\`.
+- `partner_subscriptions` : un contrat par structure ; tarif miroir du dossier, univers, état, début/échéance, confirmation initiale, dernier règlement, éventuel accès historique.
+- `partner_subscription_payments` : déclarations séparées des décisions Admin, référence normalisée unique, canal, compte payeur, date déclarée, instantané de destination, reçu et période confirmée.
+- RPC titulaire : `partner_soumettre_reglement_abonnement`, `partner_lire_abonnement`.
+- RPC Admin : `admin_lister_reglements_partenaires`, `admin_confirmer_reglement_partenaire`, `admin_refuser_reglement_partenaire`.
 - Le paiement Client de réservation est explicitement exclu de cette source de vérité.
 - La confirmation effective Admin démarre le premier cycle au jour local de confirmation NAXA. Une déclaration n'active aucun cycle. Les renouvellements anticipés prolongent à partir du lendemain de l'échéance actuelle.
-- Le helper d'accès \`private.naxa_partner_has_confirmed_payment\` dépend du cycle propre au partenaire. Les cycles hérités encore valides sont conservés via \`legacy_access_until\`, sans conversion en paiement indépendant. Aucun profil global n'est réactivé par la confirmation.
+- Le helper d'accès `private.naxa_partner_has_confirmed_payment` dépend du cycle propre au partenaire. Les cycles hérités encore valides sont conservés via `legacy_access_until`, sans conversion en paiement indépendant. Aucun profil global n'est réactivé par la confirmation.
 
 **Rappels / accès**
-- Expiration ciblée et rappels J-5 idempotents via \`naxa_process_partner_subscription_cycles()\`.
-- Job pg_cron Replay : \`naxa-partner-subscription-cycle-hourly\`, minute 20 de chaque heure.
-- Outbox e-mail enrichie des nouveaux types ; route \`/api/cron/validite\` étendue.
-- Interfaces ajoutées : \`/partenaire/abonnement\` et \`/admin/abonnements-partenaires\`, navigation Admin mise à jour.
+- Expiration ciblée et rappels J-5 idempotents via `naxa_process_partner_subscription_cycles()`.
+- Job pg_cron Replay : `naxa-partner-subscription-cycle-hourly`, minute 20 de chaque heure.
+- Outbox e-mail enrichie des nouveaux types ; route `/api/cron/validite` étendue.
+- Interfaces ajoutées : `/partenaire/abonnement` et `/admin/abonnements-partenaires`, navigation Admin mise à jour.
 
 **Migrations Replay appliquées avec succès**
-1. \`20261117200000_partner_independent_subscription_cycles\`
-2. \`20261117201000_partner_subscription_read_api_and_date_guard\`
-3. \`20261117202000_partner_subscription_read_api_fix\`
-4. \`20261117203000_partner_subscription_cron_schedule\`
+1. `20261117200000_partner_independent_subscription_cycles`
+2. `20261117201000_partner_subscription_read_api_and_date_guard`
+3. `20261117202000_partner_subscription_read_api_fix`
+4. `20261117203000_partner_subscription_cron_schedule`
 
 **Preuves Replay**
 - Tables présentes ; RLS activée et deux politiques de lecture présentes.
 - Privilèges : anon ne peut ni déclarer ni confirmer ; authenticated peut appeler les RPC qui appliquent leurs contrôles d'identité/ownership/admin ; fonctions cron exécutables par service_role seulement.
 - Rejets non authentifiés vérifiés pour déclaration, lecture, confirmation et liste Admin.
-- Job pg_cron trouvé (job 13, \`20 * * * *\`).
-- Exécution immédiate du moteur : \`expired=0\`, \`reminders=0\`.
+- Job pg_cron trouvé (job 13, `20 * * * *`).
+- Exécution immédiate du moteur : `expired=0`, `reminders=0`.
 - Replay contient actuellement 0 dossier éligible, 0 abonnement et 0 règlement. Le test métier positif n'est donc pas encore prouvé.
 - Aucun finding Advisor sécurité ne cible les nouvelles tables. Quatre index FK sont marqués unused par l'Advisor performance faute de données de test.
 - Aucun build/TypeScript/E2E positif n'a été exécuté. Aucun déploiement Vercel ni changement Production.
@@ -5846,18 +5846,18 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 
 ## 157. Rapprochement SMS croisé des abonnements partenaires (17/11/2026)
 
-- Extension de \`partner_subscription_payments\` : liens uniques vers le candidat de débit Partenaire et l'événement de crédit Admin, source de confirmation \`manual_admin\` ou \`paired_sms\`.
+- Extension de `partner_subscription_payments` : liens uniques vers le candidat de débit Partenaire et l'événement de crédit Admin, source de confirmation `manual_admin` ou `paired_sms`.
 - Triggers DB sur candidat Partenaire et événement crédit Admin ; le rapprochement est relancé aussi après déclaration pour couvrir les arrivées dans n'importe quel ordre.
-- Auto-confirmation uniquement avec une paire unique : SMS original de débit (\`voluntary_sms_share\`) + SMS de crédit capturé par un appareil Admin enrôlé ; montant, canal, référence, payeur, destination, horodatages fournisseur et hashes concordent. Une notification seule ne déclenche pas d'activation automatique.
+- Auto-confirmation uniquement avec une paire unique : SMS original de débit (`voluntary_sms_share`) + SMS de crédit capturé par un appareil Admin enrôlé ; montant, canal, référence, payeur, destination, horodatages fournisseur et hashes concordent. Une notification seule ne déclenche pas d'activation automatique.
 - Vérification d'acteurs distincts : le compte qui partage la preuve de débit ne peut pas être l'Admin qui confirme automatiquement.
 - Le dispositif Partenaire peut être enrôlé avant activation pour un titulaire dont le dossier est validé ; les gestionnaires n'obtiennent pas cette exception.
 - La route Admin capture vérifie si le trigger a confirmé un abonnement Partenaire et retourne le reçu/la période. La route candidat Partenaire retourne également le résultat auto-confirmé si le crédit Admin est déjà arrivé.
 - Le contrôle manuel Admin reste le recours lorsque les preuves sont incomplètes ou ambiguës.
 
-**Test SQL transactionnel Replay : PASS / ROLLBACK.** Scénario synthétique Examens : structure et dossier validé → contrat créé par trigger → règlement pending → SMS de débit Partenaire → SMS crédit Admin. Assertions passées : règlement \`confirmed\`, source \`paired_sms\`, reçu présent, abonnement \`active\`, période créée, partenaire \`active\`, univers activé, événement Admin \`confirmed\`. Le bloc a ensuite annulé toutes les données. Contrôle post-test : aucun partenaire, contrat, paiement, candidat, événement ni notification temporaire persistant.
+**Test SQL transactionnel Replay : PASS / ROLLBACK.** Scénario synthétique Examens : structure et dossier validé → contrat créé par trigger → règlement pending → SMS de débit Partenaire → SMS crédit Admin. Assertions passées : règlement `confirmed`, source `paired_sms`, reçu présent, abonnement `active`, période créée, partenaire `active`, univers activé, événement Admin `confirmed`. Le bloc a ensuite annulé toutes les données. Contrôle post-test : aucun partenaire, contrat, paiement, candidat, événement ni notification temporaire persistant.
 
 **Configuration / limites :**
-- \`naxa_payment_destinations\` est vide sur Replay ; aucun canal Orange/MTN actif, donc pas de test de déclaration ou de capture HTTP réelle.
+- `naxa_payment_destinations` est vide sur Replay ; aucun canal Orange/MTN actif, donc pas de test de déclaration ou de capture HTTP réelle.
 - Les tests positifs des routes Android et Admin, l'e-mail effectif et le build/TypeScript ne sont pas encore exécutés.
 - Aucun déploiement Production ni Vercel.
 
@@ -5870,19 +5870,19 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 - La validation d'un dossier partenaire ne consulte plus l'abonnement Promoteur et ne peut plus activer une structure sans son propre cycle confirmé (ou un accès historique valide). Les univers Aide et autres univers non pris en charge sont refusés par cette validation.
 - La confirmation d'un règlement Promoteur ne réactive plus les partenaires indépendants du même titulaire.
 - La synchronisation Pharmacie/Promoteur ne crée plus de verrou Promoteur à partir de dossiers Parapharmacie/Examens/Prestations ; elle gère uniquement les abonnements Promoteur/Pharmacie.
-- \`promoteur_soumettre_reglement\` exige désormais un profil actif de rôle Promoteur. Le titulaire d'une autre structure utilise le RPC de sa structure.
+- `promoteur_soumettre_reglement` exige désormais un profil actif de rôle Promoteur. Le titulaire d'une autre structure utilise le RPC de sa structure.
 - Les références de transaction sont contrôlées entre règlements Promoteur, abonnements partenaires et confirmations de réservation Client.
 
 **Tests transactionnels Replay (ROLLBACK)**
-- Validation Admin avec univers/feature flag activés uniquement dans la transaction : dossier validé, partenaire reste \`pending\`, univers reste désactivé, abonnement propre reste \`pending_payment\`. Le bloc est annulé et les flags restent désactivés.
+- Validation Admin avec univers/feature flag activés uniquement dans la transaction : dossier validé, partenaire reste `pending`, univers reste désactivé, abonnement propre reste `pending_payment`. Le bloc est annulé et les flags restent désactivés.
 - J-5 : premier appel = 1 rappel ; deuxième appel = 0 nouveau rappel.
-- Expiration : contrat propre échu = \`expired\`, partenaire reste actif, profil global reste actif ; aucune suspension transversale.
+- Expiration : contrat propre échu = `expired`, partenaire reste actif, profil global reste actif ; aucune suspension transversale.
 - Le test d'auto-pairing SMS §157 reste PASS.
 - Contrôle après annulation : zéro ligne temporaire et zéro notification de test persistante.
 
 **Configuration Replay non activée**
 - Les trois univers Parapharmacie, Examens et Prestations ont leurs flags désactivés.
-- Aucune destination active dans \`naxa_payment_destinations\` pour MTN/Orange.
+- Aucune destination active dans `naxa_payment_destinations` pour MTN/Orange.
 - Aucun build/TypeScript/CI ni parcours HTTP/Android complet exécuté.
 - Aucun déploiement Production/Vercel.
 
@@ -5891,15 +5891,15 @@ Une requête SQL en lecture seule confirme : 0 partenaire temporaire, 0 adhésio
 
 ## 159. Clôture de passe — état vérifié sur Replay et main (17/11/2026)
 
-**Historique Supabase Replay confirmé :** 11 migrations du lot, de \`20261117060519 partner_independent_subscription_cycles\` à \`20261117061911 exclude_non_billable_partner_universes\`, toutes visibles dans l'historique appliqué.
+**Historique Supabase Replay confirmé :** 11 migrations du lot, de `20261117060519 partner_independent_subscription_cycles` à `20261117061911 exclude_non_billable_partner_universes`, toutes visibles dans l'historique appliqué.
 
-**Job confirmé :** \`naxa-partner-subscription-cycle-hourly\`, job 13, \`20 * * * *\`.
+**Job confirmé :** `naxa-partner-subscription-cycle-hourly`, job 13, `20 * * * *`.
 
 **Contrôles finaux :**
-- Aucun finding Advisor sécurité sur \`partner_subscriptions\` / \`partner_subscription_payments\`.
+- Aucun finding Advisor sécurité sur `partner_subscriptions` / `partner_subscription_payments`.
 - Trois index FK signalés INFO/unused, explicable par les tables vides sur Replay.
 - Les feature flags des trois univers restent désactivés ; aucune destination MTN/Orange active sur Replay.
-- \`vercel.json\` conserve \`git.deploymentEnabled.main=false\`.
+- `vercel.json` conserve `git.deploymentEnabled.main=false`.
 - Aucun statut CI ou run GitHub Actions attaché au dernier HEAD ; build/TypeScript non prouvés.
 - Aucun déploiement Vercel ni changement Production.
 
@@ -7877,8 +7877,8 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 
 ## 211 — Accès FAQ depuis les deux en-têtes à trois points — 18/11/2026
 
-- Vérification complémentaire des en-têtes : en plus de l'en-tête Client (\`EnTeteClient\`) et de \`MenuUnivers\`, l'en-tête public \`EnTeteAccueil\` possède lui aussi un menu à trois points.
-- « Besoin d’aide ? » est ajouté à ce menu public, en français et en anglais, avec destination \`/faq\`. Le même libellé reste sur l'en-tête Client. La FAQ reste séparée du chat écrit avec une pharmacie (\`/aide\`).
+- Vérification complémentaire des en-têtes : en plus de l'en-tête Client (`EnTeteClient`) et de `MenuUnivers`, l'en-tête public `EnTeteAccueil` possède lui aussi un menu à trois points.
+- « Besoin d’aide ? » est ajouté à ce menu public, en français et en anglais, avec destination `/faq`. Le même libellé reste sur l'en-tête Client. La FAQ reste séparée du chat écrit avec une pharmacie (`/aide`).
 - Le contrat Node vérifie maintenant aussi le lien FAQ de l'en-tête public ; R09-01 exige la présence de cette entrée dans les deux en-têtes.
 - Commit du raccordement FAQ à l'en-tête public : `cfe9dcac14443ca779580a213afaceb3f2252295`. Douze contrôles statiques de cohérence ont ensuite été exécutés sur `main` : PASS. Le test Node complet, TypeScript, lint, build et navigateur restent non exécutés.
 - Contrôle statique ciblé à exécuter après commit ; tests Node, TypeScript, lint, build, navigateur et Replay toujours en attente. Aucune donnée, migration, Production ou déploiement touché.
@@ -7888,10 +7888,10 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 ## 212 — Visibilité exclusive de « Besoin d’aide ? » dans l’en-tête Client — 18/11/2026
 
 - Décision utilisateur : « Besoin d’aide ? » doit être visible exclusivement dans l’en-tête Client.
-- Retrait du lien FAQ du menu à trois points de \`EnTeteAccueil\` (en-tête public).
-- Retrait aussi du lien FAQ de \`MenuUnivers\`, afin qu'aucun autre menu d'univers ne duplique cette entrée.
-- Conservation du raccourci FAQ \`/faq\` dans \`EnTeteClient\` uniquement. La page reste accessible via son URL ; le chat pharmacie reste sur \`/aide\`.
-- Contrat Node ajusté : présence du libellé/lien FAQ dans l'en-tête Client et absence dans \`EnTeteAccueil\` et \`MenuUnivers\`.
+- Retrait du lien FAQ du menu à trois points de `EnTeteAccueil` (en-tête public).
+- Retrait aussi du lien FAQ de `MenuUnivers`, afin qu'aucun autre menu d'univers ne duplique cette entrée.
+- Conservation du raccourci FAQ `/faq` dans `EnTeteClient` uniquement. La page reste accessible via son URL ; le chat pharmacie reste sur `/aide`.
+- Contrat Node ajusté : présence du libellé/lien FAQ dans l'en-tête Client et absence dans `EnTeteAccueil` et `MenuUnivers`.
 - R09-01 mise à jour pour vérifier l'exclusivité d'affichage. Test Node complet, TypeScript, lint, build et contrôle navigateur restent à exécuter.
 - Aucun accès base, aucune migration, aucune donnée Replay/Production touchée, aucun déploiement.
 
@@ -7925,4 +7925,14 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Migration additive Realtime créée : publication tickets_support/messages_support, RPC invoker protégée par RLS, notification de création. Aucun canal de présence/« agent en ligne » n'est simulé : l'UI indique uniquement si la connexion Realtime est active.
 - Contrats Node, tests SQL et recette R09-10 préparés. À exécuter : migration uniquement sur Replay, test SQL Livechat, npm test ciblé/global, TypeScript, ESLint, build, puis E2E Client↔Admin avec sessions de test et vérification non-régression /aide.
 - Aucun changement Production ni déploiement.
+
+
+
+## 215 — Correction de migration Realtime et garde-fous de rôle actif — 18/11/2026
+
+- Le premier essai d'application Livechat sur Replay a été refusé par une erreur de syntaxe dans la migration, sans commit DB. Contrôle SQL post-échec : RPC absente, zéro trigger Livechat, zéro table support publiée dans Realtime, zéro dossier/message support_naxa.
+- La migration `20261118150000_naxa_livechat_realtime.sql` a été reconstruite intégralement : un seul bloc transactionnel, RPC atomique SECURITY INVOKER, politiques RLS d'insertion/lecture et Storage exigeant le Client actif et `naxa_business_function() = 'client'`, lecture Admin exigeant profil Admin actif et espace Admin, notifications Admin à la création et aux réponses Client, nettoyage de `resolved_at` après reprise d'un dossier résolu, publication Realtime des deux tables.
+- Les Server Actions et la page complète /assistance vérifient maintenant elles aussi le rôle métier actif Client ; le shell du widget le vérifiait déjà.
+- La correction SQL et la présente continuité sont versionnées sur main ; nouvelle tentative Replay et test SQL structurel encore à exécuter. Aucun compte ni ticket de test créé.
+- Aucun changement Production, aucune migration Production, aucun déploiement.
 
