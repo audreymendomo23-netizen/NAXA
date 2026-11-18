@@ -1,10 +1,10 @@
-# Assistance Client → NAXA et Livechat
+# Assistance individuelle NAXA — Clients et professionnels
 
 ## Objectif
 
-Mettre à disposition du Client un canal de conversation directement adressé à l’équipe NAXA, accessible depuis un widget flottant et depuis la page complète `/assistance`. Ce canal est distinct de la conversation Client–pharmacie sur `/aide`.
+Mettre à disposition de chaque Client et de chaque compte professionnel actif un canal individuel directement adressé à l’équipe NAXA, accessible depuis un widget flottant et depuis la page complète `/assistance`. L’accès ne dépend pas du Promoteur ou du Responsable et ne nécessite aucune médiation hiérarchique. Ce canal est distinct de la conversation Client–pharmacie sur `/aide`.
 
-- **Assistance NAXA** : compte, accès, problème technique, expérience, signalement, confidentialité et suggestions.
+- **Assistance NAXA** : compte, accès, problème technique, expérience, signalement, confidentialité, gestion d’espace, personnel, stock, caisse, commandes, livraison, abonnement et suggestions. Chaque demande appartient au compte qui l’a créée, même s’il est affecté à une structure.
 - **Chat pharmacie** : disponibilité, prix, fiches, stock, retrait, livraison ou prestations propres à une pharmacie.
 - Aucun ticket de type `support_naxa` n'est attribué à une pharmacie ; son champ `pharmacie_id` reste `NULL`.
 
@@ -18,15 +18,17 @@ La page `/faq` est un centre d’aide interactif :
 - informations sur les six espaces NAXA, les responsabilités des établissements, les commandes, la sécurité et l’assistance ;
 - accès distinct au support NAXA et au chat pharmacie.
 
-Le raccourci « Besoin d’aide ? » reste exclusivement dans le menu à trois points de l’en-tête Client. Son action utilise `notifierNAXA()` pour afficher un toast d’accueil avant la navigation vers `/faq`. Le message existant des écosystèmes verrouillés reste intact. Le widget Livechat est masqué sur la FAQ.
+La FAQ est accessible depuis l’en-tête du widget (« FAQ ») pour tous les comptes concernés et depuis le centre d’aide `/faq`. Le raccourci « Besoin d’aide ? » reste dans le menu à trois points de l’en-tête Client. Son action utilise `notifierNAXA()` pour afficher un toast d’accueil avant la navigation vers `/faq`. Le message existant des écosystèmes verrouillés reste intact. Le widget Livechat est masqué sur la FAQ.
 
-## Widget Livechat Client
+## Widget Livechat Client et professionnel
 
-- Bouton flottant jaune canari, en bas à droite, sur les routes du parcours Client des six écosystèmes.
-- Visible uniquement pour une session authentifiée dont le profil est actif, de rôle Client et dont l’espace métier actif renvoie `client`.
+- Bouton flottant jaune canari, en bas à droite, sur les routes du parcours Client des six écosystèmes et sur les espaces professionnels concernés.
+- Client : session authentifiée, profil actif de rôle Client et espace métier actif `client`.
+- Professionnel : session authentifiée, profil actif non Admin et fonction métier active non nulle, différente de `client` et `admin`, sur les routes professionnelles Pharmacie, Partenaire et Centre d’examens.
 - Masqué sur `/faq`, les routes professionnelles, l’administration, les pages d’authentification et l’accueil public.
 - Sur les pages avec navigation basse, le bouton et le panneau sont positionnés au-dessus de la barre afin de ne pas masquer les onglets. Le bouton se replie lorsque le panneau est ouvert ; la fermeture reste accessible dans l’en-tête du panneau.
 - Le panneau liste les 20 dossiers récents, permet de changer de conversation, d’ouvrir une demande et de répondre dans le fil actif.
+- Un professionnel peut contacter NAXA individuellement, sans accord préalable ni transmission au Responsable/Promoteur. Les autres membres de sa structure ne peuvent pas lire ses dossiers.
 - Le widget ne prétend pas qu’un agent est en ligne. Il indique uniquement si l’abonnement Supabase Realtime est connecté.
 - Les messages restent conservés si le Client ferme le panneau ou perd temporairement la connexion. À la prochaine ouverture, le fil est relu depuis la base.
 - Les pièces jointes sont gérées depuis la page complète `/assistance`, qui offre les mêmes dossiers et conversations ainsi que le dépôt de fichiers privés.
@@ -67,7 +69,7 @@ La page Admin `/admin/messagerie` est la boîte de réception commune :
 - permet prise en charge, attente Client, résolution, réouverture et clôture ;
 - expose les pièces jointes via des URL signées générées côté serveur après vérification Admin actif.
 
-La migration Livechat ajoute `tickets_support` et `messages_support` à la publication `supabase_realtime`. Les abonnements restent soumis aux politiques SELECT RLS. L’accès Admin aux tickets/messages exige le profil Admin actif et l’espace Admin sélectionné. Les Clients ne lisent que leurs dossiers et les messages publics ; les notes internes sont exclues. Les droits Client/pharmacie historiques restent couverts.
+La migration Livechat ajoute `tickets_support` et `messages_support` à la publication `supabase_realtime`. Les abonnements restent soumis aux politiques SELECT RLS. L’accès Admin aux tickets/messages exige le profil Admin actif et l’espace Admin sélectionné. Chaque Client ou professionnel actif ne lit que ses propres dossiers et les messages publics ; les notes internes sont exclues. Un compte professionnel ne peut ni consulter ni répondre aux dossiers d’un collègue, même dans la même pharmacie ou structure. Les droits Client/pharmacie historiques restent couverts.
 
 Les conversations de type `conseil_pharmacien` gardent leur parcours et leurs règles historiques.
 
@@ -86,10 +88,10 @@ Les conversations de type `conseil_pharmacien` gardent leur parcours et leurs r�
 
 ## Validation avant ouverture générale
 
-1. Migrations Assistance et Livechat appliquées sur Replay.
+1. Migrations Assistance, Livechat et extension professionnelle appliquées sur Replay.
 2. Tests SQL structurels Assistance et Livechat : PASS sur Replay.
 3. Exécuter `npm test`, `npx tsc --noEmit`, `npm run lint` et `npm run build`.
-4. Réaliser une recette navigateur Client ↔ Admin : création, notifications Admin, réponse instantanée, réponse Client, statuts, reconnexion et suivi widget/page.
+4. Réaliser les recettes navigateur Client ↔ Admin et Promoteur/Livreur ↔ Admin : création, confidentialité individuelle, notifications, réponse instantanée, statuts, suivi widget/page et FAQ.
 5. Vérifier l’isolation RLS entre deux Clients, le refus pour Admin inactif ou espace Admin non sélectionné, l’absence de fuite de notes internes et le bucket privé.
 6. Refaire le parcours historique `/aide` pour garantir la non-régression du chat Client–pharmacie.
 

@@ -28,6 +28,8 @@ type Ticket = {
   reference_code?: string | null;
   categorie?: string | null;
   last_activity_at?: string | null;
+  auteur_label?: string | null;
+  auteur_role?: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -39,13 +41,12 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  compte: "Compte et connexion",
-  technique: "Problème technique",
-  commande: "Commande, réservation ou livraison",
-  signalement: "Signalement",
-  confidentialite: "Confidentialité",
-  suggestion: "Suggestion",
-  autre: "Autre",
+  compte: "Compte et connexion", technique: "Problème technique",
+  gestion_espace: "Utilisation de mon espace", personnel: "Personnel et affectations",
+  stock: "Stock et inventaires", caisse: "Caisse et comptabilité",
+  commandes: "Commandes et réservations", livraison: "Livraison et suivi",
+  abonnement_paiement: "Abonnement et paiement", publication: "Catalogue et publications",
+  signalement: "Signalement", confidentialite: "Confidentialité", suggestion: "Suggestion", autre: "Autre",
 };
 
 export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
@@ -206,6 +207,7 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
         return <button key={ticket.id} type="button" onClick={() => { setSelected(ticket.id); setError(""); setSuccess(""); }} className={"block w-full rounded-xl border p-3 text-left " + (selected === ticket.id ? "border-emerald-800 bg-emerald-50" : "border-slate-200 bg-white")}>
           <span className="flex items-start justify-between gap-2"><strong className="break-words">{ticket.sujet}</strong><span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold">{STATUS_LABELS[status] ?? status}</span></span>
           {ticket.type === "support_naxa" && <span className="mt-1 block font-mono text-xs font-bold text-emerald-800">{ticket.reference_code}</span>}
+          {ticket.type === "support_naxa" && <span className="mt-1 block text-xs font-semibold text-slate-700">{ticket.auteur_label || "Compte demandeur"} · {ticket.auteur_role || "Rôle professionnel"}</span>}
           <span className="mt-1 block text-xs text-slate-500">{ticket.type === "support_naxa" ? (CATEGORY_LABELS[ticket.categorie ?? "autre"] ?? ticket.categorie) : ticket.type} · {new Date(ticket.last_activity_at ?? ticket.created_at).toLocaleString("fr-FR", { timeZone: "Africa/Douala" })}</span>
           <span className="mt-1 block truncate font-mono text-[10px] text-slate-400">{ticket.id}</span>
         </button>;
@@ -213,7 +215,7 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
     </section>
     <section className="carte space-y-4">
       {!current ? <p className="text-sm text-slate-600">Sélectionnez une requête pour lire et traiter le fil.</p> : <>
-        <header><div><p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">{current.type === "support_naxa" ? "Assistance Client → NAXA" : "Fil de support"}</p><h2 className="text-xl font-extrabold">{current.sujet}</h2><p className="text-xs text-slate-500">{current.type === "support_naxa" ? (current.reference_code + " · " + (CATEGORY_LABELS[current.categorie ?? "autre"] ?? current.categorie)) : current.type + " · " + (current.pharmacie_id ? "Pharmacie liée" : "Aucune pharmacie liée")}</p></div></header>
+        <header><div><p className="text-xs font-extrabold uppercase tracking-widest text-emerald-800">{current.type === "support_naxa" ? "Assistance individuelle → NAXA" : "Fil de support"}</p><h2 className="text-xl font-extrabold">{current.sujet}</h2><p className="text-xs text-slate-500">{current.type === "support_naxa" ? (current.reference_code + " · " + (CATEGORY_LABELS[current.categorie ?? "autre"] ?? current.categorie)) : current.type + " · " + (current.pharmacie_id ? "Pharmacie liée" : "Aucune pharmacie liée")}</p></div></header>
         {current.type === "support_naxa" && <div className="flex flex-wrap gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
           <span className="mr-auto self-center text-sm font-bold text-emerald-950">Statut : {STATUS_LABELS[currentStatus] ?? currentStatus}</span>
           {currentStatus === "ouvert" && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("en_cours")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-emerald-900 disabled:opacity-50">Prendre en charge</button>}
@@ -226,7 +228,7 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
           {threadLoading && <p role="status" className="text-sm text-slate-500">Chargement de l’historique…</p>}
           {threadError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{threadError}</p>}
           {!threadLoading && !threadError && !thread.length && <p className="text-sm text-slate-500">Aucun message dans ce ticket.</p>}
-          {!threadError && thread.map((message) => <article key={message.id} className="rounded-xl border bg-white p-3"><div className="flex flex-wrap justify-between gap-2"><strong className="text-xs">{message.auteur_profile_id === current.auteur_profile_id ? "Client / demandeur" : current.type === "support_naxa" ? "Équipe NAXA" : "Réponse pharmacie / support"}{message.interne ? " · Note interne" : ""}</strong><time className="text-xs text-slate-500">{new Date(message.created_at).toLocaleString("fr-FR", { timeZone: "Africa/Douala" })}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.contenu}</p>
+          {!threadError && thread.map((message) => <article key={message.id} className="rounded-xl border bg-white p-3"><div className="flex flex-wrap justify-between gap-2"><strong className="text-xs">{message.auteur_profile_id === current.auteur_profile_id ? "Compte demandeur" : current.type === "support_naxa" ? "Équipe NAXA" : "Réponse pharmacie / support"}{message.interne ? " · Note interne" : ""}</strong><time className="text-xs text-slate-500">{new Date(message.created_at).toLocaleString("fr-FR", { timeZone: "Africa/Douala" })}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.contenu}</p>
             {message.piece_jointe_nom && <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs">{message.attachmentUrl ? <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-900 underline">Ouvrir la pièce jointe : {message.piece_jointe_nom}</a> : <span>Pièce jointe indisponible : {message.piece_jointe_nom}</span>}{message.piece_jointe_taille ? <span className="ml-2 text-slate-500">{Math.round(message.piece_jointe_taille / 1024)} Ko</span> : null}</div>}
           </article>)}
         </div>
