@@ -67,7 +67,9 @@ async function loginAgent(browser,agent,letter){
  await p.getByRole("button",{name:"Sécuriser mon compte"}).click();
  await p.waitForURL(u=>u.pathname==="/equipe-support",{timeout:30000});
  await p.getByRole("heading",{name:"Tableau de bord support"}).waitFor({timeout:30000});
- console.log("PASS — login Agent "+letter+" et rotation initiale.");return {context:c,page:p,email:agent.email,password:next};
+ await p.getByRole("button",{name:"Me rendre disponible"}).click();
+ await p.getByRole("button",{name:"Passer indisponible"}).waitFor({timeout:10000});
+ console.log("PASS — login Agent "+letter+", rotation initiale et présence disponible.");return {context:c,page:p,email:agent.email,password:next};
 }
 async function createTicket(client,subject){
  const r=await client.rpc("open_naxa_support_ticket",{p_categorie:"technique",p_sujet:subject,p_message:"Demande E2E "+subject});if(r.error)throw r.error;
@@ -120,6 +122,14 @@ async function run(){
   const {data:agentMessages,error:amError}=await ca.from("messages_support").select("contenu,interne").eq("ticket_id",ticketA);
   if(amError)throw amError;assert.ok(agentMessages.some(m=>m.contenu===note&&m.interne));
   console.log("PASS — réponse publique visible Client ; note interne réservée Agent.");
+
+  const clientRealtimeMessage="Réponse Client Realtime "+tag;
+  const {error:clientReplyError}=await client.from("messages_support").insert({
+   ticket_id:ticketA,auteur_profile_id:clientSession.profile.id,contenu:clientRealtimeMessage,interne:false,
+  });
+  if(clientReplyError)throw clientReplyError;
+  await a.page.getByText(clientRealtimeMessage,{exact:true}).waitFor({timeout:20000});
+  console.log("PASS — Realtime transmet une réponse Client à l’Agent affecté.");
 
   const forbidden=await b.page.evaluate(async id=>(await fetch("/api/support-agent/ticket?ticket_id="+id)).status,ticketA);
   assert.equal(forbidden,404);
