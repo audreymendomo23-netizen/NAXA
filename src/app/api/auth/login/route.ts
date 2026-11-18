@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       phase = "support_agent_lookup";
       const { data: agents, error: agentLookupError } = await admin
         .from("support_agents")
-        .select("user_id,username,status,must_change_password")
+        .select("user_id,username,status,must_change_password,consent_accepted_at")
         .eq("username", username)
         .limit(2);
       if (agentLookupError || !agents || agents.length !== 1) {
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       phase = "support_agent_rate_limit_success";
       await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
       await rateLimit("login_user", loginKey, "success", 20, 3600, 900, 900);
-      return NextResponse.json({ ok: true, espace: "support_agent", must_change_password: agent.must_change_password === true });
+      return NextResponse.json({ ok: true, espace: "support_agent", must_change_password: agent.must_change_password === true || !agent.consent_accepted_at });
     }
 
     if (matchingProfiles.length !== 1) {
