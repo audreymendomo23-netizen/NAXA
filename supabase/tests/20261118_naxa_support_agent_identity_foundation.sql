@@ -5,6 +5,7 @@ do $test$
 declare
   v_table text;
   v_id uuid;
+  v_def text;
   v_update_rejected boolean := false;
   v_delete_rejected boolean := false;
 begin
