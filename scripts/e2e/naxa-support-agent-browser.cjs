@@ -55,6 +55,8 @@ async function createAgent(adminPage,tag,letter){
   date_of_birth:"1990-01-01",permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note"],
  });
  assert.equal(r.status,201,JSON.stringify(r.data));state.agents.push(r.data.agent.user_id);save();
+ const invalidPermission=await adminPage.evaluate(async x=>{const r=await fetch("/api/admin/support-agents",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(x)});return r.status;},{user_id:r.data.agent.user_id,status:"active",presence:"unavailable",permissions:["queue_view"]});
+ assert.equal(invalidPermission,400,"Une permission dépendante ne doit pas survivre sans accès aux dossiers attribués.");
  const p=await admin.from("profiles").select("id").eq("id",r.data.agent.user_id).maybeSingle();if(p.error)throw p.error;assert.equal(p.data,null);
  return {id:r.data.agent.user_id,username,password:r.data.temporary_password,email:"naxa-agent-"+letter+"-"+tag+"@example.com"};
 }
