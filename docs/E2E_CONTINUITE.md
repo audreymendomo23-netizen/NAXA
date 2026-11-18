@@ -7605,3 +7605,38 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Auth : après deux rotations, le script établit que les access tokens gardent le même `sub` et le même `session_id`. Le rejeu du refresh token ancêtre hors fenêtre est refusé HTTP 400 (`Possible abuse attempt: 3000`), mais le refresh token descendant de la même session est ensuite accepté HTTP 200. Les journaux Auth confirment cette séquence `400` puis `200` ; l'audit `token_refreshed` / `token_revoked` du second appel correspond à la rotation du jeton descendant et ne prouve pas la révocation de toute la famille.
 - La configuration Auth effective doit être relue par Management API (`GET /v1/projects/{ref}/config/auth`, scope `auth:read`) puis comparée au réglage Dashboard déjà confirmé par l'utilisateur. Le connecteur Supabase disponible dans cette session n'expose pas cette action Management API. Ne pas désactiver la rotation, ne pas diminuer la sécurité et ne pas déclarer Auth au vert sur la seule base du HTTP 400.
 - Verdict : **remboursement crédit espèces / Orange Money / MTN MoMo, reçus, mouvements de trésorerie et comptabilisation : VERT sur Replay**. **Contrôle de révocation de famille Auth : ROUGE indépendant**. Aucun vert global Auth revendiqué.
+
+
+## 201. Lot B2 Marketplace Client — Replay — 18/11/2026
+
+### Périmètre et environnement
+- Dépôt : `audreymendomo23-netizen/NAXA`, branche `main`. HEAD au moment du point documentaire : `114f070d438f4d3a578234af732f99aa225276bc`.
+- Base utilisée exclusivement : Supabase Replay `pwfftcsjyeibxxqhwysw` (`naxa-ci-replay-2`, eu-west-1). Aucune requête de mutation n'a ciblé Production `eouwtuusnsuxaejsxknf`. Aucun déploiement.
+- Fixtures de recette : pharmacie technique `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`, produit `dfd7313c-46a4-455a-b67d-50f0ce2a3686`, Client Auth `dcb2242b-50fb-46c8-8c90-e01d42fa4175`.
+
+### Recette SQL Lot B2
+- Test source : `supabase/tests/306_lot_b2_client_marketplace_transaction.sql`. Scénario authentifié Client : offre publique avec stock positif, ajout/lecture/retrait du favori, réservation, refus de surbooking, annulation, restitution exacte du stock et lecture de l'historique annulé.
+- Exécution sur Replay : marqueur terminal `LOT_B2_CLIENT_FAVORITES_RESERVATION_OVERSELL_CANCEL_HISTORY PASS`.
+- Le scénario est dans une transaction terminée par `ROLLBACK`. Contrôle après exécution : zéro favori de recette résiduel, stock persistant revenu à 4 unités (niveau initial), visibilité Marketplace de la pharmacie revenue à `false`. Aucune fixture commerciale n'a été laissée publiée.
+
+### Recette Playwright Client et corrections sur main
+- Run navigation `44251008318` sur ancien HEAD : la navigation Client, le favori démo et l'isolation du panier étaient PASS ; le test s'arrêtait ensuite sur `permission denied for function search_pharmacies_bulk`, parce que le runtime utilisait le client Admin alors que le RPC exige un JWT `authenticated`.
+- Correction sur `main` : commit `858ba440d667f169ede778a6bd8e1b7dfd821eaa`. Le helper `prepareClientMarketplaceFixture` reçoit désormais le client Supabase Client et appelle `client.rpc("search_pharmacies_bulk")`. Le contrat interdit l'appel Admin pour ce RPC.
+- Run `44251009473` sur ce correctif : le test atteint le parcours Client Marketplace puis s'arrête sur un sélecteur Playwright strict ambigu (`Mes favoris` correspondait à deux titres). Le nettoyage de la fixture est exécuté ; le lot B2 n'est donc pas déclaré vert sur ce run.
+- Correction du sélecteur sur `main` : commit `531d0ceaae0cef77748bb8941bfe65c4f6e2eaf8`, ciblage du `main h1`. Le run `44252780017` a commencé, mais n'avait pas encore terminé lors de ce relevé (étape Playwright/Chromium en cours).
+- Durcissement supplémentaire sur `main` : commit `114f070d438f4d3a578234af732f99aa225276bc`. Le runtime attend maintenant la persistance réelle du favori Client en base avant la navigation vers la page Favoris, afin d'éviter une course UI/API. Le run `44253149371` ciblant ce HEAD était en attente derrière le run précédent ; son verdict est donc encore ouvert.
+- Qualité : syntaxe GitHub Actions PASS sur le HEAD `114f070d438f4d3a578234af732f99aa225276bc`. Le job tests/TypeScript/lint de ce HEAD était encore en cours à l'instant de ce relevé. Les succès antérieurs de qualité sur `858ba440` et `4ca67b8` ne remplacent pas le résultat du HEAD courant.
+
+### Rectification du diagnostic Auth §199/§200
+- Le défaut de lecture de l'erreur Auth dans le harnais est corrigé : le code métier string `error_code` est prioritaire sur le champ numérique HTTP `code`. Le helper `readAuthErrorCode` est isolé dans `scripts/e2e/refresh-session-check.cjs` sans dépendance Playwright ; tests unitaires ajoutés pour les réponses Supabase.
+- Le contrôle direct Replay de récupération de mot de passe décrit au §199 est désormais dépassé : `naxa_rate_limit_v1('ip_password_reset', ...)` répond `allowed=true`, et la contrainte `tentatives_code_scope_chk` accepte ce scope. Les migrations `20261117224500` et `20261117224600` sont donc reflétées dans l'état SQL Replay lu lors de ce contrôle. Le diagnostic 503 de récupération de mot de passe ne doit plus être présenté comme un blocage Replay actuel.
+- En revanche, le contrôle de réutilisation des refresh tokens demeure ROUGE et n'est plus une erreur de parsing : le test confirme le même `sub` et le même `session_id` après les rotations ; le rejeu de l'ancêtre est HTTP 400 avec `error_code=refresh_token_already_used`, mais une requête immédiatement suivante utilisant le refresh descendant retourne HTTP 200. Les logs Auth Replay du 18/11 (compte de test Gestionnaire Stock) confirment la séquence HTTP 400 puis HTTP 200.
+- L'utilisateur avait confirmé que le réglage de rotation était activé dans Dashboard. Le réglage effectivement chargé par le service Auth Replay n'a pas pu être lu via le connecteur disponible : `auth.instances` ne contient pas de configuration, les fonctions SQL Auth n'exposent pas ce paramètre, et aucun outil Management API `GET /v1/projects/{ref}/config/auth` avec scope `auth:read` n'est disponible dans cette session. Ne pas prétendre que ce paramètre a été relu ou le modifier par SQL interne. Une lecture Management API du projet Replay est le seul point de vérification restant pour distinguer un écart de configuration Dashboard/service d'un défaut du service Auth.
+- Cela n'invalide pas le correctif NAXA du plafond applicatif de quatre sessions : le trigger bloquant reste absent de Replay. La révocation de famille refresh est un contrôle séparé.
+
+### Verdict à cet instant
+- **SQL transactionnel Lot B2 : PASS sur Replay, rollback et propreté des fixtures prouvés.**
+- **Playwright Lot B2 : EN COURS / NON VERT** — les rouges rencontrés ont donné lieu aux corrections documentées ; le run du HEAD courant n'avait pas terminé.
+- **Qualité du HEAD courant : EN COURS** — syntaxe GitHub Actions PASS ; job tests/TypeScript/lint en cours.
+- **Auth refresh-token family reuse : ROUGE indépendant** — HTTP 400 pour l'ancêtre puis HTTP 200 pour le descendant de la même session ; réglage Auth effectif non lisible par le connecteur.
+- Aucune action Production, aucun déploiement, aucun changement Auth indirect par SQL.
