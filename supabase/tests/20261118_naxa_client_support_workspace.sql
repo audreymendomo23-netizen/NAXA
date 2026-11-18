@@ -29,7 +29,7 @@ begin
   if not exists (
     select 1 from pg_policies
     where schemaname='public' and tablename='tickets_support'
-      and policyname='tickets_support_client_create_naxa_support' and cmd='INSERT'
+      and policyname='tickets_support_account_create_naxa_support' and cmd='INSERT'
   ) then raise exception 'Politique de création Client NAXA absente'; end if;
 
   if not exists (
