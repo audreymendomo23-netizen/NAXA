@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const { data: profiles, error: profileError } = await admin
       .from("profiles")
       .select("id, username")
-      .ilike("username", username)
+      .eq("username", username)
       .limit(2);
 
     if (profileError) {
