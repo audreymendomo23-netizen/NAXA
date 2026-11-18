@@ -46,8 +46,21 @@ const STATUS: Record<string, string> = {
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("fr-FR", { timeZone: "Africa/Douala", hour: "2-digit", minute: "2-digit" });
 const formatDate = (value: string) => new Date(value).toLocaleDateString("fr-FR", { timeZone: "Africa/Douala", day: "2-digit", month: "short" });
 
-export function NaxaSupportWidget({ accountId, hasBottomNav }: { accountId: string; hasBottomNav: boolean }) {
+export function NaxaSupportWidget({ hasBottomNav }: { hasBottomNav: boolean }) {
   const supabase = useMemo(() => supabaseBrowser(), []);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    const syncAccount = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (active) setAccountId(!error ? data.user?.id ?? null : null);
+    };
+    void syncAccount();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setAccountId(session?.user?.id ?? null);
+    });
+    return () => { active = false; subscription.unsubscribe(); };
+  }, [supabase]);
   const [open, setOpen] = useState(false);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedId, setSelectedId] = useState("");
