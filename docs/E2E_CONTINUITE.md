@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§219)  
+**Dernière mise à jour :** 18 novembre 2026 (§220)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `921671c7cdcad00e3357add4244d9963165c5fc4`  
+**HEAD contrôlé avant cette mise à jour :** `8a9df33dab54dc2747415bcfb32ea485a8d2c72e`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7988,4 +7988,64 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Le contrôle GitHub du commit précédent `921671c` ne renvoyait aucun statut CI. Le workflow `naxa-quality.yml` s'exécute sur push `main` et combine `npm test`, TypeScript, ESLint et build Next.js ; ce commit documentaire sert à déclencher cette vérification. Son résultat doit être lu avant toute déclaration verte.
 - **NON PROUVÉ / NON VERT :** exécution Node réelle, TypeScript, ESLint, build, échanges navigateur Client↔Admin, notifications reçues dans les deux sessions, reconnexion Realtime, transitions de statut en navigateur, pièces jointes de bout en bout et non-régression du chat pharmacie `/aide`. Les preuves SQL structurelles ne remplacent pas ces essais.
 - **Point de reprise :** relever les résultats du workflow qualité attachés au commit documentaire, corriger tout échec sur `main`, puis exécuter R09-10 en deux sessions authentifiées Client/Admin sur Replay. Garder Production et déploiement hors périmètre.
+
+
+
+## 220 — FAQ, Livechat et contrôle final automatisé — 18/11/2026
+
+**ÉTAT : 🟢 SOCLE SQL/Realtime ET QUALITÉ AUTOMATISÉE VALIDÉS — 🟡 RECETTE NAVIGATEUR R09-10 RESTANTE. Aucun AU VERT global navigateur n'est revendiqué.**
+
+### Correction des contrats et qualité CI
+
+- La recette statique cherchait les liens de FAQ dans `src/app/faq/page.tsx`, qui est désormais un simple wrapper serveur. Les deux contrats ont été corrigés pour inspecter `src/components/FaqInteractive.tsx`, composant qui porte réellement les liens `/assistance` et `/aide`. Les assertions fonctionnelles sont conservées et vérifient les deux destinations.
+- Commits correctifs sur `main` : `c3a302e84d61c34994d5089a2750f21a44940b7d`, `ee45ebb6c8eca08f07c5c78c283eda4e5aa7c580`, puis correction des littéraux de test `8a9df33dab54dc2747415bcfb32ea485a8d2c72e`.
+- GitHub Actions run `44361227770` : **SUCCESS**. Suite Node : **616/616 PASS, 0 FAIL, 0 skipped**. Le job combiné confirme également TypeScript, ESLint et build Next.js réussis. Génération statique : 158/158 pages.
+- Contrôle de syntaxe GitHub Actions / actionlint : **SUCCESS**.
+- Le premier run `44359396296` avait mis en évidence les deux assertions mal ciblées (614 PASS / 2 FAIL) ; le résultat final vert ci-dessus est celui du commit correctif `8a9df33`.
+
+### Recette transactionnelle Replay — 10/10
+
+Test exécuté sur Replay dans une transaction SQL terminée explicitement par `ROLLBACK` :
+
+1. Un Client actif crée atomiquement son ticket et le premier message.
+2. Le Client propriétaire lit son ticket.
+3. Un second Client ne lit ni le ticket ni aucun message.
+4. Le propriétaire ne lit que les messages publics, jamais la note interne Admin.
+5. Le Client ne voit pas les notifications destinées à l'Admin.
+6. L'Admin actif lit le ticket et l'intégralité du fil, y compris la note interne.
+7. La création du ticket notifie l'Admin actif.
+8. Une réponse Client ultérieure crée la notification Admin attendue ; celle-ci est visible dans la session Admin.
+9. La réponse publique Admin est visible au Client propriétaire.
+10. Le compte de messages visibles et les notifications liées respectent le cloisonnement attendu.
+
+**Résultat : 10/10 PASS.** Une première assertion de notification avait interrogé les notifications Admin depuis la session Client et retourné zéro à cause de la RLS ; c'était le résultat de confidentialité attendu, pas un défaut du trigger. Le contrôle corrigé vérifie séparément l'invisibilité côté Client et la visibilité côté Admin.
+
+### Vérification après rollback
+
+- `support_naxa` tickets : 0
+- messages associés : 0
+- notifications Support associées : 0
+- objets Storage dans `naxa-support-attachments` : 0
+
+Aucun compte, ticket, message, notification ou fichier de test n'a été conservé.
+
+### État technique consolidé
+
+- Replay `pwfftcsjyeibxxqhwysw` : `ACTIVE_HEALTHY`.
+- `tickets_support` et `messages_support` : RLS active, publication `supabase_realtime` active.
+- RPC `open_naxa_support_ticket` : SECURITY INVOKER ; exécution `anon` refusée, `authenticated` autorisée.
+- Trois triggers Support actifs ; fonctions trigger `private`, SECURITY DEFINER avec `search_path` vide et droits d'exécution publics révoqués.
+- Bucket privé de 4 Mio, MIME PDF/JPEG/PNG/WebP et politiques propriétaire INSERT/SELECT/DELETE vérifiés.
+- Le widget exige un profil Client actif et l'espace métier Client sélectionné ; il est absent de `/faq`, des espaces professionnels et de l'Admin.
+- Le menu « Besoin d'aide ? » conserve `notifierNAXA()` avant navigation FAQ ; le toast des écosystèmes verrouillés est conservé.
+- Le widget Client et la boîte Admin s'abonnent aux événements Postgres Changes des tickets/messages et nettoient leurs canaux à la fermeture/démontage.
+- Les notifications Admin (création/réponse Client) et Client (réponse Admin/statut) utilisent les références de ticket pour ouvrir le bon fil.
+- `vercel.json` conserve `git.deploymentEnabled.main = false`. Aucun déploiement Vercel ni migration Production.
+
+### Limites et point de reprise
+
+- Le check Supabase Preview reste `cancelled` à cause du quota mensuel de 1 000 événements Git atteint. Ce check ne constitue pas une migration Replay ratée ni un déploiement Production.
+- **R09-10 navigateur Client ↔ Admin non exécutée** : il reste à valider dans deux sessions authentifiées séparées la création, les réponses instantanées dans les deux sens, la reconnexion Realtime, les notifications visibles, les transitions de statut, les pièces jointes et la non-régression du chat pharmacie `/aide`. Les preuves SQL transactionnelles et le CI vert ne remplacent pas ce parcours navigateur.
+- Point de reprise exact : réaliser cette recette navigateur sur Replay avec des sessions Client/Admin de recette déjà autorisées, sans créer de données persistantes ni toucher Production. Ne pas déclarer le chantier global AU VERT avant ce contrôle.
+- HEAD code validé avant cette mise à jour documentaire : `8a9df33dab54dc2747415bcfb32ea485a8d2c72e`. Les vérifications couvrent exactement ce code ; la présente mise à jour ne modifie que la continuité.
 
