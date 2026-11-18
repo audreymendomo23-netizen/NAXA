@@ -1283,7 +1283,7 @@ async function run() {
 
     await clientPage.goto(BASE_URL + "/reservation/" + reservationId, { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/reservation/" + reservationId, "Lot B2 → suivi de réservation Client");
-    await clientPage.getByText("Confirmée par la pharmacie", { exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByText("Statut : Confirmée par la pharmacie", { exact: true }).waitFor({ state: "visible" });
     await clientPage.getByRole("button", { name: "Annuler la réservation", exact: true }).click();
     await clientPage.getByText("Cette transaction est annulée.", { exact: true }).waitFor({ state: "visible" });
     const { data: cancelled, error: cancelledError } = await b2Client.from("reservations")
