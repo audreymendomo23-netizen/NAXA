@@ -48,6 +48,18 @@ begin
       and position('auth.uid' in qual)>0 and position('user_id' in qual)>0) then
     raise exception 'Policy de lecture du seul profil Agent absente ou trop large'; end if;
 
+  if not exists(select 1 from information_schema.columns
+    where table_schema='public' and table_name='support_agents' and column_name='date_of_birth' and is_nullable='NO')
+    or not exists(select 1 from information_schema.columns
+    where table_schema='public' and table_name='support_agents' and column_name='age_attested_at' and is_nullable='NO')
+    or not exists(select 1 from information_schema.columns
+    where table_schema='public' and table_name='support_agents' and column_name='consent_accepted_at' and is_nullable='YES') then
+    raise exception 'Date de naissance, attestation de majorité ou consentement manquant'; end if;
+  if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_age_guard' and not tgisinternal) then
+    raise exception 'Garde SQL de majorité Agent absente'; end if;
+  select pg_get_functiondef('private.naxa_support_agent_age_guard()'::regprocedure) into v_def;
+  if position('18 years' in v_def)=0 then raise exception 'Garde SQL de majorité Agent incorrecte'; end if;
+
   if exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid
     join pg_namespace n on n.oid=t.typnamespace
     where n.nspname='public' and t.typname='role_type' and e.enumlabel='support_agent') then
