@@ -91,6 +91,7 @@ export function SupportAgentWorkspace() {
         onClick={() => void claim(ticket.id)}
         className="mt-4 min-h-10 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
       >{claiming === ticket.id ? "Prise en charge…" : "Prendre ce dossier"}</button>}
+      {!canClaim && <a href={"/equipe-support/dossiers/" + ticket.id} className="mt-4 inline-flex min-h-10 items-center rounded-xl border border-emerald-800 px-4 py-2 text-sm font-bold text-emerald-900">Ouvrir le dossier</a>}
     </article>
   );
 
