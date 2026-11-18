@@ -163,7 +163,7 @@ test("l’assistance directe couvre les professionnels, leur confidentialité et
   assert.match(actions, /activeRole === "admin"/);
   assert.match(page, /const isClient = activeRole === "client"/);
   assert.match(professionalMigration, /tickets_support_account_create_naxa_support/);
-  assert.match(professionalMigration, /public\.naxa_business_function\(\) <> 'admin'/);
+  assert.match(professionalMigration, /public\.naxa_business_function\(\)\s*<>\s*'admin'/);
   assert.match(professionalMigration, /naxa_support_attachment_read_own/);
   assert.match(professionalSqlTest, /Fuite du dossier Livreur vers le Promoteur/);
   assert.match(professionalBrowser, /naxa_e2e_livreur/);
