@@ -59,7 +59,7 @@ export function SelectionEcosysteme({ onSelect }: Props) {
           <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#0A6B3A]">NAXA · Un seul compte, plusieurs espaces</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-[#123D2C] sm:text-4xl">Choisissez votre écosystème</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">
-            Accédez directement au service qui vous intéresse. Votre compte NAXA vous permet ensuite de passer d’un écosystème à l’autre.
+            Quatre écosystèmes autonomes et deux espaces connectés. Les six choix restent visibles ; le cadenas indique qu’un accès n’est pas activé.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export function SelectionEcosysteme({ onSelect }: Props) {
         )}
         {availabilityError && (
           <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            La disponibilité des autres espaces ne peut pas être vérifiée pour le moment. Seul l’espace Pharmacie reste accessible jusqu’au rétablissement du contrôle.
+            Les six choix restent affichés. Seul l’espace Pharmacie reste accessible tant que le contrôle central ne répond pas.
           </p>
         )}
 
@@ -105,6 +105,9 @@ export function SelectionEcosysteme({ onSelect }: Props) {
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2 font-extrabold text-white drop-shadow-sm">
                     {item.label}
+                    <span className="rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/90">
+                      {item.nature === "connecte" ? "Espace connecté" : "Autonome"}
+                    </span>
                     {locked && <span className="rounded-full border border-white/30 bg-slate-950/35 px-2 py-1 text-[10px] font-bold text-white">Verrouillé</span>}
                     {waiting && <span className="text-[10px] font-semibold text-white/85">Vérification…</span>}
                   </span>

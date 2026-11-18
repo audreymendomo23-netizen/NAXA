@@ -26,21 +26,23 @@ Aucun compte ni aucune donnée Production ne doivent être utilisés. Utiliser l
 
 ## Scénarios bulk
 
-### R09-01 — Référentiel des univers
-1. Comparer les identifiants du type `EcosystemeId`, le tableau `ECOSYSTEMES`, `ECOSYSTEME_PAR_ID`, le menu et la recherche globale.
-2. Vérifier que chaque identifiant possède les propriétés consommées par l'en-tête.
-3. Vérifier les six univers attendus et leur statut métier réel.
-4. Contrôler les valeurs inconnues et les identifiants absents : aucun accès de propriété sur `undefined`, aucune route silencieusement autorisée.
-**Attendu :** référentiel unique, exhaustif, typé et cohérent ; aucune assertion forcée ne masque une entrée manquante.
+### R09-01 — Référentiel des six espaces et de l’aide
+1. Vérifier un registre unique contenant exactement les six espaces : Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs connectés, Examens médicaux, Soins & Prestations à domicile.
+2. Vérifier la qualification : quatre écosystèmes autonomes et deux espaces connectés (Bébé & Maman, Dispositifs connectés).
+3. Vérifier que les six cartes restent visibles dans le sélecteur, même lorsqu'un accès est verrouillé ; l'activation détermine le droit d'ouvrir, pas la visibilité de la carte.
+4. Vérifier les cinq slugs pilotés par l'Admin : `parapharmacie`, `bebe-maman`, `examens`, `suivi`, `prestations`. Le slug DB `suivi` doit alimenter l'identifiant Client `dispositifs`, sans casser l'alias historique `suivi`.
+5. Vérifier que « Besoin d’aide ? » est une entrée d’assistance et non un septième univers : elle ouvre la FAQ `/faq`. Le chat avec une pharmacie reste distinct sur `/aide`.
+6. Vérifier que les menus, la recherche, l’en-tête et le sélecteur ne déréférencent jamais un univers absent.
+**Attendu :** six choix visibles, référentiel cohérent, deux espaces connectés clairement qualifiés, statuts administratifs conservés et FAQ hors du registre des univers.
 
 ### R09-02 — Routes et enveloppe Client
-1. Ouvrir directement `/client`, `/parapharmacie`, `/examens`, `/prestations`, `/bebe-maman` et `/suivi` avec les identités pertinentes.
+1. Ouvrir directement `/client`, `/parapharmacie`, `/examens`, `/prestations`, `/bebe-maman`, `/suivi` et `/faq` avec les identités pertinentes.
 2. Vérifier chargement, en-tête, menu, navigation retour et absence d'erreur React/runtime.
 3. Répéter avec session expirée, profil incomplet, profil suspendu et service conditionnel indisponible.
 **Attendu :** chaque route affiche un état cohérent ou un refus explicite ; aucun crash ni fuite de contenu privé.
 
 ### R09-03 — Verrouillage métier côté serveur
-1. Pour Parapharmacie et Bébé & Maman, tenter l'accès par menu, URL directe, appel API et Server Action/RPC de catalogue/réservation.
+1. Pour les univers commerciaux verrouillables (Parapharmacie et Bébé & Maman), tenter l'accès par menu, URL directe, API et Server Action/RPC de catalogue/réservation. Pour Dispositifs connectés, tester l'accès direct à `/suivi` et les lectures/actions de suivi ; ne pas traiter cet espace comme un catalogue commercial.
 2. Tester les identifiants d'univers autorisés, inconnus, désactivés et bloqués.
 3. Vérifier qu'une action bloquée ne crée ni réservation, ni hold, ni mouvement de stock, ni paiement déclaré.
 4. Refaire avec un utilisateur authentifié et une requête forgée sans passer par l'interface.
@@ -62,7 +64,8 @@ Aucun compte ni aucune donnée Production ne doivent être utilisés. Utiliser l
 
 ### R09-06 — Navigation basse et destinations
 1. Cliquer successivement Achats, Réservations et Commandes.
-2. Relever URL, état sélectionné, données et filtres après chaque clic.
+2. Ouvrir le menu à trois points, sélectionner « Besoin d’aide ? » et vérifier l’arrivée sur `/faq`, sans confusion avec le chat `/aide`.
+3. Relever URL, état sélectionné, données et filtres après chaque clic.
 3. Vérifier retour arrière, rechargement direct et navigation mobile.
 **Attendu :** chaque libellé a une sémantique honnête ; si la destination est commune, l'interface ne prétend pas proposer trois onglets distincts.
 
@@ -84,31 +87,30 @@ Pour chaque scénario : commit testé, URL/route, identité/claims, action exact
 
 ## Critères de sortie
 
-- P1 : registre univers complet ; pas de crash sur les routes ; verrouillage des univers bloqués appliqué côté serveur ; contrôles identité/rôle validés par RPC/RLS ; action Prestations sécurisée.
+- P1 : registre complet des six espaces et nature autonome/connectée ; six choix visibles ; FAQ séparée des univers ; pas de crash sur les routes ; verrouillage des univers bloqués appliqué côté serveur ; contrôles identité/rôle validés par RPC/RLS ; action Prestations sécurisée.
 - P2 : navigation non ambiguë ; persistance clairement qualifiée ; routes secondaires cohérentes.
 - Nettoyage Replay vérifié et aucun résidu.
 - Si un P1 échoue : corriger sur `main`, tester la correction et sa non-régression, documenter, puis rejouer uniquement les scénarios affectés. Ne pas démarrer les recettes 01–08 avant levée des P1.
 - Aucun statut AU VERT sur simple lecture du code.
 
-## Résultat d'exécution — R09-01 (18/11/2026)
+## Résultat de correction R09-01 — 18/11/2026
 
-**ÉCHEC STATIQUE CONFIRMÉ — correction requise.** Lecture des fichiers de `main` ; aucune exécution navigateur dans ce sous-scénario.
+**CORRECTION SOURCE INTÉGRÉE SUR `main` — VALIDATION DYNAMIQUE EN ATTENTE.**
 
-- `src/lib/ecosystemes.ts` : le type `EcosystemeId` déclare six IDs, mais `ECOSYSTEMES` contient quatre objets. `ECOSYSTEME_PAR_ID` force `Object.fromEntries(...)` en `Record<EcosystemeId, Ecosysteme>`, masquant l'absence de `bebe-maman` et `dispositifs`.
-- Dans le même fichier, `ecosystemeDepuisChemin` retourne explicitement `bebe-maman` pour `/bebe-maman` et `dispositifs` pour `/suivi`. `estEcosystemeId` s'appuie sur les clés réellement présentes dans `ECOSYSTEME_PAR_ID` : ces deux valeurs ne sont donc pas reconnues comme IDs valides lors de la lecture de sélection.
-- `src/components/EnTeteClient.tsx` : `themeEcosysteme = ECOSYSTEME_PAR_ID[ecosystemeActif]`, puis lecture immédiate de `.color`, `.image`, `.imagePosition`, `.tagline` et autres propriétés. Pour les deux routes ci-dessus, la correspondance est absente : risque de crash runtime fortement établi par le code, mais non encore confirmé par navigateur.
-- Le menu est construit depuis `ECOSYSTEMES` : les deux IDs manquants ne peuvent pas être proposés dans ce menu.
-- `src/app/api/universes/status/route.ts` ne configure que `parapharmacie`, `examens` et `prestations`, en plus de `pharmacie`. Aucun statut explicite n'est fourni pour `bebe-maman` et `dispositifs`.
-- `EnTeteClient` contient aussi des actions de recherche vers ces routes, mais son contrôle préalable utilise `ECOSYSTEMES.find(...) `. Pour une route absente du registre, `target` est indéfini et la garde de disponibilité n'est pas exécutée avant `router.push`. Cela confirme une incohérence de garde UI ; la protection serveur reste à auditer séparément.
+- `src/lib/ecosystemes.ts` : le registre central contient les six espaces demandés. Le type `EcosystemeId` est désormais dérivé des définitions réelles ; quatre entrées sont qualifiées `autonome`, deux `connecte`.
+- `src/components/SelectionEcosysteme.tsx` : les six cartes sont rendues sans filtre de visibilité par statut. La nature autonome/connectée est indiquée ; le statut Admin détermine seulement si l'accès est ouvert ou verrouillé.
+- `src/app/api/universes/status/route.ts` : les cinq slugs pilotés par Admin sont lus. Le slug DB `suivi` alimente les clés Client `dispositifs` et historique `suivi`. L'aide/FAQ n'est pas renvoyée comme univers.
+- `src/middleware.ts` : les routes directes Bébé & Maman et Suivi, ainsi que le catalogue partenaire avec contexte Bébé & Maman, sont raccordés aux verrous Admin. Le refus fail-closed est conservé.
+- `src/components/EnTeteClient.tsx` et `src/components/universes/MenuUnivers.tsx` : les menus à trois points dirigent « Besoin d’aide ? » vers `/faq`. Le chat pharmacie reste distinct sur `/aide`. Les deux espaces connectés sont distingués dans les menus.
+- `src/app/faq/page.tsx` : nouvelle page FAQ NAXA couvrant les six espaces, leur nature, les verrous, la gratuité Client, l'absence de transaction financière dans l'espace Client, la responsabilité des publications et le lien vers le chat pharmacie.
+- `src/components/ParcoursClientShell.tsx` : la FAQ conserve l'en-tête Client et le contexte de l'espace sélectionné lorsqu'un Client connecté l'ouvre.
+- `src/app/layout.tsx` et `docs/ARCHITECTURE_ECOSYSTEMES_NAXA.md` : descriptions et architecture harmonisées.
+- `scripts/test-admin-univers-actions.cjs` : l'ancienne assertion contradictoire (quatre entrées seulement et Dispositifs exclu) est remplacée par des assertions statiques sur les six espaces, les quatre autonomes/deux connectés, les verrous, les alias API et la FAQ séparée.
 
-**Qualification :** contradiction de référentiel confirmée statiquement ; crash route et contournement fonctionnel à confirmer par R09-02/R09-03. Aucun correctif appliqué dans ce sous-scénario.
+**Limite de preuve :** le test Node, TypeScript, ESLint, build Next.js, ouverture navigateur de `/faq`, affichage des six cartes et réponse effective de l'API sur Replay ne sont pas encore exécutés. La correction est donc intégrée au code source, mais R09-01 n'est pas encore déclarée AU VERT terminal.
 
-**Fichiers / blobs examinés :**
-- `src/lib/ecosystemes.ts` — blob `908d2a9320a5d0fff968c66fc6ef353b338ac890`.
-- `src/components/EnTeteClient.tsx` — blob `f6d45e0dba6ec19c7b46716859424a3305e449b7`.
-- `src/components/ParcoursClientShell.tsx` — blob `5992552124e39f9a6f36bacdd55122ee65db92b1`.
-- `src/app/api/universes/status/route.ts` — blob `7b996179cd18474ed400f4e98c625c4f38dbbc4f`.
+Aucune donnée Replay ni Production n'a été modifiée ; aucune migration ni aucun déploiement n'a été exécuté.
 
 ## État de la recette 09
 
-R09-01 : **ÉCHEC statique confirmé**. R09-02 à R09-08 : NON EXÉCUTÉES. Recettes 01–08 : toujours bloquées. Aucun test navigateur, API/RPC ou SQL n'est revendiqué ici.
+R09-01 : **correction source intégrée, validation dynamique et automatisée en attente**. R09-02 à R09-08 : NON EXÉCUTÉES. Recettes 01–08 : toujours bloquées tant que les P1 serveur, identité, routes et Prestations ne sont pas prouvés. Aucun test navigateur, API/RPC ou SQL n'est revendiqué ici.

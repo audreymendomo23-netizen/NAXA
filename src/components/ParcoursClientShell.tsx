@@ -9,6 +9,7 @@ function appartientAuParcoursClient(pathname: string) {
   return pathname === "/client"
     || pathname.startsWith("/client/")
     || pathname === "/panier"
+    || pathname === "/faq"
     || pathname === "/scanner"
     || pathname === "/recherche"
     || pathname === "/notifications"

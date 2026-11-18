@@ -17,7 +17,7 @@ const englishLabels: Record<EcosystemeId, string> = {
   examens: "Medical tests",
   prestations: "Home care",
   "bebe-maman": "Mom & Baby",
-  dispositifs: "Medical devices",
+  dispositifs: "Connected devices",
 };
 
 export function MenuUnivers() {
@@ -32,6 +32,7 @@ export function MenuUnivers() {
   useEffect(() => {
     const path = pathname.split(/[?#]/, 1)[0] || "/";
     const sharedRoute = path === "/client" || path.startsWith("/client/")
+      || path === "/faq"
       || path.startsWith("/reservation/") || path.startsWith("/univers-reservation/");
     setCurrentEcosystem(sharedRoute
       ? lireEcosystemeSelectionne() ?? "pharmacie"
@@ -127,15 +128,21 @@ export function MenuUnivers() {
                 }}
                 className="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#064B2A]"
               >
-                <span>{label}</span><span aria-hidden="true">›</span>
+                <span className="min-w-0">
+                  <span>{label}</span>
+                  {universe.nature === "connecte" && <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] uppercase tracking-wide text-emerald-800">Connecté</span>}
+                </span><span aria-hidden="true">›</span>
               </Link>
             ) : (
               <div key={universe.id} aria-disabled="true" className="flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-slate-400">
-                <span>{label}</span><span aria-label="Verrouillé" title="Verrouillé">🔒</span>
+                <span className="min-w-0">
+                  <span>{label}</span>
+                  {universe.nature === "connecte" && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] uppercase tracking-wide">Connecté</span>}
+                </span><span aria-label="Verrouillé" title="Verrouillé">🔒</span>
               </div>
             );
           })}
-          <Link href="/aide" onClick={() => setOpen(false)} className="mt-1 flex min-h-11 items-center justify-between rounded-xl border-t border-slate-100 px-3 py-2 pt-3 text-sm font-bold text-emerald-900">
+          <Link href="/faq" onClick={() => setOpen(false)} className="mt-1 flex min-h-11 items-center justify-between rounded-xl border-t border-slate-100 px-3 py-2 pt-3 text-sm font-bold text-emerald-900">
             <span>{language === "en" ? "Need help?" : "Besoin d’aide ?"}</span><span aria-hidden="true">›</span>
           </Link>
         </nav>

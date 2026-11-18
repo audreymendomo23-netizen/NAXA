@@ -3,9 +3,12 @@ import { supabasePublic } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+// Les cinq espaces réglables dans l'Admin ; "suivi" est le slug DB de "dispositifs".
 const CONFIGURABLE_UNIVERSES = [
   "parapharmacie",
+  "bebe-maman",
   "examens",
+  "suivi",
   "prestations",
 ] as const;
 
@@ -29,10 +32,16 @@ export async function GET() {
     const rows = new Map<string, boolean>(
       (data ?? []).map((row) => [row.slug, row.enabled === true] as const),
     );
-    const universes: Record<string, boolean> = { pharmacie: true };
-    for (const slug of CONFIGURABLE_UNIVERSES) {
-      universes[slug] = rows.get(slug) === true;
-    }
+    const suiviEnabled = rows.get("suivi") === true;
+    const universes: Record<string, boolean> = {
+      pharmacie: true,
+      parapharmacie: rows.get("parapharmacie") === true,
+      "bebe-maman": rows.get("bebe-maman") === true,
+      examens: rows.get("examens") === true,
+      prestations: rows.get("prestations") === true,
+      dispositifs: suiviEnabled,
+      suivi: suiviEnabled,
+    };
 
     return NextResponse.json(
       { universes },

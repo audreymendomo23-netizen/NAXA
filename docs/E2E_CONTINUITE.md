@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§208)  
+**Dernière mise à jour :** 18 novembre 2026 (§209)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `b1b64efff7ada23dc7cdb324bf7f76d31ec0e0ea`  
+**HEAD contrôlé avant cette mise à jour :** `5130cdc8b7f8ecd710894e5bb9f18d05b1648acf`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7843,3 +7843,22 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Qualification conservée : le défaut du registre est confirmé par lecture du code. Le crash navigateur, l'accès serveur non autorisé et les éventuels effets en base ne sont pas encore démontrés.
 - Aucun code fonctionnel, SQL, fixture ou donnée Replay modifié pendant cette relecture. Aucun test navigateur/API/RPC/SQL supplémentaire exécuté. Aucun changement Production, migration Production ou déploiement.
 - Point de reprise exact : R09-02 sur Replay — ouvrir les routes directes et vérifier l'enveloppe Client, les erreurs runtime et les états d'identité/session ; ensuite R09-03 pour éprouver les verrous côté serveur. Ne pas démarrer les recettes 01–08 et ne pas rejouer B2.
+
+
+## 209 — Correction du référentiel des six espaces et séparation FAQ — 18/11/2026
+
+- HEAD contrôlé avant correction : \`5130cdc8b7f8ecd710894e5bb9f18d05b1648acf\`. Modification effectuée directement sur \`main\`, sans branche ni PR.
+- Décision produit : six espaces visibles au choix — Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs connectés, Examens médicaux, Soins & Prestations à domicile. Quatre sont autonomes ; Bébé & Maman et Dispositifs connectés sont des espaces connectés complémentaires.
+- \`src/lib/ecosystemes.ts\` : six définitions réelles dans un registre central ; \`EcosystemeId\` est dérivé des définitions. Les données de chaque espace incluent sa nature autonome/connectée.
+- \`src/components/SelectionEcosysteme.tsx\` : les six cartes sont rendues sans filtre par statut. La nature est affichée ; le verrou Admin commande l'accès, pas la visibilité de la carte.
+- \`src/app/api/universes/status/route.ts\` : cinq slugs configurables Admin sont lus. Le slug DB \`suivi\` alimente \`dispositifs\` et conserve l'alias historique \`suivi\`. Aide/FAQ n'est pas exposée comme un univers.
+- \`src/middleware.ts\` : les routes directes Bébé & Maman et Suivi, ainsi que le catalogue partenaire avec contexte Bébé & Maman, sont raccordés aux verrous Admin. Le refus fail-closed reste actif.
+- \`EnTeteClient\` et \`MenuUnivers\` : les menus à trois points proposent « Besoin d’aide ? » vers \`/faq\`. Le chat pharmacie reste distinct sur \`/aide\`.
+- Nouvelle page \`src/app/faq/page.tsx\` : informations sur les six espaces, les deux espaces connectés, les verrous, la gratuité Client, les paiements hors espace Client, la responsabilité des publications et le chat pharmacie.
+- \`ParcoursClientShell\` conserve le thème de l'espace sélectionné sur \`/faq\`. Les métadonnées et \`docs/ARCHITECTURE_ECOSYSTEMES_NAXA.md\` sont harmonisés.
+- \`scripts/test-admin-univers-actions.cjs\` : l'ancienne assertion contradictoire (quatre entrées seulement et Dispositifs exclu) est remplacée par des assertions sur les six espaces, quatre autonomes/deux connectés, les statuts Admin et la FAQ séparée.
+- **Preuve disponible :** intégration source et contrôle statique des fichiers modifiés. Le test Node, TypeScript, lint, build Next.js, navigation navigateur, réponse API réelle et nettoyage Replay ne sont pas exécutés dans cette passe. R09-01 est corrigée au niveau source, mais pas encore déclarée AU VERT terminal.
+- R09-02 à R09-08 demeurent non exécutées. Les recettes Client 01–08 restent bloquées par les P1 non encore prouvés : garde API/RPC/RLS, cohérence identité/rôle, Prestations et parcours réels.
+- Aucun compte ou donnée Replay créé ; aucune écriture Supabase, aucune migration, aucune donnée Production touchée, aucun déploiement Vercel, aucune action Play Store.
+- Point de reprise exact : exécuter le contrat Node ciblé, TypeScript/lint, puis R09-01/R09-02 sur Replay ; poursuivre R09-03 sans commencer les recettes 01–08.
+

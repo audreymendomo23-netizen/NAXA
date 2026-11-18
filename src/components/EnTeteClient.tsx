@@ -30,7 +30,7 @@ const actions = [
   { titre: "Langue", description: "Préférences linguistiques", href: "/client/profil/langue", mots: "langue français anglais" },
   { titre: "Factures", description: "Documents d’achat", href: "/client/profil/factures", mots: "facture reçu documents" },
   { titre: "Notifications", description: "Alertes et messages", href: "/notifications", mots: "notifications alertes cloche" },
-  { titre: "Centre d’aide", description: "Trouver de l’assistance", href: "mailto:naxa.home@gmail.com?subject=Centre%20d%27aide%20NAXA", mots: "centre aide assistance support" },
+  { titre: "Centre d’aide", description: "Parler gratuitement à une pharmacie", href: "/aide", mots: "centre aide assistance question pharmacie chat" },
   { titre: "Contacter NAXA", description: "Écrire à l’équipe", href: "mailto:naxa.home@gmail.com?subject=Contact%20NAXA", mots: "contact équipe email écrire" },
   { titre: "Confidentialité", description: "Gérer vos demandes de confidentialité", href: "/client/profil/confidentialite", mots: "confidentialité données vie privée" },
   { titre: "Suppression du compte", description: "Options de suppression du compte", href: "/client/profil/suppression", mots: "suppression compte effacer données" },
@@ -38,11 +38,11 @@ const actions = [
   { titre: "Posologie et rappels", description: "Gérer les rappels prescrits", href: "/client/posologie", mots: "posologie rappels horaires prise traitement" },
   { titre: "Pharmacies de garde", description: "Pharmacies de garde proches", href: "/gardes", mots: "garde gardes pharmacies nuit" },
   { titre: "Parapharmacie", description: "Parapharmacie", href: "/parapharmacie", mots: "parapharmacie soins" },
-  { titre: "Bébé & maman", description: "Produits bébé et maternité", href: "/bebe-maman", mots: "bébé maman maternité" },
-  { titre: "Dispositifs médicaux", description: "Matériel et dispositifs", href: "/suivi", mots: "dispositifs médicaux matériel" },
+  { titre: "Bébé & Maman", description: "Espace connecté aux offres Pharmacie et Parapharmacie", href: "/bebe-maman", mots: "bébé maman maternité" },
+  { titre: "Dispositifs connectés", description: "Suivi connecté lié aux parcours de santé", href: "/suivi", mots: "dispositifs connectés suivi santé" },
   { titre: "Examens médicaux", description: "Trouver un examen", href: "/examens", mots: "examens analyses laboratoire" },
-  { titre: "Prestations / Soins à domicile", description: "Prestations et soins", href: "/prestations", mots: "prestations soins domicile" },
-  { titre: "Besoin d’aide ?", description: "Contacter l’équipe NAXA", href: "/aide", mots: "aide contact assistance support" },
+  { titre: "Soins & Prestations à domicile", description: "Services et accompagnement à domicile", href: "/prestations", mots: "prestations soins domicile" },
+  { titre: "Besoin d’aide ?", description: "Consulter la FAQ NAXA", href: "/faq", mots: "aide faq questions fréquentes support" },
 ];
 
 const cle = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").trim();
@@ -76,12 +76,13 @@ export function EnTeteClient() {
   useEffect(() => {
     const chemin = pathname.split(/[?#]/, 1)[0] || "/";
     const routePartagee = chemin === "/client" || chemin.startsWith("/client/")
+      || chemin === "/faq"
       || chemin.startsWith("/reservation/") || chemin.startsWith("/univers-reservation/");
     setEcosystemeActif(routePartagee
       ? lireEcosystemeSelectionne() ?? "pharmacie"
       : ecosystemeDepuisChemin(chemin));
   }, [pathname]);
-  const themeEcosysteme = ECOSYSTEME_PAR_ID[ecosystemeActif];
+  const themeEcosysteme = ECOSYSTEME_PAR_ID[ecosystemeActif] ?? ECOSYSTEME_PAR_ID.pharmacie;
   const universesMenu = ECOSYSTEMES.filter((item) => item.id !== ecosystemeActif);
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -139,10 +140,6 @@ export function EnTeteClient() {
   function ouvrirAction(href: string) {
     closeSearchAndMenu();
     const chemin = href.split("?")[0];
-    if (chemin === "/aide") {
-      notifierNAXA("Pour une urgence médicale, contactez directement les services d’urgence locaux.");
-      return;
-    }
     if (href.startsWith("mailto:")) { window.location.href = href; return; }
     const target = ECOSYSTEMES.find((item) => item.href === chemin);
     if (target && universesAvailability[target.id] !== true) {
@@ -196,7 +193,10 @@ export function EnTeteClient() {
           const contents = (
             <>
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lg font-black" style={{ color: item.color, backgroundColor: item.softColor }}>{item.symbol}</span>
-              <span className="min-w-0 flex-1">{item.label}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block">{item.label}</span>
+                {item.nature === "connecte" && <span className="block text-[10px] font-medium text-white/70">Espace connecté</span>}
+              </span>
               {enabled ? <IconeNAXA name="chevron-right" size={17}/> : <CadenasVerrouille />}
             </>
           );
@@ -219,7 +219,7 @@ export function EnTeteClient() {
             </button>
           );
         })}
-        <button type="button" onClick={() => ouvrirAction("/aide")} className="mt-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10">
+        <button type="button" onClick={() => ouvrirAction("/faq")} className="mt-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border-t border-white/20 px-3 py-3 text-left text-sm font-extrabold text-white transition hover:bg-white/10">
           <span>Besoin d’aide ?</span>
           <IconeNAXA name="chevron-right" size={17}/>
         </button>

@@ -18,14 +18,14 @@ Le choix mémorisé permet le retour direct vers le dernier écosystème à la p
 
 Les six écosystèmes partagent une mosaïque visuelle optimisée issue des images fournies. Chaque vignette est réutilisée sur le sélecteur, l’en-tête Client et les bandeaux des pages métier, avec un voile coloré pour maintenir le contraste des textes.
 
-| Écosystème | Description affichée | Illustration |
-|---|---|---|
-| Pharmacie | Médicaments et pharmacies | Rayons de pharmacie |
-| Parapharmacie | Hygiène et bien-être | Produits de parapharmacie |
-| Examens médicaux | Laboratoires et analyses | Laboratoire médical |
-| Soins à domicile | Services et accompagnement | Accompagnement à domicile |
-| Maman & Bébé | Espace dédié | Articles bébé et maternité |
-| Dispositifs médicaux | Équipements et matériel | Appareils médicaux |
+| Espace | Nature | Description affichée | Illustration |
+|---|---|---|---|
+| Pharmacie | Autonome | Médicaments et pharmacies | Rayons de pharmacie |
+| Parapharmacie | Autonome | Hygiène et bien-être | Produits de parapharmacie |
+| Bébé & Maman | Connecté | Offres reliées aux publications Pharmacie et Parapharmacie | Articles bébé et maternité |
+| Dispositifs connectés | Connecté | Suivi connecté, non catalogue commercial autonome | Appareils de suivi personnel |
+| Examens médicaux | Autonome | Laboratoires et analyses | Laboratoire médical |
+| Soins & Prestations à domicile | Autonome | Services et accompagnement | Accompagnement à domicile |
 
 Ressource : `public/images/ecosystemes/ecosystemes.webp` (mosaïque 3 × 2, afin de réduire les requêtes réseau distinctes).
 
@@ -33,16 +33,16 @@ Les illustrations proviennent de l’archive fournie pour cette intégration. La
 
 ## Écosystèmes et routes Client
 
-| Écosystème | Route Client | Thème |
-|---|---|---|
-| Pharmacie | `/` (public), puis `/client` si Client connecté | Vert NAXA |
-| Parapharmacie | `/parapharmacie` | Turquoise |
-| Examens médicaux | `/examens` | Violet |
-| Soins à domicile | `/prestations` | Corail |
-| Maman & Bébé | `/bebe-maman` | Rose |
-| Dispositifs médicaux | `/suivi` | Bleu |
+| Espace | Nature | Route Client | Thème |
+|---|---|---|---|
+| Pharmacie | Autonome | `/` (public), puis `/client` si Client connecté | Vert NAXA |
+| Parapharmacie | Autonome | `/parapharmacie` | Turquoise |
+| Bébé & Maman | Connecté | `/bebe-maman` | Rose |
+| Dispositifs connectés | Connecté | `/suivi` | Bleu |
+| Examens médicaux | Autonome | `/examens` | Violet |
+| Soins & Prestations à domicile | Autonome | `/prestations` | Corail |
 
-L’identité Client est commune. Les données, historiques, réservations et paniers métier restent cloisonnés selon les modules existants. Le changement d’écosystème ne confère aucun rôle ou droit professionnel. Le portail catalogue partagé conserve le slug sélectionné dans l’URL ; le middleware utilise ce contexte pour appliquer le verrou global de l’univers correspondant.
+L’identité Client est commune. Les données, historiques, réservations et paniers métier restent cloisonnés selon les modules existants. Bébé & Maman et Dispositifs connectés sont des espaces complémentaires reliés aux parcours principaux, pas des univers commerciaux autonomes : les stocks Bébé & Maman restent chez leur propriétaire Pharmacie ou Parapharmacie, et Dispositifs connectés relève du suivi de santé. Le changement d’espace ne confère aucun rôle ou droit professionnel. Le portail catalogue partagé conserve le slug sélectionné dans l’URL ; le middleware utilise ce contexte pour appliquer le verrou global de l’espace correspondant.
 
 ## Verrouillage administrateur
 
@@ -56,9 +56,9 @@ Cette intégration suppose que le registre `public.universes` et sa policy de le
 
 ## En-tête et navigation
 
-Le composant `EnTeteClient` est partagé par les routes Client authentifiées des écosystèmes. Le logo, la recherche, les notifications et le menu conservent leur structure. La couleur, l’accroche et une transition courte changent selon l’écosystème. Le menu trois points exclut l’écosystème courant, respecte le verrouillage Admin et mémorise le changement.
+Le composant `EnTeteClient` est partagé par les routes Client authentifiées des six espaces. Le logo, la recherche, les notifications et le menu conservent leur structure. La couleur et l’accroche changent selon l’espace. Le sélecteur initial présente toujours les six choix ; le menu trois points exclut l’espace courant, respecte le verrouillage Admin et mémorise le changement. Les espaces connectés portent une qualification visible distincte.
 
-Sur les routes communes du Client (`/client`, réservations partagées), le thème conserve l’écosystème sélectionné.
+Sur les routes communes du Client (`/client`, réservations partagées et FAQ `/faq`), le thème conserve l’espace sélectionné. « Besoin d’aide ? » ouvre la FAQ NAXA (`/faq`) et n’est pas un écosystème. Le chat écrit avec une pharmacie reste disponible séparément sur `/aide`.
 
 Le panier actuellement branché à `BoutonPanierEntete` reste visible uniquement dans Pharmacie. Parapharmacie et Maman & Bébé utilisent un panier distinct (`naxa-universe-cart-v1`) ; il ne faut pas les connecter au panier Pharmacie tant qu’un accès d’en-tête dédié n’a pas été réalisé.
 

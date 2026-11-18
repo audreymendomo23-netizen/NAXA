@@ -72,6 +72,8 @@ export async function middleware(req: NextRequest) {
   // est vérifiée explicitement pour partager la même règle que l’API status.
   const universParcours = [
     { prefix: "/parapharmacie", slug: "parapharmacie" },
+    { prefix: "/bebe-maman", slug: "bebe-maman" },
+    { prefix: "/suivi", slug: "suivi" },
     { prefix: "/examens", slug: "examens" },
     { prefix: "/centre-examens", slug: "examens" },
     { prefix: "/prestations", slug: "prestations" },
@@ -84,8 +86,8 @@ export async function middleware(req: NextRequest) {
     const ecosystemeCatalogue =
       req.nextUrl.searchParams.get("ecosysteme")
       ?? req.cookies.get("naxa-ecosysteme")?.value;
-    if (ecosystemeCatalogue === "parapharmacie") {
-      universVerrouillable = { prefix: "/partenaire/catalogue", slug: "parapharmacie" };
+    if (ecosystemeCatalogue === "parapharmacie" || ecosystemeCatalogue === "bebe-maman") {
+      universVerrouillable = { prefix: "/partenaire/catalogue", slug: ecosystemeCatalogue };
     }
   }
   if (universVerrouillable) {
