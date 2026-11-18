@@ -12,9 +12,9 @@ const STATE_FILE=path.join(process.env.RUNNER_TEMP||"/tmp","naxa-professional-su
 const ADMIN_USERNAME="e2e_admin_261104";
 const PROFESSIONALS=[
  {username:"naxa_e2e_promoteur",profileRole:"promoteur",role:"promoteur",route:"/pharmacie/promoteur",category:"gestion_espace"},
- {username:"naxa_e2e_responsable",profileRole:"client",role:"responsable",route:"/pharmacie/responsable/credits",category:"personnel"},
+ {username:"naxa_e2e_expiry_responsable",profileRole:"client",role:"responsable",route:"/pharmacie/responsable/credits",category:"personnel"},
  {username:"naxa_e2e_pharmacien",profileRole:"client",role:"pharmacien",route:"/pharmacie/pharmacien",category:"personnel"},
- {username:"naxa_e2e_gestionnaire_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
+ {username:"naxa_e2e_expiry_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
  {username:"naxa_e2e_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
  {username:"naxa_e2e_comptable",profileRole:"client",role:"comptable",route:"/pharmacie/comptable",category:"caisse"},
  {username:"naxa_e2e_caisse",profileRole:"client",role:"caisse",route:"/pharmacie/caisse",category:"caisse"},
