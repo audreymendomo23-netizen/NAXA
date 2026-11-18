@@ -23,6 +23,31 @@ do $test$ declare n integer; begin
   if n<>1 then raise exception 'Le Promoteur ne lit pas son ticket'; end if;
 end $test$;
 reset role;
+update public.tickets_support set statut='resolu',resolved_at=now()
+where sujet='RLS Promoteur support E2E' and type='support_naxa';
+select set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',(select id::text from public.profiles where username='naxa_e2e_promoteur'))::text,true);
+set local role authenticated;
+insert into public.messages_support(ticket_id,auteur_profile_id,contenu,interne)
+select t.id,(select id from public.profiles where username='naxa_e2e_promoteur'),'Réouverture professionnelle E2E',false
+from public.tickets_support t where t.sujet='RLS Promoteur support E2E';
+do $test$ declare s text; resolved timestamptz; begin
+ select statut,resolved_at into s,resolved from public.tickets_support where sujet='RLS Promoteur support E2E';
+ if s<>'en_cours' or resolved is not null then raise exception 'Le Promoteur ne rouvre pas son dossier résolu'; end if;
+end $test$;
+reset role;
+update public.tickets_support set statut='ferme',resolved_at=now() where sujet='RLS Promoteur support E2E';
+select set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',(select id::text from public.profiles where username='naxa_e2e_promoteur'))::text,true);
+set local role authenticated;
+do $test$ declare rejected boolean:=false; begin
+ begin
+  insert into public.messages_support(ticket_id,auteur_profile_id,contenu,interne)
+  select t.id,(select id from public.profiles where username='naxa_e2e_promoteur'),'Message interdit dossier fermé',false
+  from public.tickets_support t where t.sujet='RLS Promoteur support E2E';
+ exception when insufficient_privilege then rejected:=true;
+ end;
+ if not rejected then raise exception 'Un message a pu être ajouté à un dossier fermé'; end if;
+end $test$;
+reset role;
 do $test$
 declare d text; n integer;
 begin
