@@ -8637,3 +8637,44 @@ Continuer par les fonctions serveur atomiques d'affectation/prise et les tests n
 4. Concevoir puis implémenter Gmail OAuth minimal (boîte unique, scopes minimaux, tokens chiffrés côté serveur, historique/synchronisation idempotente, threads, envoi depuis l'adresse officielle, retries, audit, séparation Agent/Admin) sur Replay.
 5. Concevoir puis implémenter les appels audio WebRTC (signaling privé, permissions, verrouillage atomique, STUN/TURN, reconnexion, mobile, absence d'enregistrement) sur Replay.
 6. Ne déclarer le programme global AU VERT qu'après les tests navigateur, SQL, build, CI, Gmail réel et audio réel réussis. Production et déploiement restent exclus sans autorisation explicite.
+
+
+## §235 — Architecture technique Gmail/WebRTC versionnée et dépendances externes — 18/11/2026
+
+### Documentation technique ajoutée
+
+- Addendum technique ajouté à `docs/ASSISTANCE_CLIENT_NAXA.md`, commit `df5431af8fa5ef5f9b580084345b74f303d703aa`.
+- Gmail : boîte officielle unique, OAuth lancé par Admin actif, identité Gmail vérifiée côté serveur, refresh token chiffré AES-256-GCM/KMS, aucun secret côté Agent/navigateur/logs, déduplication et synchronisation idempotente.
+- Scopes de départ proposés : `gmail.readonly` + `gmail.send`. Pas de scope `mail.google.com` ni `gmail.modify` sans besoin métier explicite.
+- Gmail API : full sync initiale par messages.list/get ; synchronisation incrémentale par history.list et fallback full sync si historyId expiré ; Pub/Sub watch recommandé pour les notifications push avec réconciliation périodique.
+- Fils : conservation des Gmail messageId/threadId et en-têtes RFC 2822 ; réponse dans le thread d'origine ; pièces jointes privées avec contrôle MIME/taille et URL signée courte.
+- Audio : WebRTC audio-only, signalisation Supabase Realtime privée, tables de métadonnées support_calls/participants/events, acceptation atomique, credentials TURN éphémères générés côté serveur, aucun enregistrement.
+- WhatsApp reste externe et strictement inchangé.
+
+### Dépendances externes et limites de vérification
+
+- Le scope Gmail readonly est un scope restreint selon Google. Une application qui stocke/transmet ces données sur ses serveurs doit prévoir la vérification OAuth Google et l'évaluation de sécurité applicable avant ouverture publique.
+- Prérequis Gmail réel non fournis/configurés dans les éléments accessibles : projet Google Cloud NAXA, Gmail API activée, écran de consentement et statut de vérification, OAuth Client ID/Secret, URI de redirection, autorisation du compte Gmail officiel ; Pub/Sub si push.
+- Prérequis audio réel non fournis/configurés : endpoint STUN/TURN et secret de génération de credentials temporaires, ainsi que l'infrastructure de relais testée depuis des réseaux mobiles.
+- Ces valeurs sont des secrets d'environnement ; elles ne doivent pas être partagées dans le chat ni ajoutées au dépôt. Leur absence interdit de déclarer un test OAuth Gmail réel ou un appel TURN réel PASS.
+- Aucun code Gmail/WebRTC ni migration Gmail/appel n'a été ajouté par cet addendum ; il s'agit d'un contrat technique versionné, pas d'une implémentation.
+
+### État CI après les dernières écritures
+
+- Le commit documentaire précédent `fce751dac75ab15a83275a926a34b8e6995a746b` a lancé le workflow NAXA quality.
+- La syntaxe GitHub Actions a terminé PASS sur ce commit ; tests/TypeScript/lint/build étaient encore `in_progress` au dernier contrôle.
+- Le run E2E Support du commit `cd7e501c982aee0e5c9245fb6373f5e8bcf45f18` reste `pending`, derrière une exécution précédente dont l'étape navigateur Promoteur/Livreur reste `in_progress`. Les étapes Client↔Admin et build du run précédent sont PASS ; la recette professionnelle n'est pas encore terminée et l'étape Agent n'a pas démarré.
+- La navigation Promoteur E2E est également en cours. Aucun de ces workflows ne peut être déclaré vert global.
+
+### Verdict et point de reprise
+
+- Architecture Gmail/WebRTC : **DOCUMENTÉE**.
+- Socle Agent SQL Replay : **VERT sur les sept scripts rejoués**, sans compte ni ticket résiduel.
+- Sécurité Agent navigateur : **EN ATTENTE** de la recette multi-comptes.
+- Gmail OAuth réel : **BLOQUÉ par les prérequis Google externes et NON IMPLÉMENTÉ**.
+- Appel audio réel STUN/TURN : **BLOQUÉ par l'infrastructure TURN et NON IMPLÉMENTÉ**.
+- CI complète : **EN COURS**.
+- Audit global Supabase : **NON VERT** ; les findings globaux recensés au §234 restent à examiner. Les trois fonctions publiques SECURITY DEFINER identifiées comme endpoints catalogue/marketplace doivent être confirmées comme intentionnelles ; la fonction trigger-only `naxa_sync_partner_subscription_dossier()` doit être retirée de l'EXECUTE API après ajout d'une migration versionnée et d'un test ACL.
+- Aucun changement Production, aucune migration Production, aucun déploiement.
+
+**Prochaine opération :** laisser finir le run professionnel en cours et lire son résultat/log ; corriger son premier échec réel, puis faire exécuter l'E2E Agent. En parallèle, finaliser l'audit ACL ciblé (sans révoquer les RPC marketplace publiques intentionnelles), puis préparer les migrations Gmail et appels sur Replay avec leurs tests négatifs avant tout raccordement OAuth/TURN réel.
