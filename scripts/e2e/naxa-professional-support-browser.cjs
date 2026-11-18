@@ -11,8 +11,14 @@ const BASE_URL=(process.env.NAXA_E2E_WEB_BASE_URL||"http://127.0.0.1:3000").repl
 const STATE_FILE=path.join(process.env.RUNNER_TEMP||"/tmp","naxa-professional-support-e2e.json");
 const ADMIN_USERNAME="e2e_admin_261104";
 const PROFESSIONALS=[
- {username:"naxa_e2e_livreur",profileRole:"client",role:"livreur",route:"/pharmacie/livreur",category:"livraison",author:"Livreur E2E"},
- {username:"naxa_e2e_promoteur",profileRole:"promoteur",role:"promoteur",route:"/pharmacie/promoteur",category:"gestion_espace",author:"Promoteur E2E"}
+ {username:"naxa_e2e_promoteur",profileRole:"promoteur",role:"promoteur",route:"/pharmacie/promoteur",category:"gestion_espace"},
+ {username:"naxa_e2e_responsable",profileRole:"client",role:"responsable",route:"/pharmacie/responsable/credits",category:"personnel"},
+ {username:"naxa_e2e_pharmacien",profileRole:"client",role:"pharmacien",route:"/pharmacie/pharmacien",category:"personnel"},
+ {username:"naxa_e2e_gestionnaire_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
+ {username:"naxa_e2e_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
+ {username:"naxa_e2e_comptable",profileRole:"client",role:"comptable",route:"/pharmacie/comptable",category:"caisse"},
+ {username:"naxa_e2e_caisse",profileRole:"client",role:"caisse",route:"/pharmacie/caisse",category:"caisse"},
+ {username:"naxa_e2e_livreur",profileRole:"client",role:"livreur",route:"/pharmacie/livreur",category:"livraison"}
 ];
 function required(value,name){assert.ok(value&&String(value).trim(),"Secret Replay manquant : "+name);return value;}
 const supabaseUrl=required(process.env.NAXA_STORAGE_E2E_URL,"NAXA_STORAGE_E2E_URL");
@@ -46,7 +52,7 @@ async function sessionFor(username,profileRole,activeRole){
  assert.equal(profile.role,profileRole);assert.equal(profile.actif,true);
  const {data:authData,error:authError}=await admin.auth.admin.getUserById(profile.id);if(authError)throw authError;
  const user=authData.user;assert.ok(user?.email&&user.email_confirmed_at);
- assert.ok(String(user.user_metadata?.naxa_e2e_fixture||"").startsWith("NAXA-E2E-"));
+ const fixtureMarker=user.user_metadata?.naxa_e2e_fixture;assert.ok(fixtureMarker===true||String(fixtureMarker||"").startsWith("NAXA-E2E-"));
  const {data:generated,error:linkError}=await admin.auth.admin.generateLink({type:"magiclink",email:user.email});if(linkError)throw linkError;
  const tokenHash=generated?.properties?.hashed_token;assert.ok(tokenHash);
  const jar=new Map();const ssr=createServerClient(PROJECT_URL,anonKey,{cookies:{getAll:()=>Array.from(jar.values()).map(({name,value})=>({name,value})),setAll:cs=>{for(const c of cs)jar.set(c.name,c);}}});
@@ -91,7 +97,7 @@ async function run(){
    await dialog.getByText("Temps réel actif",{exact:false}).waitFor({state:"visible",timeout:30000});
    console.log("PASS — création du dossier individuel "+fixture.role+" et abonnement Realtime.");
    await adminPage.reload({waitUntil:"domcontentloaded"});await adminPage.getByText(subject,{exact:true}).waitFor({state:"visible",timeout:20000});
-   await adminPage.getByText(fixture.author,{exact:false}).waitFor({state:"visible",timeout:20000});
+   await adminPage.getByText(fixture.role,{exact:false}).waitFor({state:"visible",timeout:20000});
    const response=await adminPage.request.post(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,contenu:reply}});
    assert.equal(response.status(),201,"Réponse Admin refusée pour "+fixture.role+".");
    await dialog.getByText(reply,{exact:true}).waitFor({state:"visible",timeout:30000});
