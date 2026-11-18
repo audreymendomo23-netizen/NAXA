@@ -24,7 +24,7 @@ export async function authorizeSupportAgent(permission?: SupportAgentPermission,
   const db = supabaseAdmin();
   const { data: agent, error: agentError } = await db
     .from("support_agents")
-     .select("user_id,username,first_name,last_name,display_name,status,presence,last_seen_at,must_change_password")
+     .select("user_id,username,first_name,last_name,display_name,status,presence,last_seen_at,must_change_password,consent_accepted_at")
     .eq("user_id", auth.user.id)
     .maybeSingle();
 
@@ -34,8 +34,8 @@ export async function authorizeSupportAgent(permission?: SupportAgentPermission,
   if (!agent || agent.status !== "active") {
     return { ok: false as const, status: 403, error: "Compte Agent suspendu ou non autorisé." };
   }
-  if (agent.must_change_password && !allowPasswordRotation) {
-    return { ok: false as const, status: 403, error: "Remplacement du mot de passe provisoire obligatoire." };
+  if ((agent.must_change_password || !agent.consent_accepted_at) && !allowPasswordRotation) {
+    return { ok: false as const, status: 403, error: "Activation du compte Agent obligatoire." };
   }
 
   if (permission) {
