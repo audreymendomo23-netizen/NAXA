@@ -8786,3 +8786,54 @@ L'audit ACL avait isolé `public.naxa_sync_partner_subscription_dossier()` : fon
 - Audio WebRTC/TURN : **NON IMPLÉMENTÉ**.
 - CI globale : **NON VERTE**.
 - Aucune migration Production, aucun déploiement.
+
+
+## §239 — Revalidation CI, correction Marketplace, ACL et diagnostic E2E Agents — 18/11/2026
+
+### Qualité technique
+
+- Commit testé : `1c87ed3c29f467c720b31d45389f7dd9f4dcabae`.
+- Run `44410539188` : **SUCCESS** — syntaxe GitHub Actions, tests projet, TypeScript, lint et build Next.js.
+- Correctif de recette Agent ajouté dans `scripts/e2e/naxa-support-agent-browser.cjs` : vérifier que la case « note interne » est réellement décochée, attendre explicitement la réponse HTTP du POST Agent et exiger HTTP 201 avant d'affirmer que le message est rendu.
+- Run Support correspondant `44410539237` : lancé/en cours de construction Replay au dernier contrôle ; la nouvelle assertion n'a pas encore produit de résultat.
+
+### E2E Support — résultats et limites
+
+- Run `44407412440` / commit `cd7e501` : Client ↔ Admin et Promoteur/Livreur ont réussi ; E2E Agent a échoué après prise des tickets et isolation inter-Agent. La réponse publique attendue n'a pas été trouvée dans la lecture Client.
+- Le nettoyage automatique a supprimé les comptes Auth et tickets de recette ; les événements d'audit ont été conservés anonymisés.
+- L'événement Agent observé confirmait l'enregistrement de la note interne, mais aucun événement `ticket_reply_sent` n'était visible. Le test initial ne capturait pas explicitement le statut HTTP du POST ; le script a donc été renforcé avant la nouvelle exécution.
+- Test SQL de diagnostic sur Replay, transaction annulée : le Client propriétaire lit les messages publics de son ticket et ne lit aucune note interne. La politique SELECT autorise bien ce cas ; le diagnostic doit maintenant distinguer le mode interne resté actif, la réponse HTTP, la ligne stockée et le JWT Client.
+- Run `44408847572` / commit `5525334` : Client ↔ Admin PASS ; Promoteur PASS ; la recette professionnelle a échoué sur un timeout de 30 s du POST `/api/admin/messagerie` pendant le parcours Responsable. Le job n'a donc pas atteint l'étape Agents. Nettoyage professionnel exécuté.
+- Le timeout est constaté ; sa cause (charge Replay, route, réseau ou autre) n'est pas encore prouvée. Ne pas le reclasser comme défaut Agent.
+
+### E2E Navigation / Marketplace
+
+- Correctif code `src/app/resultats/page.tsx` commit `08a5cb07d7c7d71ae7e0fe54042b7b7640e78513` : prise en compte de `bulkTerms` dans le garde d'exécution et rafraîchissement lorsque ville/rayon/localisation changent.
+- Run `44409035972` sur ce commit : build PASS, mais parcours navigateur interrompu par timeout de navigation vers `/pharmacie/promoteur` après les parcours Client/Comptable ; le scénario Marketplace B2 n'a donc pas fourni de preuve de réussite.
+- Run `44409581308` / commit `3840dfa` : nouveau passage navigateur sur Replay en cours au dernier contrôle. Le correctif bulk ne sera déclaré vert qu'après son résultat.
+
+### ACL Replay
+
+- Migration `20261118221347_naxa_restrict_partner_dossier_trigger_function` enregistrée dans `supabase_migrations.schema_migrations`.
+- Test versionné `supabase/tests/20261118_naxa_restrict_partner_dossier_trigger_function.sql` : PASS.
+- Vérification ACL : les trois fonctions publiques catalogue/Marketplace attendues restent exécutables par `anon`; la fonction trigger-only est non exécutable par `anon` et `authenticated`. Trigger conservé.
+- Supabase Advisors : 3 fonctions SECURITY DEFINER restantes exécutables par anon et 262 par authenticated ; protection leaked-password toujours signalée. L'audit global Auth et ACL n'est donc pas clos.
+
+### Verdict
+
+- Qualité commit `1c87ed3` : **VERT CI**.
+- ACL trigger-only Replay : **VERT**.
+- E2E Client ↔ Admin et Promoteur/Livreur : **VERT sur le run `44407412440`**, mais un autre run professionnel a ensuite échoué par timeout.
+- E2E Agent : **NON VERT**, diagnostic renforcé et nouveau run en cours.
+- Marketplace bulk : **CORRIGÉ, NON ENCORE VALIDÉ NAVIGATEUR**.
+- Gmail OAuth : **NON IMPLÉMENTÉ / dépendances Google externes**.
+- Audio WebRTC/TURN : **NON IMPLÉMENTÉ / dépendances TURN externes**.
+- Aucun changement Production ni déploiement.
+
+### Point exact de reprise
+
+1. Attendre la fin du run Support `44410539237` et lire le statut HTTP du POST Agent ainsi que les traces Client/Admin. Corriger la cause métier ou RLS, pas l'assertion.
+2. Attendre le run Navigation `44409581308` ; si le parcours Promoteur échoue à nouveau, lire le log exact avant toute correction.
+3. Éviter les recettes navigateur concurrentes sur le même Replay si elles produisent des timeouts ; envisager un groupe de concurrence commun Support + Navigation après preuve de contention.
+4. Répéter la recette complète Agents puis Support (Client, Promoteur, Livreur, Agents) et Navigation sur un commit stabilisé.
+5. Reprendre ensuite l'audit Auth leaked-password et les intégrations Gmail/WebRTC ; le programme global reste NON VERT jusqu'aux tests réels OAuth et audio TURN.
