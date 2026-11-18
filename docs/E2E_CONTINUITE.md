@@ -7568,3 +7568,40 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **Inscription OTP et OAuth Google : non conclusifs dans ce contrôle ; les traces et la recette utilisateur ne couvrent pas tous les cas.**
 - **Défaut latent ILIKE/underscore : identifié, sans collision actuelle dans les données Replay contrôlées.**
 - Aucun code applicatif, schéma, donnée Replay/Production ou déploiement n'a été modifié pendant cet audit. Aucun vert global Auth revendiqué.
+
+## 200. Clôture du remboursement crédit multicanal — Replay — 18/11/2026
+
+### Périmètre et références
+- Dépôt : `audreymendomo23-netizen/NAXA`, branche `main`. HEAD au moment de cette section : `63f03d0ef3a2417e6b6e2d273849b2d043d6020a`.
+- Base de recette exclusivement utilisée : `pwfftcsjyeibxxqhwysw` (`naxa-ci-replay-2`).
+- Pharmacie technique non commerciale utilisée pour les recettes : `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`.
+- Aucune requête de mutation n'a ciblé le projet Supabase Production `eouwtuusnsuxaejsxknf`. Aucun déploiement Vercel n'a été lancé. `vercel.json` conserve `git.deploymentEnabled.main=false`.
+
+### Parcours métier Caisse / Client
+- Workflow Replay #44240563563 : la recette navigateur Crédit a terminé avec `browser_failures=0`. Vente comptoir à crédit, décision Promoteur, suivi Client, remboursements Caisse et clôture sont PASS. La recette Marketplace et la recette navigateur de configuration comptable sont également PASS. Storage E2E et Web Push navigateur sont PASS.
+- La recette rembourse successivement 100 FCFA espèces, 300 FCFA Orange Money et 600 FCFA MTN MoMo dans la même session Caisse. Le solde du compte crédit revient à zéro.
+- Le ticket de chaque remboursement contient la référence, le canal et l'origine comptoir. Le suivi Client recharge les opérations et expose les reçus imprimables ; le libellé du canal est bien alimenté depuis `mode_paiement` : Espèces, Orange Money ou MTN MoMo.
+- Clôture Caisse : les 1 000 FCFA remboursés tous canaux confondus ne sont pas assimilés au tiroir espèces ; seuls les 100 FCFA espèces entrent dans le rapprochement. Total théorique 100, total compté 100, écart 0.
+- Orange Money et MTN MoMo sont pris en charge par référence de transaction et confirmation visuelle explicite du bénéficiaire, du montant et de l'affichage/confirmation Client. Ces recettes prouvent le workflow NAXA et les contrôles de rapprochement ; elles ne prouvent pas une confirmation automatique par API opérateur ni le règlement live par MTN/Orange.
+
+### Rapprochement de trésorerie Replay
+- Vérification finale sur les opérations de remboursement de la pharmacie technique : 51 opérations, 51 mouvements de trésorerie, zéro mouvement absent et zéro mouvement avec nature/origine/canal incorrect.
+- Espèces : 33 opérations, 33 mouvements, 24 900 FCFA.
+- Orange Money : 9 opérations, 9 mouvements, 2 700 FCFA.
+- MTN MoMo : 9 opérations, 9 mouvements, 5 400 FCFA.
+- Les 21 anciennes opérations espèces sans mouvement portaient exclusivement des références de recette `NAXA-E2E-CREDIT-RECOVERY-*` / `NAXA-E2E-CREDIT-BROWSER-*`, sur la pharmacie technique et des sessions déjà clôturées. Le mouvement manquant a été rétabli à partir du montant, de la référence, de la date et de l'acteur de l'opération source, dans le compte espèces technique Replay. Aucun solde crédit ni aucune session clôturée n'a été réécrit. Après correction : 33/33 mouvements espèces, 9/9 Orange, 9/9 MTN.
+
+### Comptabilisation persistée
+- Paramétrage conservé sur la seule pharmacie technique Replay : deux comptes validés (`NAXAE2ECD` débit et `NAXAE2ECC` crédit), quatre mappings valides pour `credit_octroi` et `credit_remboursement`, deux paramètres de journaux valides et une période ouverte du 1er au 30 novembre 2026.
+- Le worker réel `compta_traiter_evenement`, appelé avec le rôle `service_role`, a traité et persisté les événements en attente. Le lot de 39 événements a produit 39 écritures avec 29 000 FCFA au débit et 29 000 FCFA au crédit ; le test préalable transactionnel avait validé le même lot en ROLLBACK.
+- Contrôle final des remboursements : 51 événements outbox au statut `traite`, 51 écritures uniques rattachées, aucun événement ouvert, aucune écriture manquante ou dupliquée.
+- Espèces : 33 événements / écritures, 24 900 FCFA débit et 24 900 FCFA crédit.
+- Orange Money : 9 événements / écritures, 2 700 FCFA débit et 2 700 FCFA crédit.
+- MTN MoMo : 9 événements / écritures, 5 400 FCFA débit et 5 400 FCFA crédit.
+
+### Qualité du code et réserve Auth distincte
+- Workflow qualité #44242940628 sur le HEAD `63f03d0ef3a2417e6b6e2d273849b2d043d6020a` : SUCCESS (tests, TypeScript, lint et contrôles de syntaxe des workflows).
+- Le workflow E2E Replay #44240563563 demeure en échec global uniquement parce que le contrôle Auth indépendant échoue ; ses compteurs finaux sont `Auth: 1` et `Crédit: 0` échec. Ne pas présenter ce résultat comme un défaut du remboursement.
+- Auth : après deux rotations, le script établit que les access tokens gardent le même `sub` et le même `session_id`. Le rejeu du refresh token ancêtre hors fenêtre est refusé HTTP 400 (`Possible abuse attempt: 3000`), mais le refresh token descendant de la même session est ensuite accepté HTTP 200. Les journaux Auth confirment cette séquence `400` puis `200` ; l'audit `token_refreshed` / `token_revoked` du second appel correspond à la rotation du jeton descendant et ne prouve pas la révocation de toute la famille.
+- La configuration Auth effective doit être relue par Management API (`GET /v1/projects/{ref}/config/auth`, scope `auth:read`) puis comparée au réglage Dashboard déjà confirmé par l'utilisateur. Le connecteur Supabase disponible dans cette session n'expose pas cette action Management API. Ne pas désactiver la rotation, ne pas diminuer la sécurité et ne pas déclarer Auth au vert sur la seule base du HTTP 400.
+- Verdict : **remboursement crédit espèces / Orange Money / MTN MoMo, reçus, mouvements de trésorerie et comptabilisation : VERT sur Replay**. **Contrôle de révocation de famille Auth : ROUGE indépendant**. Aucun vert global Auth revendiqué.
