@@ -8378,3 +8378,49 @@ Objectif qualité demandé : **10/10 visé**, mesuré par couverture des exigenc
 ### Point exact de reprise
 
 Auditer l'API Gmail/OAuth et les mécanismes de synchronisation compatibles avec le dépôt ; définir les scopes minimaux, le stockage sécurisé des jetons et le mapping Gmail thread/message vers les dossiers NAXA ; puis construire sur Replay les permissions multi-agents, la boîte centrale et les tests positifs/négatifs. Continuer en parallèle les lots d'identité agent et d'appels audio du §228. Maintenir WhatsApp inchangé et externe.
+
+
+## §230 — Reprise technique : audit ciblé Gmail, identité agent et socle Livechat — 18/11/2026
+
+### État constaté sur main et Replay
+
+- HEAD de référence avant ce checkpoint : b6c8250d96bb4e06c206117bb7e842a5521c25e1 (décision Gmail/WhatsApp §229).
+- Le projet Replay pwfftcsjyeibxxqhwysw est ACTIVE_HEALTHY ; inspection effectuée en lecture seule.
+- Les recherches GitHub ciblées n'ont trouvé aucune implémentation Gmail OAuth, Gmail API, table d'emails support ou synchronisation Gmail dans le dépôt.
+- L'API /api/admin/messagerie reste Admin-only pour GET/POST/PATCH. Elle lit les tickets/messages avec le client privilégié ; aucun contrôle d'affectation/permission par agent n'est présent dans cette route.
+- La page /admin/messagerie et AdminInbox constituent toujours une boîte Admin unique, sans espace Agent, présence, file multi-agents ou prise atomique.
+- Replay contient tickets_support, messages_support, profiles, naxa_roles, naxa_role_privileges, naxa_profile_active_roles et naxa_profile_privileges. Aucun objet/table d'appel audio ou de courrier Gmail n'a été trouvé dans le catalogue public inspecté.
+- Les colonnes existantes de tickets/messages permettent les conversations et pièces jointes actuelles, mais ne portent pas d'affectation d'agent, de canal Gmail, de Gmail thread/message ID ni d'état d'appel.
+- Les politiques RLS de tickets/messages donnent actuellement l'accès Admin et les accès propriétaires/acteurs historiques ; elles ne décrivent pas un périmètre d'agent NAXA. Étendre l'accès par simple rôle ou contourner RLS avec le client service-role sans contrôle serveur strict serait dangereux.
+- Le modèle de rôles existant repose sur des codes texte et des privilèges (naxa_roles, naxa_role_privileges, naxa_profile_active_roles) ; ne pas ajouter un enum PostgreSQL ni réutiliser fonction_interne seul sans vérifier les fonctions de résolution et toutes les policies.
+- Le statut combiné CI interrogé pour le commit de décision ne retournait aucun statut ; cela ne constitue ni un PASS ni un échec de tests. Les tests/build/lint n'ont pas été exécutés dans ce checkpoint.
+
+### Contradictions confirmées
+
+1. La décision Gmail §229 est documentée mais aucun connecteur OAuth ni stockage de jetons n'existe dans le code audité.
+2. La décision d'agents internes §227 est documentée mais l'identité, l'administration des comptes, les permissions, l'affectation et les interfaces ne sont pas implémentées.
+3. Le Livechat actuel est textuel ; aucune table support_calls, signalisation d'appel, WebRTC support ou configuration TURN n'a été trouvée.
+4. L'API Admin actuelle n'est pas réutilisable telle quelle pour les agents : le contrôle Admin global et l'accès privilégié ne suffisent pas à garantir l'isolation inter-agent/inter-dossier.
+
+### Plan correctif priorisé avant tout statut vert
+
+1. Cartographier intégralement les fonctions SQL de résolution des rôles, les politiques RLS/Storage, les privilèges et les routes Admin ; concevoir une identité interne dédiée sans modifier les rôles Client/Partenaire existants.
+2. Construire d'abord sur Replay le socle agent : comptes individuels créés par Admin, cycle de vie, permissions minimales, affectations, prise atomique, notes internes et audit ; tester les refus inter-agent/inter-ticket avant d'ouvrir les routes.
+3. Ajouter ensuite le workflow de réclamation contradictoire et son arbitrage Admin.
+4. Auditer les exigences Google OAuth actuelles, définir les scopes strictement nécessaires et le stockage serveur des jetons ; implémenter Gmail après sécurisation des permissions agents. Ne connecter aucune boîte réelle sans action OAuth explicite de l'Admin.
+5. Construire les appels audio V1 avec signalisation privée, verrou atomique, WebRTC, TURN réellement configuré et tests mobiles/réseau ; ne pas réutiliser le module WebRTC de vidéosurveillance.
+6. Exécuter les tests SQL positifs/négatifs, recettes navigateur par rôle, non-régression Livechat/FAQ/notifications/pièces jointes, typecheck, lint, tests et build. Maintenir WhatsApp externe inchangé.
+
+### Statut au checkpoint
+
+- Audit ciblé du code et du schéma Replay : EFFECTUÉ EN LECTURE SEULE.
+- Gmail OAuth/synchronisation : ABSENT / NON TESTÉ.
+- Comptes et espace multi-agents : ABSENTS / NON TESTÉS.
+- Réclamations/litiges : NON IMPLÉMENTÉS / NON TESTÉS.
+- Appels audio Livechat : ABSENTS / NON TESTÉS.
+- Aucun SQL d'écriture, aucune migration, aucune modification de code applicatif, aucune connexion Gmail réelle, aucune action Production et aucun déploiement dans ce checkpoint.
+- AUCUN VERT / AUCUNE NOTE 10/10 : les critères de sécurité et de fonctionnement ne sont pas encore satisfaits.
+
+### Point exact de reprise
+
+Commencer par l'audit complet du moteur de rôles et des policies RLS/Storage, puis concevoir et tester le socle d'identité/permissions/affectation des agents sur Replay. Ne pas commencer Gmail ou les appels audio avant que les agents ne soient cloisonnés et que les tests négatifs inter-agent soient PASS.
