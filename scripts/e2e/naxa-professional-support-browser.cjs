@@ -127,8 +127,12 @@ async function run(){
    assert.ok((notifications||[]).some(n=>n.user_id===session.profile.id&&n.type==="support_naxa_reponse"));
    const professionalReply="Précision du compte "+fixture.role;
    await dialog.getByPlaceholder("Écrire un message…").fill(professionalReply);
+   const sendReplyResponsePromise=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith("/rest/v1/messages_support")&&r.request().method()==="POST",{timeout:20000});
    await dialog.getByRole("button",{name:"Envoyer le message"}).click();
-   await dialog.getByText(professionalReply,{exact:true}).waitFor({state:"visible",timeout:20000});
+   const sendReplyResponse=await sendReplyResponsePromise;
+   const sendReplyBody=await sendReplyResponse.text().catch(()=>"");
+   assert.equal(sendReplyResponse.status(),201,"Insertion du message professionnel refusée ("+sendReplyResponse.status()+") : "+sendReplyBody.slice(0,1200));
+   await dialog.locator("article").filter({hasText:professionalReply}).waitFor({state:"visible",timeout:20000});
    const {data:professionalMessages,error:professionalMessagesError}=await admin.from("messages_support").select("id,auteur_profile_id,interne,contenu").eq("ticket_id",item.ticketId).order("created_at",{ascending:true});if(professionalMessagesError)throw professionalMessagesError;
    console.log("TRACE — auteurs des messages "+fixture.role+" : "+JSON.stringify((professionalMessages||[]).map(m=>({id:m.id,auteur:m.auteur_profile_id,interne:m.interne,contenu:m.contenu}))));
    assert.ok((professionalMessages||[]).some(m=>m.auteur_profile_id===session.profile.id&&m.contenu===professionalReply),"Le message professionnel n’est pas attribué au demandeur authentifié.");
