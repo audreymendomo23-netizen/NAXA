@@ -341,11 +341,16 @@ function Formulaire() {
 
         const { data: activeRole, error: activeRoleError } = await sb.rpc("naxa_business_function");
         if (annule) return;
-        router.replace(
-          !activeRoleError && typeof activeRole === "string"
-            ? ROUTE_PAR_ROLE_ACTIF[activeRole] ?? "/"
-            : "/"
-        );
+        if (!activeRoleError && typeof activeRole === "string") {
+          router.replace(ROUTE_PAR_ROLE_ACTIF[activeRole] ?? "/");
+        } else {
+          const { data: supportAgent } = await sb.from("support_agents")
+            .select("status")
+            .eq("user_id", auth.user.id)
+            .maybeSingle();
+          if (annule) return;
+          router.replace(supportAgent?.status === "active" ? "/equipe-support" : "/");
+        }
         router.refresh();
       } catch {
         if (!annule) router.replace("/");
@@ -380,6 +385,12 @@ function Formulaire() {
         window.localStorage.setItem("naxa-remember", remember ? "1" : "0");
       } catch {
         // Le choix ne pourra pas être mémorisé sur cet appareil.
+      }
+
+      if (d.espace === "support_agent") {
+        router.replace("/equipe-support");
+        router.refresh();
+        return;
       }
 
       let destination = retour;
