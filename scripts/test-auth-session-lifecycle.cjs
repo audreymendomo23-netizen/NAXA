@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hasUsableRefreshTokenPair } = require("./e2e/refresh-session-check.cjs");
+const { readAccessTokenFromCookies } = require("./e2e/read-ssr-access-token.cjs");
 
 test("a successful refresh response with both tokens is a usable session", () => {
   assert.equal(hasUsableRefreshTokenPair({
@@ -30,4 +31,27 @@ test("rejected refresh requests are never considered usable", () => {
   assert.equal(hasUsableRefreshTokenPair({
     ok: false, status: 400, data: { error_code: "refresh_token_already_used" },
   }), false);
+});
+
+test("SSR cookie reader extracts an access token from a single base64 cookie", () => {
+  const value = "base64-" + Buffer.from(JSON.stringify({ access_token: "browser-access" })).toString("base64url");
+  assert.equal(readAccessTokenFromCookies([
+    { name: "sb-replay-auth-token", value },
+  ]), "browser-access");
+});
+
+test("SSR cookie reader reassembles numbered cookie chunks in order", () => {
+  const value = "base64-" + Buffer.from(JSON.stringify({ access_token: "chunked-access" })).toString("base64url");
+  const split = Math.floor(value.length / 2);
+  assert.equal(readAccessTokenFromCookies([
+    { name: "sb-replay-auth-token.1", value: value.slice(split) },
+    { name: "sb-replay-auth-token.0", value: value.slice(0, split) },
+  ]), "chunked-access");
+});
+
+test("SSR cookie reader rejects absent or malformed authentication cookies", () => {
+  assert.throws(() => readAccessTokenFromCookies([]), /Cookie Auth absent/);
+  assert.throws(() => readAccessTokenFromCookies([
+    { name: "sb-replay-auth-token", value: "base64-not-json" },
+  ]), /Impossible de lire/);
 });
