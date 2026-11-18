@@ -7356,3 +7356,14 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **Rouge distinct :** contrôle Auth refresh-token-reuse du workflow global. Il n'est pas corrigé et reste indépendant du parcours Caisse.
 - **Non livré dans ce chantier :** encaissement de vente POS via confirmation automatisée Orange/MTN ; le parcours ici porte sur les remboursements de crédit au comptoir avec vérification visuelle humaine.
 - Aucune migration ni mutation Production et aucun déploiement Vercel n'ont été exécutés.
+
+
+## Recette Auth Replay — 18 novembre 2026 : ROUGE
+
+- Périmètre Replay uniquement, sans accès ni mutation Production/Vercel.
+- PASS : connexion navigateur du Gestionnaire Stock vers l'espace protégé ; cookie SSR présent ; suppression du cookie redirige vers `/connexion` ; première rotation refresh ; rejet d'un refresh token ancêtre.
+- FAIL sécurité : après rejet du refresh token ancêtre hors fenêtre de tolérance, le refresh token courant de la même session reste accepté. Reproduit dans GitHub Actions Replay `44196261458` et `44197708312` (17 nov. 2026). La documentation Supabase indique que ce cas doit terminer la session entière et révoquer tous les refresh tokens.
+- FAIL login intermittent : Auth Replay a renvoyé HTTP 500 `NAXA_SESSION_LIMIT_REACHED` le 17 nov. à 17:55 UTC. Le trigger `auth.sessions.trg_naxa_session_limit` est actif et bloque à 4 sessions non expirées. La migration `20261021040125_remove_concurrent_session_cap.sql` existe sur `main` mais est absente de l'historique migrations Replay ; la migration de compatibilité `20261021040237_bypass_legacy_session_count_precheck.sql` est également absente.
+- La recette E2E actuelle laisse la session créée par le login navigateur active après avoir seulement supprimé les cookies locaux ; cela contribue à l'accumulation de sessions.
+- NON TESTÉ en réel : signup OTP, mot de passe oublié OTP, Google OAuth/PKCE, expiration naturelle JWT. Aucun e-mail OTP n'a été envoyé pendant cette recette.
+- Conclusion : **AUTH GLOBAL ROUGE / NON VALIDÉ**. Aucune correction ni migration exécutée pendant la recette.
