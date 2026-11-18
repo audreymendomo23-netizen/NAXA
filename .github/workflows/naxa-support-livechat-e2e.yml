@@ -86,6 +86,8 @@ jobs:
           echo "::add-mask::$NAXA_RATE_LIMIT_SECRET"
           npm run build
       - name: Démarrer le serveur local de recette
+        env:
+          NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         shell: bash
         run: |
           set -euo pipefail
