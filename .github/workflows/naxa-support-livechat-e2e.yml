@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: naxa-replay-support-livechat-e2e
+  group: naxa-replay-support-livechat-e2e-v2
   cancel-in-progress: false
 
 jobs:
@@ -60,7 +60,7 @@ jobs:
       - name: Installer Playwright et Chromium
         run: |
           npm install --no-save --package-lock=false playwright@1.65.1
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Construire NAXA avec la configuration Replay
         shell: bash
         run: |
