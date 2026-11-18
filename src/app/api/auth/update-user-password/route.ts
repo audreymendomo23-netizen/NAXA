@@ -64,9 +64,26 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       return NextResponse.json({ ok: false, error: "Impossible d’enregistrer le mot de passe." }, { status: 500 });
     }
+
+    // A password reset is a security boundary: revoke every refresh session
+    // from the server before returning success. Do not rely on a follow-up
+    // browser request that can be interrupted after the password was changed.
+    const { error: revokeError } = await server.auth.signOut({ scope: "global" });
+    if (revokeError) {
+      console.error("NAXA_PASSWORD_RESET_GLOBAL_SIGNOUT_FAILED", {
+        errorCode: revokeError.code || "unknown",
+        status: revokeError.status || 0,
+      });
+      return NextResponse.json({
+        ok: true,
+        sessionsRevoked: false,
+        warning: "Mot de passe changé, mais la déconnexion des autres appareils n’a pas pu être confirmée.",
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     await rateLimit("ip_password", ip, "success", 5, 600, 30, 900);
     await rateLimit("password_user", userKey, "success", 20, 3600, 900, 900);
-    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: true, sessionsRevoked: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("NAXA_USER_PASSWORD_UPDATE_FAILED", {
       errorName: error instanceof Error ? error.name : "UnknownError",
