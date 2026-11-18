@@ -7452,3 +7452,23 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Run `NAXA quality` 44233811015 : SUCCESS, 588/588 tests PASS, TypeScript, ESLint, actionlint et build Next.js PASS (156 pages statiques).
 - Run Replay 44233811098 : démarré sur ce HEAD ; provisionnement jusqu'à la pharmacie et au stock technique PASS. Installation Playwright/Chromium en cours au dernier contrôle ; aucune conclusion JWT/navigateur/Auth de ce run n'est revendiquée.
 - Le document de continuité doit rester explicite : le parcours remboursement multicanal est vert sur les preuves SQL/JWT/navigateur terminales précédentes ; le vert du workflow global dépend encore du test Auth exécuté sur le dernier HEAD et de la politique de révocation du projet Replay.
+
+## Section 207 — Extension du remboursement Caisse aux trois canaux (18 novembre 2026)
+
+### Implémentation versionnée sur main
+- Le RPC `client_credit_rembourser` réalise dans une seule transaction : contrôle du crédit et de la session Caisse, débit du solde, insertion de l'opération, mouvement d'encaissement dans le compte du canal ; les remboursements Orange Money et MTN MoMo exigent la référence opérateur et les trois confirmations visuelles.
+- Les trois canaux sont distincts : `especes`, `orange_money`, `mtn_momo`. Le compte de trésorerie est sélectionné par pharmacie et canal ; la création du compte manquant est protégée par verrou transactionnel et réutilisable sans doublon.
+- L'idempotence vérifie la même opération, le même crédit, montant, canal, référence et motif ; le rejeu renvoie l'identifiant initial seulement si le mouvement de trésorerie existe. Une clé réutilisée avec un autre payload est refusée.
+- L'interface Caisse conserve la clé idempotence tant que la demande n'a pas été confirmée, permet la lecture/création des comptes par canal et affiche le reçu de remboursement. La clôture du tiroir reste limitée aux espèces.
+- Tests versionnés : `supabase/tests/302_caisse_credit_repayment_multichannel_e2e.sql` (exécuté sur Replay avec rollback) et `scripts/e2e/verify-credit-refund-runtime.cjs` (vrai JWT Promoteur/Caisse/Client, trois remboursements, rejeu, refus négatifs, mouvements, outbox et nettoyage). Le test runtime réutilise seulement un compte crédit technique actif à solde nul et ne modifie pas les comptes trésorerie existants ; les comptes créés par la recette sont supprimés.
+- Les tests de contrat `scripts/test-credit-refund-runtime.cjs` et `scripts/test-caisse-credit-remboursement.cjs` vérifient la portée Replay, les trois canaux, les preuves, l'idempotence et le nettoyage.
+
+### Preuves disponibles au relevé
+- SQL Replay 302 : PASS avec rollback ; les opérations et comptes de recette n'ont laissé aucune ligne.
+- GitHub Actions `NAXA quality` sur HEAD `96a028020bc4af27131ea74da732186f2baa4415` : SUCCESS ; job tests/TypeScript/lint et job actionlint terminés avec succès.
+- Workflow `NAXA Replay Promoteur E2E` run `44234988988`, même HEAD : démarré ; tests de contrats, préflight des secrets Replay, Promoteur et Admin, invitation Client/Livreur : PASS. Provisionnement Caisse/Stock/Comptable/Pharmacien encore en cours au relevé ; les étapes JWT remboursement, navigateur, Web Push et nettoyage final ne sont donc pas encore déclarées PASS sur ce run.
+
+### Limites explicites
+- Les PASS SQL et qualité ne remplacent pas le résultat runtime authentifié des trois canaux. Le vert E2E final dépend de la terminaison du run Replay ci-dessus.
+- La confirmation des paiements mobiles reste visuelle et humaine ; aucune API opérateur Orange/MTN n'est revendiquée.
+- Les paiements électroniques de vente POS restent hors périmètre de cette correction. Aucun changement Production ni déploiement Vercel.
