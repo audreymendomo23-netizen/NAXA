@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Message = {
   id: number;
@@ -22,6 +23,7 @@ type Ticket = {
 };
 
 export function SupportAgentTicket({ ticketId }: { ticketId: string }) {
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -53,6 +55,30 @@ export function SupportAgentTicket({ ticketId }: { ticketId: string }) {
   }, [ticketId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!ticketId) return;
+    let active = true;
+    const channel = supabase.channel("naxa-support-agent-" + ticketId)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages_support",
+        filter: "ticket_id=eq." + ticketId,
+      }, () => {
+        if (active) void refresh();
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "tickets_support",
+        filter: "id=eq." + ticketId,
+      }, () => {
+        if (active) void refresh();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [ticketId, supabase, refresh]);
 
   async function send(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
