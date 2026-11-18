@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§220)  
+**Dernière mise à jour :** 18 novembre 2026 (§221)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `8a9df33dab54dc2747415bcfb32ea485a8d2c72e`  
+**HEAD contrôlé avant cette mise à jour :** `cf3807fe248e454ceae1d4f8bf11c94c1089572f`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -8048,4 +8048,24 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - **R09-10 navigateur Client ↔ Admin non exécutée** : il reste à valider dans deux sessions authentifiées séparées la création, les réponses instantanées dans les deux sens, la reconnexion Realtime, les notifications visibles, les transitions de statut, les pièces jointes et la non-régression du chat pharmacie `/aide`. Les preuves SQL transactionnelles et le CI vert ne remplacent pas ce parcours navigateur.
 - Point de reprise exact : réaliser cette recette navigateur sur Replay avec des sessions Client/Admin de recette déjà autorisées, sans créer de données persistantes ni toucher Production. Ne pas déclarer le chantier global AU VERT avant ce contrôle.
 - HEAD code validé avant cette mise à jour documentaire : `8a9df33dab54dc2747415bcfb32ea485a8d2c72e`. Les vérifications couvrent exactement ce code ; la présente mise à jour ne modifie que la continuité.
+
+
+
+## 221 — Contrôles statut et Storage complémentaires — 18/11/2026
+
+**ÉTAT : 🟢 3/3 PASS sur le cycle de statut ; règles Storage et notifications Realtime confirmées.**
+
+- Transaction Replay (Client actif ; création et réponses dans la même transaction) :
+  1. Le dossier est correctement marqué `resolu` avec `resolved_at` renseigné.
+  2. Une nouvelle réponse du Client le fait revenir à `en_cours` et efface `resolved_at`.
+  3. Une fois le dossier `ferme`, l'insertion d'une réponse Client est rejetée par la politique RLS.
+- Résultat : **3/3 PASS** ; transaction terminée par `ROLLBACK`.
+- Table `notifications` : RLS active, publication `supabase_realtime` active, politique de lecture authentifiée limitée au destinataire `user_id = auth.uid()` (ou au périmètre Admin/Pharmacie prévu par la politique générale).
+- Storage `naxa-support-attachments` :
+  - INSERT limité au Client actif dans l'espace métier Client, au dossier dont il est propriétaire et non clôturé ; chemin à deux segments UID/ticket, nom UUID avec extension PDF/JPG/JPEG/PNG/WebP et MIME autorisé.
+  - SELECT limité au chemin déclaré sur un message public du ticket appartenant au Client actif ; les notes internes ne rendent pas de fichier lisible au Client.
+  - DELETE limité au propriétaire Client actif du dossier.
+- Contrôle read-only après tous les essais annulés : 0 ticket support, 0 message associé, 0 notification Support associée et 0 objet Storage dans le bucket.
+- Aucun fichier, compte, ticket, message ou notification de test persistant.
+- Aucun changement applicatif ou SQL n'a été poussé pendant ces vérifications. Le code validé reste `8a9df33dab54dc2747415bcfb32ea485a8d2c72e` (616/616 tests Node, TypeScript, ESLint, build et actionlint SUCCESS). Cette section ajoute uniquement une preuve documentaire sur `main`.
 
