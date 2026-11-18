@@ -7530,6 +7530,7 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 
 ### Durcissement immédiat de la recette sur main
 - Le script `scripts/e2e/verify-auth-session-lifecycle.cjs` compare désormais les claims `sub` et `session_id` des access tokens issus de la connexion initiale, de la première rotation, de la deuxième rotation et de la tentative de refresh descendant.
+- Patch du script sur `main` : commit `864d001c4e77edd5cebc03b15efdf4c292c34c00` (`test(auth): vérifier session_id et diagnostic de rejeu refresh`). La mise à jour de cette section est postérieure et confirme sa présence sur HEAD.
 - Si l'identité ou le `session_id` change durant les rotations, la recette échoue explicitement au lieu d'attribuer à tort le résultat à une famille unique.
 - Le script conserve uniquement des diagnostics non secrets des réponses Auth : statut/code d'erreur et en-têtes autorisés `sb-auth-refresh-token-rotated`, `sb-auth-refresh-token-reuse`, `sb-auth-refresh-token-counter`. Aucun access token ni refresh token brut n'est écrit dans les logs.
 
