@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       phase = "support_agent_rate_limit_success";
       await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
       await rateLimit("login_user", loginKey, "success", 20, 3600, 900, 900);
-      return NextResponse.json({ ok: true, espace: "support_agent" });
+      return NextResponse.json({ ok: true, espace: "support_agent", must_change_password: agent.must_change_password === true });
     }
 
     if (matchingProfiles.length !== 1) {
