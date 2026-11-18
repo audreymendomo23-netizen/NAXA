@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   const firstName = String(body.first_name ?? "").trim();
   const lastName = String(body.last_name ?? "").trim();
   const dateOfBirth = String(body.date_of_birth ?? "").trim();
-  const birthDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth) ? new Date(dateOfBirth + "T00:00:00Z") : null;
+  const birthDate = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? new Date(dateOfBirth + "T00:00:00Z") : null;
   let age = -1;
   if (birthDate && !Number.isNaN(birthDate.getTime()) && birthDate.toISOString().slice(0,10) === dateOfBirth) {
     const today = new Date();
