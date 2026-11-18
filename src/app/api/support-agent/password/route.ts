@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const access = await authorizeSupportAgent(undefined, true);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
-  if (!access.agent.must_change_password) {
+  if (!access.agent.must_change_password && access.agent.consent_accepted_at) {
     return NextResponse.json({ error: "Aucun remplacement initial n’est requis." }, { status: 409 });
   }
 
