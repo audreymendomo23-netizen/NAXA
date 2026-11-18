@@ -32,8 +32,8 @@ test("l’assistance Client NAXA est distincte du chat pharmacie", () => {
   assert.match(liveMigration, /pharmacie_id is null/);
   assert.match(liveMigration, /'support_naxa'/);
   assert.match(pharmacyChat, /open_pharmacist_chat/);
-  assert.match(faqInteractive, /href="\\/assistance"/);
-  assert.match(faqInteractive, /href="\\/aide"/);
+  assert.ok(faqInteractive.includes('href="/assistance"'));
+  assert.ok(faqInteractive.includes('href="/aide"'));
   assert.match(faqRoute, /FaqInteractive/);
   assert.match(notifications, /support_naxa_reponse/);
   assert.match(notifications, /support_naxa_nouvelle_demande/);
