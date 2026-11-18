@@ -43,19 +43,21 @@ async function run(env = process.env) {
   const webBase = String(env.NAXA_E2E_WEB_BASE_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
   const promoterPasswordFile = required(env.NAXA_STORAGE_E2E_PROMOTEUR_PASSWORD_FILE, "fichier secret Promoteur");
   const promoterPassword = readSecret(promoterPasswordFile);
-  const runSuffix = String(env.GITHUB_RUN_ID || Date.now()).replace(/\D/g, "").slice(-7)
-    + String(env.GITHUB_RUN_ATTEMPT || "1").replace(/\D/g, "").slice(-1);
-  const debitCode = "E2E" + runSuffix + "D";
-  const creditCode = "E2E" + runSuffix + "C";
-  const journalCode = "E2E" + runSuffix;
+  // Configuration stable et isolée sur la seule pharmacie technique Replay.
+  // Elle est réutilisée par les exécutions suivantes afin que le worker puisse
+  // comptabiliser les événements sans créer des mappings concurrents.
+  const debitCode = "NAXAE2ECD";
+  const creditCode = "NAXAE2ECC";
+  const journalCode = "NAXAE2CR";
   const today = localDate();
+  const [year, month] = today.split("-").map(Number);
+  const monthStart = year + "-" + String(month).padStart(2, "0") + "-01";
+  const monthEndDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const monthEnd = year + "-" + String(month).padStart(2, "0") + "-" + String(monthEndDay).padStart(2, "0");
   let browser = null;
   let promoterToken = null;
   let pharmacyId = PHARMACY_ID;
   let promoterId = null;
-  let initialAccountIds = new Set();
-  let initialMappingIds = new Set();
-  let initialParamIds = new Set();
   let primaryError = null;
   const apiTokens = [];
 
@@ -138,34 +140,6 @@ async function run(env = process.env) {
     }
   }
 
-  async function cleanupCreatedRows() {
-    const accountRows = await rows("compta_plan_comptable?select=id,code,pharmacie_id&pharmacie_id=eq." + pharmacyId);
-    const newAccounts = accountRows.filter(x => !initialAccountIds.has(x.id)
-      && [debitCode, creditCode].includes(x.code));
-    const newAccountIds = new Set(newAccounts.map(x => x.id));
-
-    const mappingRows = await rows("compta_mapping_compte?select=id,evenement_type,sens,compte_id,pharmacie_id&pharmacie_id=eq." + pharmacyId);
-    const newMappings = mappingRows.filter(x => !initialMappingIds.has(x.id)
-      && newAccountIds.has(x.compte_id));
-    const paramRows = await rows("compta_parametre?select=id,cle,valeur,pharmacie_id&pharmacie_id=eq." + pharmacyId);
-    const newParams = paramRows.filter(x => !initialParamIds.has(x.id)
-      && ["credit_octroi", "credit_remboursement"].some(event => x.cle === "journal_code." + event)
-      && x.valeur === journalCode);
-
-    async function removeIds(table, ids) {
-      const list = [...ids];
-      if (!list.length) return;
-      await request("/rest/v1/" + table + "?id=in.(" + list.join(",") + ")", {
-        method: "DELETE", admin: true, prefer: "return=minimal",
-        label: "Nettoyage des seules lignes comptables techniques " + table,
-      });
-    }
-    await removeIds("compta_mapping_compte", newMappings.map(x => x.id));
-    await removeIds("compta_parametre", newParams.map(x => x.id));
-    await removeIds("compta_plan_comptable", newAccounts.map(x => x.id));
-    return { accounts: newAccounts.length, mappings: newMappings.length, journals: newParams.length };
-  }
-
   try {
     const promoter = await login(PROMOTER_EMAIL, promoterPassword);
     promoterId = promoter.id;
@@ -192,22 +166,30 @@ async function run(env = process.env) {
       throw new Error("Le Promoteur n'obtient pas le droit d'écriture comptable sur la pharmacie technique.");
     }
 
-    const accountsBefore = await rows("compta_plan_comptable?select=id,code,statut&pharmacie_id=eq." + pharmacyId);
-    const mappingsBefore = await rows("compta_mapping_compte?select=id,evenement_type,sens,compte_id,statut&pharmacie_id=eq." + pharmacyId);
-    const paramsBefore = await rows("compta_parametre?select=id,cle,valeur,statut&pharmacie_id=eq." + pharmacyId);
-    initialAccountIds = new Set(accountsBefore.map(x => x.id));
-    initialMappingIds = new Set(mappingsBefore.map(x => x.id));
-    initialParamIds = new Set(paramsBefore.map(x => x.id));
-    if (accountsBefore.some(x => [debitCode, creditCode].includes(x.code))) {
-      throw new Error("Collision de code E2E comptable avant démarrage.");
+    const accountsBefore = await rows("compta_plan_comptable?select=id,code,libelle,statut&pharmacie_id=eq." + pharmacyId);
+    const reusableAccounts = new Map();
+    for (const [code, expectedLabel] of [
+      [debitCode, "Compte technique E2E — débit crédit client"],
+      [creditCode, "Compte technique E2E — crédit client"],
+    ]) {
+      const found = accountsBefore.filter(x => x.code === code);
+      if (found.length > 1) throw new Error("Plusieurs comptes portent le code technique " + code + ".");
+      if (found.length === 1) {
+        if (found[0].statut !== "valide" || found[0].libelle !== expectedLabel) {
+          throw new Error("Le compte technique " + code + " existe mais n'est pas validé ou ne correspond plus au contrat E2E.");
+        }
+        reusableAccounts.set(code, found[0]);
+      }
     }
-    if (paramsBefore.some(x => ["credit_octroi", "credit_remboursement"]
-      .some(event => x.cle === "journal_code." + event) && x.statut === "valide")) {
-      throw new Error("Un journal crédit déjà validé existe sur la pharmacie technique ; la recette refuse d'écraser sa configuration.");
-    }
-    if (mappingsBefore.some(x => ["credit_octroi", "credit_remboursement"].includes(x.evenement_type)
-      && x.statut === "valide")) {
-      throw new Error("Un mapping crédit déjà validé existe sur la pharmacie technique ; la recette refuse de chevaucher la configuration.");
+
+    const periodsBefore = await rows("compta_periodes?select=id,date_debut,date_fin,statut&pharmacie_id=eq."
+      + pharmacyId + "&order=date_debut.asc");
+    const coveringPeriod = periodsBefore.filter(x => x.statut === "ouverte"
+      && x.date_debut <= monthStart && x.date_fin >= today);
+    if (coveringPeriod.length > 1) throw new Error("Plusieurs périodes comptables ouvertes couvrent la période de recette.");
+    if (!coveringPeriod.length && periodsBefore.some(x =>
+      x.date_debut <= monthEnd && x.date_fin >= monthStart)) {
+      throw new Error("Une période comptable existante chevauche le mois E2E sans couvrir les dates de recette ; aucune période concurrente ne sera créée.");
     }
 
     browser = await chromium.launch({ headless: true });
@@ -241,8 +223,12 @@ async function run(env = process.env) {
       await row.getByText("Validé", { exact: true }).waitFor({ timeout: 30000 });
     }
 
-    await createAndValidateAccount(debitCode, "Compte technique E2E — débit crédit client", 1);
-    await createAndValidateAccount(creditCode, "Compte technique E2E — crédit client", 4);
+    if (!reusableAccounts.has(debitCode)) {
+      await createAndValidateAccount(debitCode, "Compte technique E2E — débit crédit client", 1);
+    }
+    if (!reusableAccounts.has(creditCode)) {
+      await createAndValidateAccount(creditCode, "Compte technique E2E — crédit client", 4);
+    }
     const createdAccounts = await rows("compta_plan_comptable?select=id,code,statut&pharmacie_id=eq."
       + pharmacyId);
     const debitAccount = createdAccounts.find(x => x.code === debitCode && x.statut === "valide");
@@ -254,13 +240,33 @@ async function run(env = process.env) {
     }).first();
     const journalForm = journalSection.locator("form").first();
     async function createAndValidateJournal(event) {
-      await journalForm.locator("select").first().selectOption(event);
-      await journalForm.locator("input").first().fill(journalCode);
-      await journalForm.locator('input[type="date"]').first().fill(today);
-      await journalForm.getByRole("button", { name: "Ajouter le journal", exact: true }).click();
       const journalLabel = event === "credit_octroi"
         ? "Octroi de crédit client"
         : "Remboursement de crédit client";
+      const existing = await rows("compta_parametre?select=id,cle,valeur,statut&pharmacie_id=eq."
+        + pharmacyId + "&cle=eq.journal_code." + event);
+      if (existing.length > 1) throw new Error("Journal comptable " + event + " dupliqué sur Replay.");
+      if (existing.length === 1) {
+        if (existing[0].valeur !== journalCode) {
+          throw new Error("Le journal " + event + " existe avec un code différent ; aucun écrasement automatique.");
+        }
+        if (existing[0].statut === "valide") return;
+        if (existing[0].statut !== "a_valider") {
+          throw new Error("État inattendu du journal " + event + " : " + existing[0].statut);
+        }
+        const pendingArticle = journalSection.locator("article").filter({ hasText: journalCode })
+          .filter({ hasText: journalLabel }).last();
+        await pendingArticle.waitFor({ state: "visible", timeout: 30000 });
+        await pendingArticle.getByRole("button", { name: "Valider", exact: true }).click();
+        await pendingArticle.getByText(/^Validé\s*·/).waitFor({ timeout: 30000 });
+        return;
+      }
+      await journalForm.locator("select").first().selectOption(event);
+      await journalForm.locator("input").first().fill(journalCode);
+      // Le journal doit couvrir les remboursements déjà générés ce mois-ci,
+      // pas uniquement les opérations postérieures au jour du test.
+      await journalForm.locator('input[type="date"]').first().fill(monthStart);
+      await journalForm.getByRole("button", { name: "Ajouter le journal", exact: true }).click();
       const article = journalSection.locator("article").filter({ hasText: journalCode })
         .filter({ hasText: journalLabel }).last();
       await article.waitFor({ state: "visible", timeout: 30000 });
@@ -270,11 +276,45 @@ async function run(env = process.env) {
     await createAndValidateJournal("credit_octroi");
     await createAndValidateJournal("credit_remboursement");
 
+    // Ouvrir une vraie période mensuelle depuis l'interface Promoteur.
+    // Elle reste attachée à la pharmacie technique Replay pour que le cron puisse
+    // poster durablement les événements de cette recette.
+    if (!coveringPeriod.length) {
+      const periodSection = page.locator("section").filter({
+        has: page.getByRole("heading", { name: "Périodes comptables", exact: true }),
+      }).first();
+      const periodForm = periodSection.locator("form").first();
+      await periodForm.locator('input[type="date"]').nth(0).fill(monthStart);
+      await periodForm.locator('input[type="date"]').nth(1).fill(monthEnd);
+      await periodForm.getByRole("button", { name: "Ouvrir la période", exact: true }).click();
+      await periodSection.locator("article").filter({ hasText: monthStart })
+        .filter({ hasText: monthEnd }).waitFor({ state: "visible", timeout: 30000 });
+    }
+
     const mappingSection = page.locator("section").filter({
       has: page.getByRole("heading", { name: "Mappings débit / crédit", exact: true }),
     }).first();
     const mappingForm = mappingSection.locator("form").first();
     async function createAndValidateMapping(event, sens, accountId, accountCode) {
+      const current = await rows("compta_mapping_compte?select=id,evenement_type,sens,compte_id,statut"
+        + "&pharmacie_id=eq." + pharmacyId + "&evenement_type=eq." + event + "&sens=eq." + sens);
+      if (current.length > 1) throw new Error("Mapping " + event + " / " + sens + " dupliqué sur Replay.");
+      if (current.length === 1) {
+        if (current[0].compte_id !== accountId) {
+          throw new Error("Le mapping " + event + " / " + sens + " pointe vers un autre compte ; aucun remplacement automatique.");
+        }
+        if (current[0].statut === "valide") return;
+        if (current[0].statut !== "a_valider") {
+          throw new Error("État inattendu du mapping " + event + " / " + sens + " : " + current[0].statut);
+        }
+        const pendingArticle = mappingSection.locator("article")
+          .filter({ hasText: event + " · " + (sens === "debit" ? "Débit" : "Crédit") })
+          .filter({ hasText: accountCode }).last();
+        await pendingArticle.waitFor({ state: "visible", timeout: 30000 });
+        await pendingArticle.getByRole("button", { name: "Valider mapping", exact: true }).click();
+        await pendingArticle.getByText(/^Validé\s*·/).waitFor({ timeout: 30000 });
+        return;
+      }
       const selects = mappingForm.locator("select");
       await selects.nth(0).selectOption(event);
       await selects.nth(1).selectOption(sens);
@@ -301,28 +341,26 @@ async function run(env = process.env) {
       [debitAccount.id, creditAccount.id].includes(x.compte_id)
       && ["credit_octroi", "credit_remboursement"].includes(x.evenement_type)
       && x.statut === "valide");
+    const finalPeriods = await rows("compta_periodes?select=id,date_debut,date_fin,statut&pharmacie_id=eq." + pharmacyId);
+    const validatedPeriod = finalPeriods.filter(x => x.statut === "ouverte"
+      && x.date_debut <= monthStart && x.date_fin >= today);
     if (journalEvents.size !== 2 || !journalEvents.has("credit_octroi")
-      || !journalEvents.has("credit_remboursement") || expectedMappings.length !== 4) {
-      throw new Error("La configuration comptable de crédit créée par l'interface n'est pas complète ou validée.");
+      || !journalEvents.has("credit_remboursement") || expectedMappings.length !== 4
+      || validatedPeriod.length !== 1) {
+      throw new Error("La configuration comptable durable (journaux, mappings, période) n'est pas complète ou validée.");
     }
 
     process.stdout.write("PASS — le Promoteur ouvre le plan comptable de sa pharmacie technique et dispose du droit d'écriture.\\n");
     process.stdout.write("PASS — création puis validation de deux comptes techniques via l'interface.\\n");
     process.stdout.write("PASS — création puis validation des journaux octroi et remboursement de crédit.\\n");
-    process.stdout.write("PASS — quatre mappings débit/crédit crédit créés puis validés depuis l'interface Promoteur.\\n");
+    process.stdout.write("PASS — quatre mappings débit/crédit crédit créés ou réutilisés et validés depuis l'interface Promoteur.\\n");
+    process.stdout.write("PASS — période comptable mensuelle ouverte et couvrant les événements de remboursement Replay.\\n");
+    process.stdout.write("PASS — paramètres comptables techniques conservés pour le worker Replay, sans toucher aux vraies pharmacies.\\n");
   } catch (error) {
     primaryError = error;
   } finally {
     if (browser) await browser.close().catch(() => null);
-    try {
-      const cleaned = await cleanupCreatedRows();
-      process.stdout.write("INFO — nettoyage des seules lignes de configuration E2E : "
-        + cleaned.accounts + " compte(s), " + cleaned.journals + " journal(aux), "
-        + cleaned.mappings + " mapping(s). L'audit fonctionnel est conservé.\\n");
-    } catch (error) {
-      if (primaryError) process.stderr.write("NETTOYAGE COMPTABLE — " + error.message + "\\n");
-      else primaryError = error;
-    }
+    process.stdout.write("INFO — la configuration comptable de la seule pharmacie technique Replay est conservée pour le traitement outbox.\\n");
     for (const token of [...new Set(apiTokens)].reverse()) {
       await request("/auth/v1/logout?scope=local", {
         method: "POST", token, label: "Fermeture session Auth comptable",
