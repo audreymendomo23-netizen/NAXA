@@ -72,7 +72,7 @@ function Formulaire(){
      if(!res.ok){setError(result?.error||"Impossible de mettre à jour le mot de passe. Vérifiez les critères et réessayez.");return}
      // The server has already updated the password. Clear the recovery session
      // locally before returning to the normal sign-in screen.
-     try { await supabaseBrowser().auth.signOut(); } catch { /* Password is already updated; continue to sign-in. */ }
+     try { await supabaseBrowser().auth.signOut({ scope: "global" }); } catch { /* Password is already updated; continue to sign-in. */ }
      router.push(`/connexion?retour=${encodeURIComponent(retour)}&motDePasseMisAJour=1`);
    }catch{
      setError("Connexion impossible pour le moment. Vérifiez votre réseau puis réessayez.");
