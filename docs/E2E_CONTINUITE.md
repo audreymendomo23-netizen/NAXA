@@ -8278,3 +8278,58 @@ Prévoir les modules suivants, visibles selon permissions :
 - Rôle `naxa_support_agent`, permissions, écrans, affectations, files, rapports et modèle de données : **CIBLES PROPOSÉES À AUDITER ; EXISTENCE NON PROUVÉE**.
 - Aucun code applicatif, migration Replay/Production, ni déploiement n'est inclus dans cette décision.
 - Point de reprise : audit sur `main` du modèle actuel des profils/permissions, de l'Admin, des tickets Livechat, des réclamations éventuelles, des pièces jointes et des politiques RLS Replay. Proposer ensuite un modèle d'intégration sans dupliquer les structures existantes, puis implémenter et tester sur Replay uniquement. Production/déploiement hors périmètre sans autorisation explicite.
+
+
+## §228 — Lancement simultané : appels audio Livechat + agents internes NAXA — audit initial — 18/11/2026
+
+### Mandat d'exécution
+
+Traiter dans un même programme, en parallèle et sans remplacer le support existant :
+1. Appels audio bidirectionnels de bout en bout intégrés au Livechat, selon le routage hybride validé au §226.
+2. Profil métier interne « Agent du service client NAXA » multi-comptes, espace agent, affectation et gestion des demandes d'assistance ainsi que des réclamations/litiges selon le §227.
+
+Objectif qualité demandé : **10/10 visé**, mesuré par couverture des exigences, implémentation connectée, sécurité serveur/RLS, tests positifs et négatifs, tests navigateur/appareils lorsque accessibles, non-régression et preuves. Un score 10/10 et le statut vert ne peuvent être attribués qu'après exécution et preuve de tous les critères applicables. Le vert de construction (prêt à la recette) doit rester distinct de la validation utilisateur, de la CI complète et de Production.
+
+### Audit initial — preuves main et Replay
+
+- HEAD main observé : 47ef919e6be2f33a4b1c2f7b74d8b2de2aa46935.
+- Dépôt : audreymendomo23-netizen/NAXA. Le protocole AGENTS.md confirme le travail direct sur main, sans branche ni PR, et l'absence de déploiement automatique.
+- Replay identifié et vérifié ACTIVE_HEALTHY : pwfftcsjyeibxxqhwysw (naxa-ci-replay-2, PostgreSQL 17.11).
+- Migrations Replay : les migrations Assistance Client, Livechat Realtime, accès professionnels, notifications et réouverture sont appliquées jusqu'à 20261118192703. Tables tickets_support et messages_support existent et RLS est activé.
+- Code existant : NaxaSupportWidget.tsx, AdminInbox.tsx, /admin/messagerie et /api/admin/messagerie ; workflow Replay .github/workflows/naxa-support-livechat-e2e.yml, tests SQL et scripts Playwright Client/Admin et professionnels.
+- Le Livechat actuel est un chat écrit Realtime. Le composant ne présente aucun contrôle d'appel ; le dépôt ne contient aucun fichier identifié pour appel audio, WebRTC de support, signalisation ou TURN. La présence d'un autre module WebRTC vidéo de surveillance ne constitue pas une implémentation réutilisable : son périmètre est distinct et son audio est interdit.
+- L'API /api/admin/messagerie exige actuellement un Admin actif pour GET/POST/PATCH et utilise un accès backend privilégié pour lire les tickets/messages. Elle ne possède pas encore de contrôle de périmètre par agent.
+- Le catalogue naxa_roles Replay contient les rôles système et professionnels, mais aucun rôle service client. Le type PostgreSQL role_type contient client, pharmacie, promoteur, caisse, admin. profiles contient fonction_interne, mais la résolution active actuelle ne donne pas automatiquement un rôle interne arbitraire : elle s'appuie sur naxa_profile_active_roles, les affectations et les règles de private.naxa_business_function_base.
+- Les politiques RLS actuelles de tickets_support et messages_support autorisent le propriétaire, les acteurs pharmacie concernés et l'Admin actif ; elles ne modélisent pas encore les agents NAXA, les affectations de tickets ni la file centrale. Les politiques Storage du support sont également fondées sur le propriétaire du dossier.
+- Les données Replay actuellement observées sont limitées (11 profils, 0 ticket support au moment de l'audit) : une recette complète exigera des fixtures isolées et nettoyables, sans exposer de données réelles.
+- Aucune table support_calls ou équivalente n'a été trouvée dans le schéma observé. Les tables de sessions WebRTC de surveillance sont liées aux caméras/pharmacies et ne doivent pas être détournées pour les appels Livechat.
+
+### Contradictions et causes racines à traiter
+
+1. **Appels audio absents** : aucun flux de création d'appel, signalisation WebRTC, négociation ICE, gestion TURN, contrôles micro, verrouillage d'acceptation ou cycle d'appel dans le Livechat.
+2. **Admin monolithique** : la boîte et l'API de messagerie sont réservées à l'Admin ; pas de compte agent, de permissions granulaires, de présence, d'affectation, de prise atomique ou de supervision par agent.
+3. **RLS non multi-agent** : les règles actuelles n'ont pas de modèle de visibilité par agent/dossier ; autoriser un agent via le simple rôle Client ou via un accès service-role sans contrôle de dossier serait une faille.
+4. **Litiges non modélisés** : le ticket de support existant n'offre pas encore un workflow contradictoire de réclamation, preuves, notes internes, escalade, arbitrage Admin et décision finale tracée.
+5. **Identité interne à concevoir** : ne pas ajouter le rôle à l'enum ni réutiliser fonction_interne isolément avant d'avoir défini la compatibilité avec les rôles actifs, les profils autonomes, les sessions et les contrôles d'accès.
+
+### Exigences d'intégration et tests 10/10
+
+- Un modèle d'identité interne séparé des profils commerciaux/pharmacies, comptes individuels créés par Admin, invitations sécurisées, activation/suspension/révocation, récupération d'accès et historique.
+- Permissions explicites et minimales par agent : consulter/prendre file, répondre, joindre/consulter pièces, gérer états, qualifier réclamation, demander compléments, proposer une issue, escalader, consulter rapports. Les privilèges Admin restent exclus.
+- Files centrale et personnelle, affectation manuelle/automatique, présence réelle, charge, délai/SLA, reprise/réaffectation sur suspension, verrou atomique de prise, journal d'audit immuable.
+- Dossiers de litige : parties, catégorie, chronologie, éléments de preuve, visibilité distincte des messages publics et notes internes, droit de réponse des parties, demandes de complément, délais, escalade obligatoire selon gravité, décision Admin et traçabilité.
+- Appels : audio seulement V1 ; agent affecté prioritaire puis file centrale, acceptation unique atomique, un appel actif par ticket/demandeur, signalisation privée, WebRTC, TURN réel, jetons courts, permission micro explicite, mute, haut-parleur, refus/annulation/timeout, reconnexion, réseau mobile, nettoyage et révocation.
+- Tests négatifs d'accès inter-agent, inter-ticket, pièces jointes, notes internes, suspension, session expirée, appel non autorisé, double acceptation et contournement API/UI.
+- Non-régression des parcours Client et professionnels existants, FAQ, Livechat texte, notifications, réouverture, pièces jointes, messagerie Admin et assistance pour chaque profil professionnel.
+- Tests Replay reproductibles et nettoyage automatique des fixtures ; build/typecheck/lint/tests ciblés et workflow CI accessible, sans job de déploiement.
+- TURN : sélectionner et configurer un service réellement accessible ; ne jamais prétendre qu'un appel est fiable en production sur la seule base de STUN ou d'un test localhost.
+
+### État au checkpoint
+
+- Audit GitHub main et inspection en lecture seule du schéma/migrations Replay : **EXÉCUTÉS**.
+- Appels audio : **NON IMPLÉMENTÉS / NON TESTÉS**.
+- Profil multi-agents et espace agent : **NON IMPLÉMENTÉS / NON TESTÉS**.
+- Gestion de réclamations/litiges : **NON IMPLÉMENTÉE / NON TESTÉE**.
+- Aucune migration ou écriture SQL n'a été exécutée sur Replay pendant cet audit ; aucune modification Production ni aucun déploiement.
+- Prochaine action d'exécution : définir et implémenter le socle d'identité interne, permissions, affectations et audit dans une migration additive testée sur Replay, tout en préparant en parallèle le socle d'appel audio (métadonnées, états, RPC atomiques, signalisation privée). Adapter ensuite les routes et interfaces Admin/Agent/Client, puis exécuter les recettes croisées et la non-régression.
+- Aucun statut vert ni note 10/10 n'est attribué à ce checkpoint : l'audit a révélé des fonctionnalités absentes et des protections multi-agent à construire.
