@@ -1195,11 +1195,25 @@ async function run() {
     });
     const b2Fixture = await prepareClientMarketplaceFixture(partnerOwner, b2Client);
     const b2SearchUrl = BASE_URL + "/resultats?bulk=1&q=" + encodeURIComponent("crédit comptoir") + "&n=" + String(b2Fixture.quantity);
+    const b2SearchTrace = [];
+    clientPage.on("response", async (response) => {
+      if (response.url().includes("/rest/v1/rpc/search_pharmacies_bulk")) {
+        let body = null;
+        try { body = await response.json(); } catch {}
+        b2SearchTrace.push({ status: response.status(), body });
+      }
+    });
     await clientPage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/resultats", "Lot B2 → recherche de l'offre réelle Replay");
     await clientPage.locator('select[aria-label="Filtrer par ville"]').selectOption("Yaoundé");
     const b2OfferCard = clientPage.locator("article").filter({ hasText: MARKETPLACE_PHARMACY_NAME }).first();
-    await b2OfferCard.waitFor({ state: "visible", timeout: 30000 });
+    try {
+      await b2OfferCard.waitFor({ state: "visible", timeout: 30000 });
+    } catch (error) {
+      const mainText = await clientPage.locator("main").innerText().catch(() => "");
+      console.error("TRACE B2 recherche bulk — " + JSON.stringify({ url: clientPage.url(), rpc: b2SearchTrace, mainText: mainText.slice(0, 5000) }));
+      throw error;
+    }
     await b2OfferCard.getByText(MARKETPLACE_PRODUCT_NAME, { exact: false }).waitFor({ state: "visible" });
     await b2OfferCard.getByRole("button", { name: "Ajouter " + MARKETPLACE_PRODUCT_NAME + " aux favoris", exact: true }).click();
     state.marketplaceFavoriteCreated = true;
