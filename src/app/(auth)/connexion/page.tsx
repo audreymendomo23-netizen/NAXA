@@ -388,7 +388,7 @@ function Formulaire() {
       }
 
       if (d.espace === "support_agent") {
-        router.replace("/equipe-support");
+        router.replace(d.must_change_password === true ? "/activation-agent" : "/equipe-support");
         router.refresh();
         return;
       }
