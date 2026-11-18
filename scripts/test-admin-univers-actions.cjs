@@ -89,38 +89,38 @@ test("les accusés de réception chargent toutes les lignes des avis affichés s
 
 test("les six espaces sont visibles et les deux espaces connectés sont qualifiés", () => {
   const ids = ["pharmacie", "parapharmacie", "bebe-maman", "dispositifs", "examens", "prestations"];
-  for (const id of ids) assert.match(ecosystemes, new RegExp('id:\\s*"' + id + '"'));
-  assert.equal((ecosystemes.match(/id:\s*"(pharmacie|parapharmacie|bebe-maman|dispositifs|examens|prestations)"/g) || []).length, 6);
-  assert.equal((ecosystemes.match(/nature:\s*"autonome"/g) || []).length, 4);
-  assert.equal((ecosystemes.match(/nature:\s*"connecte"/g) || []).length, 2);
-  assert.match(ecosystemes, /export type EcosystemeId = \\(typeof DEFINITIONS_ECOSYSTEMES\\)\\[number\\]\\["id"\\]/);
-  assert.doesNotMatch(ecosystemes, /id:\s*"aide"/);
-  assert.match(selection, /ECOSYSTEMES\\.map/);
-  assert.doesNotMatch(selection, /ECOSYSTEMES\\.filter/);
-  assert.match(selection, /item\\.nature === "connecte"/);
+  for (const id of ids) assert.ok(ecosystemes.includes('id:"' + id + '"'), "espace absent: " + id);
+  assert.equal((ecosystemes.match(/id:"(?:pharmacie|parapharmacie|bebe-maman|dispositifs|examens|prestations)"/g) || []).length, 6);
+  assert.equal((ecosystemes.match(/nature:"autonome"/g) || []).length, 4);
+  assert.equal((ecosystemes.match(/nature:"connecte"/g) || []).length, 2);
+  assert.ok(ecosystemes.includes('export type EcosystemeId = (typeof DEFINITIONS_ECOSYSTEMES)[number]["id"]'));
+  assert.ok(!ecosystemes.includes('id:"aide"'));
+  assert.ok(selection.includes("ECOSYSTEMES.map("));
+  assert.ok(!selection.includes("ECOSYSTEMES.filter("));
+  assert.ok(selection.includes('item.nature === "connecte"'));
 });
 
 test("le statut public reflète les cinq verrous Admin et traduit suivi en dispositifs", () => {
   for (const slug of ["parapharmacie", "bebe-maman", "examens", "suivi", "prestations"]) {
-    assert.match(universeStatusRoute, new RegExp('"' + slug + '"'));
+    assert.ok(universeStatusRoute.includes('"' + slug + '"'));
   }
-  assert.match(universeStatusRoute, /dispositifs:\\s*suiviEnabled/);
-  assert.match(universeStatusRoute, /suivi:\\s*suiviEnabled/);
-  assert.doesNotMatch(universeStatusRoute, /"aide"/);
+  assert.ok(universeStatusRoute.includes("dispositifs: suiviEnabled"));
+  assert.ok(universeStatusRoute.includes("suivi: suiviEnabled"));
+  assert.ok(!universeStatusRoute.includes('"aide"'));
 });
 
 test("les routes directes Bébé & Maman et Suivi respectent le verrou Admin", () => {
-  assert.match(middleware, /prefix:\\s*"\\/bebe-maman", slug:\\s*"bebe-maman"/);
-  assert.match(middleware, /prefix:\\s*"\\/suivi", slug:\\s*"suivi"/);
-  assert.match(middleware, /ecosystemeCatalogue === "parapharmacie" \\|\\| ecosystemeCatalogue === "bebe-maman"/);
+  assert.ok(middleware.includes('prefix: "/bebe-maman", slug: "bebe-maman"'));
+  assert.ok(middleware.includes('prefix: "/suivi", slug: "suivi"'));
+  assert.ok(middleware.includes('ecosystemeCatalogue === "parapharmacie" || ecosystemeCatalogue === "bebe-maman"'));
 });
 
 test("Besoin d’aide ouvre la FAQ et le chat pharmacie reste séparé", () => {
-  assert.match(clientHeader, /href:\\s*"\\/faq"/);
-  assert.match(clientHeader, /ouvrirAction\\("\\/faq"\\)/);
-  assert.doesNotMatch(clientHeader, /chemin === "\\/aide"/);
-  assert.match(universeMenu, /href="\\/faq"/);
-  assert.match(faqPage, /export default function FaqPage/);
-  assert.match(faqPage, /href="\\/aide"/);
-  assert.match(clientShell, /pathname === "\\/faq"/);
+  assert.ok(clientHeader.includes('href: "/faq"'));
+  assert.ok(clientHeader.includes('ouvrirAction("/faq")'));
+  assert.ok(!clientHeader.includes('chemin === "/aide"'));
+  assert.ok(universeMenu.includes('href="/faq"'));
+  assert.ok(faqPage.includes("export default function FaqPage"));
+  assert.ok(faqPage.includes('href="/aide"'));
+  assert.ok(clientShell.includes('pathname === "/faq"'));
 });

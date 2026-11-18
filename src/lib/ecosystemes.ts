@@ -42,7 +42,7 @@ export function enregistrerEcosystemeSelectionne(id: EcosystemeId): void {
   if (typeof window === "undefined") return;
   try { window.localStorage.setItem(CLE_ECOSYSTEME_ACTIF, id); }
   catch { /* L'URL reste la référence si le stockage local est indisponible. */ }
-  document.cookie = \`naxa-ecosysteme=\${id}; Max-Age=31536000; Path=/; SameSite=Lax\`;
+  document.cookie = `naxa-ecosysteme=${id}; Max-Age=31536000; Path=/; SameSite=Lax`;
   window.dispatchEvent(new CustomEvent("naxa:ecosysteme-change", { detail: { id } }));
 }
 export function routeProfessionnelleEcosysteme(id: EcosystemeId): string {

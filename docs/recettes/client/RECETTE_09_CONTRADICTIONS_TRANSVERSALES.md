@@ -66,7 +66,7 @@ Aucun compte ni aucune donnée Production ne doivent être utilisés. Utiliser l
 1. Cliquer successivement Achats, Réservations et Commandes.
 2. Ouvrir le menu à trois points, sélectionner « Besoin d’aide ? » et vérifier l’arrivée sur `/faq`, sans confusion avec le chat `/aide`.
 3. Relever URL, état sélectionné, données et filtres après chaque clic.
-3. Vérifier retour arrière, rechargement direct et navigation mobile.
+4. Vérifier retour arrière, rechargement direct et navigation mobile.
 **Attendu :** chaque libellé a une sémantique honnête ; si la destination est commune, l'interface ne prétend pas proposer trois onglets distincts.
 
 ### R09-07 — Persistance locale / serveur

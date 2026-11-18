@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§209)  
+**Dernière mise à jour :** 18 novembre 2026 (§210)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `5130cdc8b7f8ecd710894e5bb9f18d05b1648acf`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -7861,4 +7861,14 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - R09-02 à R09-08 demeurent non exécutées. Les recettes Client 01–08 restent bloquées par les P1 non encore prouvés : garde API/RPC/RLS, cohérence identité/rôle, Prestations et parcours réels.
 - Aucun compte ou donnée Replay créé ; aucune écriture Supabase, aucune migration, aucune donnée Production touchée, aucun déploiement Vercel, aucune action Play Store.
 - Point de reprise exact : exécuter le contrat Node ciblé, TypeScript/lint, puis R09-01/R09-02 sur Replay ; poursuivre R09-03 sans commencer les recettes 01–08.
+
+
+
+## 210 — Contrôle de finition de la correction des six espaces — 18/11/2026
+
+- Relecture post-commit de \`46e24cd95ece7fe0e594b390fd8bd442d32f9aa5\` : correction de deux détails de finition détectés avant la campagne de tests (échappements de template dans le registre et échappements regex dans les nouveaux contrats Node).
+- Le contrat est simplifié en assertions \`includes\` pour éviter les motifs de regex fragiles ; il vérifie toujours les six IDs, quatre espaces autonomes, deux connectés, le sélecteur sans filtre, les alias de statut, les gardes directes et la séparation FAQ/chat.
+- Numérotation R09-06 corrigée ; les quatre étapes sont maintenant numérotées de façon continue.
+- Ces corrections sont du travail de source/doc uniquement. Aucun test Node, TypeScript, lint, build ou navigateur n'est encore déclaré exécuté ; ne pas annoncer AU VERT.
+- Point de reprise : contrôler les fichiers réellement commités, puis exécuter les tests de qualité ciblés et R09-01/R09-02 sur Replay. Aucune donnée, migration ou configuration Production touchée.
 
