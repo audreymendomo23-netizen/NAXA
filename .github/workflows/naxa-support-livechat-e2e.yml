@@ -1,0 +1,115 @@
+name: NAXA Replay Support Livechat Browser E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/naxa-support-livechat-e2e.yml"
+      - "scripts/e2e/naxa-support-livechat-browser.cjs"
+      - "src/components/NaxaSupportWidget.tsx"
+      - "src/components/ParcoursClientShell.tsx"
+      - "src/components/admin/AdminInbox.tsx"
+      - "src/app/admin/messagerie/**"
+      - "src/app/api/admin/messagerie/**"
+      - "src/app/assistance/**"
+      - "src/app/aide/**"
+      - "supabase/migrations/*naxa*support*"
+      - "supabase/tests/*naxa*support*"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naxa-replay-support-livechat-e2e
+  cancel-in-progress: false
+
+jobs:
+  support-livechat-browser:
+    name: Client ↔ Admin — Chromium sur Replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      NAXA_STORAGE_E2E_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      NAXA_STORAGE_E2E_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      NAXA_STORAGE_E2E_ADMIN_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Installer Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Vérifier les secrets et refuser Production
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$NAXA_STORAGE_E2E_URL"
+          test -n "$NAXA_STORAGE_E2E_ANON_KEY"
+          test -n "$NAXA_STORAGE_E2E_ADMIN_KEY"
+          test "$NAXA_STORAGE_E2E_URL" = "https://pwfftcsjyeibxxqhwysw.supabase.co"
+      - name: Installer les dépendances verrouillées
+        run: npm ci --no-audit --no-fund
+      - name: Installer Playwright et Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright@1.65.1
+          npx playwright install --with-deps chromium
+      - name: Construire NAXA avec la configuration Replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"
+          NAXA_RATE_LIMIT_SECRET="$(openssl rand -hex 32)"
+          export NAXA_RATE_LIMIT_SECRET
+          echo "::add-mask::$SUPABASE_SECRET_KEY"
+          echo "::add-mask::$NAXA_RATE_LIMIT_SECRET"
+          npm run build
+      - name: Démarrer le serveur local de recette
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"
+          export NAXA_RATE_LIMIT_SECRET="$(openssl rand -hex 32)"
+          npm start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/naxa-support-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/naxa-support-server.pid"
+          ready=0
+          for _ in $(seq 1 60); do
+            if curl --silent --show-error --fail http://127.0.0.1:3000/connexion >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 160 "$RUNNER_TEMP/naxa-support-server.log" || true
+            echo "::error::Le serveur local NAXA n'a pas démarré."
+            exit 1
+          fi
+      - name: Recette réelle Client ↔ Admin, Realtime, statuts, fichiers et /aide
+        env:
+          NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
+        run: node scripts/e2e/naxa-support-livechat-browser.cjs
+      - name: Nettoyage de secours Replay
+        if: always()
+        run: node scripts/e2e/naxa-support-livechat-browser.cjs --cleanup
+      - name: Logs serveur si échec
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::Logs serveur NAXA Support E2E"
+          tail -n 160 "$RUNNER_TEMP/naxa-support-server.log" || true
+          echo "::endgroup::"
+      - name: Arrêter le serveur local
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/naxa-support-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/naxa-support-server.pid")" 2>/dev/null || true
+          fi
