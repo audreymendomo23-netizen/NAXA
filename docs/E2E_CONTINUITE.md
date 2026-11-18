@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§204)  
+**Dernière mise à jour :** 18 novembre 2026 (§208)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `3001d14f8fc87da0b0e4e108019b7677b09f9905`  
+**HEAD contrôlé avant cette mise à jour :** `b1b64efff7ada23dc7cdb324bf7f76d31ec0e0ea`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7832,3 +7832,14 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - R09-01 est documentée dans `docs/recettes/client/RECETTE_09_CONTRADICTIONS_TRANSVERSALES.md`. R09-02 à R09-08 restent à exécuter. Les recettes 01–08 restent bloquées.
 - Aucun correctif fonctionnel ni test UI/API/SQL exécuté à ce stade ; aucune écriture Production, migration Production ou déploiement Vercel.
 - Point de reprise exact : poursuivre R09-02 (routes et enveloppe Client) sur Replay, puis R09-03 (verrouillage serveur), sans rejouer Lot B2.
+
+
+## 208 — Relecture et présentation de la Recette 09 — 18/11/2026
+
+- Relecture depuis `main` de `docs/recettes/client/RECETTE_09_CONTRADICTIONS_TRANSVERSALES.md` et du présent document de continuité.
+- État inchangé et confirmé : R09-01 = **ÉCHEC STATIQUE CONFIRMÉ** ; R09-02 à R09-08 = **NON EXÉCUTÉES** ; recettes Client 01–08 = **BLOQUÉES** jusqu'à résolution des P1.
+- Rappel de portée : R09 est un audit contradictoire transversal, pas une recette métier. Elle couvre le registre des univers, les routes et l'enveloppe Client, les verrous serveur, la cohérence identité/espace/rôle, les autorisations Prestations, la navigation basse, la persistance locale/serveur et les routes secondaires.
+- Les preuves R09-01 restent strictement statiques : six IDs déclarés contre quatre entrées effectives ; assertion de type forcée qui masque les entrées manquantes ; routes `/bebe-maman` et `/suivi` qui peuvent produire un ID sans entrée de registre ; déréférencement non protégé dans `EnTeteClient` ; garde de disponibilité UI qui ne s'applique pas lorsque la cible est absente.
+- Qualification conservée : le défaut du registre est confirmé par lecture du code. Le crash navigateur, l'accès serveur non autorisé et les éventuels effets en base ne sont pas encore démontrés.
+- Aucun code fonctionnel, SQL, fixture ou donnée Replay modifié pendant cette relecture. Aucun test navigateur/API/RPC/SQL supplémentaire exécuté. Aucun changement Production, migration Production ou déploiement.
+- Point de reprise exact : R09-02 sur Replay — ouvrir les routes directes et vérifier l'enveloppe Client, les erreurs runtime et les états d'identité/session ; ensuite R09-03 pour éprouver les verrous côté serveur. Ne pas démarrer les recettes 01–08 et ne pas rejouer B2.
