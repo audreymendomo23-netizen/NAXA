@@ -8750,3 +8750,39 @@ Commit : `08a5cb07d7c7d71ae7e0fe54042b7b7640e78513`.
 ### Point exact de reprise
 
 Attendre le workflow navigation Promoteur et le workflow qualité déclenchés par `08a5cb0`. Lire leurs résultats et logs. Si la recherche B2 passe, poursuivre la recette Agent Support sur Replay ; sinon, corriger le prochain défaut observé sans neutraliser l'assertion E2E.
+
+
+## §238 — Correctif ACL d'une fonction trigger-only et preuve Replay — 18/11/2026
+
+### Fonction publique concernée
+
+L'audit ACL avait isolé `public.naxa_sync_partner_subscription_dossier()` : fonction `SECURITY DEFINER` destinée uniquement au trigger `trg_partner_subscription_dossier_sync` sur `public.admin_partner_dossiers`, mais encore exécutable par `anon` et `authenticated`.
+
+### Correction versionnée et appliquée sur Replay
+
+- Migration ajoutée : `supabase/migrations/20261118223000_naxa_restrict_partner_dossier_trigger_function.sql`.
+- Test ajouté : `supabase/tests/20261118_naxa_restrict_partner_dossier_trigger_function.sql`.
+- Commit migration : `7edea001f7b577aec589f91bbc9c1b5925e466e9`.
+- Commit test : `52e0331ff2f7597167a67619f3d6dc45d6152ed6`.
+- Exécution SQL ciblée sur Replay `pwfftcsjyeibxxqhwysw` : `REVOKE ALL ... FROM PUBLIC, anon, authenticated`.
+- Vérification Replay : **PASS** — `has_function_privilege(anon,...,'EXECUTE') = false`, même résultat pour `authenticated`, et le trigger demeure installé sur `admin_partner_dossiers`.
+- Aucun changement de logique métier, aucun objet supprimé, aucun compte/dossier créé. Aucun accès Production.
+
+**Précision migration :** le SQL a été exécuté directement sur Replay via l'outil SQL. Le registre `supabase_migrations.schema_migrations` n'a pas encore été contrôlé/aligné avec cette exécution manuelle ; l'alignement du registre et l'exécution automatisée du test depuis le workflow doivent être vérifiés avant clôture définitive de cette migration.
+
+### CI et reprise
+
+- Le correctif Marketplace multi-termes et son E2E de navigation sont en cours sur le commit `08a5cb07d7c7d71ae7e0fe54042b7b7640e78513`.
+- Le workflow Support Livechat ancien commit `cd7e501` poursuit encore Client ↔ Admin ; les étapes Promoteur/Livreur puis Agents restent en attente de ce job.
+- Le workflow qualité du commit documentaire `8e1441f` a validé la syntaxe GitHub Actions ; TypeScript/lint/build est en cours au dernier contrôle.
+- Les nouvelles écritures SQL ACL ne sont pas encore couvertes par un run qualité sur le commit courant `52e0331`.
+
+### Verdict
+
+- ACL trigger-only sur Replay : **VERT**.
+- Fonction de recherche Marketplace multi-termes : **CORRIGÉE, recette navigateur en attente**.
+- E2E Agents : **EN ATTENTE** du workflow Support.
+- Gmail réel : **NON IMPLÉMENTÉ**.
+- Audio WebRTC/TURN : **NON IMPLÉMENTÉ**.
+- CI globale : **NON VERTE**.
+- Aucune migration Production, aucun déploiement.
