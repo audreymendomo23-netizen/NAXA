@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§210)  
+**Dernière mise à jour :** 18 novembre 2026 (§211)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `5130cdc8b7f8ecd710894e5bb9f18d05b1648acf`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -7872,4 +7872,13 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Numérotation R09-06 corrigée ; les quatre étapes sont maintenant numérotées de façon continue.
 - Ces corrections sont du travail de source/doc uniquement. Aucun test Node, TypeScript, lint, build ou navigateur n'est encore déclaré exécuté ; ne pas annoncer AU VERT.
 - Point de reprise : contrôler les fichiers réellement commités, puis exécuter les tests de qualité ciblés et R09-01/R09-02 sur Replay. Aucune donnée, migration ou configuration Production touchée.
+
+
+
+## 211 — Accès FAQ depuis les deux en-têtes à trois points — 18/11/2026
+
+- Vérification complémentaire des en-têtes : en plus de l'en-tête Client (\`EnTeteClient\`) et de \`MenuUnivers\`, l'en-tête public \`EnTeteAccueil\` possède lui aussi un menu à trois points.
+- « Besoin d’aide ? » est ajouté à ce menu public, en français et en anglais, avec destination \`/faq\`. Le même libellé reste sur l'en-tête Client. La FAQ reste séparée du chat écrit avec une pharmacie (\`/aide\`).
+- Le contrat Node vérifie maintenant aussi le lien FAQ de l'en-tête public ; R09-01 exige la présence de cette entrée dans les deux en-têtes.
+- Contrôle statique ciblé à exécuter après commit ; tests Node, TypeScript, lint, build, navigateur et Replay toujours en attente. Aucune donnée, migration, Production ou déploiement touché.
 

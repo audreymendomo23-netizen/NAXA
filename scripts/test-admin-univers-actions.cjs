@@ -21,6 +21,7 @@ const ecosystemes = fs.readFileSync(
 );
 const selection = fs.readFileSync(path.join(__dirname, "../src/components/SelectionEcosysteme.tsx"), "utf8");
 const clientHeader = fs.readFileSync(path.join(__dirname, "../src/components/EnTeteClient.tsx"), "utf8");
+const publicHeader = fs.readFileSync(path.join(__dirname, "../src/components/EnTeteAccueil.tsx"), "utf8");
 const universeMenu = fs.readFileSync(path.join(__dirname, "../src/components/universes/MenuUnivers.tsx"), "utf8");
 const middleware = fs.readFileSync(path.join(__dirname, "../src/middleware.ts"), "utf8");
 const faqPage = fs.readFileSync(path.join(__dirname, "../src/app/faq/page.tsx"), "utf8");
@@ -123,4 +124,6 @@ test("Besoin d’aide ouvre la FAQ et le chat pharmacie reste séparé", () => {
   assert.ok(faqPage.includes("export default function FaqPage"));
   assert.ok(faqPage.includes('href="/aide"'));
   assert.ok(clientShell.includes('pathname === "/faq"'));
+  assert.ok(publicHeader.includes('href="/faq"'));
+  assert.ok(publicHeader.includes("Besoin d’aide ?"));
 });

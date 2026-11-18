@@ -31,7 +31,7 @@ Aucun compte ni aucune donnée Production ne doivent être utilisés. Utiliser l
 2. Vérifier la qualification : quatre écosystèmes autonomes et deux espaces connectés (Bébé & Maman, Dispositifs connectés).
 3. Vérifier que les six cartes restent visibles dans le sélecteur, même lorsqu'un accès est verrouillé ; l'activation détermine le droit d'ouvrir, pas la visibilité de la carte.
 4. Vérifier les cinq slugs pilotés par l'Admin : `parapharmacie`, `bebe-maman`, `examens`, `suivi`, `prestations`. Le slug DB `suivi` doit alimenter l'identifiant Client `dispositifs`, sans casser l'alias historique `suivi`.
-5. Vérifier que « Besoin d’aide ? » est une entrée d’assistance et non un septième univers : elle ouvre la FAQ `/faq`. Le chat avec une pharmacie reste distinct sur `/aide`.
+5. Vérifier que « Besoin d’aide ? » est une entrée d’assistance et non un septième univers : elle ouvre la FAQ `/faq` depuis le menu à trois points de l’en-tête public et de l’en-tête Client. Le chat avec une pharmacie reste distinct sur `/aide`.
 6. Vérifier que les menus, la recherche, l’en-tête et le sélecteur ne déréférencent jamais un univers absent.
 **Attendu :** six choix visibles, référentiel cohérent, deux espaces connectés clairement qualifiés, statuts administratifs conservés et FAQ hors du registre des univers.
 
