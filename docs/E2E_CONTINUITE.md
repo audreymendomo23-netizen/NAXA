@@ -7675,7 +7675,7 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Contrôle SQL A/B isolé avec deux UUID Client distincts : après réservation de 2 unités par le Client A, disponibilité publique restante = 1 et nombre d'offres bulk complètes de la pharmacie pour la demande de 2 du Client B = 0. Résultat : `remaining_public_stock=1`, `full_offer_count_for_client_b=0`. Transaction annulée par `ROLLBACK`.
 
 ### Nettoyage et absence de résidus Replay
-- Après le run navigateur et son étape de nettoyage : stock brut = 3 ; pharmacie `visible_recherche=false) ; favori résiduel du Client A = 0 ; réservation récente résiduelle du Client A = 0 ; hold actif résiduel = 0.
+- Après le run navigateur et son étape de nettoyage : stock brut = 3 ; pharmacie `visible_recherche=false` ; favori résiduel du Client A = 0 ; réservation récente résiduelle du Client A = 0 ; hold actif résiduel = 0.
 - La fonction Marketplace retourne 0 offre publique lorsque la pharmacie est masquée, conformément au garde de visibilité. Aucun stock ni aucune réservation commerciale n'a été laissé modifié.
 - Le run confirme `PASS nettoyage Lot B2 — réservation annulée/supprimée, stock restauré, favori supprimé, visibilité restaurée.`
 
