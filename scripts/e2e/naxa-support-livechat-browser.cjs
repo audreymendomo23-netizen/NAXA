@@ -268,6 +268,7 @@ async function run() {
     assert.ok(types.has("support_naxa_statut"), "Notification Client de changement de statut absente.");
     console.log("PASS — notifications Admin/Client de création, réponses et statuts vérifiées.");
 
+    await activeDialog.getByRole("button", { name: "Fermer le livechat" }).click();
     await clientPage.goto(BASE_URL + "/aide", { waitUntil: "domcontentloaded" });
     await clientPage.getByRole("heading", { name: "Parler gratuitement à une pharmacie" }).waitFor({ state: "visible", timeout: 30000 });
     await clientPage.getByRole("heading", { name: "Nouvelle conversation", exact: true }).waitFor({ state: "visible" });
