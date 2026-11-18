@@ -127,7 +127,7 @@ export function AdminSupportAgents() {
           </div>
         </div>
         <details><summary className="cursor-pointer text-sm font-bold">Gérer les permissions ({(editing[agent.user_id]??[]).length})</summary>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">{PERMISSIONS.map(([code,label])=><label key={code} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={(editing[agent.user_id]??[]).includes(code)} disabled={agent.status==="revoked"} onChange={e=>togglePermission(agent.user_id,code,e.target.checked)}/>{label}</label>)}</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">{PERMISSIONS.map(([code,label])=><label key={code} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={(editing[agent.user_id]??[]).includes(code)} disabled={agent.status!=="active"} onChange={e=>togglePermission(agent.user_id,code,e.target.checked)}/>{label}</label>)}</div>
           <button type="button" disabled={saving||agent.status==="revoked"} onClick={()=>void updateAgent(agent,{permissions:editing[agent.user_id]??[]})} className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">Enregistrer les permissions</button>
         </details>
       </article>)}
