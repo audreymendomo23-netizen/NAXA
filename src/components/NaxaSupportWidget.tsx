@@ -245,12 +245,23 @@ export function NaxaSupportWidget({ hasBottomNav }: { hasBottomNav: boolean }) {
   async function sendReply(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = reply.trim();
-    if (!accountId || !current || isClosed || !content || content.length > MAX_MESSAGE_LENGTH || sending) return;
+    if (!current || isClosed || !content || content.length > MAX_MESSAGE_LENGTH || sending) return;
     setSending(true);
     setError("");
+    // Relire l'identité authentifiée au moment exact de l'envoi : ne jamais
+    // réutiliser un accountId React potentiellement périmé après un changement
+    // de contexte ou une restauration de session.
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    const senderId = !authError ? authData.user?.id ?? null : null;
+    if (!senderId) {
+      setError("Ta session a expiré. Reconnecte-toi pour répondre.");
+      setSending(false);
+      return;
+    }
+    setAccountId(senderId);
     const { data, error: insertError } = await supabase
       .from("messages_support")
-      .insert({ ticket_id: current.id, auteur_profile_id: accountId, contenu: content, interne: false })
+      .insert({ ticket_id: current.id, auteur_profile_id: senderId, contenu: content, interne: false })
       .select("id,ticket_id,auteur_profile_id,contenu,interne,created_at,piece_jointe_path,piece_jointe_nom,piece_jointe_taille")
       .single();
     if (insertError || !data) {
