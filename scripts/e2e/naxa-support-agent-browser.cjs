@@ -122,9 +122,15 @@ async function run(){
   await a.page.getByPlaceholder("Note réservée à l’équipe NAXA…").fill(note);
   await a.page.getByRole("button",{name:"Enregistrer la note"}).click();
   await a.page.getByText(note,{exact:true}).waitFor({timeout:20000});
-  await a.page.getByLabel("Ajouter une note interne (invisible au demandeur)").uncheck();
+  const internalToggle=a.page.getByLabel("Ajouter une note interne (invisible au demandeur)");
+  await internalToggle.uncheck();
+  assert.equal(await internalToggle.isChecked(),false,"Le formulaire doit quitter le mode note interne.");
   await a.page.getByPlaceholder("Votre réponse au demandeur…").fill(reply);
+  const replyResponsePromise=a.page.waitForResponse(r=>r.url().endsWith("/api/support-agent/ticket")&&r.request().method()==="POST");
   await a.page.getByRole("button",{name:"Envoyer la réponse"}).click();
+  const replyResponse=await replyResponsePromise;
+  console.log("TRACE POST réponse Agent — HTTP "+replyResponse.status());
+  assert.equal(replyResponse.status(),201,"La réponse publique doit être enregistrée par l'API.");
   await a.page.getByText(reply,{exact:true}).waitFor({timeout:20000});
   const [{data:clientMessages,error:cmError},{data:clientTicket,error:ctError},{data:storedMessages,error:smError}]=await Promise.all([
    client.from("messages_support").select("id,contenu,interne,auteur_profile_id,auteur_support_agent_id").eq("ticket_id",ticketA),
