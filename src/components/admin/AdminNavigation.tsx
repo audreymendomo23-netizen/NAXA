@@ -16,6 +16,7 @@ const groups: AdminNavGroup[] = [
       { href: "/admin/alertes", label: "Alertes réseau", note: "Stock et validité" },
       { href: "/admin/journal", label: "Journal d’administration", note: "Événements tous univers" },
       { href: "/admin/messagerie", label: "Messagerie", note: "Requêtes et réponses" },
+      { href: "/admin/support-agents", label: "Agents du service client", note: "Comptes, droits et disponibilité" },
     ],
   },
   {
