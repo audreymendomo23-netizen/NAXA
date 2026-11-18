@@ -25,6 +25,7 @@ const publicHeader = fs.readFileSync(path.join(__dirname, "../src/components/EnT
 const universeMenu = fs.readFileSync(path.join(__dirname, "../src/components/universes/MenuUnivers.tsx"), "utf8");
 const middleware = fs.readFileSync(path.join(__dirname, "../src/middleware.ts"), "utf8");
 const faqPage = fs.readFileSync(path.join(__dirname, "../src/app/faq/page.tsx"), "utf8");
+const faqInteractive = fs.readFileSync(path.join(__dirname, "../src/components/FaqInteractive.tsx"), "utf8");
 const clientShell = fs.readFileSync(path.join(__dirname, "../src/components/ParcoursClientShell.tsx"), "utf8");
 
 function action(name, nextName) {
@@ -123,7 +124,8 @@ test("Besoin d’aide ouvre la FAQ et le chat pharmacie reste séparé", () => {
   assert.ok(!clientHeader.includes('chemin === "/aide"'));
   assert.ok(!universeMenu.includes('href="/faq"'));
   assert.ok(faqPage.includes("export default function FaqPage"));
-  assert.ok(faqPage.includes('href="/aide"'));
+  assert.ok(faqInteractive.includes('href="/aide"'));
+  assert.ok(faqInteractive.includes('href="/assistance"'));
   assert.ok(clientShell.includes('pathname === "/faq"'));
   assert.ok(!publicHeader.includes('href="/faq"'));
   assert.ok(!publicHeader.includes("Besoin d’aide ?"));
