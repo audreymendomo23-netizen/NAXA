@@ -27,6 +27,7 @@ const liveSqlTest = read("supabase/tests/20261118_naxa_livechat_realtime.sql");
 const professionalMigration = read("supabase/migrations/20261118150000_naxa_professional_support_access.sql");
 const professionalSqlTest = read("supabase/tests/20261118_naxa_professional_support_access.sql");
 const professionalNotificationsMigration = read("supabase/migrations/20261118193000_naxa_professional_support_notifications.sql");
+const professionalReopenMigration = read("supabase/migrations/20261118200000_naxa_professional_support_reopen.sql");
 const professionalBrowser = read("scripts/e2e/naxa-professional-support-browser.cjs");
 
 test("l’assistance Client NAXA est distincte du chat pharmacie", () => {
@@ -169,6 +170,8 @@ test("l’assistance directe couvre les professionnels, leur confidentialité et
   assert.match(professionalSqlTest, /Fuite du dossier Livreur vers le Promoteur/);
   assert.match(professionalNotificationsMigration, /Le demandeur a répondu/);
   assert.match(professionalNotificationsMigration, /Nouvelle demande d’assistance NAXA/);
+  assert.match(professionalReopenMigration, /v_profile\.role<>'admin'::public\.role_type/);
+  assert.match(professionalReopenMigration, /resolved_at=case/);
   assert.match(professionalBrowser, /naxa_e2e_livreur/);
   assert.match(professionalBrowser, /naxa_e2e_promoteur/);
   assert.match(professionalBrowser, /réponse Admin reçue en direct/i);
