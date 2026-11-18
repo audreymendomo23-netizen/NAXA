@@ -87,8 +87,20 @@ async function run(){
    await page.goto(BASE_URL+fixture.route,{waitUntil:"domcontentloaded"});
    const trigger=page.getByRole("button",{name:"Ouvrir le livechat NAXA"});await trigger.waitFor({state:"visible",timeout:30000});await trigger.click();
    const dialog=page.getByRole("dialog",{name:"Livechat avec l’équipe NAXA"});await dialog.waitFor({state:"visible"});
-   await dialog.getByRole("link",{name:"Consulter la FAQ NAXA"}).waitFor({state:"visible"});
-   console.log("PASS — widget professionnel et raccourci FAQ visibles pour "+fixture.role+".");
+   const faqLink=dialog.getByRole("link",{name:"Consulter la FAQ NAXA"});
+   await faqLink.waitFor({state:"visible"});
+   if(fixture.role==="promoteur"){
+    await faqLink.click();
+    await page.getByRole("heading",{name:"Comment pouvons-nous t’aider ?"}).waitFor({state:"visible",timeout:20000});
+    const faqQuestion=page.getByText("Qui peut contacter directement l’assistance NAXA ?",{exact:true});
+    await faqQuestion.waitFor({state:"visible",timeout:20000});
+    await faqQuestion.click();
+    await page.getByText("Tous les Clients et tous les comptes professionnels actifs peuvent écrire individuellement à NAXA",{exact:false}).waitFor({state:"visible",timeout:20000});
+    await page.goto(BASE_URL+fixture.route,{waitUntil:"domcontentloaded"});
+    await page.getByRole("button",{name:"Ouvrir le livechat NAXA"}).click();
+    await page.getByRole("dialog",{name:"Livechat avec l’équipe NAXA"}).waitFor({state:"visible"});
+   }
+   console.log("PASS — widget professionnel et FAQ NAXA accessibles pour "+fixture.role+".");
    const subject="E2E Support "+fixture.role+" "+Date.now();const first="Demande directe "+fixture.role;const reply="Réponse NAXA "+fixture.role;
    const item={userId:session.profile.id,subject,ticketId:null};state.tickets.push(item);saveState();
    await dialog.getByRole("button",{name:"+ Nouveau"}).click();
