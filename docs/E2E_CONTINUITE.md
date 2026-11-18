@@ -8678,3 +8678,42 @@ Continuer par les fonctions serveur atomiques d'affectation/prise et les tests n
 - Aucun changement Production, aucune migration Production, aucun déploiement.
 
 **Prochaine opération :** laisser finir le run professionnel en cours et lire son résultat/log ; corriger son premier échec réel, puis faire exécuter l'E2E Agent. En parallèle, finaliser l'audit ACL ciblé (sans révoquer les RPC marketplace publiques intentionnelles), puis préparer les migrations Gmail et appels sur Replay avec leurs tests négatifs avant tout raccordement OAuth/TURN réel.
+
+
+## §236 — Avancement navigateur E2E Support sur Replay — 18/11/2026
+
+### Preuves GitHub observées
+
+Run Support Livechat Browser E2E : `44407046081`, commit testé `099cddc88b8a04e049e7ee0353732f9393de9476`.
+
+Étapes terminées avec conclusion SUCCESS :
+- Checkout et validation des secrets Replay (refus Production).
+- Installation dépendances, Playwright/Chromium.
+- Build NAXA avec configuration Replay.
+- Démarrage serveur local.
+- Recette navigateur Client ↔ Admin : Livechat, Realtime, statuts, fichiers et /aide.
+- Recette navigateur Promoteur et Livreur ↔ Admin : widget, FAQ, création de dossier individuel, notification, messages, reprise/résolution/clôture et suivi.
+
+Étape active au dernier contrôle :
+- Recette navigateur Agents NAXA : création de deux Agents, première connexion/rotation, présence, affectation, isolation RLS, notes internes, réponses publiques, Realtime, double prise concurrente, suspension/réattribution et nettoyage.
+
+Les étapes de nettoyage global sont conditionnées à la fin de la recette Agent. Le run n'est pas terminé : aucun PASS n'est attribué à l'étape Agent avant sa conclusion SUCCESS.
+
+### Relation avec le dernier commit
+
+- Un run Support E2E plus récent sur `cd7e501c982aee0e5c9245fb6373f5e8bcf45f18` est en attente derrière le run actif. Il devra valider les correctifs de calcul de majorité à l'heure locale du Cameroun et la dernière version de migration après libération de la concurrence.
+- Les workflows qualité lancés sur les commits documentaires successifs ont été annulés/remplacés par les push suivants ; le dernier run qualité observé est en attente. Les runs annulés ne valent ni PASS ni FAIL.
+- La validation syntaxe GitHub Actions du run précédent est SUCCESS ; le build/typecheck/lint final sur le dernier commit reste à obtenir.
+
+### Verdict actualisé
+
+- Livechat Client ↔ Admin sur Replay : **VERT navigateur**.
+- Livechat Promoteur + Livreur ↔ Admin sur Replay : **VERT navigateur**.
+- Socle Agent SQL Replay : **VERT structurel sur les sept scripts rejoués** (§234).
+- E2E Agent : **EN COURS, NON VERT**.
+- CI complète sur le dernier commit : **EN ATTENTE**.
+- Gmail réel et appels audio WebRTC/TURN : **NON IMPLÉMENTÉS**.
+- Audit global Supabase : **NON VERT** (§234–§235).
+- Aucun changement Production ni déploiement.
+
+**Point exact de reprise :** attendre la fin de l'étape Agent du run `44407046081`. En cas d'échec, lire le log complet, corriger la cause sur `main`, rejouer les tests SQL concernés, puis laisser passer le run E2E en attente sur `cd7e501`. Ne pas interrompre le run actif par un nouveau changement de code non nécessaire.
