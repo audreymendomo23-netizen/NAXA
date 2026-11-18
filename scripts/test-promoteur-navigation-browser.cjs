@@ -149,6 +149,9 @@ test("Lot B2 exécute le vrai parcours Client Marketplace de bout en bout sur Re
   assert.match(runtime, /Confirmer disponibilité et préparer/);
   assert.match(runtime, /Décision réelle de la pharmacie/);
   assert.match(runtime, /Annuler la réservation/);
+  assert.match(runtime, /unavailableContext/);
+  assert.match(runtime, /Client B ne peut pas finaliser la quantité demandée/);
+  assert.match(runtime, /Sélection incomplète : quantité insuffisante/);
   assert.match(runtime, /marketplaceAvailableQuantity/);
   assert.match(runtime, /marketplaceInitialAvailable/);
   assert.match(runtime, /historique réel du Client/i);

@@ -1252,6 +1252,37 @@ async function run() {
     "La ligne de réservation ne correspond pas à la sélection Marketplace.");
     const afterHold = await marketplaceAvailableQuantity();
     assert.equal(afterHold, b2Fixture.available - b2Fixture.quantity);
+    assert.ok(afterHold < b2Fixture.quantity,
+      "La fixture B2 doit laisser moins que la quantité demandée après le hold Client A.");
+
+    // Un second Client vérifie immédiatement que le stock restant ne permet plus
+    // de finaliser la même quantité dans cette pharmacie.
+    const unavailableContext = await browserContext(browser, clientBSession, { width: 1440, height: 900 });
+    try {
+      const unavailablePage = await unavailableContext.newPage();
+      unavailablePage.setDefaultTimeout(20000);
+      await unavailablePage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
+      await expectPath(unavailablePage, "/resultats", "Lot B2 → contrôle d'indisponibilité Client B");
+      await unavailablePage.locator('select[aria-label="Filtrer par ville"]').selectOption("Yaoundé");
+      await unavailablePage.locator('[role="status"]').filter({ hasText: "Aucune pharmacie" })
+        .first().waitFor({ state: "visible" });
+      const unavailableCard = unavailablePage.locator("article")
+        .filter({ hasText: MARKETPLACE_PHARMACY_NAME }).first();
+      if (await unavailableCard.count()) {
+        await unavailableCard.getByText(
+          "Sélection incomplète : quantité insuffisante ou médicament non trouvé. Aucun ajout groupé possible.",
+          { exact: true }
+        ).waitFor({ state: "visible" });
+        assert.equal(
+          await unavailableCard.getByRole("button", { name: "Continuer avec cette pharmacie", exact: true }).count(),
+          0,
+          "Le Client B ne doit pas pouvoir continuer avec une quantité devenue insuffisante."
+        );
+      }
+      console.log("PASS Lot B2 — Client B ne peut pas finaliser la quantité demandée pendant le hold du Client A.");
+    } finally {
+      await unavailableContext.close();
+    }
 
     // Décision réelle de la pharmacie : le Gestionnaire Stock confirme sous son propre JWT.
     const stockContext = await browserContext(browser, stockManagerSession, { width: 1440, height: 900 });
