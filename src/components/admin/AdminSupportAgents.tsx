@@ -83,7 +83,12 @@ export function AdminSupportAgents() {
   }
 
   function togglePermission(agentId:string,code:string,checked:boolean) {
-    setEditing(current=>({...current,[agentId]:checked?[...(current[agentId]??[]),code]:(current[agentId]??[]).filter(value=>value!==code)}));
+    setEditing(current=>({
+      ...current,
+      [agentId]: code==="ticket_view_assigned"&&!checked
+        ? []
+        : checked?[...(current[agentId]??[]),code]:(current[agentId]??[]).filter(value=>value!==code),
+    }));
   }
 
   return <div className="space-y-6">
@@ -104,7 +109,7 @@ export function AdminSupportAgents() {
       <input required minLength={2} maxLength={80} value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Nom" className="rounded-xl border border-slate-300 p-3 text-sm"/>
       <label className="space-y-1 text-xs font-semibold text-slate-600">Date de naissance (18 ans minimum)<input required type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} max={new Date().toISOString().slice(0,10)} className="block w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900"/></label>
       <div className="md:col-span-2"><p className="mb-2 text-sm font-bold">Permissions initiales</p><div className="grid gap-2 sm:grid-cols-2">
-        {PERMISSIONS.map(([code,label])=><label key={code} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={permissions.includes(code)} onChange={e=>setPermissions(current=>e.target.checked?[...current,code]:current.filter(v=>v!==code))}/>{label}</label>)}
+        {PERMISSIONS.map(([code,label])=><label key={code} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={permissions.includes(code)} onChange={e=>setPermissions(current=>code==="ticket_view_assigned"&&!e.target.checked?[]:e.target.checked?[...current,code]:current.filter(v=>v!==code))}/>{label}</label>)}
       </div></div>
       <button disabled={saving} type="submit" className="rounded-xl bg-emerald-800 px-4 py-3 font-bold text-white disabled:opacity-50 md:col-span-2">{saving?"Création…":"Créer l’Agent"}</button>
     </form>
