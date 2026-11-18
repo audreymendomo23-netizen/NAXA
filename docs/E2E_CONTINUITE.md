@@ -8583,3 +8583,57 @@ Garde-fous obligatoires :
 ### Point exact de reprise
 
 Continuer par les fonctions serveur atomiques d'affectation/prise et les tests négatifs inter-Agent. Préparer des comptes Auth de test isolés avec `naxa_signup_pending=true`, sans profil NAXA, puis prouver que l'Agent A ne lit ni ne modifie le ticket de l'Agent B et qu'un seul Agent peut prendre un ticket simultanément. Ensuite intégrer le login Agent et les guards spécifiques. Ne pas ouvrir les tables directement à authenticated pour simplifier l'interface.
+
+
+## §234 — Revalidation du socle Agent, état CI et audit des intégrations Gmail/audio — 18/11/2026
+
+### Vérifications exécutées sur Replay
+
+- Projet ciblé : `pwfftcsjyeibxxqhwysw` (Replay), jamais Production.
+- Historique Supabase : les migrations Support Client/Professionnels et les migrations Agent de `20261118211446` à `20261118215902` sont présentes dans `supabase_migrations.schema_migrations`.
+- Tables Agent confirmées : `support_agents`, `support_agent_permissions`, `support_ticket_assignments`, `support_agent_events`.
+- État des données après recette SQL : 0 Agent, 0 permission, 0 affectation active, 0 événement résiduel.
+- Les tables `support_calls`, `support_gmail_accounts`, `support_gmail_messages` n'existent pas encore sur Replay : appels audio et Gmail ne sont pas implémentés côté base.
+- Sept scripts SQL versionnés ont été rejoués sans erreur : espace Support Client, accès professionnel, identité Agent, cycle de vie Agent, accès Realtime/pièces jointes, prise atomique, auteur/réponse Agent. Les scripts transactionnels ont été exécutés avec rollback ; les tests structurels sans mutation ont été encapsulés dans une transaction annulée. Les deux scripts dont la sortie initiale ne retournait pas le marqueur de test ont été relancés avec un marqueur explicite `EXECUTED_PASS`.
+- Aucun compte Auth ni ticket de recette n'a été conservé.
+
+### Contrôle Supabase Advisors
+
+- Aucun finding Security dont le détail vise les objets `support_agent` ou `support_ticket_assignments`.
+- Les tables Agent volontairement réservées au serveur apparaissent dans le lint informatif « RLS enabled, no policy » : c'est le modèle attendu, car aucun accès direct `anon/authenticated` n'est accordé et les routes serveur doivent autoriser au cas par cas.
+- Les findings globaux préexistants restent ouverts et ne doivent pas être confondus avec un PASS complet : 4 fonctions SECURITY DEFINER accessibles à anon, 263 accessibles à authenticated selon le lint global, protection contre mots de passe compromis non activée, et plusieurs avertissements de performance/politiques permissives sur d'autres objets NAXA. Leur périmètre doit être audité individuellement avant le vert global.
+- Les index Agent signalés « unused » sont attendus tant que la recette de charge et les requêtes réelles n'ont pas utilisé ces nouveaux chemins ; ne pas les supprimer sur la seule base de ce constat.
+
+### CI GitHub au dernier contrôle
+
+- Commit observé : `cd7e501c982aee0e5c9245fb6373f5e8bcf45f18`.
+- `NAXA quality` : validation syntaxe GitHub Actions PASS ; job Tests/TypeScript/lint/build encore `in_progress`.
+- `NAXA Replay Support Livechat Browser E2E` : `pending`, job pas encore démarré.
+- Navigation Promoteur E2E Replay : `in_progress`.
+- Plusieurs runs antérieurs ont été annulés par les commits successifs ; ils ne comptent ni PASS ni FAIL. Seul le résultat du run final sur le commit stabilisé fera foi.
+
+### Audit des intégrations manquantes
+
+- Recherche du dépôt et inspection de l'arbre Git : aucun code Gmail API/OAuth, aucun stockage de jetons Gmail, aucune synchronisation Gmail/thread, aucune table Gmail.
+- Aucun flux `RTCPeerConnection`, signalisation WebRTC Support, table `support_calls` ni configuration TURN identifiés. Le module vidéo de surveillance reste hors périmètre et ne doit pas être réutilisé pour le Livechat audio.
+- Décision métier Gmail inchangée : boîte officielle NAXA unique, OAuth autorisé par l'Administrateur, accès limité aux Agents disposant des permissions Gmail ; WhatsApp conserve exactement son fonctionnement externe actuel.
+- Décision audio inchangée : audio seul, routage Agent assigné puis file centrale, acceptation atomique unique, repli texte si indisponible ; aucun enregistrement ni appel externe.
+
+### État / verdict
+
+- Socle SQL Agent : **VERT pour les sept scripts SQL rejoués et l'état structurel observé sur Replay uniquement**.
+- Sécurité Agent : **VERT structurel** ; recette navigateur multi-comptes, tests API/storage et cycle complet restent à valider.
+- CI globale : **EN COURS**, aucun vert complet au dernier contrôle.
+- Gmail : **NON IMPLÉMENTÉ**.
+- Appels audio : **NON IMPLÉMENTÉS**.
+- Audit global Supabase : **NON VERT**, findings globaux ci-dessus encore ouverts.
+- Aucun changement Production, aucune migration Production, aucun déploiement.
+
+### Point exact de reprise
+
+1. Laisser aboutir et contrôler les trois workflows sur le commit stabilisé ; corriger les échecs réels avant toute déclaration de vert.
+2. Finaliser la recette navigateur Agent sur Replay (création Admin, première connexion/rotation, disponibilité, deux Agents, affectation, refus croisé, notes internes, réponses, Realtime, suspension/réattribution, nettoyage).
+3. Auditer individuellement les 4 fonctions SECURITY DEFINER accessibles à anon, les 263 accessibles à authenticated et le paramètre Auth « leaked password protection » ; corriger uniquement après analyse de leurs contrats et tests de non-régression.
+4. Concevoir puis implémenter Gmail OAuth minimal (boîte unique, scopes minimaux, tokens chiffrés côté serveur, historique/synchronisation idempotente, threads, envoi depuis l'adresse officielle, retries, audit, séparation Agent/Admin) sur Replay.
+5. Concevoir puis implémenter les appels audio WebRTC (signaling privé, permissions, verrouillage atomique, STUN/TURN, reconnexion, mobile, absence d'enregistrement) sur Replay.
+6. Ne déclarer le programme global AU VERT qu'après les tests navigateur, SQL, build, CI, Gmail réel et audio réel réussis. Production et déploiement restent exclus sans autorisation explicite.
