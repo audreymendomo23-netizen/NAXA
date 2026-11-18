@@ -44,7 +44,52 @@ export async function POST(request: NextRequest) {
       .select("id,username,actif,role,pharmacie_id,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
       .eq("username", username)
       .limit(2);
-    if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
+    if (profileLookupError || !matchingProfiles) {
+      return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+    }
+
+    // Les Agents du service client ont une identité Auth dédiée, sans ligne profiles
+    // et sans rôle métier. Leur authentification reste strictement séparée.
+    if (matchingProfiles.length === 0) {
+      phase = "support_agent_lookup";
+      const { data: agents, error: agentLookupError } = await admin
+        .from("support_agents")
+        .select("user_id,username,status")
+        .eq("username", username)
+        .limit(2);
+      if (agentLookupError || !agents || agents.length !== 1) {
+        return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+      }
+
+      const agent = agents[0];
+      if (agent.status !== "active") {
+        return NextResponse.json({ error: "Compte Agent suspendu ou inactif." }, { status: 403 });
+      }
+
+      phase = "support_agent_auth_lookup";
+      const { data: agentAuth, error: agentAuthError } = await admin.auth.admin.getUserById(agent.user_id);
+      const agentEmail = agentAuth.user?.email;
+      if (agentAuthError || !agentAuth.user || !agentEmail || !agentAuth.user.email_confirmed_at) {
+        return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+      }
+
+      phase = "support_agent_password_sign_in";
+      const supabase = supabaseServer(undefined, { remember });
+      const { error: agentSignInError } = await supabase.auth.signInWithPassword({
+        email: agentEmail,
+        password,
+      });
+      if (agentSignInError) {
+        return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+      }
+
+      phase = "support_agent_rate_limit_success";
+      await rateLimit("ip_login", loginIp, "success", 5, 600, 30, 900);
+      await rateLimit("login_user", loginKey, "success", 20, 3600, 900, 900);
+      return NextResponse.json({ ok: true, espace: "support_agent" });
+    }
+
+    if (matchingProfiles.length !== 1) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
