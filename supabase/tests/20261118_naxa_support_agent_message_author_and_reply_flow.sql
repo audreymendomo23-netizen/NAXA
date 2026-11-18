@@ -17,7 +17,8 @@ begin
   if position('auteur_support_agent_id' in v_def)=0
     or position('ticket_internal_note' in v_def)=0
     or position('ticket_reply' in v_def)=0
-    or position('released_at' in v_def)=0 then
+    or position('released_at' in v_def)=0
+    or position('for share' in lower(v_def))=0 then
     raise exception 'Le trigger de réponse ne contrôle pas Agent, permission et affectation'; end if;
 
   if has_function_privilege('anon','public.support_chat_mark_first_response()','EXECUTE')
