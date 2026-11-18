@@ -27,9 +27,10 @@ do $test$
 declare d text; n integer;
 begin
   select pg_get_functiondef('public.open_naxa_support_ticket(text,text,text)'::regprocedure) into d;
-  if position('SECURITY INVOKER' in upper(d))=0 or position('v_business_role' in d)=0 then
+  if position('v_business_role' in d)=0 then
     raise exception 'La RPC générique SECURITY INVOKER est absente';
   end if;
+  if (select prosecdef from pg_proc where oid='public.open_naxa_support_ticket(text,text,text)'::regprocedure) is distinct from false then raise exception 'La RPC doit rester SECURITY INVOKER'; end if;
   if has_function_privilege('anon','public.open_naxa_support_ticket(text,text,text)','EXECUTE') then
     raise exception 'La RPC support ne doit pas être exécutable par anon';
   end if;

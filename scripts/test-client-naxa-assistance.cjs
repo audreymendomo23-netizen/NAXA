@@ -24,6 +24,9 @@ const faqInteractive = read("src/components/FaqInteractive.tsx");
 const header = read("src/components/EnTeteClient.tsx");
 const liveMigration = read("supabase/migrations/20261118150000_naxa_livechat_realtime.sql");
 const liveSqlTest = read("supabase/tests/20261118_naxa_livechat_realtime.sql");
+const professionalMigration = read("supabase/migrations/20261118150000_naxa_professional_support_access.sql");
+const professionalSqlTest = read("supabase/tests/20261118_naxa_professional_support_access.sql");
+const professionalBrowser = read("scripts/e2e/naxa-professional-support-browser.cjs");
 
 test("l’assistance Client NAXA est distincte du chat pharmacie", () => {
   assert.match(page, /Écrire à l’équipe NAXA/);
@@ -42,12 +45,12 @@ test("l’assistance Client NAXA est distincte du chat pharmacie", () => {
   assert.match(notificationHook, /related_entity_id/);
 });
 
-test("la demande est réservée au Client actif et validée côté serveur", () => {
+test("la demande est réservée à un compte actif hors Admin et validée côté serveur", () => {
   assert.match(actions, /auth\.getUser\(\)/);
-  assert.match(actions, /profile\.role !== "client"/);
+  assert.match(actions, /profile\.role === "admin"/);
   assert.match(actions, /profile\.actif !== true/);
   assert.match(actions, /sb\.rpc\("naxa_business_function"\)/);
-  assert.match(actions, /activeRole !== "client"/);
+  assert.match(actions, /activeRole === "admin"/);
   assert.match(actions, /CATEGORIES\.has\(categorie\)/);
   assert.match(actions, /sujet\.length < 5/);
   assert.match(actions, /MAX_MESSAGE_LENGTH = 2000/);
@@ -68,10 +71,10 @@ test("les pièces jointes sont limitées, vérifiées et stockées dans un bucke
   assert.match(sqlTest, /file_size_limit=4194304/);
 });
 
-test("le Client peut suivre et reprendre son dossier sans accéder aux tickets d’autrui", () => {
+test("chaque compte peut suivre et reprendre son dossier sans accéder aux tickets d’autrui", () => {
   assert.match(page, /eq\("auteur_profile_id", profile\.id\)/);
   assert.match(page, /eq\("type", "support_naxa"\)/);
-  assert.match(page, /activeRole !== "client"/);
+  assert.match(page, /activeRole === "admin"/);
   assert.match(page, /reference_code/);
   assert.match(page, /last_activity_at/);
   assert.match(page, /createSignedUrl/);
@@ -111,14 +114,16 @@ test("la route est réservée et conserve l’en-tête Client ; les pièces join
   assert.match(shell, /pathname === "\/examens"/);
   assert.match(shell, /pathname === "\/prestations"/);
   assert.match(shell, /pathname !== "\/faq"/);
+  assert.match(shell, /widgetProfessionnelVisible/);
+  assert.match(shell, /appartientAuParcoursProfessionnel/);
   assert.match(shell, /suivi\/professionnel/);
-  assert.match(shell, /profile\?\.role === "client"/);
+  assert.match(shell, /profile\.role === "client"/);
   assert.match(shell, /activeRole === "client"/);
   assert.match(middleware, /"\/assistance"/);
   assert.match(nextConfig, /bodySizeLimit: "5mb"/);
 });
 
-test("le widget canari est un livechat temps réel et reste hors FAQ/professionnels", () => {
+test("le widget canari est un livechat temps réel sur les espaces professionnels et hors FAQ", () => {
   assert.match(shell, /NaxaSupportWidget/);
   assert.match(shell, /pathname !== "\/faq"/);
   assert.match(widget, /bg-\[#FFE23D\]/);
@@ -129,6 +134,7 @@ test("le widget canari est un livechat temps réel et reste hors FAQ/professionn
   assert.match(widget, /aria-label="Livechat avec l’équipe NAXA"/);
   assert.match(widget, /ticket_id=eq\./);
   assert.match(widget, /MAX_MESSAGE_LENGTH/);
+  assert.match(widget, /Consulter la FAQ NAXA/);
 });
 
 test("la FAQ recherche et filtre les réponses, et le raccourci conserve son feedback", () => {
@@ -150,3 +156,17 @@ test("la base active Realtime et crée un dossier atomique notifiant les Admins"
 });
 
 process.stdout.write("Contrats statiques Assistance NAXA et Livechat définis.\n");
+
+
+test("l’assistance directe couvre les professionnels, leur confidentialité et la recette Replay", () => {
+  assert.match(actions, /profile\.role === "admin"/);
+  assert.match(actions, /activeRole === "admin"/);
+  assert.match(page, /const isClient = activeRole === "client"/);
+  assert.match(professionalMigration, /tickets_support_account_create_naxa_support/);
+  assert.match(professionalMigration, /public\.naxa_business_function\(\) <> 'admin'/);
+  assert.match(professionalMigration, /naxa_support_attachment_read_own/);
+  assert.match(professionalSqlTest, /Fuite du dossier Livreur vers le Promoteur/);
+  assert.match(professionalBrowser, /naxa_e2e_livreur/);
+  assert.match(professionalBrowser, /naxa_e2e_promoteur/);
+  assert.match(professionalBrowser, /Réponse Admin reçue en direct/);
+});
