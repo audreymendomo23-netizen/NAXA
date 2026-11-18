@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeSupportAgent } from "@/lib/support/agent-auth";
 
 export async function GET() {
-  const access = await authorizeSupportAgent();
+  const access = await authorizeSupportAgent(undefined, true);
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
