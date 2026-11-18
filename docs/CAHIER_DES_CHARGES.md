@@ -2678,3 +2678,55 @@ DÉMARRAGE : CHANTIER QUALITÉ, SANS AUCUNE MODIFICATION
 3. Propose un plan en lots courts.
 Livre uniquement cette liste et ce plan, puis arrête-toi (PA1). Après ma validation, tu réalises le chantier Qualité jusqu'à 100 % sans t'arrêter, puis PA2. Ne commence aucune phase ERP avant que Qualité soit validé à 100 % et autorisé en Production.
 ```
+
+## Addendum — Support NAXA multicanal et boîte Gmail officielle — 18/11/2026
+
+Cet addendum est une décision métier postérieure et prioritaire pour le périmètre du support NAXA. Il complète les exigences existantes sans remplacer le Livechat, les appels audio prévus, le support téléphonique ni le fonctionnement WhatsApp actuel.
+
+### Portes d'entrée et canaux
+
+- Profil → Support dans les espaces Client et Professionnel ; Centre d'aide/FAQ ; widget et page complète d'assistance ; points d'entrée liés à une commande ou une réclamation.
+- Livechat NAXA : canal natif, dossiers et messages conservés dans NAXA.
+- Appels audio intégrés au Livechat : audio uniquement en V1, selon le routage hybride et les exigences du §226 de `docs/E2E_CONTINUITE.md`.
+- Gmail NAXA : nouveau canal entrant/sortant intégré à la boîte centrale du support.
+- WhatsApp : **fonctionnement externe actuel conservé exactement**, sans synchronisation, lecture ou import automatique des conversations dans NAXA. L'agent peut ouvrir WhatsApp selon le lien existant et consigner manuellement un suivi dans NAXA.
+- Téléphone classique : appel vers le numéro officiel ; l'agent peut consigner un compte rendu dans le dossier, sans présenter cet appel comme un appel intégré.
+- Les formulaires et réclamations créent ou alimentent un dossier NAXA traçable.
+
+### Décision Gmail validée
+
+- Une **boîte Gmail officielle unique NAXA**, connectée par l'Administrateur depuis les paramètres du support.
+- Les Customer Service Assistants ne connectent pas leurs boîtes personnelles. Les agents autorisés accèdent aux emails assignés ou à la file autorisée depuis leur espace NAXA, selon leurs permissions.
+- Réception et synchronisation des messages entrants, regroupement par fil Gmail, recherche, attribution, priorité, statut, réponse et réponse à tous selon droits, transfert si autorisé, pièces jointes et historique.
+- Les réponses envoyées depuis NAXA partent de l'adresse Gmail officielle ; les réponses ultérieures doivent être rattachées au fil/dossier correspondant.
+- Déduplication des messages, reprise après interruption, surveillance de l'état de synchronisation, traitement des erreurs, journalisation et possibilité pour l'Admin de reconnecter/déconnecter la boîte.
+- Connexion par OAuth Google ; aucun mot de passe Gmail stocké ou demandé aux agents. Jetons protégés côté serveur, révocables et jamais exposés au navigateur, aux journaux ou au dépôt. Demander uniquement les autorisations Google strictement nécessaires aux fonctions effectivement implémentées ; documenter les scopes et leur justification avant connexion.
+- Accès cloisonné : un agent ne consulte que les messages/dossiers autorisés. Les pièces jointes Gmail importées ou mises en cache dans NAXA sont privées, soumises à contrôle serveur/RLS et à des URL temporaires si nécessaire.
+- Les emails reçus via Gmail ne doivent pas être confondus avec les notifications email sortantes du système : aucune notification e-mail client n'est réputée implémentée du seul fait de la connexion Gmail.
+- Ne pas prétendre que WhatsApp est centralisé ni que les appels téléphoniques classiques sont intégrés.
+
+### Boîte centrale et espace agent
+
+La plateforme Customer Service Assistant regroupe les demandes NAXA, les conversations Livechat, les emails Gmail et les appels audio NAXA dans une interface de travail unifiée, avec indication visible du canal d'origine. Elle fournit file centrale, dossiers personnels, affectation/réaffectation, présence, charge, priorités, délais, notes internes distinctes des messages visibles, pièces jointes, historique, rapports et escalade Admin. Les agents traitent aussi les réclamations Client↔Pharmacie selon le §227 ; l'arbitrage final et la supervision restent à l'Administrateur.
+
+Les canaux externes WhatsApp et téléphone ne sont pas artificiellement transformés en conversations synchronisées : leur suivi éventuel est consigné manuellement par un agent avec le canal, la date, le compte rendu et les éventuelles suites.
+
+### Critères d'acceptation Gmail et multicanal
+
+1. L'Admin connecte une seule boîte Gmail officielle par OAuth, peut vérifier l'état de connexion, renouveler l'autorisation, déconnecter et reconnecter.
+2. Les emails entrants apparaissent dans la file centrale ; les doublons sont évités ; les fils sont correctement regroupés.
+3. Un agent autorisé peut prendre un email, le lire, répondre depuis NAXA, joindre un fichier autorisé et retrouver la réponse dans le fil Gmail.
+4. Un agent non autorisé ne peut lire, rechercher, télécharger, répondre ni obtenir les pièces jointes d'un dossier hors de son périmètre, y compris par API directe.
+5. Les erreurs de synchronisation, jetons expirés/révoqués, pièces jointes interdites et indisponibilités sont gérés sans perte silencieuse ; la reprise est vérifiable.
+6. Les actions de connexion, lecture sensible, attribution, réponse, transfert, téléchargement, déconnexion et changement de permission sont journalisées.
+7. WhatsApp reste externe et inchangé : aucun import ou accès automatique n'est ajouté dans cette version.
+8. Non-régression du Livechat, des appels audio, des dossiers/réclamations, de la FAQ, des notifications in-app et des accès Client/professionnels.
+9. Tests isolés sur Replay, fixtures nettoyables, contrôles RLS/API/Storage et preuves reproductibles. Aucun compte Gmail personnel de test ne doit être ajouté au dépôt.
+10. Aucun changement Production, aucune migration Production et aucun déploiement sans autorisation explicite.
+
+### État
+
+- Organisation Gmail officielle unique connectée par Admin : **DÉCISION VALIDÉE ; NON IMPLÉMENTÉE / NON TESTÉE**.
+- WhatsApp externe conservé tel quel : **DÉCISION VALIDÉE ; aucun changement demandé**.
+- Boîte unifiée, intégration Gmail, permissions agents et synchronisation : **À AUDITER / CONSTRUIRE / TESTER**.
+- Cette décision complète les chantiers appels audio (§226), agents internes et litiges (§227), programme et audit initial (§228).
