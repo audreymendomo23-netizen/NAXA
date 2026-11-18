@@ -41,6 +41,7 @@ type Repayment = {
   montant: number;
   reference: string | null;
   motif: string | null;
+  mode_paiement: string | null;
   created_at: string;
 };
 
@@ -85,8 +86,8 @@ export default async function SuiviCreditMarketplacePage() {
   const operations = (operationData ?? []) as CreditOperation[];
   const repayments: Repayment[] = operations
     .filter((operation) => operation.nature === "remboursement")
-    .map(({ id, credit_id, pharmacie_id, montant, reference, motif, created_at }) => ({
-      id, credit_id, pharmacie_id, montant, reference, motif, created_at,
+    .map(({ id, credit_id, pharmacie_id, montant, reference, motif, mode_paiement, created_at }) => ({
+      id, credit_id, pharmacie_id, montant, reference, motif, mode_paiement, created_at,
     }));
 
   const pharmacyIds = [...new Set([
