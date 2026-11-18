@@ -34,7 +34,7 @@ async function sessionFor(username,role){
  assert.equal(p.role,role);assert.equal(p.actif,true);
  const {data:u,error:ue}=await admin.auth.admin.getUserById(p.id);if(ue)throw ue;
  const {data:g,error:ge}=await admin.auth.admin.generateLink({type:"magiclink",email:u.user.email});if(ge)throw ge;
- const jar=new Map();const ssr=createServerClient(URL,ANON,{cookies:{getAll:()=>[...jar.values()].map(({name,value})=>({name,value})),setAll:cs=>cs.forEach(c=>jar.set(c.name,c))}});
+ const jar=new Map();const ssr=createServerClient(SUPABASE_URL,ANON,{cookies:{getAll:()=>[...jar.values()].map(({name,value})=>({name,value})),setAll:cs=>cs.forEach(c=>jar.set(c.name,c))}});
  const {data:v,error:ve}=await ssr.auth.verifyOtp({token_hash:g.properties.hashed_token,type:"magiclink"});if(ve)throw ve;
  return {profile:p,accessToken:v.session.access_token,cookies:[...jar.values()]};
 }
