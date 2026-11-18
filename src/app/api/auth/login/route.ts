@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       phase = "support_agent_lookup";
       const { data: agents, error: agentLookupError } = await admin
         .from("support_agents")
-        .select("user_id,username,status")
+        .select("user_id,username,status,must_change_password")
         .eq("username", username)
         .limit(2);
       if (agentLookupError || !agents || agents.length !== 1) {
