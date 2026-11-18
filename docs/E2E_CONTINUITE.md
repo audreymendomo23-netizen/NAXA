@@ -8085,6 +8085,24 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - Le premier contrôle actionlint a signalé `SC2155` dans l'export du secret de rate-limit ; correction appliquée en séparant déclaration et export. Le contrôle qualité du commit `4b68f227a975386601980e9eaebce5f219c13708` doit confirmer la correction.
 - Aucun compte n'a été créé, aucun mot de passe n'a été modifié, aucune migration Production ni aucun déploiement n'a été lancé. `vercel.json` conserve la désactivation des déploiements automatiques de `main`.
 
-**Point de reprise exact :** attendre le workflow `NAXA Replay Support Livechat Browser E2E` sur le dernier commit `4b68f227a975386601980e9eaebce5f219c13708`, examiner les checkpoints et poursuivre les corrections jusqu'à réussite du parcours complet : création, échanges Client/Admin dans les deux sens, pièces jointes, statuts, reconnexion Realtime, notifications et non-régression `/aide`. Recontrôler ensuite l'absence de données résiduelles sur Replay. Ne pas déclarer R09-10 AU VERT avant cette preuve.
+**Point de reprise exact :** ce point a été clos par le run `44371841169` (résultat intégral PASS), voir §223 ci-dessous. Aucune étape R09-10 restante sur le périmètre FAQ/Support/Livechat.
 
 - Run GitHub Actions `44371061245` : tous les contrôles jusqu'à la réouverture Admin sont PASS, y compris PDF signé Client/Admin et transitions de statut. L'étape de reprise a échoué sur `page.reload: net::ERR_ABORTED` après la simulation offline/online ; le nettoyage du run est PASS. Correctif du scénario : commit `2ff11515a66b03400ea1b237ee0f72307a789c5d`, qui attend `navigator.onLine` puis navigue vers `/client?e2e-reconnect=...` pour recréer le canal et vérifier le nouvel abonnement. Ce test certifie le réabonnement après reprise/navigation ; il ne prétend pas certifier une récupération automatique sans navigation.
+
+
+## §223 — Clôture R09-10 : recette navigateur Client ↔ Admin intégralement PASS
+
+- **Preuve principale :** GitHub Actions [NAXA Replay Support Livechat Browser E2E — run 44371841169](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44371841169), commit applicatif `2ff11515a66b03400ea1b237ee0f72307a789c5d`, job `135040419314` : SUCCESS. Playwright et Chromium installés ; dépendances installées ; build Replay réussi ; serveur local démarré puis arrêté proprement ; scénario navigateur complet et nettoyage de secours PASS.
+- Deux identités Replay existantes, Client actif et Admin actif, ont été authentifiées et utilisées ; aucun compte ni mot de passe créé/modifié.
+- Résultats navigateur consignés dans le journal du job :
+  - création réelle d'une conversation Client depuis le widget et apparition dans la boîte Admin : PASS ;
+  - réponse Admin reçue en direct côté Client et réponse Client reçue en direct côté Admin : PASS ;
+  - dépôt du PDF privé et ouverture réelle par les deux côtés via URL signées, HTTP 200 et signature PDF : PASS ;
+  - statut résolu synchronisé ; réponse Client qui rouvre ; clôture Admin et réouverture Admin synchronisées : PASS ;
+  - coupure/reprise réseau suivie d'une navigation de reprise et réabonnement Realtime, puis réponse Admin reçue : PASS ;
+  - notifications Admin/Client pour création, réponses et statuts : PASS ;
+  - non-régression `/aide` : chat pharmacie disponible et widget Assistance NAXA distinct : PASS.
+- Le job termine par `RÉSULTAT — R09-10 navigateur Client ↔ Admin : PASS sur Replay` et `CLEANUP PASS`.
+- Contrôle SQL indépendant après exécution sur Replay : 0 ticket E2E, 0 message, 0 notification liée aux tickets de recette, 0 objet dans `naxa-support-attachments`.
+- **Qualité et documentation :** workflows NAXA quality et actionlint du commit documentaire `5d20c9059b40a4e211a47b66b9059da4c9c7ce5e` : SUCCESS. Les tests du workflow qualité affichent 616/616 PASS ; build Next.js réussi ; `/aide` figure dans les routes générées.
+- **Verdict R09-10 : AU VERT.** La recette navigateur Client/Admin du périmètre FAQ, assistance et Livechat est intégralement certifiée sur Replay. Aucun déploiement, aucune migration Production et aucune modification Production n'ont été réalisés. Ce verdict ne vaut pas déclaration globale de lancement de l'ensemble du produit NAXA.
