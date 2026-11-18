@@ -7880,5 +7880,6 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Vérification complémentaire des en-têtes : en plus de l'en-tête Client (\`EnTeteClient\`) et de \`MenuUnivers\`, l'en-tête public \`EnTeteAccueil\` possède lui aussi un menu à trois points.
 - « Besoin d’aide ? » est ajouté à ce menu public, en français et en anglais, avec destination \`/faq\`. Le même libellé reste sur l'en-tête Client. La FAQ reste séparée du chat écrit avec une pharmacie (\`/aide\`).
 - Le contrat Node vérifie maintenant aussi le lien FAQ de l'en-tête public ; R09-01 exige la présence de cette entrée dans les deux en-têtes.
+- Commit du raccordement FAQ à l'en-tête public : `cfe9dcac14443ca779580a213afaceb3f2252295`. Douze contrôles statiques de cohérence ont ensuite été exécutés sur `main` : PASS. Le test Node complet, TypeScript, lint, build et navigateur restent non exécutés.
 - Contrôle statique ciblé à exécuter après commit ; tests Node, TypeScript, lint, build, navigateur et Replay toujours en attente. Aucune donnée, migration, Production ou déploiement touché.
 
