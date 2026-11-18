@@ -299,7 +299,8 @@ async function run() {
     await clientContext.setOffline(true);
     await clientPage.waitForTimeout(1200);
     await clientContext.setOffline(false);
-    await clientPage.reload({ waitUntil: "domcontentloaded" });
+    await clientPage.waitForFunction(() => navigator.onLine, null, { timeout: 10000 });
+    await clientPage.goto(BASE_URL + "/client?e2e-reconnect=" + Date.now(), { waitUntil: "domcontentloaded" });
     const reconnectTrigger = clientPage.getByRole("button", { name: "Ouvrir le livechat NAXA" });
     await reconnectTrigger.waitFor({ state: "visible", timeout: 30000 });
     await reconnectTrigger.click();
