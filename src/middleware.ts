@@ -16,6 +16,7 @@ const protectedPrefixes = [
   "/assistance",
   "/pharmacie",
   "/admin",
+  "/equipe-support",
   "/reservation",
   "/go",
   "/panier",
@@ -159,6 +160,24 @@ export async function middleware(req: NextRequest) {
     target.searchParams.set("espace", path.startsWith("/pharmacie") ? "pharmacie" : "client");
     target.searchParams.set("retour", path + req.nextUrl.search);
     return NextResponse.redirect(target);
+  }
+
+  // L'Agent NAXA possède une identité interne hors profiles et hors rôle métier.
+  // Sa session n'ouvre que cet espace, après vérification DB de son statut courant.
+  if (path === "/equipe-support" || path.startsWith("/equipe-support/")) {
+    const { data: supportAgent, error: supportAgentError } = await supabase
+      .from("support_agents")
+      .select("status")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+
+    if (supportAgentError || supportAgent?.status !== "active") {
+      const target = req.nextUrl.clone();
+      target.pathname = "/connexion";
+      target.search = "?erreur=profil";
+      return NextResponse.redirect(target);
+    }
+    return res;
   }
 
   const { data: profile, error } = await supabase
