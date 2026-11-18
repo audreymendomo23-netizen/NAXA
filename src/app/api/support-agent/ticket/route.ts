@@ -49,6 +49,20 @@ export async function GET(request: Request) {
   const { data: messages, error: messagesError } = await messagesQuery;
   if (messagesError) return NextResponse.json({ error: "Historique du dossier indisponible." }, { status: 500 });
 
+  const profileIds = [...new Set((messages ?? []).map((message) => message.auteur_profile_id).filter((id): id is string => Boolean(id)))];
+  const agentIds = [...new Set((messages ?? []).map((message) => message.auteur_support_agent_id).filter((id): id is string => Boolean(id)))];
+  const [{ data: profiles }, { data: agents }] = await Promise.all([
+    profileIds.length
+      ? access.db.from("profiles").select("id,first_name,last_name,role").in("id", profileIds)
+      : Promise.resolve({ data: [] }),
+    agentIds.length
+      ? access.db.from("support_agents").select("user_id,display_name").in("user_id", agentIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const authorLabels = new Map<string, string>();
+  (profiles ?? []).forEach((profile) => authorLabels.set(profile.id, [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Demandeur"));
+  (agents ?? []).forEach((agent) => authorLabels.set(agent.user_id, agent.display_name || "Équipe NAXA"));
+
   const thread = await Promise.all((messages ?? []).map(async (message) => {
     let attachmentUrl: string | null = null;
     if (canReadAttachments && message.piece_jointe_path) {
@@ -56,7 +70,8 @@ export async function GET(request: Request) {
         .createSignedUrl(message.piece_jointe_path, 300);
       attachmentUrl = data?.signedUrl ?? null;
     }
-    return { ...message, attachmentUrl };
+    const authorId = message.auteur_support_agent_id || message.auteur_profile_id || "";
+    return { ...message, authorLabel: authorLabels.get(authorId) || "Équipe NAXA", attachmentUrl };
   }));
 
   return NextResponse.json({ ticket, messages: thread }, {
