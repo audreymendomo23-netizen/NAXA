@@ -171,7 +171,7 @@ export async function middleware(req: NextRequest) {
   ) {
     const { data: supportAgent, error: supportAgentError } = await supabase
       .from("support_agents")
-      .select("status,must_change_password")
+      .select("status,must_change_password,consent_accepted_at")
       .eq("user_id", data.user.id)
       .maybeSingle();
 
@@ -181,13 +181,14 @@ export async function middleware(req: NextRequest) {
       target.search = "?erreur=profil";
       return NextResponse.redirect(target);
     }
-    if (supportAgent.must_change_password && !path.startsWith("/activation-agent")) {
+    const needsActivation = supportAgent.must_change_password || !supportAgent.consent_accepted_at;
+    if (needsActivation && !path.startsWith("/activation-agent")) {
       const target = req.nextUrl.clone();
       target.pathname = "/activation-agent";
       target.search = "";
       return NextResponse.redirect(target);
     }
-    if (!supportAgent.must_change_password && path.startsWith("/activation-agent")) {
+    if (!needsActivation && path.startsWith("/activation-agent")) {
       const target = req.nextUrl.clone();
       target.pathname = "/equipe-support";
       target.search = "";
