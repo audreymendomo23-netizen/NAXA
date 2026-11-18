@@ -7,14 +7,7 @@ const PERMISSIONS = [
   ["ticket_view_assigned","Voir les dossiers attribués"],
   ["ticket_reply","Répondre aux demandeurs"],
   ["ticket_internal_note","Ajouter des notes internes"],
-  ["ticket_assign","Affecter des dossiers"],
-  ["ticket_escalate","Escalader vers l’Administrateur"],
-  ["claims_handle","Traiter les réclamations"],
   ["attachments_read","Lire les pièces jointes"],
-  ["audio_call","Passer des appels audio"],
-  ["gmail_read","Lire les emails NAXA"],
-  ["gmail_reply","Répondre depuis Gmail NAXA"],
-  ["reports_view","Consulter les rapports support"],
 ] as const;
 
 type Agent = {
@@ -128,7 +121,7 @@ export function AdminSupportAgents() {
         </div>
         <details><summary className="cursor-pointer text-sm font-bold">Gérer les permissions ({(editing[agent.user_id]??[]).length})</summary>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">{PERMISSIONS.map(([code,label])=><label key={code} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={(editing[agent.user_id]??[]).includes(code)} disabled={agent.status!=="active"} onChange={e=>togglePermission(agent.user_id,code,e.target.checked)}/>{label}</label>)}</div>
-          <button type="button" disabled={saving||agent.status==="revoked"} onClick={()=>void updateAgent(agent,{permissions:editing[agent.user_id]??[]})} className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">Enregistrer les permissions</button>
+          <button type="button" disabled={saving||agent.status!=="active"} onClick={()=>void updateAgent(agent,{permissions:editing[agent.user_id]??[]})} className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">Enregistrer les permissions</button>
         </details>
       </article>)}
     </section>
