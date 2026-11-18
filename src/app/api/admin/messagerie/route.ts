@@ -4,17 +4,27 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUPPORT_STATUSES = new Set(["ouvert", "en_cours", "en_attente_client", "resolu", "ferme"]);
 
-async function activeAdmin() {
+const SUPPORT_DIAGNOSTICS = process.env.NAXA_E2E_WEB_BASE_URL === "http://127.0.0.1:3000";
+function supportTrace(requestId: string, stage: string, startedAt: number) {
+  if (SUPPORT_DIAGNOSTICS) console.info("[support-admin]", requestId, stage, Date.now() - startedAt + "ms");
+}
+
+async function activeAdmin(requestId = "request") {
+  const startedAt = Date.now();
+  supportTrace(requestId, "auth:start", startedAt);
   const sb = supabaseServer();
   const { data: auth, error: authError } = await sb.auth.getUser();
+  supportTrace(requestId, "auth:done", startedAt);
   if (authError || !auth.user) {
     return { ok: false as const, response: NextResponse.json({ error: "Connexion requise." }, { status: 401 }) };
   }
 
+  supportTrace(requestId, "admin-check:start", startedAt);
   const [{ data: profile, error: profileError }, { data: activeRole, error: activeRoleError }] = await Promise.all([
     sb.from("profiles").select("role,actif").eq("id", auth.user.id).maybeSingle(),
     sb.rpc("naxa_business_function"),
   ]);
+  supportTrace(requestId, "admin-check:done", startedAt);
   if (profileError || activeRoleError || profile?.role !== "admin"
     || profile.actif !== true || activeRole !== "admin") {
     return { ok: false as const, response: NextResponse.json({ error: "Accès réservé à l’espace administrateur actif." }, { status: 403 }) };
@@ -66,7 +76,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const admin = await activeAdmin();
+  const requestId = Math.random().toString(36).slice(2, 10);
+  const startedAt = Date.now();
+  supportTrace(requestId, "post:start", startedAt);
+  const admin = await activeAdmin(requestId);
   if (!admin.ok) return admin.response;
 
   let body: { ticket_id?: string; contenu?: string };
@@ -80,8 +93,10 @@ export async function POST(request: Request) {
   }
 
   const db = supabaseAdmin();
+  supportTrace(requestId, "ticket-read:start", startedAt);
   const { data: ticket, error: ticketError } = await db.from("tickets_support")
     .select("id,statut,type,auteur_profile_id,reference_code").eq("id", ticketId).maybeSingle();
+  supportTrace(requestId, "ticket-read:done", startedAt);
   if (ticketError || !ticket) return NextResponse.json({ error: "Ticket introuvable ou inaccessible." }, { status: 404 });
 
   if (ticket.type === "support_naxa") {
@@ -92,12 +107,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ce ticket n’est plus ouvert. Aucune réponse n’a été envoyée." }, { status: 409 });
   }
 
+  supportTrace(requestId, "message-insert:start", startedAt);
   const { error: insertError } = await db.from("messages_support").insert({
     ticket_id: ticket.id, auteur_profile_id: admin.user.id, contenu, interne: false,
   });
+  supportTrace(requestId, "message-insert:done", startedAt);
   if (insertError) return NextResponse.json({ error: "L’envoi a échoué. Le message n’a pas été enregistré." }, { status: 500 });
 
   if (ticket.type === "support_naxa" && ticket.auteur_profile_id) {
+    supportTrace(requestId, "notification-insert:start", startedAt);
     const { error: notificationError } = await db.from("notifications").insert({
       user_id: ticket.auteur_profile_id,
       type: "support_naxa_reponse",
@@ -105,12 +123,14 @@ export async function POST(request: Request) {
       corps: "Une réponse est disponible pour votre demande " + ticket.reference_code + ".",
       related_entity_id: ticket.id,
     });
+    supportTrace(requestId, "notification-insert:done", startedAt);
     if (notificationError) {
       // La réponse est déjà persistée : une panne de notification ne l'annule pas.
       console.error("support_naxa_notification_failed", notificationError.message);
     }
   }
 
+  supportTrace(requestId, "post:done", startedAt);
   return NextResponse.json({ success: true }, { status: 201 });
 }
 
