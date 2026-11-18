@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§218)  
+**Dernière mise à jour :** 18 novembre 2026 (§219)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `d5dd8d463bc05e1d05b02e10c9b2517e5596dc34`  
+**HEAD contrôlé avant cette mise à jour :** `921671c7cdcad00e3357add4244d9963165c5fc4`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7970,4 +7970,22 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Le widget reçoit/émet via `support_naxa` et Supabase Realtime ; l'Admin reçoit INSERT/UPDATE tickets et INSERT messages. La conversation `conseil_pharmacien` reste distincte.
 - Contrats Node/TypeScript/ESLint/build et recette navigateur Client↔Admin : **NON PROUVÉS** faute de statut CI disponible et de session navigateur de recette vérifiable. Ne pas déclarer AU VERT terminal.
 - Aucun changement Production ni déploiement.
+
+
+
+## 219 — Vérification complémentaire Assistance, Realtime et droits — 18/11/2026
+
+**ÉTAT : 🟡 PARTIEL — socle Replay et inspection du code confirmés ; qualité applicative et recette navigateur encore à établir.**
+
+- HEAD vérifié sur `main` : `921671c7cdcad00e3357add4244d9963165c5fc4`. Aucun changement applicatif n'a été nécessaire pendant cette inspection.
+- Replay `pwfftcsjyeibxxqhwysw` : `ACTIVE_HEALTHY`, PostgreSQL 17.11. Les migrations `20261118125228_naxa_client_support_workspace` et `20261118135155_naxa_livechat_realtime` figurent dans l'historique Replay.
+- Contrôle SQL indépendant : `tickets_support` et `messages_support` ont RLS active et figurent dans `supabase_realtime`. Le RPC `open_naxa_support_ticket` est invoker, refusé à `anon`, autorisé à `authenticated`.
+- Les trois triggers Support sont actifs : notification Admin à la création, notification Admin aux réponses Client ultérieures, effacement de `resolved_at` lors de la reprise Client. Leurs fonctions `SECURITY DEFINER` sont confinées au schéma `private`, `search_path` vide et exécution publique refusée.
+- Storage : bucket `naxa-support-attachments` privé, limite 4 194 304 octets, MIME PDF/JPEG/PNG/WebP ; trois politiques authentifiées INSERT/SELECT/DELETE propriétaire présentes.
+- Contrôle de non-résidu : zéro ticket `support_naxa`, zéro message lié à ces tickets et zéro notification Support correspondante. Aucun compte, ticket, message ou fichier de test créé.
+- Inspection source : le shell Client exige un profil `client` actif et `naxa_business_function() = 'client'` avant d'afficher le widget ; `/faq` reste exclue. Le raccourci « Besoin d'aide ? » appelle `notifierNAXA()` avant la navigation FAQ. Les abonnements Client et Admin écoutent les INSERT/UPDATE pertinents et se désabonnent au démontage.
+- Déploiement : `vercel.json` conserve `git.deploymentEnabled.main = false`. Aucun workflow de déploiement n'a été lancé ; aucune migration ni donnée Production touchée.
+- Le contrôle GitHub du commit précédent `921671c` ne renvoyait aucun statut CI. Le workflow `naxa-quality.yml` s'exécute sur push `main` et combine `npm test`, TypeScript, ESLint et build Next.js ; ce commit documentaire sert à déclencher cette vérification. Son résultat doit être lu avant toute déclaration verte.
+- **NON PROUVÉ / NON VERT :** exécution Node réelle, TypeScript, ESLint, build, échanges navigateur Client↔Admin, notifications reçues dans les deux sessions, reconnexion Realtime, transitions de statut en navigateur, pièces jointes de bout en bout et non-régression du chat pharmacie `/aide`. Les preuves SQL structurelles ne remplacent pas ces essais.
+- **Point de reprise :** relever les résultats du workflow qualité attachés au commit documentaire, corriger tout échec sur `main`, puis exécuter R09-10 en deux sessions authentifiées Client/Admin sur Replay. Garder Production et déploiement hors périmètre.
 
