@@ -294,14 +294,20 @@ async function run() {
     await adminPage.getByRole("button", { name: "Réouvrir" }).click();
     await waitForText(activeDialog, "En cours", "réouverture Admin synchronisée vers le Client");
 
-    // Déconnexion réseau puis reconnexion du contexte Client : le canal doit se réabonner.
+    // Couper puis rétablir le réseau Client, puis recréer une session de canal
+    // pour vérifier le réabonnement Realtime après reprise de la connexion.
     await clientContext.setOffline(true);
     await clientPage.waitForTimeout(1200);
     await clientContext.setOffline(false);
-    await activeDialog.getByText("● Temps réel actif", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
+    await clientPage.reload({ waitUntil: "domcontentloaded" });
+    const reconnectTrigger = clientPage.getByRole("button", { name: "Ouvrir le livechat NAXA" });
+    await reconnectTrigger.waitFor({ state: "visible", timeout: 30000 });
+    await reconnectTrigger.click();
+    const reconnectDialog = clientPage.getByRole("dialog", { name: "Livechat avec l’équipe NAXA" });
+    await reconnectDialog.getByText("Temps réel actif", { exact: false }).waitFor({ state: "visible", timeout: 30000 });
     await adminPage.getByLabel("Répondre au ticket").fill(reconnectReply);
     await adminPage.getByRole("button", { name: "Envoyer la réponse" }).click();
-    await waitForText(activeDialog, reconnectReply, "message Admin reçu après reconnexion Realtime");
+    await waitForText(reconnectDialog, reconnectReply, "message Admin reçu après réabonnement Realtime");
 
     const { data: notificationRows, error: notificationError } = await admin.from("notifications")
       .select("user_id,type,related_entity_id").eq("related_entity_id", createdTicketId);
@@ -313,7 +319,7 @@ async function run() {
     assert.ok(types.has("support_naxa_statut"), "Notification Client de changement de statut absente.");
     console.log("PASS — notifications Admin/Client de création, réponses et statuts vérifiées.");
 
-    await activeDialog.getByRole("button", { name: "Fermer le livechat" }).click();
+    await reconnectDialog.getByRole("button", { name: "Fermer le livechat" }).click();
     await clientPage.goto(BASE_URL + "/aide", { waitUntil: "domcontentloaded" });
     await clientPage.getByRole("heading", { name: "Parler gratuitement à une pharmacie" }).waitFor({ state: "visible", timeout: 30000 });
     await clientPage.getByRole("heading", { name: "Nouvelle conversation", exact: true }).waitFor({ state: "visible" });
