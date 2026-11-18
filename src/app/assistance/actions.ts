@@ -8,8 +8,9 @@ import { supabaseServer } from "@/lib/supabase/server";
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_MESSAGE_LENGTH = 2000;
 const CATEGORIES = new Set([
-  "compte", "technique", "commande", "signalement",
-  "confidentialite", "suggestion", "autre",
+  "compte", "technique", "gestion_espace", "personnel", "stock", "caisse",
+  "commandes", "livraison", "abonnement_paiement", "publication",
+  "confidentialite", "signalement", "suggestion", "autre",
 ]);
 const MIME_EXTENSIONS: Record<string, string> = {
   "application/pdf": "pdf",
@@ -18,7 +19,7 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "image/webp": "webp",
 };
 
-async function clientSession() {
+async function supportSession() {
   const sb = supabaseServer();
   const { data: auth, error: authError } = await sb.auth.getUser();
   if (authError || !auth.user) redirect("/connexion?retour=%2Fassistance");
@@ -28,11 +29,11 @@ async function clientSession() {
     sb.rpc("naxa_business_function"),
   ]);
 
-  if (error || activeRoleError || !profile || profile.role !== "client"
-    || profile.actif !== true || activeRole !== "client") {
+  if (error || activeRoleError || !profile || profile.actif !== true
+    || profile.role === "admin" || !activeRole || activeRole === "admin") {
     redirect("/?erreur=assistance_compte");
   }
-  return { sb, profile };
+  return { sb, profile, activeRole };
 }
 
 function field(form: FormData, key: string) {
@@ -106,7 +107,7 @@ function actualiser() {
 }
 
 export async function creerDemandeNaxa(form: FormData) {
-  const { sb, profile } = await clientSession();
+  const { sb, profile } = await supportSession();
   const categorie = field(form, "categorie");
   const sujet = field(form, "sujet");
   const message = field(form, "message");
@@ -144,7 +145,7 @@ export async function creerDemandeNaxa(form: FormData) {
 }
 
 export async function envoyerReponseNaxa(form: FormData) {
-  const { sb, profile } = await clientSession();
+  const { sb, profile } = await supportSession();
   const ticketId = field(form, "ticket_id");
   const message = field(form, "message");
   const file = await validatedFile(form);

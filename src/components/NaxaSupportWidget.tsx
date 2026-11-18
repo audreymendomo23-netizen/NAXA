@@ -28,13 +28,13 @@ type SupportMessage = {
 
 const MAX_MESSAGE_LENGTH = 2000;
 const CATEGORIES = [
-  ["compte", "Compte et connexion"],
-  ["technique", "Problème technique"],
-  ["commande", "Commande, réservation ou livraison"],
-  ["signalement", "Signalement"],
-  ["confidentialite", "Confidentialité"],
-  ["suggestion", "Suggestion"],
-  ["autre", "Autre demande"],
+  ["compte", "Compte et connexion"], ["technique", "Problème technique"],
+  ["gestion_espace", "Utilisation de mon espace"], ["personnel", "Personnel et affectations"],
+  ["stock", "Stock et inventaires"], ["caisse", "Caisse et comptabilité"],
+  ["commandes", "Commandes et réservations"], ["livraison", "Livraison et suivi"],
+  ["abonnement_paiement", "Abonnement et paiement"], ["publication", "Catalogue et publications"],
+  ["confidentialite", "Confidentialité"], ["signalement", "Signalement"],
+  ["suggestion", "Suggestion"], ["autre", "Autre demande"],
 ] as const;
 const STATUS: Record<string, string> = {
   ouvert: "Demande reçue",
@@ -46,7 +46,7 @@ const STATUS: Record<string, string> = {
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("fr-FR", { timeZone: "Africa/Douala", hour: "2-digit", minute: "2-digit" });
 const formatDate = (value: string) => new Date(value).toLocaleDateString("fr-FR", { timeZone: "Africa/Douala", day: "2-digit", month: "short" });
 
-export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string; hasBottomNav: boolean }) {
+export function NaxaSupportWidget({ accountId, hasBottomNav }: { accountId: string; hasBottomNav: boolean }) {
   const supabase = useMemo(() => supabaseBrowser(), []);
   const [open, setOpen] = useState(false);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -74,7 +74,7 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
     const { data, error: queryError } = await supabase
       .from("tickets_support")
       .select("id,reference_code,sujet,categorie,statut,created_at,last_activity_at")
-      .eq("auteur_profile_id", clientId)
+      .eq("auteur_profile_id", accountId)
       .eq("type", "support_naxa")
       .order("last_activity_at", { ascending: false })
       .limit(20);
@@ -93,7 +93,7 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
     if (rows.length === 0) setNewConversation(true);
     else setNewConversation(false);
     setLoadingTickets(false);
-  }, [clientId, supabase]);
+  }, [accountId, supabase]);
 
   useEffect(() => {
     if (open) void refreshTickets();
@@ -225,7 +225,7 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
     setError("");
     const { data, error: insertError } = await supabase
       .from("messages_support")
-      .insert({ ticket_id: current.id, auteur_profile_id: clientId, contenu: content, interne: false })
+      .insert({ ticket_id: current.id, auteur_profile_id: accountId, contenu: content, interne: false })
       .select("id,ticket_id,auteur_profile_id,contenu,interne,created_at,piece_jointe_path,piece_jointe_nom,piece_jointe_taille")
       .single();
     if (insertError || !data) {
@@ -265,7 +265,7 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
               <h2 className="text-sm font-extrabold">Assistance NAXA</h2>
               <p className="text-[11px] text-white/75">{realtime ? "Messages synchronisés en direct" : "Conversation et suivi de votre demande"}</p>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le livechat" className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-white/80 hover:bg-white/10">×</button>
+            <Link href="/faq" onClick={() => setOpen(false)} aria-label="Consulter la FAQ NAXA" className="rounded-full border border-white/30 px-3 py-2 text-[10px] font-extrabold text-white hover:bg-white/10">FAQ</Link><button type="button" onClick={() => setOpen(false)} aria-label="Fermer le livechat" className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-white/80 hover:bg-white/10">×</button>
           </header>
 
           <div className="flex min-h-0 flex-1 flex-col bg-[#F7FAF8]">
@@ -287,7 +287,7 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
               <form onSubmit={createConversation} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
                 <div>
                   <h3 className="text-base font-extrabold text-[#064B2A]">Parler à l’équipe NAXA</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">Décris ton besoin. Ton message sera transmis à l’assistance NAXA, pas à une pharmacie.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Décris ton besoin. Ton message sera transmis directement à l’assistance NAXA, indépendamment de ton rôle ou de ta structure.</p>
                 </div>
                 <label className="text-xs font-bold text-slate-700">Catégorie
                   <select value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium">
@@ -318,8 +318,8 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
                   {loadingTickets && <p role="status" className="text-center text-xs text-slate-500">Chargement de tes demandes…</p>}
                   {!loadingMessages && orderedMessages.length === 0 && <p className="rounded-xl bg-white p-3 text-xs text-slate-600">La conversation est ouverte. Écris ton premier message à l’équipe NAXA.</p>}
                   {orderedMessages.map((message) => (
-                    <article key={message.id} className={"max-w-[88%] rounded-2xl p-3 shadow-sm " + (message.auteur_profile_id === clientId ? "ml-auto rounded-br-sm bg-[#064B2A] text-white" : "mr-auto rounded-bl-sm border border-slate-100 bg-white text-slate-800")}>
-                      <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide opacity-65">{message.auteur_profile_id === clientId ? "Vous" : "Équipe NAXA"}</p>
+                    <article key={message.id} className={"max-w-[88%] rounded-2xl p-3 shadow-sm " + (message.auteur_profile_id === accountId ? "ml-auto rounded-br-sm bg-[#064B2A] text-white" : "mr-auto rounded-bl-sm border border-slate-100 bg-white text-slate-800")}>
+                      <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide opacity-65">{message.auteur_profile_id === accountId ? "Vous" : "Équipe NAXA"}</p>
                       <p className="whitespace-pre-wrap break-words text-xs leading-5">{message.contenu}</p>
                       {message.piece_jointe_nom && <div className="mt-2 rounded-lg bg-black/5 p-2 text-[11px]">
                         {message.attachmentUrl ? <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline">Ouvrir : {message.piece_jointe_nom}</a> : <span>Fichier : {message.piece_jointe_nom}</span>}
@@ -363,8 +363,8 @@ export function NaxaSupportWidget({ clientId, hasBottomNav }: { clientId: string
             ) : (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
                 <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF5B8] text-2xl text-[#064B2A]">✉</span>
-                <h3 className="font-extrabold text-[#064B2A]">Une question ? Parlons-en.</h3>
-                <p className="text-xs leading-5 text-slate-600">Lance une conversation avec l’équipe NAXA. Tu pourras retrouver les réponses ici.</p>
+                <h3 className="font-extrabold text-[#064B2A]">Besoin d’aide ? Parlons-en.</h3>
+                <p className="text-xs leading-5 text-slate-600">Écris directement à l’équipe NAXA. Ton échange reste personnel et indépendant de ton Responsable.</p>
                 <button type="button" onClick={() => setNewConversation(true)} className="min-h-11 w-full rounded-xl bg-[#FFE23D] px-4 text-sm font-extrabold text-[#123D28]">Écrire à NAXA</button>
                 <Link href="/faq" onClick={() => setOpen(false)} className="text-xs font-bold text-[#064B2A] underline">Consulter la FAQ</Link>
               </div>
