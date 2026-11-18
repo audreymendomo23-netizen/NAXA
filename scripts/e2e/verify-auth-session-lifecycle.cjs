@@ -131,16 +131,28 @@ async function run(env = process.env) {
     process.stdout.write("PASS — connexion réelle via navigateur et accès à l'espace Gestionnaire de stock.\n");
 
     // Simulate browser cookie expiration (not a forged JWT and not a change to project Auth settings).
-    await context.clearCookies({ name: /^sb-.*-auth-token/ });
+    for (const cookie of authCookies) {
+      await context.clearCookies({
+        name: cookie.name,
+        domain: cookie.domain,
+        path: cookie.path,
+      });
+    }
+    const remainingAuthCookies = (await context.cookies()).filter(cookie => /^sb-.*-auth-token/.test(cookie.name));
+    if (remainingAuthCookies.length > 0) {
+      throw new Error("Le harnais n'a pas supprimé tous les cookies Auth SSR (" + remainingAuthCookies.length + " restant(s)).");
+    }
+    process.stdout.write("INFO — cookies Auth SSR supprimés explicitement avant le contrôle middleware.\\n");
     const afterCookieExpiry = await page.goto(webBase + ROLE_PATH, { waitUntil: "domcontentloaded" });
     const redirected = new URL(page.url()).pathname === "/connexion";
     if (!redirected) {
       throw new Error("Une session navigateur sans cookie Auth n'a pas été renvoyée vers la connexion (HTTP "
-        + (afterCookieExpiry?.status() ?? "inconnu") + ").");
+        + (afterCookieExpiry?.status() ?? "inconnu") + ", chemin=" + new URL(page.url()).pathname + ").");
     }
     process.stdout.write("PASS — cookie de session expiré/supprimé : middleware refuse l'espace protégé et redirige vers la connexion.\n");
     await context.close();
 
+    process.stdout.write("PASS — contrôle navigateur terminé ; démarrage du test REST isolé de rotation refresh.\\n");
     // Test real Supabase refresh-token rotation and reuse protection.
     const first = await passwordLogin();
     const firstClaims = readAccessTokenClaims(first.access_token, "connexion initiale");
