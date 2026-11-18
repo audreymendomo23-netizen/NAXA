@@ -245,7 +245,14 @@ async function run() {
       buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n"),
     });
     await clientPage.getByRole("button", { name: "Envoyer ma réponse" }).click();
-    await clientPage.getByText("preuve-livechat.pdf", { exact: false }).waitFor({ state: "visible", timeout: 30000 });
+    const clientAttachmentLink = clientPage.getByRole("link", { name: "Ouvrir : preuve-livechat.pdf", exact: true });
+    await clientAttachmentLink.waitFor({ state: "visible", timeout: 30000 });
+    const clientAttachmentUrl = await clientAttachmentLink.getAttribute("href");
+    assert.ok(clientAttachmentUrl, "URL signée Client absente pour la pièce jointe.");
+    const clientFileResponse = await clientPage.request.get(clientAttachmentUrl);
+    assert.equal(clientFileResponse.status(), 200, "Le Client doit pouvoir ouvrir son PDF privé via URL signée.");
+    assert.ok((await clientFileResponse.body()).subarray(0, 5).toString() === "%PDF-");
+
     const { data: attachmentMessage, error: attachmentError } = await admin.from("messages_support")
       .select("piece_jointe_path,piece_jointe_nom,piece_jointe_taille").eq("ticket_id", createdTicketId)
       .eq("piece_jointe_nom", "preuve-livechat.pdf").single();
@@ -253,7 +260,17 @@ async function run() {
     assert.ok(attachmentMessage.piece_jointe_path && attachmentMessage.piece_jointe_taille > 0);
     state.attachmentPaths.push(attachmentMessage.piece_jointe_path);
     saveState();
-    console.log("PASS — pièce jointe PDF chargée, enregistrée en privé et reliée au message.");
+
+    const adminAttachmentLink = adminPage.getByRole("link", {
+      name: "Ouvrir la pièce jointe : preuve-livechat.pdf", exact: true,
+    });
+    await adminAttachmentLink.waitFor({ state: "visible", timeout: 30000 });
+    const adminAttachmentUrl = await adminAttachmentLink.getAttribute("href");
+    assert.ok(adminAttachmentUrl, "URL signée Admin absente pour la pièce jointe.");
+    const adminFileResponse = await adminPage.request.get(adminAttachmentUrl);
+    assert.equal(adminFileResponse.status(), 200, "L'Admin doit pouvoir ouvrir le PDF privé via URL signée.");
+    assert.ok((await adminFileResponse.body()).subarray(0, 5).toString() === "%PDF-");
+    console.log("PASS — PDF privé uploadé puis ouvert avec succès par Client et Admin via URL signée.");
 
     await clientPage.getByRole("button", { name: "Fermer le livechat" }).click().catch(() => {});
     await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
