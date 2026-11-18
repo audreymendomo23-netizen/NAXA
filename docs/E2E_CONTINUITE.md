@@ -8488,3 +8488,60 @@ Commencer par l'audit complet du moteur de rôles et des policies RLS/Storage, p
 ### Point exact de reprise
 
 Comparer l'identité Agent séparée liée au profil Auth avec l'extension contrôlée de role_type ; inspecter les migrations et usages TypeScript/SQL du rôle, puis arrêter une architecture qui n'accorde jamais de privilèges Admin. Après décision technique documentée, implémenter sur Replay uniquement et commencer par les tests négatifs RLS/route/Storage avant l'interface Agent.
+
+
+## §232 — Arbitrage architecture identité Agent interne — 18/11/2026
+
+### Comparaison technique effectuée
+
+**Option A — ajouter `support_agent` à `public.role_type` et au moteur de rôles NAXA**
+- Avantage : réutilisation du login par profil, du middleware, du callback Auth et des guards de profil existants.
+- Coût/risque vérifié : l'enum `role_type` est consommé par les profils, le résolveur `naxa_business_function`, les règles de priorité d'espace actif, les contraintes de domaine interne, les fonctions de portée pharmacie, les contrôles d'accès et les unions TypeScript. Le moteur actuel a plusieurs branches génériques qui traitent les rôles autres que Client/Admin/Promoteur comme des postes professionnels potentiellement rattachés à une pharmacie. Un Agent global introduit dans ce moteur demanderait de réécrire et retester un grand nombre de branches pour éviter tout héritage accidentel de portée pharmacie ou de privilèges métier. Il faudrait aussi empêcher toute affectation d'Agent par les RPC Promoteur/Responsable.
+- Cette voie est techniquement possible, mais elle augmente inutilement le rayon d'impact du chantier support et mêle une identité interne globale au moteur d'espaces Client/Partenaire.
+
+**Option B — identité Auth interne dédiée, hors de `public.profiles` et hors enum `role_type`**
+- Le trigger Auth `handle_new_user()` possède déjà un mécanisme explicite `naxa_signup_pending=true` qui crée une identité Auth sans créer de profil NAXA. Cette voie est utilisée par le flux d'inscription provisoire et a été vérifiée en lecture seule sur Replay.
+- Une table dédiée `support_agents`, liée directement à `auth.users(id)`, peut porter le profil professionnel interne, le nom d'utilisateur, le statut, la présence et les métadonnées d'administration. Les permissions seront normalisées et explicites, sans privilège Admin ni privilège Client/Pharmacie. L'absence de ligne dans `public.profiles` empêche l'Agent d'entrer dans les mécanismes de sélection de rôle et d'affectation professionnelle.
+- Conséquence applicative : le login par nom d'utilisateur doit reconnaître les identifiants Agent en plus des profils ordinaires ; la callback Auth et le middleware doivent disposer d'un chemin interne dédié, avec vérification serveur de l'Agent actif et redirection exclusive vers l'espace Agent. Les routes Agent ne doivent jamais se reposer sur une simple présence de session Auth.
+- Les opérations Admin de création/suspension/révocation utiliseront Auth Admin côté serveur et la table dédiée ; la création Auth devra marquer `naxa_signup_pending=true` pour éviter de créer un profil Client par défaut. OAuth Google n'est pas un mode de connexion Agent en V1.
+
+### Décision d'architecture retenue
+
+**RETENIR L'OPTION B : identité interne Agent dédiée, liée à Auth mais indépendante de `profiles`, de `role_type`, de `naxa_roles` et de `naxa_profile_active_roles`.**
+
+Cette décision satisfait l'exigence métier d'un profil Agent du service client distinct des Clients, Promoteurs, employés de pharmacie et Administrateurs, tout en réduisant les risques de régression dans le moteur de rôles existant.
+
+Modèle cible à construire :
+1. `support_agents` : `user_id` FK Auth, username unique normalisé, identité affichée, statut (invited/active/suspended/revoked), présence, dates et acteurs de création/modification.
+2. `support_agent_permissions` : permissions atomiques attribuées par Admin, avec historique ; aucun droit implicite et aucun accès global aux données NAXA.
+3. `support_ticket_assignments` : affectation d'un ticket à un agent, historique des prises/libérations/réaffectations, et garde atomique contre la double prise.
+4. `support_agent_events` : journal immuable des connexions, changements de statut, permissions, affectations, accès aux pièces jointes et actions support.
+5. Tables dédiées de réclamations et de canaux Gmail/appels à concevoir séparément, avec relations au ticket et politique de confidentialité propre.
+
+Garde-fous obligatoires :
+- Aucune ligne Agent dans `profiles`, aucun rôle Admin attribué, aucune affectation pharmacie, aucune entrée dans le registre d'espace actif.
+- L'Agent ne peut pas créer/suspendre d'autres Agents, modifier les réglages globaux, consulter les finances globales ou accéder aux dossiers non attribués, sauf permission d'escalade temporaire explicitement auditée.
+- Chaque API vérifie Auth, statut Agent, permission précise, affectation au ticket, statut du ticket et éventuelle escalade avant chaque lecture/écriture.
+- Le bucket support reste privé ; URL signée courte durée après contrôle serveur de l'affectation.
+- La file centrale n'expose qu'un ticket non attribué et réclamable ; la prise est atomique côté serveur.
+- L'Admin conserve la supervision, l'arbitrage final, la reprise de dossier et la gestion des Agents.
+- L'Agent ne reçoit aucun droit métier Pharmacie/Client/Partenaire. Les espaces Agent et Admin ont des routes, guards et interfaces séparés.
+
+### Contrôles source complémentaires ayant fondé l'arbitrage
+
+- `handle_new_user()` ignore explicitement la création de `profiles` lorsque `raw_user_meta_data.naxa_signup_pending=true`.
+- Le login actuel `src/app/api/auth/login/route.ts` recherche d'abord `profiles.username`, puis exige la résolution de `naxa_business_function()`; il faudra ajouter une voie Agent avant la résolution métier.
+- `src/middleware.ts` protège les espaces via Auth puis exige une ligne `profiles` ; le préfixe Agent nécessitera une garde spécifique qui vérifie `support_agents` et refuse les profils ordinaires.
+- `src/app/auth/callback/route.ts` redirige actuellement les comptes sans profil vers l'onboarding Google ; une branche dédiée doit reconnaître uniquement l'Agent actif et refuser les autres profils incomplets.
+- `src/app/(auth)/connexion/page.tsx` route les rôles connus via `ROUTE_PAR_ROLE_ACTIF` et réinterroge le résolveur après login ; elle doit respecter la destination Agent renvoyée par l'API sans tenter de résoudre un rôle métier.
+- `src/app/api/admin/messagerie/route.ts` est Admin-only et utilise service-role ; il ne doit pas devenir une API agent permissive. Une API Agent distincte et étroite est requise.
+
+### État et point de reprise
+
+- Comparaison des deux architectures : EFFECTUÉE.
+- Architecture Agent retenue : OPTION B, DÉCIDÉE.
+- Aucun changement de code, aucune migration ni donnée Agent créée ; aucun changement Replay/Production.
+- Gmail OAuth, synchronisation Gmail, réclamations et appels audio restent NON IMPLÉMENTÉS / NON TESTÉS.
+- Aucun critère de chantier n'est déclaré vert à ce stade.
+
+**Prochaine opération technique :** construire la migration additive Replay pour identité Agent, permissions, affectations et audit, puis écrire les tests SQL négatifs en premier (agent suspendu, agent non affecté, agent A contre ticket de B, absence de privilège Admin, note interne et pièces jointes). Ensuite seulement, connecter login/middleware/guards et interface Agent. Le socle devra passer ses tests de sécurité avant l'intégration Gmail, réclamations et appels audio.
