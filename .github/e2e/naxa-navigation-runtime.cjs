@@ -690,9 +690,12 @@ async function run() {
   const promoter = await profileByUsername("naxa_e2e_promoteur");
   const comptable = await profileByUsername("naxa_e2e_expiry_overflow");
   const partnerOwner = await profileByUsername("naxa_e2e_acheteur");
+  const stockManager = await profileByUsername("naxa_e2e_expiry_stock");
   assert.equal(promoter.role, "promoteur", "Le profil Promoteur existant a changé de rôle.");
   assert.equal(comptable.role, "client", "Le profil de recette destiné au rôle temporaire n'est plus Client.");
   assert.equal(partnerOwner.role, "client", "Le profil Client destiné au partenaire n'est plus Client.");
+  assert.equal(stockManager.fonction_interne, "gestionnaire_stock", "Le profil de décision B2 n'est plus Gestionnaire de stock.");
+  assert.equal(stockManager.pharmacie_id, MARKETPLACE_PHARMACY_ID, "Le Gestionnaire de stock B2 n'est pas affecté à la pharmacie Marketplace attendue.");
   assert.equal(comptable.fonction_interne, null, "Le profil Comptable de recette possède déjà une fonction interne.");
   assert.equal(comptable.pharmacie_id, null, "Le profil Comptable de recette possède déjà une pharmacie active.");
 
@@ -725,6 +728,8 @@ async function run() {
     sessions.push(comptableSession);
     const clientSession = await createExistingUserSession(partnerOwner);
     sessions.push(clientSession);
+    const stockManagerSession = await createExistingUserSession(stockManager);
+    sessions.push(stockManagerSession);
     const clientBSession = await createExistingUserSession(comptable);
     sessions.push(clientBSession);
     const historyFixtures = await createClientHistoryFixtures(partnerOwner, comptable);
@@ -1163,9 +1168,37 @@ async function run() {
     const afterHold = await marketplaceAvailableQuantity();
     assert.equal(afterHold, b2Fixture.available - b2Fixture.quantity);
 
-    await clientPage.locator('a[href="/reservation/' + reservationId + '"]').first().click();
+    // Décision réelle de la pharmacie : le Gestionnaire Stock confirme sous son propre JWT.
+    const stockContext = await browserContext(browser, stockManagerSession, { width: 1440, height: 900 });
+    const stockPage = await stockContext.newPage();
+    stockPage.setDefaultTimeout(20000);
+    await stockPage.goto(BASE_URL + "/pharmacie/gestionnaire-stock/reservations?reservation=" + reservationId,
+      { waitUntil: "domcontentloaded" });
+    await expectPath(stockPage, "/pharmacie/gestionnaire-stock/reservations",
+      "Lot B2 → file des réservations du Gestionnaire de stock");
+    await stockPage.getByRole("heading", { name: "Réservations Marketplace", exact: true }).waitFor({ state: "visible" });
+    const stockReservationCard = stockPage.locator("article").filter({
+      hasText: reservationId.slice(0, 8).toUpperCase(),
+    });
+    await stockReservationCard.waitFor({ state: "visible" });
+    await stockReservationCard.getByRole("button", {
+      name: "Confirmer disponibilité et préparer", exact: true,
+    }).click();
+    await stockPage.getByText(
+      "Réservation confirmée. Le dossier est transmis au parcours de préparation et de retrait.",
+      { exact: true }
+    ).waitFor({ state: "visible" });
+    const { data: pharmacyConfirmed, error: pharmacyConfirmedError } = await admin.from("reservations")
+      .select("id,statut").eq("id", reservationId).maybeSingle();
+    if (pharmacyConfirmedError) throw pharmacyConfirmedError;
+    assert.equal(pharmacyConfirmed?.statut, "confirmee",
+      "La décision du Gestionnaire de stock n'a pas été persistée.");
+    await stockContext.close();
+    console.log("PASS Lot B2 — décision pharmacie depuis l'espace Gestionnaire de stock, JWT et périmètre de l'affectation.");
+
+    await clientPage.goto(BASE_URL + "/reservation/" + reservationId, { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/reservation/" + reservationId, "Lot B2 → suivi de réservation Client");
-    await clientPage.getByText("En attente de la pharmacie", { exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByText("Confirmée par la pharmacie", { exact: true }).waitFor({ state: "visible" });
     await clientPage.getByRole("button", { name: "Annuler la réservation", exact: true }).click();
     await clientPage.getByText("Cette transaction est annulée.", { exact: true }).waitFor({ state: "visible" });
     const { data: cancelled, error: cancelledError } = await b2Client.from("reservations")
@@ -1183,7 +1216,7 @@ async function run() {
     await historyEntry.waitFor({ state: "visible" });
     await historyEntry.getByText("Annulée", { exact: true }).waitFor({ state: "visible" });
     await historyEntry.getByRole("link", { name: "Ouvrir le suivi", exact: true }).waitFor({ state: "visible" });
-    console.log("PASS Lot B2 — réservation JWT/RLS, 2 unités tenues, annulation Client, stock restauré=" + b2Fixture.available + ", historique Annulée.");
+    console.log("PASS Lot B2 — recherche et favori persistants, réservation Client, confirmation Gestionnaire Stock, annulation Client, stock restauré=" + b2Fixture.available + ", historique Annulée.");
 
 
     await clientPage.goto(BASE_URL + "/client/historique", { waitUntil: "domcontentloaded" });
