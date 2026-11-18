@@ -31,6 +31,7 @@ export function SupportAgentWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [claiming, setClaiming] = useState<string | null>(null);
+  const [presenceSaving, setPresenceSaving] = useState(false);
 
   const refresh = useCallback(async () => {
     setError("");
@@ -55,6 +56,27 @@ export function SupportAgentWorkspace() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  async function togglePresence() {
+    if (!session) return;
+    setPresenceSaving(true);
+    setError("");
+    try {
+      const presence = session.agent.presence === "available" ? "unavailable" : "available";
+      const response = await fetch("/api/support-agent/presence", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presence }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Modification de présence impossible.");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Modification de présence impossible.");
+    } finally {
+      setPresenceSaving(false);
+    }
+  }
 
   async function claim(ticketId: string) {
     setClaiming(ticketId);
@@ -103,7 +125,10 @@ export function SupportAgentWorkspace() {
           <h1 className="mt-1 text-2xl font-black">Tableau de bord support</h1>
           {session && <p className="mt-1 text-sm text-slate-600">Bonjour {session.agent.first_name}, votre présence est {session.agent.presence === "available" ? "disponible" : "indisponible"}.</p>}
         </div>
-        <button type="button" onClick={() => void refresh()} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold">Actualiser</button>
+        <div className="flex flex-wrap gap-2">
+          {session && <button type="button" disabled={presenceSaving} onClick={() => void togglePresence()} className="rounded-xl border border-emerald-700 bg-white px-4 py-2 text-sm font-bold text-emerald-900 disabled:opacity-50">{presenceSaving ? "Mise à jour…" : session.agent.presence === "available" ? "Passer indisponible" : "Me rendre disponible"}</button>}
+          <button type="button" onClick={() => void refresh()} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold">Actualiser</button>
+        </div>
       </header>
 
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
