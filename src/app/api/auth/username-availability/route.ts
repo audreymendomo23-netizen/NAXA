@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const { data: profile, error } = await admin
       .from("profiles")
       .select("id, username")
-      .ilike("username", username)
+      .eq("username", username)
       .maybeSingle();
 
     if (error) {
