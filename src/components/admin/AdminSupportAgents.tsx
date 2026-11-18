@@ -32,6 +32,7 @@ export function AdminSupportAgents() {
   const [email,setEmail] = useState("");
   const [firstName,setFirstName] = useState("");
   const [lastName,setLastName] = useState("");
+  const [dateOfBirth,setDateOfBirth] = useState("");
   const [permissions,setPermissions] = useState<string[]>(["queue_view","ticket_view_assigned","ticket_reply"]);
   const [editing,setEditing] = useState<Record<string,string[]>>({});
 
@@ -54,13 +55,13 @@ export function AdminSupportAgents() {
     event.preventDefault(); setSaving(true); setError(""); setSuccess(""); setTemporaryPassword("");
     try {
       const response=await fetch("/api/admin/support-agents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        username,email,first_name:firstName,last_name:lastName,permissions,
+        username,email,first_name:firstName,last_name:lastName,date_of_birth:dateOfBirth,permissions,
       })});
       const data=await response.json();
       if(!response.ok) throw new Error(data.error || "Création impossible.");
       setTemporaryPassword(data.temporary_password);
       setSuccess("Compte Agent créé. Le mot de passe provisoire ne sera affiché qu’une seule fois.");
-      setUsername("");setEmail("");setFirstName("");setLastName("");
+      setUsername("");setEmail("");setFirstName("");setLastName("");setDateOfBirth("");
       await refresh();
     } catch(cause) {setError(cause instanceof Error?cause.message:"Création impossible.");}
     finally {setSaving(false);}
@@ -101,6 +102,7 @@ export function AdminSupportAgents() {
       <input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email professionnel" className="rounded-xl border border-slate-300 p-3 text-sm"/>
       <input required minLength={2} maxLength={80} value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Prénom" className="rounded-xl border border-slate-300 p-3 text-sm"/>
       <input required minLength={2} maxLength={80} value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Nom" className="rounded-xl border border-slate-300 p-3 text-sm"/>
+      <label className="space-y-1 text-xs font-semibold text-slate-600">Date de naissance (18 ans minimum)<input required type="date" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} max={new Date().toISOString().slice(0,10)} className="block w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900"/></label>
       <div className="md:col-span-2"><p className="mb-2 text-sm font-bold">Permissions initiales</p><div className="grid gap-2 sm:grid-cols-2">
         {PERMISSIONS.map(([code,label])=><label key={code} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={permissions.includes(code)} onChange={e=>setPermissions(current=>e.target.checked?[...current,code]:current.filter(v=>v!==code))}/>{label}</label>)}
       </div></div>
