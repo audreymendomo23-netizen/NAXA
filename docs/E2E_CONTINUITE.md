@@ -7847,16 +7847,16 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 
 ## 209 — Correction du référentiel des six espaces et séparation FAQ — 18/11/2026
 
-- HEAD contrôlé avant correction : \`5130cdc8b7f8ecd710894e5bb9f18d05b1648acf\`. Modification effectuée directement sur \`main\`, sans branche ni PR.
+- HEAD contrôlé avant correction : `5130cdc8b7f8ecd710894e5bb9f18d05b1648acf`. Modification effectuée directement sur `main`, sans branche ni PR.
 - Décision produit : six espaces visibles au choix — Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs connectés, Examens médicaux, Soins & Prestations à domicile. Quatre sont autonomes ; Bébé & Maman et Dispositifs connectés sont des espaces connectés complémentaires.
-- \`src/lib/ecosystemes.ts\` : six définitions réelles dans un registre central ; \`EcosystemeId\` est dérivé des définitions. Les données de chaque espace incluent sa nature autonome/connectée.
-- \`src/components/SelectionEcosysteme.tsx\` : les six cartes sont rendues sans filtre par statut. La nature est affichée ; le verrou Admin commande l'accès, pas la visibilité de la carte.
-- \`src/app/api/universes/status/route.ts\` : cinq slugs configurables Admin sont lus. Le slug DB \`suivi\` alimente \`dispositifs\` et conserve l'alias historique \`suivi\`. Aide/FAQ n'est pas exposée comme un univers.
-- \`src/middleware.ts\` : les routes directes Bébé & Maman et Suivi, ainsi que le catalogue partenaire avec contexte Bébé & Maman, sont raccordés aux verrous Admin. Le refus fail-closed reste actif.
-- \`EnTeteClient\` et \`MenuUnivers\` : les menus à trois points proposent « Besoin d’aide ? » vers \`/faq\`. Le chat pharmacie reste distinct sur \`/aide\`.
-- Nouvelle page \`src/app/faq/page.tsx\` : informations sur les six espaces, les deux espaces connectés, les verrous, la gratuité Client, les paiements hors espace Client, la responsabilité des publications et le chat pharmacie.
-- \`ParcoursClientShell\` conserve le thème de l'espace sélectionné sur \`/faq\`. Les métadonnées et \`docs/ARCHITECTURE_ECOSYSTEMES_NAXA.md\` sont harmonisés.
-- \`scripts/test-admin-univers-actions.cjs\` : l'ancienne assertion contradictoire (quatre entrées seulement et Dispositifs exclu) est remplacée par des assertions sur les six espaces, quatre autonomes/deux connectés, les statuts Admin et la FAQ séparée.
+- `src/lib/ecosystemes.ts` : six définitions réelles dans un registre central ; `EcosystemeId` est dérivé des définitions. Les données de chaque espace incluent sa nature autonome/connectée.
+- `src/components/SelectionEcosysteme.tsx` : les six cartes sont rendues sans filtre par statut. La nature est affichée ; le verrou Admin commande l'accès, pas la visibilité de la carte.
+- `src/app/api/universes/status/route.ts` : cinq slugs configurables Admin sont lus. Le slug DB `suivi` alimente `dispositifs` et conserve l'alias historique `suivi`. Aide/FAQ n'est pas exposée comme un univers.
+- `src/middleware.ts` : les routes directes Bébé & Maman et Suivi, ainsi que le catalogue partenaire avec contexte Bébé & Maman, sont raccordés aux verrous Admin. Le refus fail-closed reste actif.
+- `EnTeteClient` et `MenuUnivers` : les menus à trois points proposent « Besoin d’aide ? » vers `/faq`. Le chat pharmacie reste distinct sur `/aide`.
+- Nouvelle page `src/app/faq/page.tsx` : informations sur les six espaces, les deux espaces connectés, les verrous, la gratuité Client, les paiements hors espace Client, la responsabilité des publications et le chat pharmacie.
+- `ParcoursClientShell` conserve le thème de l'espace sélectionné sur `/faq`. Les métadonnées et `docs/ARCHITECTURE_ECOSYSTEMES_NAXA.md` sont harmonisés.
+- `scripts/test-admin-univers-actions.cjs` : l'ancienne assertion contradictoire (quatre entrées seulement et Dispositifs exclu) est remplacée par des assertions sur les six espaces, quatre autonomes/deux connectés, les statuts Admin et la FAQ séparée.
 - **Preuve disponible :** intégration source et contrôle statique des fichiers modifiés. Le test Node, TypeScript, lint, build Next.js, navigation navigateur, réponse API réelle et nettoyage Replay ne sont pas exécutés dans cette passe. R09-01 est corrigée au niveau source, mais pas encore déclarée AU VERT terminal.
 - R09-02 à R09-08 demeurent non exécutées. Les recettes Client 01–08 restent bloquées par les P1 non encore prouvés : garde API/RPC/RLS, cohérence identité/rôle, Prestations et parcours réels.
 - Aucun compte ou donnée Replay créé ; aucune écriture Supabase, aucune migration, aucune donnée Production touchée, aucun déploiement Vercel, aucune action Play Store.
@@ -7866,8 +7866,9 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 
 ## 210 — Contrôle de finition de la correction des six espaces — 18/11/2026
 
-- Relecture post-commit de \`46e24cd95ece7fe0e594b390fd8bd442d32f9aa5\` : correction de deux détails de finition détectés avant la campagne de tests (échappements de template dans le registre et échappements regex dans les nouveaux contrats Node).
-- Le contrat est simplifié en assertions \`includes\` pour éviter les motifs de regex fragiles ; il vérifie toujours les six IDs, quatre espaces autonomes, deux connectés, le sélecteur sans filtre, les alias de statut, les gardes directes et la séparation FAQ/chat.
+- Relecture post-commit de `46e24cd95ece7fe0e594b390fd8bd442d32f9aa5` : correction de deux détails de finition détectés avant la campagne de tests (échappements de template dans le registre et échappements regex dans les nouveaux contrats Node).
+- Commit consolidé final sur `main` : `709e202d8ccae55951fa2ee6cc885295d9f333dd`. Onze contrôles statiques de cohérence exécutés après relecture : PASS. Les tests Node, TypeScript, lint, build et navigateur restent à exécuter.
+- Le contrat est simplifié en assertions `includes` pour éviter les motifs de regex fragiles ; il vérifie toujours les six IDs, quatre espaces autonomes, deux connectés, le sélecteur sans filtre, les alias de statut, les gardes directes et la séparation FAQ/chat.
 - Numérotation R09-06 corrigée ; les quatre étapes sont maintenant numérotées de façon continue.
 - Ces corrections sont du travail de source/doc uniquement. Aucun test Node, TypeScript, lint, build ou navigateur n'est encore déclaré exécuté ; ne pas annoncer AU VERT.
 - Point de reprise : contrôler les fichiers réellement commités, puis exécuter les tests de qualité ciblés et R09-01/R09-02 sur Replay. Aucune donnée, migration ou configuration Production touchée.
