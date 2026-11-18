@@ -90,6 +90,25 @@ Pour chaque scénario : commit testé, URL/route, identité/claims, action exact
 - Si un P1 échoue : corriger sur `main`, tester la correction et sa non-régression, documenter, puis rejouer uniquement les scénarios affectés. Ne pas démarrer les recettes 01–08 avant levée des P1.
 - Aucun statut AU VERT sur simple lecture du code.
 
-## État initial
+## Résultat d'exécution — R09-01 (18/11/2026)
 
-NON EXÉCUTÉE. Les contradictions du rapport statique sont des hypothèses à confirmer. Aucune correction ni preuve d'exécution n'est revendiquée.
+**ÉCHEC STATIQUE CONFIRMÉ — correction requise.** Lecture des fichiers de `main` ; aucune exécution navigateur dans ce sous-scénario.
+
+- `src/lib/ecosystemes.ts` : le type `EcosystemeId` déclare six IDs, mais `ECOSYSTEMES` contient quatre objets. `ECOSYSTEME_PAR_ID` force `Object.fromEntries(...)` en `Record<EcosystemeId, Ecosysteme>`, masquant l'absence de `bebe-maman` et `dispositifs`.
+- Dans le même fichier, `ecosystemeDepuisChemin` retourne explicitement `bebe-maman` pour `/bebe-maman` et `dispositifs` pour `/suivi`. `estEcosystemeId` s'appuie sur les clés réellement présentes dans `ECOSYSTEME_PAR_ID` : ces deux valeurs ne sont donc pas reconnues comme IDs valides lors de la lecture de sélection.
+- `src/components/EnTeteClient.tsx` : `themeEcosysteme = ECOSYSTEME_PAR_ID[ecosystemeActif]`, puis lecture immédiate de `.color`, `.image`, `.imagePosition`, `.tagline` et autres propriétés. Pour les deux routes ci-dessus, la correspondance est absente : risque de crash runtime fortement établi par le code, mais non encore confirmé par navigateur.
+- Le menu est construit depuis `ECOSYSTEMES` : les deux IDs manquants ne peuvent pas être proposés dans ce menu.
+- `src/app/api/universes/status/route.ts` ne configure que `parapharmacie`, `examens` et `prestations`, en plus de `pharmacie`. Aucun statut explicite n'est fourni pour `bebe-maman` et `dispositifs`.
+- `EnTeteClient` contient aussi des actions de recherche vers ces routes, mais son contrôle préalable utilise `ECOSYSTEMES.find(...) `. Pour une route absente du registre, `target` est indéfini et la garde de disponibilité n'est pas exécutée avant `router.push`. Cela confirme une incohérence de garde UI ; la protection serveur reste à auditer séparément.
+
+**Qualification :** contradiction de référentiel confirmée statiquement ; crash route et contournement fonctionnel à confirmer par R09-02/R09-03. Aucun correctif appliqué dans ce sous-scénario.
+
+**Fichiers / blobs examinés :**
+- `src/lib/ecosystemes.ts` — blob `908d2a9320a5d0fff968c66fc6ef353b338ac890`.
+- `src/components/EnTeteClient.tsx` — blob `f6d45e0dba6ec19c7b46716859424a3305e449b7`.
+- `src/components/ParcoursClientShell.tsx` — blob `5992552124e39f9a6f36bacdd55122ee65db92b1`.
+- `src/app/api/universes/status/route.ts` — blob `7b996179cd18474ed400f4e98c625c4f38dbbc4f`.
+
+## État de la recette 09
+
+R09-01 : **ÉCHEC statique confirmé**. R09-02 à R09-08 : NON EXÉCUTÉES. Recettes 01–08 : toujours bloquées. Aucun test navigateur, API/RPC ou SQL n'est revendiqué ici.
