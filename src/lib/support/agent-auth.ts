@@ -14,7 +14,7 @@ export type SupportAgentPermission =
   | "gmail_reply"
   | "reports_view";
 
-export async function authorizeSupportAgent(permission?: SupportAgentPermission) {
+export async function authorizeSupportAgent(permission?: SupportAgentPermission, allowPasswordRotation = false) {
   const session = supabaseServer();
   const { data: auth, error: authError } = await session.auth.getUser();
   if (authError || !auth.user) {
@@ -24,7 +24,7 @@ export async function authorizeSupportAgent(permission?: SupportAgentPermission)
   const db = supabaseAdmin();
   const { data: agent, error: agentError } = await db
     .from("support_agents")
-    .select("user_id,username,first_name,last_name,display_name,status,presence,last_seen_at")
+     .select("user_id,username,first_name,last_name,display_name,status,presence,last_seen_at,must_change_password")
     .eq("user_id", auth.user.id)
     .maybeSingle();
 
@@ -33,6 +33,9 @@ export async function authorizeSupportAgent(permission?: SupportAgentPermission)
   }
   if (!agent || agent.status !== "active") {
     return { ok: false as const, status: 403, error: "Compte Agent suspendu ou non autorisé." };
+  }
+  if (agent.must_change_password && !allowPasswordRotation) {
+    return { ok: false as const, status: 403, error: "Remplacement du mot de passe provisoire obligatoire." };
   }
 
   if (permission) {
