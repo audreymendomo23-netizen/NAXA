@@ -153,17 +153,6 @@ export function EnTeteAccueil({
                   {t.espacePharmacie}
                 </Link>
 
-                <Link
-                  href="/faq"
-                  onClick={fermer}
-                  className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 text-sm font-semibold text-naxa-green-900 hover:bg-naxa-green-100"
-                >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M9.8 9a2.3 2.3 0 1 1 3.7 1.8c-1 .8-1.5 1.2-1.5 2.7M12 17h.01" />
-                  </svg>
-                  {langue === "en" ? "Need help?" : "Besoin d’aide ?"}
-                </Link>
               </div>
             </nav>
           )}

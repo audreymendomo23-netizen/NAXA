@@ -119,11 +119,12 @@ test("les routes directes Bébé & Maman et Suivi respectent le verrou Admin", (
 test("Besoin d’aide ouvre la FAQ et le chat pharmacie reste séparé", () => {
   assert.ok(clientHeader.includes('href: "/faq"'));
   assert.ok(clientHeader.includes('ouvrirAction("/faq")'));
+  assert.ok(clientHeader.includes("Besoin d’aide ?"));
   assert.ok(!clientHeader.includes('chemin === "/aide"'));
-  assert.ok(universeMenu.includes('href="/faq"'));
+  assert.ok(!universeMenu.includes('href="/faq"'));
   assert.ok(faqPage.includes("export default function FaqPage"));
   assert.ok(faqPage.includes('href="/aide"'));
   assert.ok(clientShell.includes('pathname === "/faq"'));
-  assert.ok(publicHeader.includes('href="/faq"'));
-  assert.ok(publicHeader.includes("Besoin d’aide ?"));
+  assert.ok(!publicHeader.includes('href="/faq"'));
+  assert.ok(!publicHeader.includes("Besoin d’aide ?"));
 });

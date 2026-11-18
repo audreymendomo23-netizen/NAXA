@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§211)  
+**Dernière mise à jour :** 18 novembre 2026 (§212)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour :** `5130cdc8b7f8ecd710894e5bb9f18d05b1648acf`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -7882,4 +7882,16 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Le contrat Node vérifie maintenant aussi le lien FAQ de l'en-tête public ; R09-01 exige la présence de cette entrée dans les deux en-têtes.
 - Commit du raccordement FAQ à l'en-tête public : `cfe9dcac14443ca779580a213afaceb3f2252295`. Douze contrôles statiques de cohérence ont ensuite été exécutés sur `main` : PASS. Le test Node complet, TypeScript, lint, build et navigateur restent non exécutés.
 - Contrôle statique ciblé à exécuter après commit ; tests Node, TypeScript, lint, build, navigateur et Replay toujours en attente. Aucune donnée, migration, Production ou déploiement touché.
+
+
+
+## 212 — Visibilité exclusive de « Besoin d’aide ? » dans l’en-tête Client — 18/11/2026
+
+- Décision utilisateur : « Besoin d’aide ? » doit être visible exclusivement dans l’en-tête Client.
+- Retrait du lien FAQ du menu à trois points de \`EnTeteAccueil\` (en-tête public).
+- Retrait aussi du lien FAQ de \`MenuUnivers\`, afin qu'aucun autre menu d'univers ne duplique cette entrée.
+- Conservation du raccourci FAQ \`/faq\` dans \`EnTeteClient\` uniquement. La page reste accessible via son URL ; le chat pharmacie reste sur \`/aide\`.
+- Contrat Node ajusté : présence du libellé/lien FAQ dans l'en-tête Client et absence dans \`EnTeteAccueil\` et \`MenuUnivers\`.
+- R09-01 mise à jour pour vérifier l'exclusivité d'affichage. Test Node complet, TypeScript, lint, build et contrôle navigateur restent à exécuter.
+- Aucun accès base, aucune migration, aucune donnée Replay/Production touchée, aucun déploiement.
 
