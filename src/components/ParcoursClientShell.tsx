@@ -66,10 +66,10 @@ export function ParcoursClientShell({ children }: { children: React.ReactNode })
   const parcoursClientAuthentifie = sessionReady && clientConnecte && appartientAuParcoursClient(pathname);
   const widgetClientVisible = sessionReady && Boolean(clientIdActif) && appartientAuParcoursClient(pathname) && pathname !== "/faq";
   const widgetProfessionnelVisible = sessionReady && Boolean(professionnelIdActif) && appartientAuParcoursProfessionnel(pathname);
-  const widgetAccountId = widgetClientVisible ? clientIdActif : widgetProfessionnelVisible ? professionnelIdActif : null;
+  const widgetVisible = widgetClientVisible || widgetProfessionnelVisible;
   return <>
     {parcoursClientAuthentifie && <EnTeteClient />}
     {parcoursClientAuthentifie ? <div key={pathname} className="naxa-immersive-page naxa-immersive-scroll" data-naxa-parcours="client-authentifie">{children}</div> : children}
-    {widgetAccountId && <NaxaSupportWidget accountId={widgetAccountId} hasBottomNav={widgetClientVisible && bottomNavigationVisible(pathname)} />}
+    {widgetVisible && <NaxaSupportWidget hasBottomNav={widgetClientVisible && bottomNavigationVisible(pathname)} />}
   </>;
 }
