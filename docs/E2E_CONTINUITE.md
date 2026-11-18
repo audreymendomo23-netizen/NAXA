@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§199)  
+**Dernière mise à jour :** 18 novembre 2026 (§204)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `29b50ef947d662f5384e0dc68dbe1bd62254686b`  
+**HEAD contrôlé avant cette mise à jour :** `3001d14f8fc87da0b0e4e108019b7677b09f9905`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7731,3 +7731,58 @@ Pour la pharmacie technique 1a4f1ce5-cccf-477e-9a5b-474c8c9fc713 et le produit d
 - Qualité main : AU VERT sur le run 44257021023.
 - La réserve Auth refresh-token family reuse documentée au §202 demeure indépendante, hors périmètre du Lot B2 ; elle n'est ni masquée ni requalifiée comme verte par cette clôture.
 - Aucune écriture Supabase Production, aucune migration Production, aucun déploiement Vercel, aucun changement de configuration Auth.
+
+
+## 204. Consolidation des preuves UI acquises et clôture documentaire Lot B2 — 18/11/2026
+
+### Référence de continuité
+- Branche : `main`. HEAD avant cette mise à jour : `3001d14f8fc87da0b0e4e108019b7677b09f9905`.
+- Environnement des recettes concernées : Supabase Replay `pwfftcsjyeibxxqhwysw` exclusivement, sauf indication contraire explicite dans les sections historiques.
+- Cette section consolide les preuves déjà présentes ; elle ne relance aucun test et ne transforme aucun PASS SQL/API en PASS UI.
+- La clôture du Lot B2 enregistrée aux §§202–203 est confirmée : le Lot B2 n'est pas à rejouer. Les tests 306 à 312 restent acquis au niveau SQL/JWT selon le §150 ; les tests 307–311 ne sont pas une prochaine recette à recommencer.
+
+### Lot B2 — interactions UI réellement traversées et déclarées PASS
+Référence terminale : workflow Chromium Replay [44255797365](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44255797365), commit applicatif `f58233e11593736a459dd2edd129b97355a61f2e`, confirmé au §203. Le run qualité associé [44255797510](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44255797510) est SUCCESS.
+
+1. Recherche Marketplace Client réelle à Yaoundé et affichage d'une offre positive provenant de la pharmacie technique temporairement publiée.
+2. Ajout d'un favori depuis la carte Marketplace ; persistance vérifiée en base ; ouverture de la page Favoris ; retrait du favori et vérification de sa suppression.
+3. Soumission par Client A d'une réservation de 2 unités ; lecture de la réservation sous son JWT Client et constat du statut `en_attente` avec hold de stock.
+4. Pendant le hold de Client A, recherche par Client B distinct pour 2 unités ; absence d'offre complète, message « sélection incomplète » et absence du bouton « Continuer avec cette pharmacie » : anti-survente vérifiée dans le navigateur.
+5. Sélection explicite du rôle métier `gestionnaire_stock` par le compte affecté, puis confirmation de la réservation depuis l'espace Gestionnaire Stock sous son JWT et dans le périmètre de sa pharmacie.
+6. Retour au suivi Client ; affichage du statut « Confirmée par la pharmacie ».
+7. Annulation de la réservation depuis le suivi Client ; statut « Annulée » ; stock disponible restauré exactement à 3 unités.
+8. Ouverture de l'Historique Client et affichage de la réservation annulée.
+9. Nettoyage confirmé : réservation/hold/favori temporaires supprimés, pharmacie remasquée, stock restauré à son niveau initial ; aucun résidu métier B2.
+
+**Verdict B2 : AU VERT Replay — UI Playwright + test SQL transactionnel + qualité + nettoyage.** Le détail et les marqueurs terminaux restent aux §§202–203 ; cette synthèse ne les remplace pas.
+
+### Autres interactions UI / navigateur déjà déclarées PASS dans une recette
+Les éléments ci-dessous sont des preuves historiques acquises dans leur périmètre exact. Ils ne signifient pas que l'ensemble du module ou de son processus métier est intégralement vert.
+
+| Espace / parcours | Interactions réellement déclarées PASS | Référence de preuve / limite |
+|---|---|---|
+| Promoteur — navigation | Clic sous-navigation, sidebar desktop et navigation mobile vers « Livraisons du réseau » ; rendu de la page | Chromium Replay 43801108827 (§86), puis 44045123797 (§173). Ne prouve pas à lui seul toutes les fonctions de gestion des livraisons. |
+| Comptable — navigation | Ouverture du tableau de bord ; clic/rendu des six destinations : Créances & bordereaux ; Rejets & relances ; Rapports & exports ; Documents ; Assureurs & fournisseurs ; Plan comptable & mappings | Chromium Replay 43801108827 (§86), confirmé 44045123797 (§173). La navigation ne prouve pas la publication comptable ou la clôture complète. |
+| Partenaire — Examens | Depuis Catalogue partenaire, clic vers « Centres et examens » et formulaire visible ; depuis Réservations partenaire, retour/clic vers « Centres et examens » ; retour depuis les réservations ; aucune erreur API/page sur ce segment | Chromium Replay 44045123797 (§173). Le parcours est testé avec la session/fixture de recette décrite dans le journal ; ne pas en déduire une validation de toutes les actions métier Examens. |
+| Client — navigation générale | Espace Client desktop/mobile ; recherche, filtre ville, panneau assurance ; favoris et panier de démonstration locaux ; historique et filtres | Chromium Replay 44045123797 (§173). Limite explicite : favoris/panier locaux dans cette recette ; aucune commande Marketplace persistée dans ce run. Les signaux ServiceWorker DataCloneError et HTTP 400 consignés au §173 restent des réserves historiques, sans annuler les assertions ciblées PASS. |
+| Client — historique / isolation | Accès à l'historique avec deux JWT Clients distincts ; chaque Client retrouve son achat payé et ne voit pas celui de l'autre ; aucune réservation croisée | Chromium Replay 44062737464 (§185). Preuve d'isolation de l'historique via le harnais navigateur/JWT ; ne pas la confondre avec une validation visuelle de toutes les pages Achats. |
+| Client / Promoteur / Caisse — crédit comptoir | Demande de vente à crédit au-dessus du plafond ; décision/approbation Promoteur ; débit de stock une seule fois ; suivi Client ; remboursement par la Caisse ; solde ramené à zéro ; clôture de session rapprochée | Recettes navigateur Crédit, notamment runs 44196261458 (§203 du journal historique), 44240563563 et synthèse §200. Le workflow global peut rester en échec pour le contrôle Auth indépendant ; le sous-parcours Crédit garde son PASS propre. |
+| Caisse — remboursement crédit | Saisie et remboursement via espèces, Orange Money et MTN MoMo dans la même session ; détails d'opération et reçus imprimables ; suivi Client recharge les opérations ; seuls les remboursements espèces alimentent le tiroir espèces | Runs navigateur 44196261458 / 44240563563, §§200 et 203. Confirmation Orange/MTN effectuée par contrôle visuel humain ; aucune confirmation opérateur automatique n'est revendiquée. |
+| Promoteur — paramétrage comptable | Création/validation depuis l'interface de comptes, journaux et mappings débit/crédit nécessaires à la recette | Recettes navigateur Crédit, §§111, 173 et 203. Cela valide le paramétrage UI exercé, pas une clôture comptable générale permanente de toutes les pharmacies. |
+| Marketplace — demande et refus Promoteur | Dépôt d'une demande Client ; état en attente sans réservation ni débit ; refus Promoteur ; stock inchangé | Recettes Marketplace navigateur des runs 43948192865 / 44240563563, §§111 et 200. Ce scénario de refus est distinct du cycle positif B2, clôturé aux §§202–203. |
+| Navigateur — notifications Web Push | Trois souscriptions authentifiées, trois envois ciblés et trois réceptions constatées dans les Service Workers Chrome | Run 43972075922 (§128 / synthèse §128). Preuve navigateur Chrome ; ne vaut pas preuve de réception FCM sur un téléphone Android physique. |
+
+### Interactions non à requalifier en vert UI
+- Les tests SQL/JWT 307–312 prouvent leurs contrats RPC, rôles, périmètres et transactions sur Replay ; ils ne constituent pas, par eux-mêmes, des clics UI. Leur présence et leurs PASS ne créent aucune recette UI supplémentaire.
+- La recette POS commande Livraison multi-pharmacies du §188 est SQL/RPC avec claims JWT et `ROLLBACK`, pas une recette navigateur du checkout.
+- La recette de paiement espèces réservation → Stock → Caisse du §187 est transactionnelle SQL/JWT, pas une navigation Playwright.
+- La recette Ordonnance du §109 prouve le dépôt PDF, les lectures RLS, le téléchargement et la décision via les appels authentifiés du harnais ; le document ne la présente pas comme une navigation visuelle Client/Pharmacien complète.
+- Les tests Android Compose/émulateur, Web Push Chrome, Storage HTTP et tests de contrats ne prouvent pas une interaction réelle sur téléphone Android enrôlé.
+- Les interactions UI non citées dans le tableau ne doivent pas être réputées vertes par extrapolation.
+
+### Point de reprise et règle anti-régression documentaire
+- Lot B2 : clôturé ; ne pas rejouer 306 ni recommencer 307–312 sans nouvelle preuve contradictoire ou demande explicite.
+- Les preuves UI acquises ci-dessus restent acquises dans leur périmètre ; une recette ultérieure peut les étendre, mais ne les efface pas.
+- Les prochains parcours UI encore non clôturés du Lot B restent à identifier dans l'ordre déjà décidé par le registre, en tenant compte des preuves acquises ; ne pas inventer un nouveau lot à partir du seul numéro d'un fichier SQL.
+- Toute reprise commence par ce document et son dernier HEAD, puis choisit uniquement le premier critère réellement non terminé. Une section de conversation ne constitue jamais une source de statut autonome.
+- Aucun changement Production, aucune migration Production, aucun déploiement Vercel ni accès Play Store dans cette mise à jour documentaire.
