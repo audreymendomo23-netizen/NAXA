@@ -28,17 +28,18 @@ declare
   v_reservation uuid;
   v_favori uuid;
   v_disponible integer;
+  v_initial_disponible integer;
   v_statut text;
   v_visible integer;
 begin
   -- Offre publique positive sous le même contrat que le Marketplace.
-  select o.quantite into v_disponible
+  select coalesce(max(o.quantite), 0)::integer into v_initial_disponible
   from public.marketplace_offre_stock_disponible(
     '1a4f1ce5-cccf-477e-9a5b-474c8c9fc713',
     'dfd7313c-46a4-455a-b67d-50f0ce2a3686'
   ) o;
-  if coalesce(v_disponible, -1) <> 3 then
-    raise exception 'B2_PUBLIC_OFFER_EXPECTED_3_UNITS_GOT_%', v_disponible;
+  if v_initial_disponible < 1 then
+    raise exception 'B2_PUBLIC_OFFER_EXPECTED_POSITIVE_STOCK_GOT_%', v_initial_disponible;
   end if;
 
   -- Favori : ajout, lecture par son propriétaire, retrait.
@@ -69,7 +70,10 @@ begin
   -- Réservation complète du stock : le hold doit rendre l'offre indisponible.
   v_reservation := private.reserve_stock(
     '1a4f1ce5-cccf-477e-9a5b-474c8c9fc713',
-    '[{"produit_id":"dfd7313c-46a4-455a-b67d-50f0ce2a3686","quantite":3}]'::jsonb
+    jsonb_build_array(jsonb_build_object(
+      'produit_id', 'dfd7313c-46a4-455a-b67d-50f0ce2a3686',
+      'quantite', v_initial_disponible
+    ))
   );
 
   select o.quantite into v_disponible
@@ -104,8 +108,8 @@ begin
     '1a4f1ce5-cccf-477e-9a5b-474c8c9fc713',
     'dfd7313c-46a4-455a-b67d-50f0ce2a3686'
   ) o;
-  if coalesce(v_disponible, -1) <> 3 then
-    raise exception 'B2_CANCEL_DID_NOT_RELEASE_STOCK_%', v_disponible;
+  if coalesce(v_disponible, -1) <> v_initial_disponible then
+    raise exception 'B2_CANCEL_DID_NOT_RELEASE_INITIAL_STOCK_EXPECTED_%_GOT_%', v_initial_disponible, v_disponible;
   end if;
 
   select r.statut::text into v_statut

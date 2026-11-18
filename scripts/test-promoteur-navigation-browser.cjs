@@ -134,6 +134,20 @@ test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable, Partena
   assert.match(runtime, /390, height: 844/);
 });
 
+
+test("Lot B2 exécute le vrai parcours Client Marketplace de bout en bout sur Replay", () => {
+  assert.match(runtime, /prepareClientMarketplaceFixture/);
+  assert.match(runtime, /search_pharmacies_bulk/);
+  assert.match(runtime, /Continuer avec cette pharmacie/);
+  assert.match(runtime, /creer_transactions_client|C’est enregistré/);
+  assert.match(runtime, /Annuler la réservation/);
+  assert.match(runtime, /marketplaceAvailableQuantity/);
+  assert.match(runtime, /marketplaceInitialAvailable/);
+  assert.match(runtime, /Historique réel du Client/);
+  assert.match(runtime, /cleanupClientMarketplaceFixture/);
+  assert.match(runtime, /PASS Lot B2 — réservation persistée|PASS Lot B2 — réservation JWT/);
+});
+
 test("le serveur reçoit ses secrets Replay avant d'être démarré et le nettoyage est garanti", () => {
   const adminSecret = workflow.indexOf('export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"');
   const rateSecret = workflow.indexOf('export NAXA_RATE_LIMIT_SECRET');

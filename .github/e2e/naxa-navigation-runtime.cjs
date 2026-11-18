@@ -13,6 +13,11 @@ const TEMP_PARTNER_NAME = "NAXA E2E Replay — Centre examens";
 const PROJECT_URL = "https://" + PROJECT_REF + ".supabase.co";
 const BASE_URL = process.env.NAXA_E2E_WEB_BASE_URL || "http://127.0.0.1:3000";
 const PHARMACY_ID = "76dd4983-273a-4a83-ae3d-9a7838d3aa35";
+const MARKETPLACE_PHARMACY_ID = "1a4f1ce5-cccf-477e-9a5b-474c8c9fc713";
+const MARKETPLACE_PRODUCT_ID = "dfd7313c-46a4-455a-b67d-50f0ce2a3686";
+const MARKETPLACE_PRODUCT_NAME = "NAXA E2E — Produit crédit comptoir";
+const MARKETPLACE_PHARMACY_NAME = "NAXA E2E — Pharmacie de recette (non commerciale)";
+const MARKETPLACE_QUANTITY = 2;
 const RUN_LABEL = String(process.env.GITHUB_RUN_ID || Date.now()) + "-" + String(process.env.GITHUB_RUN_ATTEMPT || "1");
 const STATE_FILE = path.join(process.env.RUNNER_TEMP || "/tmp", "naxa-navigation-runtime-state.json");
 
@@ -39,6 +44,13 @@ let state = {
   historyReservationIds: [],
   historyPharmacyId: null,
   historyOriginalVisibleRecherche: null,
+  marketplacePharmacyId: null,
+  marketplaceOriginalVisibleRecherche: null,
+  marketplaceProductId: null,
+  marketplaceClientId: null,
+  marketplaceReservationId: null,
+  marketplaceInitialAvailable: null,
+  marketplaceFavoriteCreated: false,
   comptableProfileId: null,
   originalFonctionInterne: null,
   originalPharmacieId: null,
@@ -423,6 +435,158 @@ async function cleanupClientHistoryFixtures() {
   console.log("PASS nettoyage historique A/B — réservations et événements temporaires supprimés ; visibilité initiale restaurée.");
 }
 
+
+async function marketplaceAvailableQuantity() {
+  const { data, error } = await admin.rpc("marketplace_offre_stock_disponible", {
+    p_pharmacie: MARKETPLACE_PHARMACY_ID, p_produit: MARKETPLACE_PRODUCT_ID,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row && Number.isFinite(Number(row.quantite)) ? Number(row.quantite) : 0;
+}
+
+async function prepareClientMarketplaceFixture(clientProfile) {
+  const [pharmacyResult, stockResult, productResult, favoriteResult] = await Promise.all([
+    admin.from("pharmacies").select("id,nom,actif,est_demo,visible_recherche,archivee_le").eq("id", MARKETPLACE_PHARMACY_ID).single(),
+    admin.from("stocks").select("pharmacie_id,produit_id,prix,quantite").eq("pharmacie_id", MARKETPLACE_PHARMACY_ID).eq("produit_id", MARKETPLACE_PRODUCT_ID).single(),
+    admin.from("produits").select("id,nom").eq("id", MARKETPLACE_PRODUCT_ID).single(),
+    admin.from("favoris_client").select("id").eq("user_id", clientProfile.id).eq("produit_ref", MARKETPLACE_PRODUCT_ID).maybeSingle(),
+  ]);
+  for (const result of [pharmacyResult, stockResult, productResult, favoriteResult]) if (result.error) throw result.error;
+  const pharmacy = pharmacyResult.data, stock = stockResult.data;
+  assert.equal(pharmacy.nom, MARKETPLACE_PHARMACY_NAME);
+  assert.equal(pharmacy.actif, true);
+  assert.equal(pharmacy.est_demo, false);
+  assert.equal(pharmacy.archivee_le, null);
+  assert.equal(pharmacy.visible_recherche, false);
+  assert.equal(productResult.data.nom, MARKETPLACE_PRODUCT_NAME);
+  assert.ok(stock.quantite >= MARKETPLACE_QUANTITY);
+  assert.ok(stock.prix > 0);
+  assert.equal(favoriteResult.data, null, "Préserver un éventuel favori préexistant.");
+
+  state.marketplacePharmacyId = MARKETPLACE_PHARMACY_ID;
+  state.marketplaceOriginalVisibleRecherche = pharmacy.visible_recherche;
+  state.marketplaceProductId = MARKETPLACE_PRODUCT_ID;
+  state.marketplaceClientId = clientProfile.id;
+  state.marketplaceReservationId = null;
+  state.marketplaceInitialAvailable = null;
+  state.marketplaceFavoriteCreated = false;
+  saveState();
+
+  const { data: published, error: publishError } = await admin.from("pharmacies")
+    .update({ visible_recherche: true }).eq("id", MARKETPLACE_PHARMACY_ID)
+    .eq("visible_recherche", false).select("id,visible_recherche").single();
+  if (publishError) throw publishError;
+  assert.equal(published.visible_recherche, true);
+
+  const [available, visible, search] = await Promise.all([
+    marketplaceAvailableQuantity(),
+    admin.rpc("marketplace_produit_visible", { p_produit: MARKETPLACE_PRODUCT_ID }),
+    admin.rpc("search_pharmacies_bulk", {
+      p_terms: ["crédit comptoir"], p_quantities: [MARKETPLACE_QUANTITY],
+      p_lat: 3.87, p_lng: 11.52, p_rayon_km: 35,
+    }),
+  ]);
+  if (visible.error) throw visible.error;
+  if (search.error) throw search.error;
+  assert.ok(visible.data);
+  assert.ok(available >= MARKETPLACE_QUANTITY);
+  assert.ok((search.data || []).some(row => row.pharmacie_id === MARKETPLACE_PHARMACY_ID
+    && row.trouves === 1 && row.demandes === 1
+    && Array.isArray(row.items) && row.items.some(item => item.produit_id === MARKETPLACE_PRODUCT_ID)),
+  "La recherche bulk Replay ne retourne pas l'offre complète.");
+  state.marketplaceInitialAvailable = available;
+  saveState();
+  console.log("PASS préparation B2 — pharmacie publiée temporairement, produit visible, offre Yaoundé, stock public=" + available + ".");
+  return { available, quantity: MARKETPLACE_QUANTITY };
+}
+
+async function waitForClientFavorite(client, expectedPresent) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const { data, error } = await client.from("favoris_client").select("id,produit_ref,nom,demo")
+      .eq("produit_ref", MARKETPLACE_PRODUCT_ID);
+    if (error) throw error;
+    if ((data || []).length === (expectedPresent ? 1 : 0)) return (data || [])[0] || null;
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  throw new Error("Le favori Marketplace persistant n'a pas atteint l'état attendu.");
+}
+
+async function cleanupClientMarketplaceFixture() {
+  if (!state.marketplacePharmacyId && !state.marketplaceReservationId && !state.marketplaceFavoriteCreated) return;
+  const failures = [];
+  if (state.marketplaceReservationId) {
+    const { data: current, error: currentError } = await admin.from("reservations")
+      .select("id,client_id,pharmacie_id,statut").eq("id", state.marketplaceReservationId).maybeSingle();
+    if (currentError) failures.push("lecture réservation Marketplace : " + currentError.message);
+    else if (current && ["en_attente", "confirmee"].includes(current.statut)) {
+      try {
+        const { data: profile, error: profileError } = await admin.from("profiles")
+          .select("id,username,role,actif,age_verified,fonction_interne,pharmacie_id")
+          .eq("id", state.marketplaceClientId).single();
+        if (profileError) throw profileError;
+        const session = await createExistingUserSession(profile);
+        try {
+          const client = createClient(PROJECT_URL, anonKey, {
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+            global: { headers: { Authorization: "Bearer " + session.accessToken } },
+          });
+          const result = await client.rpc("set_reservation_status", {
+            p_id: state.marketplaceReservationId, p_statut: "annulee",
+          });
+          if (result.error) throw result.error;
+        } finally { await signOutSession(session); }
+      } catch (error) {
+        failures.push("annulation de secours par le Client : " + String(error && error.message ? error.message : error));
+      }
+    }
+    const { data: after, error: afterError } = await admin.from("reservations")
+      .select("id,statut").eq("id", state.marketplaceReservationId).maybeSingle();
+    if (afterError) failures.push("vérification réservation Marketplace : " + afterError.message);
+    else if (after && !["annulee", "expiree"].includes(after.statut)) failures.push("réservation Marketplace toujours active.");
+    if (state.marketplaceInitialAvailable !== null && state.marketplaceInitialAvailable !== undefined) {
+      try {
+        const available = await marketplaceAvailableQuantity();
+        if (available !== state.marketplaceInitialAvailable) failures.push("stock non restauré : attendu "
+          + state.marketplaceInitialAvailable + ", obtenu " + available + ".");
+      } catch (error) { failures.push("lecture stock après annulation : " + String(error && error.message ? error.message : error)); }
+    }
+    if (after && ["annulee", "expiree"].includes(after.statut)) {
+      const deleted = await admin.from("reservations").delete().eq("id", state.marketplaceReservationId).select("id");
+      if (deleted.error) failures.push("suppression réservation Marketplace : " + deleted.error.message);
+      const remaining = await admin.from("reservations").select("id", { count: "exact", head: true }).eq("id", state.marketplaceReservationId);
+      if (remaining.error || (remaining.count || 0) !== 0) failures.push("réservation Marketplace éphémère encore présente.");
+    }
+  }
+  if (state.marketplaceFavoriteCreated && state.marketplaceClientId && state.marketplaceProductId) {
+    const removed = await admin.from("favoris_client").delete().eq("user_id", state.marketplaceClientId).eq("produit_ref", state.marketplaceProductId);
+    if (removed.error) failures.push("suppression favori Marketplace : " + removed.error.message);
+    const remaining = await admin.from("favoris_client").select("id", { count: "exact", head: true })
+      .eq("user_id", state.marketplaceClientId).eq("produit_ref", state.marketplaceProductId);
+    if (remaining.error || (remaining.count || 0) !== 0) failures.push("favori Marketplace encore présent.");
+  }
+  if (state.marketplacePharmacyId && typeof state.marketplaceOriginalVisibleRecherche === "boolean") {
+    const restored = await admin.from("pharmacies").update({ visible_recherche: state.marketplaceOriginalVisibleRecherche })
+      .eq("id", state.marketplacePharmacyId).select("visible_recherche").single();
+    if (restored.error || !restored.data || restored.data.visible_recherche !== state.marketplaceOriginalVisibleRecherche) {
+      failures.push("visibilité initiale pharmacie Marketplace non restaurée.");
+    }
+  }
+  if (failures.length) {
+    console.error("ECHEC NETTOYAGE LOT B2 — " + failures.join(" | "));
+    throw new Error("Les fixtures temporaires du Lot B2 ne sont pas propres.");
+  }
+  state.marketplacePharmacyId = null;
+  state.marketplaceOriginalVisibleRecherche = null;
+  state.marketplaceProductId = null;
+  state.marketplaceClientId = null;
+  state.marketplaceReservationId = null;
+  state.marketplaceInitialAvailable = null;
+  state.marketplaceFavoriteCreated = false;
+  saveState();
+  console.log("PASS nettoyage Lot B2 — réservation annulée/supprimée, stock restauré, favori supprimé, visibilité restaurée.");
+}
+
 async function signOutSession(session) {
   if (!session || !session.accessToken) return;
   const response = await fetch(PROJECT_URL + "/auth/v1/logout?scope=local", {
@@ -444,6 +608,11 @@ async function cleanup() {
   }
   state = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
   const failures = [];
+
+  if (state.marketplacePharmacyId || state.marketplaceReservationId || state.marketplaceFavoriteCreated) {
+    try { await cleanupClientMarketplaceFixture(); }
+    catch (error) { failures.push("Lot B2 Marketplace : " + String(error && error.message ? error.message : error)); }
+  }
 
   if (state.historyPharmacyId || (state.historyReservationIds || []).length) {
     try {
@@ -929,6 +1098,94 @@ async function run() {
     await clientPage.locator("#assurance-options").waitFor({ state: "visible" });
     console.log("PASS Client — recherche Marketplace, filtre ville et panneau Assurance interactifs.");
 
+    // Lot B2 positif : offre réelle Replay, favori persistant, réservation et annulation Client.
+    const b2Fixture = await prepareClientMarketplaceFixture(partnerOwner);
+    const b2Client = createClient(PROJECT_URL, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: "Bearer " + clientSession.accessToken } },
+    });
+    const b2SearchUrl = BASE_URL + "/resultats?bulk=1&q=" + encodeURIComponent("crédit comptoir") + "&n=" + String(b2Fixture.quantity);
+    await clientPage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/resultats", "Lot B2 → recherche de l'offre réelle Replay");
+    await clientPage.locator('select[aria-label="Filtrer par ville"]').selectOption("Yaoundé");
+    const b2OfferCard = clientPage.locator("article").filter({ hasText: MARKETPLACE_PHARMACY_NAME }).first();
+    await b2OfferCard.waitFor({ state: "visible", timeout: 30000 });
+    await b2OfferCard.getByText(MARKETPLACE_PRODUCT_NAME, { exact: false }).waitFor({ state: "visible" });
+    await b2OfferCard.getByRole("button", { name: "Ajouter " + MARKETPLACE_PRODUCT_NAME + " aux favoris", exact: true }).click();
+    state.marketplaceFavoriteCreated = true;
+    saveState();
+    await clientPage.goto(BASE_URL + "/client/profil/favoris", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/client/profil/favoris", "Lot B2 → favoris persistants du Client");
+    await clientPage.getByRole("heading", { name: "Mes favoris", exact: false }).waitFor({ state: "visible" });
+    await clientPage.getByText(MARKETPLACE_PRODUCT_NAME, { exact: true }).waitFor({ state: "visible" });
+    const favoriteRow = await waitForClientFavorite(b2Client, true);
+    assert.ok(favoriteRow && favoriteRow.demo === false, "Le favori n'est pas persisté comme offre réelle.");
+    await clientPage.getByRole("button", {
+      name: "Retirer " + MARKETPLACE_PRODUCT_NAME + " des favoris", exact: true,
+    }).click();
+    await clientPage.getByText("Votre liste est encore vide", { exact: true }).waitFor({ state: "visible" });
+    await waitForClientFavorite(b2Client, false);
+    console.log("PASS Lot B2 — offre Marketplace réelle, favori synchronisé en base puis retrait confirmé.");
+
+    await clientPage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/resultats", "Lot B2 → retour à l'offre Marketplace");
+    await clientPage.locator('select[aria-label="Filtrer par ville"]').selectOption("Yaoundé");
+    const b2ReservationCard = clientPage.locator("article").filter({ hasText: MARKETPLACE_PHARMACY_NAME }).first();
+    await b2ReservationCard.waitFor({ state: "visible", timeout: 30000 });
+    await b2ReservationCard.getByRole("button", { name: "Continuer avec cette pharmacie", exact: true }).click();
+    await expectPath(clientPage, "/commande/nouvelle", "Lot B2 → panier réel lié à la pharmacie");
+    await clientPage.getByRole("heading", { name: MARKETPLACE_PHARMACY_NAME, exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByRole("button", { name: "Confirmer", exact: true }).click();
+    await clientPage.getByRole("heading", { name: "C’est enregistré", exact: true }).waitFor({ state: "visible", timeout: 30000 });
+    const followLink = clientPage.locator('a[href^="/reservation/"]').filter({ hasText: "Ouvrir le suivi" }).first();
+    const followHref = await followLink.getAttribute("href");
+    assert.ok(followHref, "Lien de suivi de réservation absent.");
+    const reservationId = followHref.split("/").filter(Boolean).pop();
+    assert.ok(reservationId, "Identifiant de réservation absent.");
+    state.marketplaceReservationId = reservationId;
+    saveState();
+
+    const { data: reservation, error: reservationError } = await b2Client.from("reservations")
+      .select("id,client_id,pharmacie_id,statut,mode,total").eq("id", reservationId).maybeSingle();
+    if (reservationError) throw reservationError;
+    assert.ok(reservation, "Réservation non lisible sous le JWT Client.");
+    assert.equal(reservation.client_id, partnerOwner.id);
+    assert.equal(reservation.pharmacie_id, MARKETPLACE_PHARMACY_ID);
+    assert.equal(reservation.statut, "en_attente");
+    assert.equal(reservation.mode, "reservation");
+    assert.equal(Number(reservation.total), 1000 * b2Fixture.quantity);
+    const { data: reservationItems, error: itemsError } = await b2Client.from("reservation_items")
+      .select("reservation_id,produit_id,quantite,prix_unitaire").eq("reservation_id", reservationId);
+    if (itemsError) throw itemsError;
+    assert.ok((reservationItems || []).some(item => item.produit_id === MARKETPLACE_PRODUCT_ID
+      && Number(item.quantite) === b2Fixture.quantity && Number(item.prix_unitaire) === 1000),
+    "La ligne de réservation ne correspond pas à la sélection Marketplace.");
+    const afterHold = await marketplaceAvailableQuantity();
+    assert.equal(afterHold, b2Fixture.available - b2Fixture.quantity);
+
+    await clientPage.locator('a[href="/reservation/' + reservationId + '"]').first().click();
+    await expectPath(clientPage, "/reservation/" + reservationId, "Lot B2 → suivi de réservation Client");
+    await clientPage.getByText("En attente de la pharmacie", { exact: true }).waitFor({ state: "visible" });
+    await clientPage.getByRole("button", { name: "Annuler la réservation", exact: true }).click();
+    await clientPage.getByText("Cette transaction est annulée.", { exact: true }).waitFor({ state: "visible" });
+    const { data: cancelled, error: cancelledError } = await b2Client.from("reservations")
+      .select("id,statut").eq("id", reservationId).maybeSingle();
+    if (cancelledError) throw cancelledError;
+    assert.equal(cancelled?.statut, "annulee");
+    const afterCancel = await marketplaceAvailableQuantity();
+    assert.equal(afterCancel, b2Fixture.available, "L'annulation n'a pas restauré exactement le stock disponible.");
+
+    await clientPage.goto(BASE_URL + "/client/historique", { waitUntil: "domcontentloaded" });
+    await expectPath(clientPage, "/client/historique", "Lot B2 → historique réel du Client");
+    await clientPage.locator("#history-period").selectOption("all");
+    await clientPage.locator("#history-search").fill(reservationId);
+    const historyEntry = clientPage.locator("li.carte").filter({ hasText: reservationId.slice(0, 8).toUpperCase() });
+    await historyEntry.waitFor({ state: "visible" });
+    await historyEntry.getByText("Annulée", { exact: true }).waitFor({ state: "visible" });
+    await historyEntry.getByRole("link", { name: "Ouvrir le suivi", exact: true }).waitFor({ state: "visible" });
+    console.log("PASS Lot B2 — réservation JWT/RLS, 2 unités tenues, annulation Client, stock restauré=" + b2Fixture.available + ", historique Annulée.");
+
+
     await clientPage.goto(BASE_URL + "/client/historique", { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/client/historique", "Client → Historique");
     await clientPage.getByRole("heading", { name: "Historique", exact: true }).waitFor({ state: "visible" });
@@ -937,10 +1194,10 @@ async function run() {
     await clientPage.getByText("Aucun élément ne correspond à ces critères.", { exact: true }).waitFor({ state: "visible" });
     await clientPage.waitForTimeout(1200);
     assert.deepEqual(clientPurchase400s, [], "La vue client_achats a retourné une erreur HTTP 400 : " + clientPurchase400s.join(" | "));
-    console.log("PASS Client — historique, filtre de période, recherche et absence de HTTP 400 sur client_achats.");
+    console.log("PASS Client — historique, filtre de période, recherche, B2 persistant et absence de HTTP 400 sur client_achats.");
     await clientContext.close();
 
-    console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Client desktop/mobile (favoris/panier locaux, recherche/filtres, historique). Partenaire : PASS si paiement Replay confirmé, sinon SKIP documenté.");
+    console.log("RESULTAT NAVIGATION : PASS — Promoteur desktop/mobile, 6 entrées Comptable, Partenaire, Client desktop/mobile et Lot B2 positif (favori persistant, recherche réelle, réservation, annulation, stock, historique).");
   } finally {
     const shutdownFailures = [];
     try {
