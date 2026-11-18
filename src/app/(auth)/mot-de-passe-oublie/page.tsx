@@ -67,7 +67,7 @@ function Formulaire(){
    setBusy(true);setError("");
    try{
      const res=await fetch("/api/auth/update-user-password",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({password})});
-     const result=await res.json().catch(()=>null) as {error?:string;code?:string}|null;
+     const result=await res.json().catch(()=>null) as {error?:string;code?:string;sessionsRevoked?:boolean;warning?:string}|null;
      if(!res.ok){setError(result?.error||"Impossible de mettre à jour le mot de passe. Vérifiez les critères et réessayez.");return}
      // The server route has already revoked all sessions and cleared the
      // recovery cookies before reporting success. Avoid a second concurrent
