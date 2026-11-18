@@ -7472,3 +7472,26 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Les PASS SQL et qualité ne remplacent pas le résultat runtime authentifié des trois canaux. Le vert E2E final dépend de la terminaison du run Replay ci-dessus.
 - La confirmation des paiements mobiles reste visuelle et humaine ; aucune API opérateur Orange/MTN n'est revendiquée.
 - Les paiements électroniques de vente POS restent hors périmètre de cette correction. Aucun changement Production ni déploiement Vercel.
+
+## Section 208 — Clôture du chantier remboursement multicanal et réserves globales (18 novembre 2026)
+
+### État vérifié au dernier contrôle
+- HEAD main avant cette mise à jour : 888cc54a3c45d1be88f48506094905f0e43d2c07.
+- Projet ciblé : Replay `pwfftcsjyeibxxqhwysw`, état API `ACTIVE_HEALTHY`. Aucun accès ni changement Production.
+- Run GitHub Actions Replay `44234988988`, commit applicatif `96a028020bc4af27131ea74da732186f2baa4415` : le provisionnement Promoteur/Admin/Client/Caisse/Stock/Comptable/Pharmacien/Livreur et pharmacie technique, l'installation Playwright/Chromium, le build Next.js et la vérification Chrome sont terminés avec succès. L'étape Web Push est encore `in_progress`; les étapes JWT remboursement, navigateur crédit, Storage et nettoyage final sont en attente. Ce run n'est donc pas terminal.
+- Run antérieur `44233363828` : remboursement via vrai JWT Caisse PASS ; navigateur crédit comptoir, Marketplace et Comptabilité PASS ; `browser_failures=0` ; Storage et nettoyage des fichiers secrets PASS. Ces preuves restent acquises pour le commit testé, sans les attribuer au run 44234988988.
+- SQL Replay 302 avec rollback et qualité GitHub Actions sur le commit applicatif : PASS selon les preuves consignées en section 207.
+
+### Réserve Auth indépendante
+- Le script `scripts/e2e/verify-auth-session-lifecycle.cjs` vérifie la rotation, le rejet d'un jeton ancêtre hors fenêtre de tolérance et la révocation effective de toute la famille.
+- La dernière observation documentée reste rouge : le jeton ancêtre est rejeté, mais un refresh token descendant demeure utilisable.
+- La documentation Supabase décrit le comportement attendu : hors fenêtre de réutilisation et hors exception du parent actif, la session entière doit être terminée et tous ses refresh tokens révoqués. Elle précise que ce comportement peut être désactivé dans les Advanced Settings Auth du projet.
+- Les actions Supabase connectées disponibles dans ce chantier ne donnent pas accès à la lecture/écriture de ce réglage de configuration Auth. Aucune modification directe des tables internes `auth.*` n'est autorisée comme contournement.
+- Action externe nécessaire sur Replay : vérifier/activer la détection de réutilisation avec révocation de toute la session dans Dashboard → Authentication → Sessions → Advanced Settings, puis relancer le test Auth. Tant que ce contrôle n'est pas PASS, le vert E2E global est refusé.
+
+### Conclusion de clôture
+- **Remboursement multicanal : fonctionnellement validé par les preuves terminales antérieures** (SQL, JWT, navigateur, idempotence, preuves mobiles, mouvements de trésorerie, outbox, rapprochement espèces et nettoyage).
+- **Run de clôture 44234988988 : en cours**, pas de résultat terminal revendiqué ; son Web Push doit terminer avant de considérer l'ensemble de ce workflow.
+- **Auth : ROUGE / action Dashboard Replay requise** ; ce point est indépendant du remboursement.
+- **Vert global E2E : NON ACQUIS** tant que le run courant n'est pas terminal et que la révocation de la famille de refresh tokens n'est pas démontrée.
+- Aucune migration Production, aucune écriture Production et aucun déploiement Vercel.
