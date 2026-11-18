@@ -20,11 +20,11 @@ begin
       raise exception 'RLS absent sur public.%', v_table;
     end if;
 
-    if has_table_privilege('authenticated',format('public.%I',v_table),'SELECT')
+    if (v_table <> 'support_agents' and has_table_privilege('authenticated',format('public.%I',v_table),'SELECT'))
       or has_table_privilege('authenticated',format('public.%I',v_table),'INSERT')
       or has_table_privilege('authenticated',format('public.%I',v_table),'UPDATE')
       or has_table_privilege('authenticated',format('public.%I',v_table),'DELETE') then
-      raise exception 'Privilège direct authenticated détecté sur public.%', v_table;
+      raise exception 'Privilège authenticated excessif détecté sur public.%', v_table;
     end if;
 
     if not has_table_privilege('service_role',format('public.%I',v_table),'SELECT')
@@ -34,11 +34,16 @@ begin
       raise exception 'Privilèges serveur incomplets sur public.%', v_table;
     end if;
 
-    if exists(select 1 from pg_policies p
+    if v_table <> 'support_agents' and exists(select 1 from pg_policies p
       where p.schemaname='public' and p.tablename=v_table) then
       raise exception 'Une policy client inattendue expose public.%', v_table;
     end if;
   end loop;
+
+  if not exists(select 1 from pg_policies
+    where schemaname='public' and tablename='support_agents'
+      and policyname='support_agents_self_read' and cmd='SELECT') then
+    raise exception 'Policy de lecture du seul profil Agent absent'; end if;
 
   if exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid
     join pg_namespace n on n.oid=t.typnamespace
