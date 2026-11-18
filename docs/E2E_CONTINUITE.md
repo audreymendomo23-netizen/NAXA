@@ -8545,3 +8545,41 @@ Garde-fous obligatoires :
 - Aucun critère de chantier n'est déclaré vert à ce stade.
 
 **Prochaine opération technique :** construire la migration additive Replay pour identité Agent, permissions, affectations et audit, puis écrire les tests SQL négatifs en premier (agent suspendu, agent non affecté, agent A contre ticket de B, absence de privilège Admin, note interne et pièces jointes). Ensuite seulement, connecter login/middleware/guards et interface Agent. Le socle devra passer ses tests de sécurité avant l'intégration Gmail, réclamations et appels audio.
+
+
+## §233 — Socle identité Agent et première preuve de sécurité Replay — 18/11/2026
+
+### Implémentation réalisée
+
+- Migration Replay appliquée : version `20261118211446`, nom `naxa_support_agent_identity_foundation`.
+- Source versionnée sur `main` : `supabase/migrations/20261118211446_naxa_support_agent_identity_foundation.sql`, commit `8b0bbde20542a069586cd47f4ddfa642cda04daa`.
+- Tables créées :
+  - `support_agents` : identité Auth interne, username, nom/prénom, statut, présence et métadonnées d'administration.
+  - `support_agent_permissions` : permissions atomiques avec attribution/révocation.
+  - `support_ticket_assignments` : historique d'affectation, avec index unique partiel imposant un seul agent actif par ticket.
+  - `support_agent_events` : journal append-only.
+- Les quatre tables ont RLS activé. Aucun privilège direct SELECT/INSERT/UPDATE/DELETE n'est accordé à `anon` ou `authenticated`; seul `service_role` reçoit les droits de table pour les routes serveur.
+- Aucune policy RLS d'accès direct n'est créée : l'accès navigateur direct reste fermé. Les routes serveur devront faire les contrôles explicites d'identité, statut, permission et affectation avant toute lecture/écriture.
+- Des triggers empêchent qu'un utilisateur Agent ait simultanément une ligne `public.profiles`, et empêchent de créer ultérieurement un profil Client/Partenaire/Admin pour un Agent.
+- Le journal `support_agent_events` refuse UPDATE et DELETE.
+- L'enum `role_type`, le catalogue `naxa_roles` et le registre `naxa_profile_active_roles` restent inchangés.
+
+### Test structurel exécuté sur Replay
+
+- Script versionné : `supabase/tests/20261118_naxa_support_agent_identity_foundation.sql`, commit `040a452b63ae1d3d68567169804c7688f0701ed1`.
+- Exécution via SQL sur Replay : **PASS** (aucune exception ; transaction de test terminée par ROLLBACK).
+- Assertions vérifiées : RLS sur les 4 tables ; aucun privilège API direct pour authenticated ; privilèges service_role présents ; aucune policy qui ouvrirait ces tables ; absence de `support_agent` dans `role_type` ; triggers de séparation Agent/profiles présents ; journal immuable ; index d'unicité de prise active présent ; liste blanche des permissions présente.
+- Test dynamique du journal : UPDATE et DELETE d'un événement temporaire rejetés par le trigger.
+- Contrôle après test : 0 Agent, 0 permission, 0 affectation, 0 événement résiduel. Aucun compte Auth ou ticket de test créé.
+
+### Limites restantes — ne pas déclarer vert
+
+- Ce PASS valide le socle structurel uniquement. Aucun compte Agent réel n'a encore été créé.
+- Les tests négatifs avec deux Agents Auth réels, les accès ticket assigné/non assigné, la double prise concurrente, les routes API, les pièces jointes signées et les scénarios suspension/session expirée restent à écrire et exécuter.
+- Login par username Agent, callback Auth, middleware, guards, interface Admin de gestion des Agents et espace Agent : NON IMPLÉMENTÉS.
+- Gestion des réclamations, Gmail OAuth/synchronisation, appels audio WebRTC/TURN : NON IMPLÉMENTÉS.
+- Aucun changement Production, aucun déploiement.
+
+### Point exact de reprise
+
+Continuer par les fonctions serveur atomiques d'affectation/prise et les tests négatifs inter-Agent. Préparer des comptes Auth de test isolés avec `naxa_signup_pending=true`, sans profil NAXA, puis prouver que l'Agent A ne lit ni ne modifie le ticket de l'Agent B et qu'un seul Agent peut prendre un ticket simultanément. Ensuite intégrer le login Agent et les guards spécifiques. Ne pas ouvrir les tables directement à authenticated pour simplifier l'interface.
