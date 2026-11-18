@@ -25,9 +25,9 @@ function readSecret(path, label) {
 }
 
 function readAccessTokenFromCookies(cookies) {
-  const matches = cookies.filter(cookie => /^sb-.*-auth-token(?:\\.\\d+)?$/.test(cookie.name));
+  const matches = cookies.filter(cookie => /^sb-.*-auth-token(?:\.\\d+)?$/.test(cookie.name));
   if (matches.length === 0) throw new Error("Cookie Auth absent pendant la fermeture de la session navigateur.");
-  const baseName = matches[0].name.replace(/\\.\\d+$/, "");
+  const baseName = matches[0].name.replace(/\.\\d+$/, "");
   const encoded = matches
     .filter(cookie => cookie.name === baseName || cookie.name.startsWith(baseName + "."))
     .sort((a, b) => {
