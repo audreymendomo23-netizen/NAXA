@@ -7405,3 +7405,28 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **Vert :** suite qualité complète du HEAD antérieur mentionné ; nouvelle suite qualité en cours sur le dernier HEAD.
 - **Rouge distinct et bloquant pour le vert E2E global :** la détection de rejeu Auth refuse le jeton ancêtre, mais la famille de session conserve un refresh token actif. Le réglage de révocation de session au rejeu doit être vérifié/corrigé côté Auth Replay ; le harnais n'atténue pas cette exigence.
 - **Non revendiqué :** confirmation opérateur Orange/MTN automatisée et paiements électroniques des ventes POS ; ce chantier valide les remboursements de crédit avec vérifications visuelles humaines.
+
+
+## Section 205 — Dernière validation qualité et recette Replay en cours (18 novembre 2026)
+
+### HEAD et qualité applicative
+- HEAD main : 409e89e69bf9d89b68c869e62e4c677595eb4b43.
+- Run GitHub Actions NAXA quality 44233811015 : SUCCESS.
+- npm test : 588 tests, 588 PASS, 0 FAIL.
+- tsc --noEmit : PASS ; ESLint : PASS ; actionlint : PASS ; build Next.js : compilation réussie, 156/156 pages statiques générées, service worker produit.
+- Le run 44233677552 avait échoué uniquement sur un import CommonJS sans extension .cjs dans le test Auth ajouté. Les imports ont été corrigés vers refresh-session-check.cjs ; le run 44233811015 valide ces corrections.
+- Les avertissements existants de compatibilité des peer dependencies ESLint/React ne font pas échouer la qualité ; l'avertissement React 18 / Next.js 16 reste technique et distinct du parcours remboursement.
+
+### Nouvelle recette Replay sur le HEAD 409e89e
+- Run Replay 44233811098 : en attente du verrou de concurrence au dernier contrôle.
+- Run Replay précédent 44233363828 : provisionnement Promoteur, Admin, Client, Caisse/Stock, Livreur, Comptable et Pharmacien terminé ; build du serveur de test et Web Push terminés avec succès.
+- Dans ce run précédent, l'étape « Exécuter le remboursement crédit via un vrai JWT Caisse Replay » est terminée avec succès.
+- L'étape « Recette navigateur crédit comptoir, décision Promoteur et remboursement » était encore en cours au dernier contrôle. Aucune conclusion navigateur ou conclusion globale de ce run n'est revendiquée à cette heure.
+- Le run précédent utilise un commit antérieur à la correction de résolution explicite du helper Auth .cjs ; le nouveau run 44233811098 est nécessaire pour valider la recette Auth sur le HEAD courant.
+
+### État métier et réserves
+- Le parcours remboursement au comptoir demeure vert sur les preuves déjà terminales : SQL Replay 302 avec rollback ; RPC runtime via JWT Caisse PASS sur les trois canaux ; mouvements de trésorerie distincts ; preuves visuelles Orange/MTN ; outbox comptable unique ; idempotence et refus négatifs ; clôture espèces-only.
+- La qualité applicative du HEAD courant est verte (588 tests + TypeScript + ESLint + actionlint + build Next.js).
+- Le contrôle Auth refresh-token-reuse reste rouge : après deux rotations et 15 secondes, l'ancien jeton ancêtre est rejeté HTTP 400, mais un refresh token descendant reste actif. Le contrôle direct auth.refresh_tokens a montré quatre jetons en chaîne, dont le dernier non révoqué. Ce constat n'est ni corrigé ni masqué par le nouveau harnais.
+- Les fichiers d'essai et tests n'ont pas modifié Production. Aucun déploiement Vercel n'a été effectué.
+- La correction E2E Auth vérifie maintenant la présence des deux jetons avant de considérer une réponse HTTP 200 comme une session valide ; quatre tests unitaires couvrent les cas complet, vide, partiel et rejeté.
