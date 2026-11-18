@@ -11,6 +11,6 @@ const source = fs.readFileSync(
 );
 
 test("la recette comptable vérifie le statut Validé avec sa période affichée", () => {
-  assert.equal((source.match(/getByText\(\/\^Validé\\s\*·\//g) || []).length, 2);
+  assert.equal((source.match(/getByText\(\/\^Validé\\s\*·\//g) || []).length, 4);
   assert.doesNotMatch(source, /article\.getByText\("Validé", \{ exact: true \}\)/);
 });
