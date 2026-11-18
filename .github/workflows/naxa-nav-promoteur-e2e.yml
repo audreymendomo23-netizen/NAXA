@@ -31,7 +31,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: naxa-nav-promoteur-e2e
+  group: naxa-replay-promoteur-secret-safe-v2
   cancel-in-progress: false
 
 jobs:
