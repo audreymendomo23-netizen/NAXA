@@ -7799,3 +7799,24 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Les interactions déjà VERT UI B2 et les autres recettes acquises restent inchangées ; le rapport distingue strictement CODE, CONDITIONNEL, API/RPC et VERT UI.
 - Audit statique uniquement : aucune interaction UI/API/SQL n'a été exécutée pendant cette passe ; aucune modification fonctionnelle, Production, migration ou déploiement.
 - Point de reprise : traiter les contradictions P1 du rapport avant d'élargir la recette UI ; ne pas rejouer B2 sans preuve contradictoire.
+
+
+## 206 — Création des 9 recettes bulk du profil Client — 18/11/2026
+
+- Référence : audit statique §205 et rapport `docs/audits/AUDIT_INTERACTIONS_PROFIL_CLIENT_NAXA.md`.
+- Les 9 recettes sont créées sur `main` dans `docs/recettes/client/` :
+  - `RECETTE_09_CONTRADICTIONS_TRANSVERSALES.md` — recette préalable, à exécuter en premier.
+  - `RECETTE_01_PHARMACIE.md`
+  - `RECETTE_02_CREDIT_MARKETPLACE.md`
+  - `RECETTE_03_EXAMENS_MEDICAUX.md`
+  - `RECETTE_04_SOINS_DOMICILE_PRESTATIONS.md`
+  - `RECETTE_05_DISPOSITIFS_MEDICAUX_CONNECTES.md`
+  - `RECETTE_06_UNIVERS_BLOQUES.md`
+  - `RECETTE_07_PROFIL_COMPTE_NAVIGATION.md`
+  - `RECETTE_08_MESSAGERIE_NOTIFICATIONS_POSOLOGIE_HISTORIQUES.md`
+- Ordre d'exécution : R09 d'abord. Elle doit confirmer/corriger les contradictions P1 du registre des univers, routes/en-tête, verrouillage serveur des univers bloqués, identité/rôle et garde Prestations. Les recettes 01–08 restent en attente tant que ces critères P1 ne sont pas levés.
+- R09 est un audit contradictoire avec tests de garde et de non-régression, pas une recette métier Client. Les huit autres sont des plans de tests bulk par domaine.
+- Environnements : Replay `pwfftcsjyeibxxqhwysw` exclusivement. Aucune écriture Production, migration Production, déploiement Vercel ou action Play Store.
+- Création documentaire uniquement : aucune recette n'a encore été exécutée ; aucun défaut n'est confirmé par ces plans ; aucune correction fonctionnelle n'est revendiquée.
+- Commits de création successifs sur `main` : `624b2c9fbd34a115496abd1639098f2f293fca9e`, `31acba4778406ed7c170c2ddbd61e1b82a9825ba`, `67900baccb71fa7bbe4f31990c5660a60d569b61`, `13e529a853a8853a9414d1fbcc6ca36099b20634`, `9fe85553dbbb3f5c588dd435f7b54f7d2d6ee672`, `e36a37154bb10e99fd39ecba63dff4a0a379840f`, `c73e9dcc81230ac3b90ad1a227e6679646795086`, `a1afe3c34dd7f0da3d0f6ebb54356a752e22fbc3`, `be4492d49ab50f59006a2fcd6fead4e4c426504d`.
+- Point de reprise exact : exécuter la **Recette 09 — R09-01**, puis R09-02 à R09-08 dans l'ordre. Corriger toute contradiction P1 confirmée sur `main`, prouver sa correction et sa non-régression sur Replay, puis seulement débloquer la Recette 01.
