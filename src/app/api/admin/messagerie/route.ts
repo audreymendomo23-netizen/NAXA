@@ -146,7 +146,7 @@ export async function PATCH(request: Request) {
 
   const statusNotes: Record<string, string> = {
     en_cours: "Le dossier a été pris en charge par l’équipe NAXA.",
-    en_attente_client: "L’équipe NAXA attend un complément du Client.",
+    en_attente_client: "L’équipe NAXA attend un complément du demandeur.",
     resolu: "L’équipe NAXA a marqué le dossier comme résolu.",
     ferme: "L’équipe NAXA a clôturé le dossier.",
   };

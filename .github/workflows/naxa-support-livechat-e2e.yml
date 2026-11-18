@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/naxa-support-livechat-e2e.yml"
       - "scripts/e2e/naxa-support-livechat-browser.cjs"
+      - "scripts/test-client-naxa-assistance.cjs"
       - "scripts/e2e/naxa-professional-support-browser.cjs"
       - "src/components/NaxaSupportWidget.tsx"
       - "src/components/ParcoursClientShell.tsx"

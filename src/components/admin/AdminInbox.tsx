@@ -162,7 +162,7 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
         return;
       }
       setReply("");
-      setSuccess("Réponse envoyée au Client.");
+      setSuccess("Réponse envoyée au demandeur.");
       if (current.type === "support_naxa") {
         setStatusOverrides((old) => ({ ...old, [current.id]: "en_attente_client" }));
       }
@@ -219,7 +219,7 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
         {current.type === "support_naxa" && <div className="flex flex-wrap gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
           <span className="mr-auto self-center text-sm font-bold text-emerald-950">Statut : {STATUS_LABELS[currentStatus] ?? currentStatus}</span>
           {currentStatus === "ouvert" && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("en_cours")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-emerald-900 disabled:opacity-50">Prendre en charge</button>}
-          {(currentStatus === "ouvert" || currentStatus === "en_cours") && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("en_attente_client")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-emerald-900 disabled:opacity-50">Attendre le Client</button>}
+          {(currentStatus === "ouvert" || currentStatus === "en_cours") && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("en_attente_client")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-emerald-900 disabled:opacity-50">Attendre le demandeur</button>}
           {currentStatus !== "resolu" && currentStatus !== "ferme" && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("resolu")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-emerald-900 disabled:opacity-50">Marquer résolue</button>}
           {currentStatus !== "ferme" && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("ferme")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-slate-700 disabled:opacity-50">Clôturer</button>}
           {(currentStatus === "resolu" || currentStatus === "ferme") && <button type="button" disabled={statusSaving} onClick={() => void changeStatus("en_cours")} className="min-h-10 rounded-lg bg-white px-3 text-xs font-bold text-emerald-900 disabled:opacity-50">Réouvrir</button>}
