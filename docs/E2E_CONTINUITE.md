@@ -7786,3 +7786,16 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Les prochains parcours UI encore non clôturés du Lot B restent à identifier dans l'ordre déjà décidé par le registre, en tenant compte des preuves acquises ; ne pas inventer un nouveau lot à partir du seul numéro d'un fichier SQL.
 - Toute reprise commence par ce document et son dernier HEAD, puis choisit uniquement le premier critère réellement non terminé. Une section de conversation ne constitue jamais une source de statut autonome.
 - Aucun changement Production, aucune migration Production, aucun déploiement Vercel ni accès Play Store dans cette mise à jour documentaire.
+
+
+## 205 — Audit statique approfondi des interactions du profil Client
+
+- Audit réalisé sur `main`, HEAD de référence avant audit : `99027418fa6b817b613bdeaf1d68a4ba14f2a020`.
+- Inventaire exhaustif des routes, composants, actions serveur, API et états conditionnels du profil Client, classé par univers : Pharmacie, Parapharmacie, Examens médicaux, Soins à domicile, Bébé & Maman, Dispositifs médicaux, puis navigation, compte, profil, commandes, messages, notifications, posologie et suivi.
+- Rapport détaillé : [`docs/audits/AUDIT_INTERACTIONS_PROFIL_CLIENT_NAXA.md`](audits/AUDIT_INTERACTIONS_PROFIL_CLIENT_NAXA.md).
+- Contradictions principales identifiées : registre `ECOSYSTEMES` incomplet (4 entrées pour 6 identifiants) et risque d'en-tête undefined sur `/bebe-maman` et `/suivi` ; verrouillage des univers principalement limité aux menus alors que routes/actions restent appelables ; contrôles de rôle Client non uniformes avec le sélecteur d'espace qui reconnaît une identité Client complète même lorsque le rôle racine est professionnel ; barre basse qui fait alterner Achats/Réservations/Commandes sur la même destination.
+- Parapharmacie et Bébé & Maman : code de catalogue/réservation présent, mais toujours BLOQUÉS par la décision métier ; ne pas les présenter comme activés.
+- Dispositifs médicaux : le code identifié est un suivi connecté privé soumis à `suivi_is_enabled_user`, pas un catalogue commercial d'appareils.
+- Les interactions déjà VERT UI B2 et les autres recettes acquises restent inchangées ; le rapport distingue strictement CODE, CONDITIONNEL, API/RPC et VERT UI.
+- Audit statique uniquement : aucune interaction UI/API/SQL n'a été exécutée pendant cette passe ; aucune modification fonctionnelle, Production, migration ou déploiement.
+- Point de reprise : traiter les contradictions P1 du rapport avant d'élargir la recette UI ; ne pas rejouer B2 sans preuve contradictoire.
