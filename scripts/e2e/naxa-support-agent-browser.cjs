@@ -52,7 +52,7 @@ async function createAgent(adminPage,tag,letter){
  const username="e2eagent"+letter+tag;
  const r=await adminPage.evaluate(async x=>{const r=await fetch("/api/admin/support-agents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(x)});return {status:r.status,data:await r.json()};},{
   username,email:"naxa-agent-"+letter+"-"+tag+"@example.com",first_name:"E2E",last_name:"Agent"+letter,
-  permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note"],
+  date_of_birth:"1990-01-01",permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note"],
  });
  assert.equal(r.status,201,JSON.stringify(r.data));state.agents.push(r.data.agent.user_id);save();
  const p=await admin.from("profiles").select("id").eq("id",r.data.agent.user_id).maybeSingle();if(p.error)throw p.error;assert.equal(p.data,null);
