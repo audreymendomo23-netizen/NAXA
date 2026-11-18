@@ -17,6 +17,7 @@ const protectedPrefixes = [
   "/pharmacie",
   "/admin",
   "/equipe-support",
+  "/activation-agent",
   "/reservation",
   "/go",
   "/panier",
@@ -164,10 +165,13 @@ export async function middleware(req: NextRequest) {
 
   // L'Agent NAXA possède une identité interne hors profiles et hors rôle métier.
   // Sa session n'ouvre que cet espace, après vérification DB de son statut courant.
-  if (path === "/equipe-support" || path.startsWith("/equipe-support/")) {
+  if (
+    path === "/equipe-support" || path.startsWith("/equipe-support/") ||
+    path === "/activation-agent" || path.startsWith("/activation-agent/")
+  ) {
     const { data: supportAgent, error: supportAgentError } = await supabase
       .from("support_agents")
-      .select("status")
+      .select("status,must_change_password")
       .eq("user_id", data.user.id)
       .maybeSingle();
 
@@ -175,6 +179,18 @@ export async function middleware(req: NextRequest) {
       const target = req.nextUrl.clone();
       target.pathname = "/connexion";
       target.search = "?erreur=profil";
+      return NextResponse.redirect(target);
+    }
+    if (supportAgent.must_change_password && !path.startsWith("/activation-agent")) {
+      const target = req.nextUrl.clone();
+      target.pathname = "/activation-agent";
+      target.search = "";
+      return NextResponse.redirect(target);
+    }
+    if (!supportAgent.must_change_password && path.startsWith("/activation-agent")) {
+      const target = req.nextUrl.clone();
+      target.pathname = "/equipe-support";
+      target.search = "";
       return NextResponse.redirect(target);
     }
     return res;
