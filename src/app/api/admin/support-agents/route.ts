@@ -85,7 +85,11 @@ export async function POST(request: Request) {
   const birthDate = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? new Date(dateOfBirth + "T00:00:00Z") : null;
   let age = -1;
   if (birthDate && !Number.isNaN(birthDate.getTime()) && birthDate.toISOString().slice(0,10) === dateOfBirth) {
-    const today = new Date();
+    const localParts = new Intl.DateTimeFormat("en", {
+      timeZone: "Africa/Douala", year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(new Date());
+    const localValue = (type: string) => Number(localParts.find((part) => part.type === type)?.value ?? 0);
+    const today = new Date(Date.UTC(localValue("year"), localValue("month") - 1, localValue("day")));
     age = today.getUTCFullYear() - birthDate.getUTCFullYear();
     if (today.getUTCMonth() < birthDate.getUTCMonth()
       || (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate())) age -= 1;
