@@ -1181,3 +1181,13 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Conséquence : la recette utilisateur prouve le fonctionnement du parcours Auth observé, mais ne prouve pas que le commit 88f4b9b est celui qui a servi la session testée, ni que ce déploiement est actif en Production. Ne pas confondre validation métier réelle et livraison Vercel du commit.
 - Aucun nouveau déploiement n'a été lancé après cet échec. Aucun changement de code supplémentaire n'a été fait dans cette intervention.
 - Prochaine action : corriger le défaut TypeScript dans src/app/pharmacie/caisse/page.tsx, vérifier npm run quality/build sur le SHA corrigé, puis traiter la livraison Production selon l'autorisation explicite déjà donnée et sans multiplier les déploiements.
+
+
+## Addendum 2026-11-18 — rapprochement de l'échec Vercel avec le correctif Caisse déjà intégré
+
+- L'analyse du log Vercel a isolé une erreur TypeScript dans l'ancien snapshot du fichier src/app/pharmacie/caisse/page.tsx : un appel RPC Supabase de type PromiseLike<void> était chaîné directement avec .catch.
+- La recherche GitHub des commits récents confirme que ce défaut avait déjà été corrigé sur main après le commit de déploiement 88f4b9b : commit d2004fb997df6a2b144bc60314ee889edbde1109 « fix(caisse): gérer RPC PromiseLike dans le chargement des comptes », puis commit e4ea84138746435bed738799b88d66090b685873 « fix(caisse): supprimer le chargeur trésorerie redondant ».
+- Contrôle de source sur main : le composant appelle désormais chargerComptesTresorerieRemboursement().catch(...), et la fonction est déclarée async (ligne 305 du fichier actuel), donc elle retourne une Promise standard. Le chaînage .catch n'est plus appliqué directement au PromiseLike Supabase signalé dans le build échoué.
+- Comparaison GitHub : main est 8 commits en avance sur le SHA déployé 88f4b9b9e69bf364e09240e15e2dc851a27a6ea7, sans divergence. Le HEAD documentaire actuel est ddd277f84e2eead64951e35efb9f07485183b946.
+- Historique Vercel Production vérifié après ces commits : le déploiement le plus récent listé reste dpl_AMhKm8YaYGeC7pmbnYEHE4JfzACm en ERROR sur le SHA 88f4b9b ; le dernier déploiement READY listé est dpl_zij7GYkQZH4NhoYGGK9nax7GpVrJ sur le SHA 7ccd8c67f72e044e1a2165d7e6e9acd694f48776. Aucun nouveau déploiement n'a été lancé dans cette intervention.
+- État : recette réelle Auth réussie selon retour utilisateur ; défaut TypeScript source corrigé dans main après le snapshot échoué ; le déploiement de la correction sur Production reste non vérifié. Il faut lancer/contrôler un build du HEAD main avant de déclarer la livraison verte.
