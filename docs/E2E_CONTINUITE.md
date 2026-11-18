@@ -8717,3 +8717,36 @@ Les étapes de nettoyage global sont conditionnées à la fin de la recette Agen
 - Aucun changement Production ni déploiement.
 
 **Point exact de reprise :** attendre la fin de l'étape Agent du run `44407046081`. En cas d'échec, lire le log complet, corriger la cause sur `main`, rejouer les tests SQL concernés, puis laisser passer le run E2E en attente sur `cd7e501`. Ne pas interrompre le run actif par un nouveau changement de code non nécessaire.
+
+
+## §237 — Correction du parcours de recherche Marketplace multi-termes — 18/11/2026
+
+### Cause racine de l'échec E2E identifiée
+
+Run `44407412318`, commit `cd7e501c982aee0e5c9245fb6373f5e8bcf45f18`, scénario Client Lot B2 :
+- La fixture pharmacie/produit/stock était valide.
+- L'appel SQL direct à `search_pharmacies_bulk(['crédit comptoir'], [2], 3.87, 11.52, 35)`, dans une transaction annulée après vérification, retournait bien la pharmacie et son offre.
+- La pharmacie était ensuite restaurée à `visible_recherche=false`, sans réservation/favori résiduel.
+- La cause racine est dans `src/app/resultats/page.tsx` : l'effet de recherche ignorait le mode `bulk=1` dans sa condition de sortie (`!debounced && !basketMode`). Comme la recherche multi-termes utilise `bulkTerms` et non `debounced`, le RPC n'était jamais appelé.
+- Le même effet n'écoutait pas les changements de ville/rayon/localisation ; un changement de filtre pouvait donc conserver un résultat calculé avec l'ancien point géographique.
+
+### Correction appliquée sur main
+
+Commit : `08a5cb07d7c7d71ae7e0fe54042b7b7640e78513`.
+- Le garde de sortie prend maintenant en compte `bulkTerms.length`.
+- L'effet de recherche est réexécuté quand `villeFiltre`, `rayonKm`, `locationStatus` ou `coords` change.
+- Le correctif ne modifie ni le schéma ni les données Replay ; aucune migration SQL.
+- Le scénario E2E Marketplace existant couvre la recherche, la sélection de pharmacie, le favori, la réservation, la décision Gestionnaire de stock, l'annulation, la restauration du stock et l'historique. Il doit être rejoué sur le nouveau commit pour confirmer le correctif navigateur.
+
+### Verdict
+
+- Cause racine : **IDENTIFIÉE**.
+- Correctif : **COMMITÉ SUR MAIN**.
+- Vérification SQL de la fonction de recherche : **PASS**.
+- Vérification navigateur après correction : **EN ATTENTE DU NOUVEAU RUN**.
+- CI/build/typecheck/lint : **EN ATTENTE DU RUN DU COMMIT `08a5cb0`**.
+- Aucune modification Production ni déploiement.
+
+### Point exact de reprise
+
+Attendre le workflow navigation Promoteur et le workflow qualité déclenchés par `08a5cb0`. Lire leurs résultats et logs. Si la recherche B2 passe, poursuivre la recette Agent Support sur Replay ; sinon, corriger le prochain défaut observé sans neutraliser l'assertion E2E.
