@@ -64,7 +64,13 @@ async function sessionFor(username,profileRole,activeRole){
  return {profile,accessToken:verified.session.access_token,cookies:Array.from(jar.values())};
 }
 function cookieList(session){const host=new URL(BASE_URL).hostname;return session.cookies.map(c=>{const o=c.options||{};const same=String(o.sameSite||"lax").toLowerCase();return {name:c.name,value:c.value,domain:host,path:"/",httpOnly:Boolean(o.httpOnly),secure:new URL(BASE_URL).protocol==="https:",sameSite:same==="strict"?"Strict":same==="none"?"None":"Lax"};});}
-async function contextFor(browser,session,viewport){const ctx=await browser.newContext({viewport});await ctx.addCookies(cookieList(session));return ctx;}
+async function contextFor(browser,session,viewport){
+ const ctx=await browser.newContext({viewport});
+ await ctx.addCookies(cookieList(session));
+ await ctx.addCookies([{name:"naxa-age-status-v2",value:"adult",domain:new URL(BASE_URL).hostname,path:"/",httpOnly:false,secure:false,sameSite:"Lax"}]);
+ await ctx.addInitScript(()=>{try{localStorage.setItem("naxa-age-declaration-v1",JSON.stringify({confirmed:true,at:Date.now()}));}catch{}});
+ return ctx;
+}
 async function run(){
  const adminSession=await sessionFor(ADMIN_USERNAME,"admin","admin");
  const sessions=[];for(const fixture of PROFESSIONALS)sessions.push({fixture,session:await sessionFor(fixture.username,fixture.profileRole,fixture.role)});
@@ -73,7 +79,7 @@ async function run(){
   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
   adminContext=await contextFor(browser,adminSession,{width:1440,height:1000});adminPage=await adminContext.newPage();
   await adminPage.goto(BASE_URL+"/admin/messagerie",{waitUntil:"domcontentloaded"});
-  await adminPage.getByRole("heading",{name:"Messagerie"}).waitFor({state:"visible",timeout:30000});
+  await adminPage.getByRole("heading",{name:"Messagerie",exact:true}).waitFor({state:"visible",timeout:30000});
   console.log("PASS — boîte Admin accessible.");
   for(const {fixture,session} of sessions){
    const ctx=await contextFor(browser,session,{width:390,height:844});contexts.push(ctx);const page=await ctx.newPage();
