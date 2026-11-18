@@ -76,7 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"
-          export NAXA_RATE_LIMIT_SECRET="$(openssl rand -hex 32)"
+          NAXA_RATE_LIMIT_SECRET="$(openssl rand -hex 32)"
+          export NAXA_RATE_LIMIT_SECRET
           npm start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/naxa-support-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/naxa-support-server.pid"
           ready=0
