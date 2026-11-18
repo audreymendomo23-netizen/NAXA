@@ -7367,3 +7367,41 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - La recette E2E actuelle laisse la session créée par le login navigateur active après avoir seulement supprimé les cookies locaux ; cela contribue à l'accumulation de sessions.
 - NON TESTÉ en réel : signup OTP, mot de passe oublié OTP, Google OAuth/PKCE, expiration naturelle JWT. Aucun e-mail OTP n'a été envoyé pendant cette recette.
 - Conclusion : **AUTH GLOBAL ROUGE / NON VALIDÉ**. Aucune correction ni migration exécutée pendant la recette.
+
+
+## Section 204 — Vérification du contrôle Auth après rejeu d'un refresh token (18 novembre 2026)
+
+### Vérification réelle de la famille de jetons sur Replay
+- Le contrôle verify-auth-session-lifecycle.cjs a été exécuté sur le projet Replay pwfftcsjyeibxxqhwysw avec l'identité technique Gestionnaire Stock.
+- Rotation initiale puis deuxième rotation : PASS ; le premier jeton devient un ancêtre (grand-parent) du jeton courant.
+- Après 15 secondes, le rejeu de ce jeton ancêtre est rejeté par Auth : HTTP 400, error_code=refresh_token_already_used.
+- Le rejeu rejeté n'a toutefois pas révoqué le jeton courant : la requête de rafraîchissement suivante a émis un nouveau jeton.
+- Contrôle direct en lecture seule de auth.sessions et auth.refresh_tokens : la même session contient quatre lignes en chaîne parent/enfant. Les trois premiers jetons sont marqués revoked=true, mais le quatrième, créé immédiatement après le rejeu de l'ancêtre, reste revoked=false. La session reste donc rafraîchissable.
+- Les journaux Auth confirment la séquence : rotation initiale ; deuxième rotation ; rejet du jeton ancêtre (HTTP 400 refresh_token_already_used) ; puis nouvelle rotation réussie (HTTP 200) du jeton courant. Le résultat n'est pas un simple faux positif dû au seul code HTTP.
+
+### Interprétation et règle attendue
+- La documentation Supabase User sessions (https://supabase.com/docs/guides/auth/sessions) décrit deux exceptions au rejeu : réutilisation dans la fenêtre configurée (10 secondes par défaut) et réutilisation du parent du jeton actuellement actif pour absorber une réponse réseau perdue.
+- Hors de ces exceptions, Supabase indique que la session entière doit être terminée et que tous ses refresh tokens doivent être marqués révoqués.
+- Le test reproduit bien un rejeu d'ancêtre après deux rotations et 15 secondes. Le maintien d'un jeton non révoqué contredit donc la règle documentée.
+- La configuration avancée de détection/révocation du rejeu dans Auth Replay n'est pas exposée en lecture/écriture par les actions Supabase connectées disponibles dans ce chantier. Il n'est donc pas établi si le comportement vient du réglage Auth avancé désactivé ou d'un défaut du service hébergé.
+- Aucun contournement par modification directe des tables internes auth.* n'est acceptable. Le point doit rester rouge jusqu'à activation/vérification du réglage de révocation de session au rejeu dans Supabase Dashboard → Authentication → Sessions → Advanced Settings, puis nouvelle recette démontrant que tous les refresh tokens de la session sont révoqués.
+
+### Correction et durcissement du harnais E2E
+- scripts/e2e/verify-auth-session-lifecycle.cjs évalue maintenant une réponse de rafraîchissement à partir de la présence effective des deux champs access_token et refresh_token, et non de response.ok seul.
+- L'erreur émise indique sans divulguer de jeton le HTTP reçu et la présence/absence de chaque champ.
+- Le script révoque localement les sessions API qu'il a créées dans son finally, sans révoquer globalement les sessions d'autres jobs E2E.
+- scripts/e2e/refresh-session-check.cjs et scripts/test-auth-session-lifecycle.cjs ont été ajoutés ; quatre cas unitaires couvrent réponse complète, HTTP 200 sans jetons, réponse partielle et rejet HTTP 400.
+- Le workflow Replay appelle explicitement ces tests et est déclenché par les fichiers de vérification Auth concernés.
+
+### État de la preuve au dernier contrôle
+- NAXA quality sur le HEAD précédent d6500adc485bb58b825a2736b4f028fdfd6c56da : SUCCESS.
+- Nouveau HEAD de cette correction : a0c46325263a31df6f3f40048525dbf30ea70fdd. Les exécutions qualité 44233408404 et Replay 44233408413 sont lancées/en attente au dernier contrôle ; aucun résultat terminal de ces nouveaux runs n'est revendiqué.
+- Les preuves antérieures du remboursement multicanal restent valides : test SQL 302 PASS avec ROLLBACK ; runtime JWT Caisse Replay PASS ; navigateur POS Caisse avec trois canaux, reçus, opérations, mouvements et tiroir espèces PASS ; Marketplace et Comptabilité navigateur PASS.
+- Le run Replay 44197708312 a échoué uniquement sur la révocation Auth indépendante ; les assertions Crédit de ce run ont terminé avec browser_failures=0.
+- Aucun changement de configuration Auth n'a été effectué ; aucune migration ni écriture Production et aucun déploiement Vercel.
+
+### Statut honnête
+- **Vert :** remboursement crédit espèces / Orange Money / MTN MoMo au comptoir ; preuves visuelles mobiles ; idempotence ; écritures de trésorerie atomiques ; outbox comptable ; reçu UI ; clôture espèces-only ; recette SQL 302 ; runtime JWT et navigateur.
+- **Vert :** suite qualité complète du HEAD antérieur mentionné ; nouvelle suite qualité en cours sur le dernier HEAD.
+- **Rouge distinct et bloquant pour le vert E2E global :** la détection de rejeu Auth refuse le jeton ancêtre, mais la famille de session conserve un refresh token actif. Le réglage de révocation de session au rejeu doit être vérifié/corrigé côté Auth Replay ; le harnais n'atténue pas cette exigence.
+- **Non revendiqué :** confirmation opérateur Orange/MTN automatisée et paiements électroniques des ventes POS ; ce chantier valide les remboursements de crédit avec vérifications visuelles humaines.
