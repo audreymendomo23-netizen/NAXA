@@ -7909,4 +7909,5 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - La limite Server Actions Next est fixée à 5 Mo pour transporter un fichier de 4 Mio avec les champs multipart. Documentation dédiée et contrats Node/SQL ajoutés.
 - À faire avant déclaration AU VERT : appliquer la migration uniquement sur Replay, exécuter le test SQL, npm test, TypeScript, ESLint, build, puis recette navigateur Client/Admin et test négatif RLS/Storage. Ne pas appliquer en Production, ne pas déployer.
 - Aucun changement Production ni déploiement ne sont autorisés ou revendiqués.
+- Première application Replay refusée par une erreur de syntaxe dans la contrainte des pièces jointes ; un contrôle SQL en lecture seule a confirmé l'absence de toute colonne, policy ou bucket créé. Le doublon de migration a été supprimé avant une nouvelle tentative.
 
