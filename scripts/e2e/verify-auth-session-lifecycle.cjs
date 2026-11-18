@@ -17,6 +17,34 @@ function required(value, label) {
   return result;
 }
 
+function readAccessTokenClaims(token, label) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3 || !parts[1]) {
+    throw new Error("Jeton d'accès JWT invalide après " + label + ".");
+  }
+  let claims;
+  try {
+    claims = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  } catch {
+    throw new Error("Claims JWT illisibles après " + label + ".");
+  }
+  const userId = String(claims.sub || "");
+  const sessionId = String(claims.session_id || "");
+  if (!userId || !sessionId) {
+    throw new Error("Claims sub/session_id absents après " + label + ".");
+  }
+  return { userId, sessionId };
+}
+
+function assertSameAuthSession(expected, actual, label) {
+  if (actual.userId !== expected.userId || actual.sessionId !== expected.sessionId) {
+    throw new Error(
+      "La rotation Auth a changé l'identité ou le session_id (" + label + "). "
+      + "La recette ne peut pas conclure à la révocation d'une même famille."
+    );
+  }
+}
+
 function readSecret(path, label) {
   const file = required(path, label);
   if (!fs.existsSync(file)) throw new Error("Fichier secret absent : " + label + ".");
@@ -51,7 +79,13 @@ async function run(env = process.env) {
     const raw = await response.text();
     let data = null;
     try { data = raw ? JSON.parse(raw) : null; } catch { /* no auth body in logs */ }
-    return { ok: response.ok, status: response.status, data, label };
+    const diagnostics = {
+      rotated: response.headers.get("sb-auth-refresh-token-rotated"),
+      reuse: response.headers.get("sb-auth-refresh-token-reuse"),
+      reuseCause: response.headers.get("sb-auth-refresh-token-reuse-cause"),
+      counter: response.headers.get("sb-auth-refresh-token-counter"),
+    };
+    return { ok: response.ok, status: response.status, data, label, diagnostics };
   }
 
   async function passwordLogin() {
@@ -109,6 +143,7 @@ async function run(env = process.env) {
 
     // Test real Supabase refresh-token rotation and reuse protection.
     const first = await passwordLogin();
+    const firstClaims = readAccessTokenClaims(first.access_token, "connexion initiale");
     const rotated = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: first.refresh_token,
     }, "refresh rotation");
@@ -117,6 +152,8 @@ async function run(env = process.env) {
       throw new Error("Rotation du refresh token non démontrée (HTTP " + rotated.status + ").");
     }
     authTokens.push(rotated.data.access_token);
+    assertSameAuthSession(firstClaims, readAccessTokenClaims(rotated.data.access_token, "première rotation"), "première rotation");
+    process.stdout.write("PASS — même utilisateur et même session_id après la première rotation.\\n");
     process.stdout.write("PASS — renouvellement Auth : refresh token remplacé et nouveau jeton d'accès émis.\n");
 
     // Supabase intentionally accepts the parent of the currently active refresh token,
@@ -131,6 +168,8 @@ async function run(env = process.env) {
       throw new Error("Deuxième rotation Auth non démontrée (HTTP " + current.status + ").");
     }
     authTokens.push(current.data.access_token);
+    assertSameAuthSession(firstClaims, readAccessTokenClaims(current.data.access_token, "deuxième rotation"), "deuxième rotation");
+    process.stdout.write("PASS — même utilisateur et même session_id après la deuxième rotation.\\n");
     process.stdout.write("PASS — deuxième rotation : le premier refresh token n'est plus le parent actif.\\n");
 
     // T1 must be replayed outside the general reuse interval after the latest rotation.
@@ -143,18 +182,27 @@ async function run(env = process.env) {
     if (replay.ok) {
       throw new Error("Un refresh token ancêtre (deux rotations précédentes) reste accepté après 15 secondes.");
     }
-    process.stdout.write("PASS — ancien refresh token ancêtre rejeté hors fenêtre de tolérance.\\n");
+    const replayError = String(replay.data?.code || replay.data?.error_code || replay.data?.error || "non fourni");
+    process.stdout.write(
+      "PASS — ancien refresh token ancêtre rejeté (HTTP " + replay.status
+      + ", code=" + replayError + ").\\n"
+    );
 
     // Reuse detection must revoke the whole session, not merely reject the replay request.
     const afterReuseDetection = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: current.data.refresh_token,
     }, "current refresh token after ancestor reuse detection");
     if (hasUsableRefreshTokenPair(afterReuseDetection)) {
+      const descendantClaims = readAccessTokenClaims(afterReuseDetection.data.access_token, "refresh descendant après détection");
+      assertSameAuthSession(firstClaims, descendantClaims, "refresh descendant après détection");
       throw new Error(
-        "La détection de réutilisation n'a pas révoqué le refresh token courant : "
-        + "HTTP " + afterReuseDetection.status
-        + ", access_token=" + Boolean(afterReuseDetection.data?.access_token)
-        + ", refresh_token=" + Boolean(afterReuseDetection.data?.refresh_token) + "."
+        "La détection de réutilisation n'a pas révoqué la famille de session : "
+        + "le jeton ancêtre a été refusé (HTTP " + replay.status + ", code=" + replayError + "), "
+        + "mais le jeton descendant de la même session_id reste utilisable (HTTP "
+        + afterReuseDetection.status + "). En-têtes du rejeu : rotated="
+        + (replay.diagnostics.rotated || "absent") + ", reuse="
+        + (replay.diagnostics.reuse || "absent") + ", counter="
+        + (replay.diagnostics.counter || "absent") + "."
       );
     }
     process.stdout.write("PASS — détection de réutilisation : aucun nouveau couple access/refresh utilisable n'est émis pour la session.\\n");
