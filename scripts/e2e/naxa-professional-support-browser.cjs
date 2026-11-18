@@ -14,7 +14,6 @@ const PROFESSIONALS=[
  {username:"naxa_e2e_promoteur",profileRole:"promoteur",role:"promoteur",route:"/pharmacie/promoteur",category:"gestion_espace"},
  {username:"naxa_e2e_expiry_responsable",profileRole:"client",role:"responsable",route:"/pharmacie",category:"personnel"},
  {username:"naxa_e2e_pharmacien",profileRole:"client",role:"pharmacien",route:"/pharmacie/pharmacien",category:"personnel"},
- {username:"naxa_e2e_expiry_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
  {username:"naxa_e2e_stock",profileRole:"client",role:"gestionnaire_stock",route:"/pharmacie/gestionnaire-stock",category:"stock"},
  {username:"naxa_e2e_expiry_overflow",profileRole:"client",role:"client",route:"/client",category:"compte"},
  {username:"naxa_e2e_comptable",profileRole:"client",role:"comptable",route:"/pharmacie/comptable",category:"caisse"},
