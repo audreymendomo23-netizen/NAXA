@@ -1191,3 +1191,36 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Comparaison GitHub : main est 8 commits en avance sur le SHA déployé 88f4b9b9e69bf364e09240e15e2dc851a27a6ea7, sans divergence. Le HEAD documentaire actuel est ddd277f84e2eead64951e35efb9f07485183b946.
 - Historique Vercel Production vérifié après ces commits : le déploiement le plus récent listé reste dpl_AMhKm8YaYGeC7pmbnYEHE4JfzACm en ERROR sur le SHA 88f4b9b ; le dernier déploiement READY listé est dpl_zij7GYkQZH4NhoYGGK9nax7GpVrJ sur le SHA 7ccd8c67f72e044e1a2165d7e6e9acd694f48776. Aucun nouveau déploiement n'a été lancé dans cette intervention.
 - État : recette réelle Auth réussie selon retour utilisateur ; défaut TypeScript source corrigé dans main après le snapshot échoué ; le déploiement de la correction sur Production reste non vérifié. Il faut lancer/contrôler un build du HEAD main avant de déclarer la livraison verte.
+
+
+## Addendum 2026-11-18 — recette transversale Auth Replay (audit, échecs reproduits dans les traces)
+
+### Périmètre et sécurité
+- Recette strictement limitée au projet Supabase Replay `pwfftcsjyeibxxqhwysw` et aux runs GitHub Actions utilisant ce projet. Aucune lecture/écriture Production, aucun changement Vercel, aucun mot de passe ni OTP manipulé dans cette intervention.
+- Base Replay : 11 lignes `auth.users`, 11 profils liés, 11 e-mails confirmés ; répartition profils : 9 Client, 1 Promoteur, 1 Admin. Aucun compte actuellement banni ou supprimé. Le profil Admin ne renseigne pas les champs d'identité Client, ce qui n'est pas en soi une anomalie pour le rôle Admin.
+
+### Résultats fonctionnels prouvés
+- Run Replay `44197708312` (17 nov. 2026), script `scripts/e2e/verify-auth-session-lifecycle.cjs` : **PASS** connexion réelle par navigateur du compte Gestionnaire Stock vers `/pharmacie/gestionnaire-stock` ; cookie de session Supabase SSR présent ; après suppression du cookie navigateur, l'accès à la route protégée redirige vers `/connexion`.
+- Le même run : **PASS** première rotation du refresh token ; **PASS** rejet du refresh token ancêtre réutilisé hors fenêtre de tolérance.
+- Parcours applicatif Client/Promoteur/Caisse du run : connexions navigateur Client et Promoteur et opérations protégées exécutées avec succès. Ces résultats ne valident pas tous les rôles ni tous les parcours Auth.
+
+### Échecs Auth confirmés
+1. **Révocation de session après réutilisation d'un refresh token — FAIL.** Après deux rotations et 15 secondes d'attente, Supabase rejette bien le refresh token ancêtre (`HTTP 400`, `refresh_token_already_used`), mais le refresh token courant de la même session reste utilisable. Le script échoue explicitement : `La détection de réutilisation n'a pas révoqué le refresh token courant de la session.` Résultat reproduit dans les runs `44196261458` et `44197708312` ; logs Auth Replay des `2026-11-17T23:16:33Z` et `23:32:33Z`. La documentation Supabase consultée précise qu'une réutilisation hors des exceptions doit terminer la session entière et révoquer tous ses refresh tokens. Il s'agit d'un échec de sécurité/session, pas d'un échec de mot de passe.
+2. **Création de session lors du login — FAIL intermittent, cause SQL prouvée.** Logs Auth Replay `2026-11-17T17:55:03Z` : grant `password`, HTTP 500, `NAXA_SESSION_LIMIT_REACHED`. Sur la base, le trigger `auth.sessions.trg_naxa_session_limit` est encore actif en `BEFORE INSERT` et appelle `public.naxa_enforce_session_limit()`, qui lève l'exception dès que le compte possède déjà 4 sessions non expirées. La fonction et le trigger ont été lus directement dans le catalogue SQL Replay.
+3. **Dérive de migrations Replay.** Le dépôt `main` contient `supabase/migrations/20261021040125_remove_concurrent_session_cap.sql`, qui supprime précisément `trg_naxa_session_limit` et rend la fonction inoffensive. La migration n'apparaît pas dans `supabase_migrations.schema_migrations` ni dans `list_migrations` de Replay ; la migration de compatibilité `20261021040237_bypass_legacy_session_count_precheck.sql` est également absente. Cela explique pourquoi le trigger obsolète subsiste malgré le correctif versionné sur `main`.
+4. **Accumulation de sessions par la recette E2E.** `scripts/e2e/verify-auth-session-lifecycle.cjs` ferme le contexte navigateur après suppression locale des cookies sans appeler auparavant `signOut` serveur pour la session UI créée. Ce test peut donc laisser une session serveur active par run et rapprocher le compte de la limite obsolète de quatre sessions.
+
+### Périmètre non validé / tests manquants
+- Inscription réelle (envoi OTP, vérification, création du mot de passe, finalisation du profil) : **NON TESTÉ** dans cette recette ; seules les routes et composants ont été audités statiquement.
+- Mot de passe oublié (envoi e-mail OTP, vérification, session de récupération, changement du mot de passe, reconnexion) : **NON TESTÉ** dans Replay durant cette recette ; aucun test e-mail/OTP Replay n'a été exécuté et aucun OTP n'a été demandé ou consommé.
+- OAuth Google/callback PKCE : **NON TESTÉ** en conditions réelles ; routes examinées statiquement uniquement.
+- Expiration cryptographique naturelle du JWT : non attendue ; le test vérifie la suppression du cookie navigateur, pas l'expiration du JWT.
+- Le bouton « se souvenir de moi » transmet `remember` à `/api/auth/login`, mais la route serveur actuelle ne lit pas ce champ : comportement de persistance à clarifier/tester.
+- Les journaux Supabase des dernières 24 h montrent de nombreuses connexions mot de passe réussies, 33 refresh réussis, 11 réponses `refresh_token_already_used`, un login password HTTP 500 dû à la limite obsolète et plusieurs erreurs `context canceled` sur `/user`. Ces compteurs ne remplacent pas une recette utilisateur exhaustive.
+
+### Conclusion de recette
+- **AUTH GLOBAL : ROUGE / NON VALIDÉ.**
+- Validé : connexion navigateur d'un compte de recette, cookie SSR, protection d'une route, rotation initiale et rejet du jeton ancêtre.
+- Bloquant : la session courante n'est pas révoquée après détection de réutilisation ; un trigger de limite de sessions obsolète peut bloquer un login en HTTP 500 parce que la migration de retrait n'a pas été appliquée à Replay.
+- Non testé : inscription OTP, récupération OTP, Google OAuth, reconnexion après reset.
+- Aucune correction ni migration n'a été appliquée pendant la recette. Prochaine séquence requise : (a) réconcilier Replay avec la migration de retrait du cap ; (b) corriger le test de nettoyage de session E2E ; (c) diagnostiquer/configurer la révocation complète de refresh-token reuse ; (d) construire des recettes isolées signup/forgot-password/OAuth avec boîtes e-mail de test, puis retester les parcours navigateur. Ne pas déclarer vert avant résultat terminal de chaque parcours.
