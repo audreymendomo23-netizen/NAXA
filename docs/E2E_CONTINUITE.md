@@ -8205,3 +8205,76 @@ Valeurs initiales configurables proposées pour la recette : 20 secondes de sonn
 - La réussite E2E du Livechat écrit au §225 ne constitue pas une preuve d'appel audio.
 - Aucun changement applicatif, migration Supabase, accès Production ou déploiement n'a été réalisé par cette mise à jour documentaire.
 - Prochaine reprise : auditer l'implémentation Livechat et les droits Admin sur `main`, inspecter le schéma Replay/RLS, puis choisir l'infrastructure TURN avant toute modification applicative. Développer et tester sur Replay uniquement ; Production et déploiement restent hors périmètre sans autorisation explicite.
+
+
+## §227 — Profil interne NAXA « Agent du service client » et traitement des réclamations/litiges — 18/11/2026
+
+### Décision métier validée
+
+Le périmètre du personnel interne NAXA est étendu : les agents du service client peuvent traiter **à la fois les demandes d'assistance et les réclamations/litiges entre Clients et Pharmacies**, dans un espace professionnel dédié et avec des permissions distinctes. Les dossiers sensibles ou dépassant leur mandat sont transmis à l'Administrateur NAXA.
+
+### Profil et comptes
+
+- Créer un profil métier interne NAXA nommé **Agent du service client NAXA** (*Customer Service Agent*), distinct des profils Client, Promoteur, Responsable, personnel de pharmacie et autres Partenaires.
+- L'Administrateur NAXA peut créer autant de comptes individuels que nécessaire ; aucun compte partagé.
+- Chaque agent possède ses identifiants, son profil professionnel (photo et coordonnées), son espace de travail, son statut (actif, indisponible, suspendu), son historique et ses indicateurs de performance.
+- Cycle de vie sous contrôle Admin : création, modification, activation, indisponibilité, suspension/réactivation, révocation/réinitialisation des accès, affectation et reprise des dossiers.
+- La suspension doit révoquer les sessions et interdire toute nouvelle prise en charge ; les dossiers actifs doivent être remis en file ou réaffectés selon une règle serveur auditée.
+- Le compte interne ne crée ni statut de Partenaire commercial, ni relation d'emploi avec une pharmacie, ni accès aux espaces professionnels des pharmacies.
+
+### Espace de travail agent
+
+Prévoir les modules suivants, visibles selon permissions :
+- Tableau de bord : volumes, tickets en attente/en cours/urgents, délais et alertes.
+- File centrale : demandes non attribuées que l'agent est autorisé à consulter et à prendre.
+- Mes dossiers : tickets et réclamations attribués ou pris valablement en charge.
+- Assistance / Livechat : échanges écrits, pièces jointes autorisées, statuts, résolution et réouverture selon règles.
+- Appels audio : appels autorisés par le §226 et les droits du dossier.
+- Réclamations et litiges : ouverture/qualification, collecte structurée des faits et pièces, échanges contradictoires, suivi des délais, demandes de complément, proposition de résolution non contraignante et transmission à l'Admin.
+- Historique et rapports : actions, affectations, réponses, appels et indicateurs de délai/qualité.
+- Profil et disponibilité personnelle.
+
+### Périmètre des réclamations et escalade
+
+- Les agents peuvent recevoir, qualifier, catégoriser, documenter et suivre les réclamations Client↔Pharmacie ; solliciter les informations nécessaires auprès des parties ; transmettre les éléments et proposer une issue.
+- Les agents ne disposent pas d'un pouvoir automatique de jugement ou de sanction : pas de décision finale sur responsabilité contestée, sanction d'une pharmacie, remboursement, compensation financière, modification de paiement ou arbitrage commercial, sauf délégation spécifique ultérieure explicitement définie et auditée.
+- Escalade obligatoire vers l'Administrateur pour les cas sensibles : risque de sécurité/santé, suspicion de fraude ou d'abus, menace, données personnelles sensibles, conflit grave, demande financière, contestation de responsabilité, risque juridique/réglementaire, récidive ou dossier hors périmètre.
+- L'Administrateur conserve l'arbitrage final, la supervision et la capacité de reprendre un dossier. Chaque escalade doit conserver le motif, les pièces, l'auteur et les horodatages.
+- Les échanges entre parties doivent rester traçables et équitables ; aucune partie ne doit accéder aux notes internes confidentielles de l'autre partie ou aux notes de supervision Admin.
+
+### Gouvernance Admin et permissions
+
+- Rôle technique dédié proposé : `naxa_support_agent`, distinct de `admin` et des rôles des Partenaires.
+- L'Admin peut définir les permissions par agent, catégories de dossiers, périmètre de visibilité et limites d'action.
+- Affectation manuelle ou automatique ; agent affecté prioritaire pour le routage d'appel du §226 ; à défaut, file centrale des agents autorisés et disponibles ; un seul agent peut accepter atomiquement un dossier/appel.
+- L'agent ne peut ni créer/suspendre d'autres agents, ni modifier les paramètres globaux NAXA, ni accéder à la gestion financière globale, ni consulter des données hors de son périmètre.
+- L'Admin peut consulter les statuts de présence, charge, historique, appels et performances, réaffecter et reprendre les dossiers.
+- Les états de présence (connecté, disponible, occupé, indisponible, suspendu) doivent être distingués : être connecté ne signifie pas être disponible.
+
+### Sécurité et modèle de données — exigences à auditer avant implémentation
+
+- Comptes individuels, moindre privilège, contrôle serveur pour chaque action et politiques RLS dédiées.
+- Un agent ne voit que les dossiers qui lui sont attribués ou qu'il prend dans la file avec autorisation ; l'aperçu de file ne divulgue que les champs strictement nécessaires.
+- Séparation stricte des tickets d'assistance, dossiers de réclamation, notes internes, pièces jointes et données des pharmacies ; contrôle d'accès aux pièces jointes via URLs temporaires et autorisées.
+- Journal d'audit append-only ou protégé contre l'altération pour création, affectation, consultation sensible, réponse, changement d'état, appel, escalade, réaffectation, suspension et reprise Admin.
+- Évaluer les tables, profils, invitations, permissions et politiques existants avant de créer des tables ou migrations ; ne pas présumer que le rôle ou les tables proposés existent déjà.
+- Vérifier les sessions, révocations, accès directs API, Realtime, stockage des pièces jointes et protections contre l'accès inter-agent/inter-dossier.
+
+### Critères de recette à ajouter sur Replay
+
+- Création de plusieurs agents par Admin, comptes individuels, connexion simultanée et absence de compte partagé.
+- Cycle de vie complet : modification, indisponibilité, suspension, révocation, réactivation et réaffectation des dossiers.
+- Isolation : agent A ne peut pas lire/modifier les dossiers privés de B ; un agent non affecté ne voit qu'un aperçu minimal autorisé ; aucun accès aux fonctions Admin/finance globale.
+- Prise concurrente d'un dossier : un seul agent obtient l'affectation ; journal complet.
+- Parcours de réclamation Client↔Pharmacie : dépôt, qualification, collecte de preuves, réponses des parties, suivi, proposition, clôture selon droits et réouverture selon règles.
+- Escalade obligatoire pour les cas sensibles ; réception et reprise par Admin ; traçabilité des motifs et décisions.
+- Non-régression FAQ, Livechat, notifications, pièces jointes et appels audio du §226.
+- Vérifier les droits RLS/API/Realtime/Storage par tests négatifs, pas seulement par masquage d'interface.
+
+### État de réalisation
+
+- Profil interne et possibilité de créer plusieurs agents : **DÉCISION MÉTIER VALIDÉE ; NON IMPLÉMENTÉ / NON TESTÉ**.
+- Traitement par les agents de l'assistance ET des réclamations/litiges avec escalade Admin : **DÉCISION MÉTIER VALIDÉE ; NON IMPLÉMENTÉ / NON TESTÉ**.
+- Rôle `naxa_support_agent`, permissions, écrans, affectations, files, rapports et modèle de données : **CIBLES PROPOSÉES À AUDITER ; EXISTENCE NON PROUVÉE**.
+- Aucun code applicatif, migration Replay/Production, ni déploiement n'est inclus dans cette décision.
+- Point de reprise : audit sur `main` du modèle actuel des profils/permissions, de l'Admin, des tickets Livechat, des réclamations éventuelles, des pièces jointes et des politiques RLS Replay. Proposer ensuite un modèle d'intégration sans dupliquer les structures existantes, puis implémenter et tester sur Replay uniquement. Production/déploiement hors périmètre sans autorisation explicite.
