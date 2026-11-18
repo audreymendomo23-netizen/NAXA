@@ -143,6 +143,9 @@ test("Lot B2 exécute le vrai parcours Client Marketplace de bout en bout sur Re
   assert.match(runtime, /Continuer avec cette pharmacie/);
   assert.match(runtime, /creer_transactions_client|C’est enregistré/);
   assert.match(runtime, /naxa_e2e_expiry_stock/);
+  assert.match(runtime, /setActiveStockManagerRole/);
+  assert.match(runtime, /naxa_select_active_role/);
+  assert.match(runtime, /stockManagerOriginalActiveRole/);
   assert.match(runtime, /Confirmer disponibilité et préparer/);
   assert.match(runtime, /Décision réelle de la pharmacie/);
   assert.match(runtime, /Annuler la réservation/);

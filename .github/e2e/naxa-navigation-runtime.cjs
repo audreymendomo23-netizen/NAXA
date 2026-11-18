@@ -51,6 +51,10 @@ let state = {
   marketplaceReservationId: null,
   marketplaceInitialAvailable: null,
   marketplaceFavoriteCreated: false,
+  stockManagerProfileId: null,
+  stockManagerOriginalActiveRole: null,
+  stockManagerOriginalFonctionInterne: null,
+  stockManagerOriginalPharmacieId: null,
   comptableProfileId: null,
   originalFonctionInterne: null,
   originalPharmacieId: null,
@@ -249,6 +253,29 @@ async function setActiveComptableRole(profile, accessToken) {
   assert.equal(pharmacy.data, PHARMACY_ID, "La pharmacie active ne correspond pas à la fixture Replay.");
   assert.equal(allowed.data, true, "Le périmètre Comptable n'est pas autorisé.");
   console.log("PASS session et périmètre — Comptable Replay");
+}
+
+async function setActiveStockManagerRole(profile, accessToken) {
+  const userClient = createClient(PROJECT_URL, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: "Bearer " + accessToken } },
+  });
+  const { data, error } = await userClient.rpc("naxa_select_active_role", {
+    p_role_code: "gestionnaire_stock",
+    p_pharmacie_id: MARKETPLACE_PHARMACY_ID,
+    p_partner_id: null,
+  });
+  if (error) throw error;
+  assert.equal(data, true, "La sélection du rôle Gestionnaire Stock B2 a été refusée.");
+  const [business, pharmacy] = await Promise.all([
+    userClient.rpc("naxa_business_function"),
+    userClient.rpc("naxa_active_role_pharmacy"),
+  ]);
+  if (business.error) throw business.error;
+  if (pharmacy.error) throw pharmacy.error;
+  assert.equal(business.data, "gestionnaire_stock", "Le rôle actif du compte n'est pas Gestionnaire Stock.");
+  assert.equal(pharmacy.data, MARKETPLACE_PHARMACY_ID, "Le périmètre actif du Gestionnaire Stock n'est pas la pharmacie Marketplace.");
+  console.log("PASS session et périmètre — Gestionnaire Stock B2 sélectionné via son affectation Replay.");
 }
 
 async function assertClientSession(profile, session) {
@@ -660,6 +687,48 @@ async function cleanup() {
     }
   }
 
+  if (state.stockManagerProfileId) {
+    if (state.stockManagerOriginalActiveRole) {
+      const roleRestore = await admin.from("naxa_profile_active_roles").upsert({
+        profile_id: state.stockManagerProfileId,
+        role_code: state.stockManagerOriginalActiveRole.role_code,
+        pharmacie_id: state.stockManagerOriginalActiveRole.pharmacie_id,
+        partner_id: state.stockManagerOriginalActiveRole.partner_id,
+        selected_at: state.stockManagerOriginalActiveRole.selected_at,
+        updated_at: state.stockManagerOriginalActiveRole.updated_at,
+      }, { onConflict: "profile_id" });
+      if (roleRestore.error) failures.push("restauration du rôle actif initial Gestionnaire Stock : " + roleRestore.error.message);
+    } else {
+      const roleDelete = await admin.from("naxa_profile_active_roles").delete().eq("profile_id", state.stockManagerProfileId);
+      if (roleDelete.error) failures.push("suppression du rôle actif temporaire Gestionnaire Stock : " + roleDelete.error.message);
+    }
+    const profileRestore = await admin.from("profiles").update({
+      fonction_interne: state.stockManagerOriginalFonctionInterne,
+      pharmacie_id: state.stockManagerOriginalPharmacieId,
+    }).eq("id", state.stockManagerProfileId);
+    if (profileRestore.error) failures.push("restauration du profil Gestionnaire Stock : " + profileRestore.error.message);
+    const [profileCheck, roleCheck] = await Promise.all([
+      admin.from("profiles").select("fonction_interne,pharmacie_id").eq("id", state.stockManagerProfileId).maybeSingle(),
+      admin.from("naxa_profile_active_roles").select("role_code,pharmacie_id,partner_id")
+        .eq("profile_id", state.stockManagerProfileId).maybeSingle(),
+    ]);
+    if (profileCheck.error || !profileCheck.data
+      || profileCheck.data.fonction_interne !== state.stockManagerOriginalFonctionInterne
+      || profileCheck.data.pharmacie_id !== state.stockManagerOriginalPharmacieId) {
+      failures.push("les champs initiaux du profil Gestionnaire Stock n'ont pas été restaurés.");
+    }
+    if (state.stockManagerOriginalActiveRole) {
+      if (roleCheck.error || !roleCheck.data
+        || roleCheck.data.role_code !== state.stockManagerOriginalActiveRole.role_code
+        || roleCheck.data.pharmacie_id !== state.stockManagerOriginalActiveRole.pharmacie_id
+        || roleCheck.data.partner_id !== state.stockManagerOriginalActiveRole.partner_id) {
+        failures.push("le rôle actif initial du Gestionnaire Stock n'est pas restauré.");
+      }
+    } else if (roleCheck.error || roleCheck.data) {
+      failures.push("le rôle actif temporaire du Gestionnaire Stock n'a pas été retiré.");
+    }
+  }
+
   if (state.assignmentId) {
     const assignmentDelete = await admin.from("naxa_professional_assignments").delete().eq("id", state.assignmentId);
     if (assignmentDelete.error) failures.push("suppression de l'affectation Comptable temporaire : " + assignmentDelete.error.message);
@@ -694,18 +763,23 @@ async function run() {
   assert.equal(promoter.role, "promoteur", "Le profil Promoteur existant a changé de rôle.");
   assert.equal(comptable.role, "client", "Le profil de recette destiné au rôle temporaire n'est plus Client.");
   assert.equal(partnerOwner.role, "client", "Le profil Client destiné au partenaire n'est plus Client.");
-  assert.equal(stockManager.fonction_interne, "gestionnaire_stock", "Le profil de décision B2 n'est plus Gestionnaire de stock.");
-  assert.equal(stockManager.pharmacie_id, MARKETPLACE_PHARMACY_ID, "Le Gestionnaire de stock B2 n'est pas affecté à la pharmacie Marketplace attendue.");
+  assert.equal(stockManager.role, "client", "Le profil de décision B2 doit conserver son identité racine Client.");
+  assert.equal(stockManager.pharmacie_id, MARKETPLACE_PHARMACY_ID, "Le Gestionnaire Stock B2 n'est pas affecté à la pharmacie Marketplace attendue.");
   assert.equal(comptable.fonction_interne, null, "Le profil Comptable de recette possède déjà une fonction interne.");
   assert.equal(comptable.pharmacie_id, null, "Le profil Comptable de recette possède déjà une pharmacie active.");
 
-  const [activeRole, assignment, pharmacy, promoterLink] = await Promise.all([
+  const [activeRole, assignment, pharmacy, promoterLink, stockManagerRole, stockManagerAssignment] = await Promise.all([
     admin.from("naxa_profile_active_roles").select("profile_id").eq("profile_id", comptable.id).maybeSingle(),
     admin.from("naxa_professional_assignments").select("id").eq("profile_id", comptable.id).eq("role_code", "comptable").eq("statut", "active"),
     admin.from("pharmacies").select("id,actif,est_demo").eq("id", PHARMACY_ID).single(),
     admin.from("promoteur_pharmacies").select("pharmacie_id,actif").eq("promoteur_id", promoter.id).eq("pharmacie_id", PHARMACY_ID).eq("actif", true).maybeSingle(),
+    admin.from("naxa_profile_active_roles").select("profile_id,role_code,pharmacie_id,partner_id,selected_at,updated_at")
+      .eq("profile_id", stockManager.id).maybeSingle(),
+    admin.from("naxa_professional_assignments").select("id,role_code,pharmacie_id,statut,commence_at,expire_at")
+      .eq("profile_id", stockManager.id).eq("role_code", "gestionnaire_stock")
+      .eq("pharmacie_id", MARKETPLACE_PHARMACY_ID).eq("statut", "active").maybeSingle(),
   ]);
-  for (const result of [activeRole, assignment, pharmacy, promoterLink]) {
+  for (const result of [activeRole, assignment, pharmacy, promoterLink, stockManagerRole, stockManagerAssignment]) {
     if (result.error) throw result.error;
   }
   assert.equal(activeRole.data, null, "Une sélection de rôle préexistante empêche un test réversible.");
@@ -714,6 +788,16 @@ async function run() {
   assert.equal(pharmacy.data.est_demo, true, "La pharmacie sélectionnée n'est pas une pharmacie E2E.");
   assert.ok(promoterLink.data, "Le Promoteur existant n'est pas propriétaire de la pharmacie de recette.");
 
+  assert.ok(stockManagerAssignment.data, "Aucune affectation Gestionnaire Stock active vers la pharmacie Marketplace.");
+  assert.ok(new Date(stockManagerAssignment.data.commence_at).getTime() <= Date.now(),
+    "L'affectation Gestionnaire Stock B2 n'a pas encore commencé.");
+  assert.ok(!stockManagerAssignment.data.expire_at || new Date(stockManagerAssignment.data.expire_at).getTime() > Date.now(),
+    "L'affectation Gestionnaire Stock B2 a expiré.");
+
+  state.stockManagerProfileId = stockManager.id;
+  state.stockManagerOriginalActiveRole = stockManagerRole.data;
+  state.stockManagerOriginalFonctionInterne = stockManager.fonction_interne;
+  state.stockManagerOriginalPharmacieId = stockManager.pharmacie_id;
   state.comptableProfileId = comptable.id;
   state.originalFonctionInterne = comptable.fonction_interne;
   state.originalPharmacieId = comptable.pharmacie_id;
@@ -730,6 +814,7 @@ async function run() {
     sessions.push(clientSession);
     const stockManagerSession = await createExistingUserSession(stockManager);
     sessions.push(stockManagerSession);
+    await setActiveStockManagerRole(stockManager, stockManagerSession.accessToken);
     const clientBSession = await createExistingUserSession(comptable);
     sessions.push(clientBSession);
     const historyFixtures = await createClientHistoryFixtures(partnerOwner, comptable);

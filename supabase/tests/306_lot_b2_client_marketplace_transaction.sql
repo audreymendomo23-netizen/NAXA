@@ -111,6 +111,19 @@ begin
     '{"sub":"875507d2-cdb8-4166-9c19-b243934f2177","role":"authenticated"}',
     true
   );
+  -- Cette identité racine Client possède plusieurs affectations dans la pharmacie.
+  -- Sélectionner explicitement Gestionnaire Stock par le RPC métier avant la décision.
+  if not public.naxa_select_active_role(
+    'gestionnaire_stock',
+    '1a4f1ce5-cccf-477e-9a5b-474c8c9fc713'::uuid,
+    null::uuid
+  ) then
+    raise exception 'B2_STOCK_MANAGER_ROLE_SELECTION_FAILED';
+  end if;
+  if public.naxa_business_function() <> 'gestionnaire_stock'
+     or public.naxa_active_role_pharmacy() <> '1a4f1ce5-cccf-477e-9a5b-474c8c9fc713'::uuid then
+    raise exception 'B2_STOCK_MANAGER_ACTIVE_SCOPE_MISMATCH';
+  end if;
   perform public.gestionnaire_stock_reservation_confirmer(v_reservation);
 
   select r.statut::text into v_statut
