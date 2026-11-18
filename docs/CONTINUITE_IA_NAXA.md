@@ -1170,3 +1170,14 @@ Ces deux migrations et leur preuve concernent exclusivement Replay et la branche
 - Build, typecheck, lint et CI non exécutés dans cet environnement. Aucun statut vert global revendiqué.
 - Déploiement Production non effectué, conformément à l’absence d’autorisation de redéploiement.
 - Statut global : **PARTIEL — code et SQL corrigés, activation Production et recette Auth réelle restantes**.
+
+
+## Addendum 2026-11-18 — recette réelle du parcours « mot de passe oublié »
+
+- Retour utilisateur : le processus « mot de passe oublié » a fonctionné de bout en bout et l'utilisateur a réussi à se connecter après la réinitialisation. Cette recette confirme, pour le compte et la session testés, la réception/utilisation de l'OTP, le changement du mot de passe et la connexion qui suit. Aucun OTP ni mot de passe n'a été communiqué dans le chat.
+- Statut fonctionnel : **RECETTE UTILISATEUR RÉUSSIE** sur le parcours réel rapporté par l'utilisateur.
+- Déploiement du commit 88f4b9b9e69bf364e09240e15e2dc851a27a6ea7 : Vercel deployment dpl_AMhKm8YaYGeC7pmbnYEHE4JfzACm, cible production, état **ERROR**, errorCode=lint_or_type_error. L'alias déclaré est naxa-naxa3.vercel.app ; ce déploiement n'a pas été promu READY.
+- Cause exacte du build : TypeScript signale src/app/pharmacie/caisse/page.tsx(261,8): error TS2339: Property 'catch' does not exist on type 'PromiseLike<void>'. La campagne de tests Node du même build a néanmoins terminé avec **582 tests PASS, 0 fail** avant l'échec TypeScript. Le build complet et le lint ne sont donc pas verts.
+- Conséquence : la recette utilisateur prouve le fonctionnement du parcours Auth observé, mais ne prouve pas que le commit 88f4b9b est celui qui a servi la session testée, ni que ce déploiement est actif en Production. Ne pas confondre validation métier réelle et livraison Vercel du commit.
+- Aucun nouveau déploiement n'a été lancé après cet échec. Aucun changement de code supplémentaire n'a été fait dans cette intervention.
+- Prochaine action : corriger le défaut TypeScript dans src/app/pharmacie/caisse/page.tsx, vérifier npm run quality/build sur le SHA corrigé, puis traiter la livraison Production selon l'autorisation explicite déjà donnée et sans multiplier les déploiements.
