@@ -130,6 +130,7 @@ async function run(){
    assert.equal(reopenedAfterResolution.resolved_at,null,"resolved_at doit être effacé à la reprise.");
    const closed=await adminPage.request.patch(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,statut:"ferme"}});
    assert.equal(closed.status(),200,"La clôture Admin a échoué.");
+   const supabase=createClient(PROJECT_URL,anonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{headers:{Authorization:"Bearer "+session.accessToken}}});
    const denied=await supabase.from("messages_support").insert({ticket_id:item.ticketId,auteur_profile_id:session.profile.id,contenu:"Tentative après clôture",interne:false});
    assert.ok(denied.error,"Un compte professionnel ne doit pas répondre à un dossier fermé.");
    console.log("PASS — notifications, résolution, reprise et blocage après clôture pour "+fixture.role+".");
