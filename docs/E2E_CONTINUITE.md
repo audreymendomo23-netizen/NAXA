@@ -8424,3 +8424,67 @@ Auditer l'API Gmail/OAuth et les mécanismes de synchronisation compatibles avec
 ### Point exact de reprise
 
 Commencer par l'audit complet du moteur de rôles et des policies RLS/Storage, puis concevoir et tester le socle d'identité/permissions/affectation des agents sur Replay. Ne pas commencer Gmail ou les appels audio avant que les agents ne soient cloisonnés et que les tests négatifs inter-agent soient PASS.
+
+
+## §231 — Audit approfondi moteur de rôles, RLS et pièces jointes support — 18/11/2026
+
+### Périmètre et méthode
+
+- Inspection en lecture seule du schéma Replay pwfftcsjyeibxxqhwysw, des fonctions SQL, ACL, contraintes, triggers, politiques RLS et Storage.
+- Aucun SQL d'écriture, aucune migration, aucun changement applicatif ou Production.
+
+### Constat vérifié : identité interne Agent
+
+- L'enum public.role_type ne contient que client, pharmacie, promoteur, caisse et admin. Il n'existe pas de valeur support_agent.
+- La contrainte profiles_fonction_interne_check ne contient que les fonctions professionnelles existantes ; support_agent n'y figure pas.
+- naxa_roles contient les rôles système et professionnels actuels ; aucun rôle d'agent du service client n'est présent.
+- private.naxa_business_function_base résout les rôles à partir de naxa_profile_active_roles, des profils et des affectations professionnelles. Son fallback mappe notamment le rôle enum admin vers admin ; utiliser admin pour un agent ferait donc hériter de la fonction Admin et serait interdit.
+- public.naxa_business_function est un wrapper SECURITY INVOKER qui n'autorise la lecture que pour auth.uid() ; les fonctions privées de résolution sont SECURITY DEFINER et exécutables par authenticated, pas par anon.
+- profiles est lié à auth.users par FK. Ses politiques RLS actuelles accordent les opérations globales à Admin, et la lecture self/team selon les règles Promoteur/Responsable. Aucun modèle de gestion de comptes agents n'existe.
+- Conclusion de conception : le rôle Agent doit être un rôle interne dédié, non assignable par les professionnels et non assimilé à Admin, Client ou employé de pharmacie. Le schéma d'identité doit être conçu de façon cohérente avec l'enum role_type, les contraintes de profil, la résolution du rôle actif, les guards et toutes les policies. Ne pas créer de profil agent en lui attribuant admin ou client comme contournement.
+
+### Constat vérifié : autorisations et périmètre support
+
+- tickets_support SELECT : Admin actif dans son espace Admin, demandeur propriétaire, ou acteur de la pharmacie liée. Aucun prédicat d'affectation à un agent NAXA.
+- messages_support SELECT : Admin actif, ou messages non internes visibles par les participants historiques/propriétaires. Aucun contrôle d'agent assigné ; les notes internes ne sont pas accessibles aux demandeurs.
+- messages_support INSERT : messages non internes uniquement, écrits par auth.uid() dans les règles historiques ; aucun mécanisme agent dédié pour répondre ou écrire une note interne.
+- naxa_profile_active_roles bloque directement l'accès authentifié via une policy deny ; l'accès au rôle actif se fait par les fonctions de résolution. Le nouvel agent doit respecter ce modèle ou utiliser une table d'identité séparée strictement contrôlée.
+- naxa_roles et naxa_role_privileges sont lisibles par authenticated selon les policies observées ; naxa_profile_privileges expose les privilèges au profil concerné, au délégant et à Admin. Il faut éviter d'y placer un privilège générique qui ouvrirait les dossiers support à tous les profils.
+- Le client service-role de /api/admin/messagerie contourne les RLS ; toute route agent devra faire une authentification serveur, vérifier profil agent actif, permission, affectation au ticket et statut avant chaque lecture/écriture, puis ne retourner que les données autorisées.
+
+### Constat vérifié : pièces jointes et automatisations
+
+- Le bucket naxa-support-attachments est privé, limite 4 MiB et autorise PDF/JPEG/PNG/WebP.
+- Les policies Storage actuelles limitent l'ajout, la lecture et la suppression aux pièces jointes du dossier du demandeur ; aucun droit agent n'est défini. L'Admin utilise les URL signées côté serveur dans le flux existant.
+- Les triggers de support notifient les profils role=admin actifs lors de nouveaux tickets et réponses client ; ils devront notifier l'agent affecté et/ou la file centrale, sans exposer les dossiers aux agents non autorisés.
+- Le trigger public.support_chat_mark_first_response considère actuellement uniquement profiles.role=admin comme première réponse support et bascule le ticket en en_attente_client. Il doit reconnaître une réponse d'agent autorisé, tout en conservant une trace de l'identité agent et en excluant les notes internes.
+- Les fonctions de synchronisation des rôles professionnels modifient naxa_profile_active_roles et profiles.fonction_interne ; elles ne doivent pas sélectionner automatiquement un rôle Agent ou écraser l'identité interne lors d'une affectation pharmacie.
+
+### Contradictions / causes racines
+
+1. Le rôle Agent n'est pas représentable dans l'enum actuel ni dans le check fonction_interne ; le catalogue de rôles et le moteur de résolution ne le connaissent pas.
+2. La boîte Admin existante n'a aucune notion d'affectation, de disponibilité, de charge ou de prise atomique ; les RLS ne cloisonnent pas les agents.
+3. Les notes internes ne sont pas disponibles dans le parcours d'écriture actuel des agents ; les policies existantes sont orientées participants/clients et Admin.
+4. Les notifications et la mesure de première réponse sont explicitement Admin-only.
+5. Les pièces jointes privées ne prévoient aucun accès agent ; ouvrir le bucket ou élargir les policies sans vérifier le ticket et l'affectation créerait une fuite inter-dossier.
+
+### Architecture corrective à valider avant implémentation
+
+- Évaluer prioritairement une identité interne dédiée et une table d'agents reliée au profil Auth, avec statut actif/suspendu, permissions explicites et journal d'administration ; ne pas utiliser le rôle Admin comme substitut.
+- Comparer cette option à l'ajout d'une valeur dédiée à role_type. Cette seconde voie impose d'auditer et d'adapter chaque branche qui traite les rôles non-Client, les fonctions de résolution, contraintes, triggers, policies et contrôles serveur. Aucune option n'est encore retenue ni migrée.
+- Modéliser séparément affectations de tickets, présence, capacité/charge, prise atomique et événements d'audit. La file centrale ne doit exposer que les tickets non attribués ou explicitement accessibles.
+- Définir des fonctions serveur/RPC étroites pour accepter/assigner/réassigner un ticket avec verrouillage atomique et vérification de statut, permission et suspension.
+- Accéder aux pièces jointes via URL signée courte durée uniquement après vérification serveur de l'affectation ou d'une permission d'escalade ; garder le bucket privé et interdire les notes internes aux demandeurs.
+- Adapter notifications et mesure SLA pour l'agent autorisé, puis tester les accès croisés agent A/agent B, ticket affecté/non affecté, note interne, pièce jointe, suspension, session expirée et escalade Admin.
+
+### Statut au checkpoint
+
+- Audit fonctions de résolution, catalogue, enum, contraintes profil, ACL, policies RLS support/profils/roles, policies Storage support et triggers : EFFECTUÉ EN LECTURE SEULE.
+- Racines techniques du rôle Agent et des accès multi-agents : IDENTIFIÉES.
+- Architecture cible finale : À ARBITRER après revue des migrations source et des impacts applicatifs complets.
+- Code/migration/tests agent, Gmail OAuth, réclamations et appels audio : NON IMPLÉMENTÉS / NON TESTÉS.
+- AUCUN VERT / AUCUNE NOTE 10/10. Aucun changement Replay ou Production n'a été appliqué.
+
+### Point exact de reprise
+
+Comparer l'identité Agent séparée liée au profil Auth avec l'extension contrôlée de role_type ; inspecter les migrations et usages TypeScript/SQL du rôle, puis arrêter une architecture qui n'accorde jamais de privilèges Admin. Après décision technique documentée, implémenter sur Replay uniquement et commencer par les tests négatifs RLS/route/Storage avant l'interface Agent.
