@@ -7430,3 +7430,25 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - Le contrôle Auth refresh-token-reuse reste rouge : après deux rotations et 15 secondes, l'ancien jeton ancêtre est rejeté HTTP 400, mais un refresh token descendant reste actif. Le contrôle direct auth.refresh_tokens a montré quatre jetons en chaîne, dont le dernier non révoqué. Ce constat n'est ni corrigé ni masqué par le nouveau harnais.
 - Les fichiers d'essai et tests n'ont pas modifié Production. Aucun déploiement Vercel n'a été effectué.
 - La correction E2E Auth vérifie maintenant la présence des deux jetons avant de considérer une réponse HTTP 200 comme une session valide ; quatre tests unitaires couvrent les cas complet, vide, partiel et rejeté.
+
+
+## Section 206 — Résultat complet du run Replay précédent et reprise corrigée (18 novembre 2026)
+
+### Run Replay 44233363828 — résultats terminaux
+- Provisionnement Promoteur/Admin/Client/Caisse/Stock/Comptable/Pharmacien/Livreur et pharmacie technique : PASS.
+- Build de recette Next.js : PASS ; Web Push navigateur Chrome stable : PASS (3 souscriptions authentifiées ciblées, 3 envois et 3 réceptions dans le Service Worker ; aucune prétention de reçu FCM Android physique).
+- Remboursement crédit via JWT Caisse Replay : PASS.
+- Parcours navigateur Crédit comptoir : PASS ; demande au-dessus du plafond, approbation Promoteur, débit de stock une fois, suivi Client, remboursement via Caisse, solde ramené à zéro, outbox et clôture rapprochée.
+- Marketplace crédit : PASS ; demande Client en attente sans débit ni réservation de stock, rejet Promoteur, stock inchangé.
+- Comptabilité : PASS ; deux comptes, deux journaux, quatre mappings débit/crédit créés/validés par l'interface Promoteur puis nettoyage des seules lignes de configuration temporaires.
+- Storage E2E : PASS ; nettoyage des fichiers secrets temporaires : PASS.
+- browser_failures=0 ; les trois tests navigateur Crédit, Marketplace et Comptabilité ont donc tous réussi.
+
+### Cause unique de l'échec de ce run
+- Le script de vérification Auth s'est arrêté avant ses assertions métier à cause de l'import CommonJS `Cannot find module './refresh-session-check'` ; la correction `.cjs` a été appliquée dans le HEAD suivant.
+- Ce run est antérieur à la correction d'import et ne constitue donc ni un PASS ni un FAIL du contrôle de révocation Auth. Le défaut Auth observé sur le run 44197708312 et par inspection SQL de la famille de jetons Replay reste une réserve indépendante.
+
+### Reprise sur HEAD 409e89e69bf9d89b68c869e62e4c677595eb4b43
+- Run `NAXA quality` 44233811015 : SUCCESS, 588/588 tests PASS, TypeScript, ESLint, actionlint et build Next.js PASS (156 pages statiques).
+- Run Replay 44233811098 : démarré sur ce HEAD ; provisionnement jusqu'à la pharmacie et au stock technique PASS. Installation Playwright/Chromium en cours au dernier contrôle ; aucune conclusion JWT/navigateur/Auth de ce run n'est revendiquée.
+- Le document de continuité doit rester explicite : le parcours remboursement multicanal est vert sur les preuves SQL/JWT/navigateur terminales précédentes ; le vert du workflow global dépend encore du test Auth exécuté sur le dernier HEAD et de la politique de révocation du projet Replay.
