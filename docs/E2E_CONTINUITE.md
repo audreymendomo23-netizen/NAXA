@@ -7495,3 +7495,24 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **Auth : ROUGE / action Dashboard Replay requise** ; ce point est indépendant du remboursement.
 - **Vert global E2E : NON ACQUIS** tant que le run courant n'est pas terminal et que la révocation de la famille de refresh tokens n'est pas démontrée.
 - Aucune migration Production, aucune écriture Production et aucun déploiement Vercel.
+
+## Section 209 — Diagnostic Auth : révocation de famille des refresh tokens (18 novembre 2026)
+
+### Preuve E2E terminale Replay
+- Run GitHub Actions Replay `44234988988` : terminé en échec au contrôle Auth, et non en raison du parcours crédit.
+- Le log exact donne `Auth: 1 échec(s) ; Crédit: 0`. Web Push : PASS ; remboursement crédit via vrai JWT Caisse : PASS ; parcours POS : PASS ; Marketplace : PASS ; Comptabilité : PASS ; Storage : 17 PASS, 0 SKIP ; nettoyage exécuté.
+- Le test Auth a exécuté deux rotations successives, attendu 15 secondes (hors fenêtre de réutilisation), puis rejeté le refresh token ancêtre. En revanche, le refresh token descendant courant a encore renvoyé HTTP 200 avec un couple access/refresh utilisable. Résultat : la famille de session n'a pas été révoquée. Aucun PASS Auth n'est revendiqué.
+
+### Diagnostic et correction attendue
+- La documentation Auth Supabase indique qu'une réutilisation d'un refresh token ancêtre hors des exceptions doit terminer la session entière et révoquer les refresh tokens de la famille, lorsque la rotation est activée.
+- Le paramètre de configuration exposé par le Management API est `refresh_token_rotation_enabled`. La correction cible Replay est de le positionner à `true`.
+- Conserver l'intervalle de réutilisation par défaut de 10 secondes ; ne pas l'augmenter pour faire passer le test. Le scénario E2E utilise deux rotations et attend 15 secondes pour éviter l'exception du parent actif et la fenêtre de grâce.
+- Endpoint de configuration documenté : `PATCH /v1/projects/{ref}/config/auth`, corps minimal `{"refresh_token_rotation_enabled": true}`. L'API nécessite le scope OAuth `auth:write`, ou les permissions de jeton fin `auth_config_write` et `project_admin_write`.
+- La valeur actuelle de ce paramètre n'est pas lisible/écrivable par les actions Supabase connectées disponibles dans ce chantier. Le résultat runtime prouve que la protection effective ne termine pas la famille, mais ne permet pas à lui seul de lire la valeur de configuration.
+- Aucun contournement par écriture dans les tables internes `auth.*`, aucune utilisation de la clé `service_role` comme jeton Management API. Aucune modification Production.
+
+### Critère de fermeture
+1. Sur le projet Replay uniquement, lire la configuration Auth et activer `refresh_token_rotation_enabled=true` si elle est désactivée.
+2. Relire la configuration pour prouver la valeur effective.
+3. Relancer `scripts/e2e/verify-auth-session-lifecycle.cjs` avec les identifiants techniques Replay : l'ancêtre doit être refusé et le refresh token descendant courant doit lui aussi être refusé après détection de réutilisation.
+4. Exiger le PASS du job E2E final avant le vert global. Aucune migration Production ni aucun déploiement Vercel.
