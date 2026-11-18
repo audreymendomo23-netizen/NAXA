@@ -3,13 +3,16 @@ import { authorizeSupportAgent } from "@/lib/support/agent-auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  let body: { password?: string; confirmation?: string };
+  let body: { password?: string; confirmation?: string; consent_accepted?: boolean };
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "Demande invalide." }, { status: 400 });
   }
 
   const password = String(body.password ?? "");
   const confirmation = String(body.confirmation ?? "");
+  if (body.consent_accepted !== true) {
+    return NextResponse.json({ error: "L’acceptation de la politique de confidentialité et des conditions d’utilisation est obligatoire." }, { status: 400 });
+  }
   if (password.length < 12 || password.length > 128
     || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)
     || password !== confirmation) {
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const { error: profileError } = await access.db.from("support_agents")
-    .update({ must_change_password: false, updated_at: new Date().toISOString() })
+    .update({ must_change_password: false, consent_accepted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("user_id", access.user.id)
     .eq("status", "active");
 
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
     actor_user_id: access.user.id,
     agent_user_id: access.user.id,
     event_code: "initial_password_rotated",
-    details: { method: "authenticated_self_service" },
+    details: { method: "authenticated_self_service", consent_accepted: true },
   });
 
   return NextResponse.json({ success: true });
