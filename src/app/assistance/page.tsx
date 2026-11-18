@@ -16,13 +16,13 @@ type SearchParams = {
 };
 
 const categories = [
-  ["compte", "Compte et connexion"],
-  ["technique", "Problème technique"],
-  ["commande", "Commande, réservation ou livraison"],
-  ["signalement", "Signaler un contenu ou un comportement"],
-  ["confidentialite", "Confidentialité et données personnelles"],
-  ["suggestion", "Suggestion ou amélioration"],
-  ["autre", "Autre demande"],
+  ["compte", "Compte et connexion"], ["technique", "Problème technique"],
+  ["gestion_espace", "Utilisation de mon espace"], ["personnel", "Personnel et affectations"],
+  ["stock", "Stock et inventaires"], ["caisse", "Caisse et comptabilité"],
+  ["commandes", "Commandes et réservations"], ["livraison", "Livraison et suivi"],
+  ["abonnement_paiement", "Abonnement et paiement"], ["publication", "Catalogue et publications"],
+  ["confidentialite", "Confidentialité et données personnelles"], ["signalement", "Signalement"],
+  ["suggestion", "Suggestion ou amélioration"], ["autre", "Autre demande"],
 ] as const;
 
 const statuses: Record<string, { label: string; tone: string }> = {
@@ -60,8 +60,9 @@ export default async function AssistanceNaxaPage({
     sb.rpc("naxa_business_function"),
   ]);
 
-  if (profileError || activeRoleError || profile?.role !== "client"
-    || profile.actif !== true || activeRole !== "client") redirect("/");
+  if (profileError || activeRoleError || !profile || profile.actif !== true
+    || profile.role === "admin" || !activeRole || activeRole === "admin") redirect("/");
+  const isClient = activeRole === "client";
 
   const { data: tickets, error: ticketsError } = await sb.from("tickets_support")
     .select("id,reference_code,sujet,categorie,statut,created_at,last_activity_at,first_response_at,resolved_at")
@@ -97,7 +98,7 @@ export default async function AssistanceNaxaPage({
       <div className="mx-auto max-w-5xl space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/faq" className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-bold text-[#064B2A] hover:bg-emerald-50">← Centre d’aide</Link>
-          <span className="rounded-full bg-[#064B2A] px-3 py-2 text-xs font-bold text-white">Support Client NAXA</span>
+          <span className="rounded-full bg-[#064B2A] px-3 py-2 text-xs font-bold text-white">Assistance NAXA</span>
         </header>
 
         <section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
@@ -105,7 +106,7 @@ export default async function AssistanceNaxaPage({
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#FFE23D]">Assistance directe</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Écrire à l’équipe NAXA</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">
-              Une question sur ton compte, l’application ou ton expérience NAXA ? Envoie-nous un message et retrouve ici le suivi de ta demande et nos réponses.
+              Client ou professionnel : décris ton besoin, quel que soit ton rôle ou ton écosystème. Ton dossier est personnel et n’est pas transmis à ton Responsable.
             </p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
               <span className="rounded-full bg-white/10 px-3 py-2">Échange confidentiel</span>
@@ -148,11 +149,11 @@ export default async function AssistanceNaxaPage({
                 <p className="text-center text-xs text-slate-500">L’envoi est gratuit. Le délai de réponse peut varier selon le sujet et la disponibilité de l’équipe.</p>
               </form>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              {isClient && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <h3 className="font-bold text-slate-800">Une question sur un produit ou un stock ?</h3>
                 <p className="mt-1 text-sm text-slate-600">Pour une disponibilité, un prix ou une offre propre à une pharmacie, écris directement à l’établissement.</p>
                 <Link href="/aide" className="mt-3 inline-flex min-h-10 items-center font-bold text-[#064B2A] underline">Parler à une pharmacie →</Link>
-              </div>
+              </div>}
             </section>
 
             <section className="min-w-0 space-y-4">

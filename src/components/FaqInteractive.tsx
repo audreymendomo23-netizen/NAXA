@@ -67,7 +67,9 @@ const sections: FaqSection[] = [
     title: "Assistance et contacts",
     description: "Choisir le bon interlocuteur et obtenir une réponse",
     questions: [
-      { question: "Comment écrire directement à NAXA ?", answer: "Utilise le widget jaune canari d’assistance ou la page Assistance NAXA. Ton échange est enregistré dans un dossier avec un numéro de référence ; tu peux retrouver l’historique et les réponses dans ton espace Client." },
+      { question: "Qui peut contacter directement l’assistance NAXA ?", answer: "Tous les Clients et tous les comptes professionnels actifs peuvent écrire individuellement à NAXA, quel que soit leur rôle ou leur écosystème : Promoteur, Responsable, Pharmacien, Gestionnaire de stock, Caissier, Comptable, Livreur ou autre professionnel autorisé. Il n’est pas nécessaire de passer par un Responsable ou un Promoteur." },
+      { question: "Mon Responsable ou mon Promoteur peut-il lire mes conversations avec NAXA ?", answer: "Non. Chaque dossier est personnel au compte qui l’a ouvert. Les autres membres de la structure ne peuvent pas lire tes échanges ; seuls les agents NAXA autorisés à traiter l’assistance y ont accès." },
+      { question: "Comment écrire directement à NAXA ?", answer: "Utilise le widget jaune canari d’assistance ou la page Assistance NAXA. Ton échange est enregistré dans un dossier avec un numéro de référence ; tu peux retrouver l’historique et les réponses dans ton espace." },
       { question: "Quand faut-il contacter une pharmacie plutôt que NAXA ?", answer: "Pour une question sur un prix, un stock, une disponibilité, un produit, un retrait ou une livraison propre à une pharmacie, contacte directement la pharmacie. NAXA traite les questions relatives à la plateforme et à ton compte." },
       { question: "Le widget est-il un service d’urgence médicale ?", answer: "Non. Le chat NAXA aide pour l’utilisation de la plateforme et le suivi des demandes. Il ne fournit aucun diagnostic et ne remplace pas les services d’urgence ou un professionnel de santé." },
       { question: "Que se passe-t-il si l’équipe NAXA n’est pas disponible ?", answer: "Tu peux tout de même laisser un message. Il est conservé dans ton dossier et tu peux revenir plus tard : les réponses apparaîtront dans la même conversation." },
@@ -100,10 +102,10 @@ export function FaqInteractive() {
     <main className="min-h-screen bg-[#F7FAF8] px-4 pb-14 pt-[max(20px,env(safe-area-inset-top,0px))] text-slate-900">
       <div className="mx-auto w-full max-w-4xl">
         <header className="overflow-hidden rounded-3xl bg-[#064B2A] p-6 text-white shadow-sm sm:p-8">
-          <Link href="/client" className="inline-flex min-h-10 items-center rounded-full border border-white/30 px-3 text-sm font-semibold hover:bg-white/10">← Retour à mon espace</Link>
+          <Link href="/" className="inline-flex min-h-10 items-center rounded-full border border-white/30 px-3 text-sm font-semibold hover:bg-white/10">← Retour à NAXA</Link>
           <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#FFE23D]">NAXA · Centre d’aide</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Comment pouvons-nous t’aider ?</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">Retrouve les réponses aux questions fréquentes, puis écris directement à l’équipe NAXA si tu as besoin d’aide.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">Clients et professionnels : retrouve les réponses aux questions fréquentes, puis écris directement à l’équipe NAXA si tu as besoin d’aide.</p>
           <label className="mt-6 flex min-h-12 items-center gap-3 rounded-xl bg-white px-4 text-[#123D28] shadow-sm">
             <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
             <input
@@ -175,9 +177,9 @@ export function FaqInteractive() {
         <section className="mt-6 rounded-3xl border border-[#F4D94A] bg-white p-5 shadow-sm sm:p-6">
           <p className="text-xs font-extrabold uppercase tracking-widest text-[#8A6C00]">Besoin d’une aide humaine ?</p>
           <h2 className="mt-2 text-xl font-black text-[#064B2A]">L’équipe NAXA est à ton écoute.</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Pour une question sur NAXA, ton compte ou un problème technique, utilise l’assistance directe. Pour un prix, un stock ou une disponibilité, écris à la pharmacie concernée.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Pour une question sur NAXA, ton compte, ton espace professionnel ou un problème technique, utilise l’assistance directe. Pour un prix, un stock ou une disponibilité, écris à la pharmacie concernée.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <Link href="/assistance" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#064B2A] px-4 py-3 text-center text-sm font-extrabold text-white hover:bg-[#0A6B3A]">Écrire au support NAXA</Link>
+            <Link href="/assistance" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#064B2A] px-4 py-3 text-center text-sm font-extrabold text-white hover:bg-[#0A6B3A]">Écrire à l’assistance NAXA</Link>
             <Link href="/aide" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-emerald-800 px-4 py-3 text-center text-sm font-extrabold text-[#064B2A] hover:bg-emerald-50">Contacter une pharmacie</Link>
           </div>
         </section>
