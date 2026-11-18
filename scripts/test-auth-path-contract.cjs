@@ -62,3 +62,18 @@ test("la recette de rejeu corrèle chaque rotation au même utilisateur et sessi
   assert.match(script, /sb-auth-refresh-token-rotated/);
   assert.match(script, /afterReuseDetection/);
 });
+
+test("le choix se souvenir de moi contrôle la durée des cookies de session", () => {
+  const server = source("src/lib/supabase/server.ts");
+  const login = source("src/app/api/auth/login/route.ts");
+  assert.match(login, /const remember = body\.remember !== false/);
+  assert.match(login, /supabaseServer\(undefined, \{ remember \}\)/);
+  assert.match(server, /sessionOptions\?\.remember === false/);
+  assert.match(server, /delete effectiveOptions\.maxAge/);
+  assert.match(server, /delete effectiveOptions\.expires/);
+});
+
+test("le nettoyage après changement de mot de passe reste global et explicite", () => {
+  const recovery = source("src/app/(auth)/mot-de-passe-oublie/page.tsx");
+  assert.match(recovery, /auth\.signOut\(\{\s*scope:\s*["']global["']\s*\}\)/);
+});
