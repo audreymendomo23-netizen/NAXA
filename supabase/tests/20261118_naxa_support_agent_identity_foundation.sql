@@ -65,7 +65,9 @@ begin
   if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_age_guard' and not tgisinternal) then
     raise exception 'Garde SQL de majorité Agent absente'; end if;
   select pg_get_functiondef('private.naxa_support_agent_age_guard()'::regprocedure) into v_def;
-  if position('18 years' in v_def)=0 then raise exception 'Garde SQL de majorité Agent incorrecte'; end if;
+  if position('18 years' in v_def)=0 or position('Africa/Douala' in v_def)=0 then
+    raise exception 'Garde SQL de majorité Agent incorrecte ou hors fuseau Cameroun';
+  end if;
 
   begin
     insert into public.support_agents(user_id,username,first_name,last_name,date_of_birth)
