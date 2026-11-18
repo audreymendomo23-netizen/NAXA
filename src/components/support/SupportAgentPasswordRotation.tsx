@@ -7,6 +7,7 @@ export function SupportAgentPasswordRotation() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [consent, setConsent] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -18,7 +19,7 @@ export function SupportAgentPasswordRotation() {
       const response = await fetch("/api/support-agent/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, confirmation }),
+        body: JSON.stringify({ password, confirmation, consent_accepted: consent }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Le remplacement a échoué.");
@@ -45,8 +46,12 @@ export function SupportAgentPasswordRotation() {
           Confirmer le mot de passe
           <input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} className="w-full rounded-xl border border-slate-300 p-3" required />
         </label>
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1" />
+          <span>Je confirme être majeur et j’accepte la <a href="/politique-confidentialite" target="_blank" rel="noreferrer" className="font-semibold text-emerald-800 underline">politique de confidentialité</a> et les <a href="/conditions-utilisation" target="_blank" rel="noreferrer" className="font-semibold text-emerald-800 underline">conditions d’utilisation</a> de NAXA.</span>
+        </label>
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-        <button type="submit" disabled={saving || !password || !confirmation} className="w-full rounded-xl bg-emerald-800 px-4 py-3 font-bold text-white disabled:opacity-40">{saving ? "Enregistrement…" : "Sécuriser mon compte"}</button>
+        <button type="submit" disabled={saving || !password || !confirmation || !consent} className="w-full rounded-xl bg-emerald-800 px-4 py-3 font-bold text-white disabled:opacity-40">{saving ? "Enregistrement…" : "Sécuriser mon compte"}</button>
       </form>
     </main>
   );
