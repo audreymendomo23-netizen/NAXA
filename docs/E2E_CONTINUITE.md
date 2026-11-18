@@ -2,7 +2,7 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§226)  
+**Dernière mise à jour :** 18 novembre 2026 (§229)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
 **HEAD contrôlé avant cette mise à jour documentaire :** commit de continuité Livechat §225 ; le commit exact est celui du dépôt `main` au moment de l'écriture.  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
@@ -8333,3 +8333,48 @@ Objectif qualité demandé : **10/10 visé**, mesuré par couverture des exigenc
 - Aucune migration ou écriture SQL n'a été exécutée sur Replay pendant cet audit ; aucune modification Production ni aucun déploiement.
 - Prochaine action d'exécution : définir et implémenter le socle d'identité interne, permissions, affectations et audit dans une migration additive testée sur Replay, tout en préparant en parallèle le socle d'appel audio (métadonnées, états, RPC atomiques, signalisation privée). Adapter ensuite les routes et interfaces Admin/Agent/Client, puis exécuter les recettes croisées et la non-régression.
 - Aucun statut vert ni note 10/10 n'est attribué à ce checkpoint : l'audit a révélé des fonctionnalités absentes et des protections multi-agent à construire.
+
+
+## §229 — Décision validée : support multicanal et connexion Gmail officielle — 18/11/2026
+
+### Décisions utilisateur confirmées
+
+1. **Gmail : une seule boîte officielle NAXA**, connectée par l'Administrateur depuis les paramètres du support ; les Customer Service Assistants autorisés reçoivent et traitent les emails dans NAXA selon leurs permissions. Les agents ne connectent pas leurs boîtes personnelles.
+2. **WhatsApp : conserver exactement le fonctionnement externe actuel.** Aucun import, synchronisation ou lecture automatique des conversations WhatsApp n'est ajouté. Les agents peuvent ouvrir le canal existant et enregistrer manuellement un compte rendu dans NAXA.
+3. Le dispositif existant est conservé : accès Profil → Support, Centre d'aide/FAQ, widget et page complète d'assistance, Livechat écrit, appels audio intégrés au Livechat à construire, téléphone classique et traitement des réclamations/litiges.
+4. Les appels téléphoniques classiques et WhatsApp restent des canaux externes ; ils ne sont pas présentés comme centralisés ou intégrés. Le suivi peut être consigné manuellement dans le dossier NAXA.
+
+### Architecture fonctionnelle cible
+
+- La boîte centrale des Customer Service Assistants regroupe les tickets/demandes NAXA, Livechat, emails Gmail et appels audio NAXA, avec identification explicite du canal.
+- Gmail est connecté par OAuth Google au niveau du compte officiel, sous contrôle Admin. Aucun mot de passe Gmail n'est demandé aux agents ni stocké dans NAXA.
+- Les emails entrants sont synchronisés, dédupliqués et regroupés par fil. Les agents autorisés peuvent les consulter, les prendre en charge, répondre depuis NAXA avec l'adresse officielle, joindre des fichiers autorisés et suivre les réponses ultérieures.
+- Jetons OAuth protégés côté serveur ; scopes Google minimaux et justifiés ; révocation/déconnexion Admin ; reprise sur expiration ou erreur de synchronisation.
+- Cloisonnement par permissions, affectation et RLS/API ; pièces jointes privées ; journalisation des connexions, consultations sensibles, téléchargements, affectations, réponses et changements d'accès.
+- Les emails Gmail reçus ne signifient pas que des notifications email sortantes NAXA sont déjà implémentées.
+- WhatsApp reste strictement externe dans ce périmètre ; aucune intégration WhatsApp Business n'est décidée ici.
+
+### Critères de recette à ajouter au programme §228
+
+- Connexion/déconnexion/reconnexion OAuth par Admin sur une seule boîte officielle.
+- Réception Gmail dans la file centrale, déduplication, regroupement des fils et reprise après interruption.
+- Réponse envoyée depuis NAXA, pièces jointes, réponse ultérieure rattachée au bon fil.
+- Tests négatifs d'accès inter-agent et inter-dossier sur API, recherche, messages et pièces jointes.
+- Jeton expiré/révoqué, erreur Gmail, doublon, email malformé, fichier interdit et indisponibilité du service.
+- Audit des scopes Google et des données conservées ; aucune exposition de jeton.
+- WhatsApp inchangé, aucune synchronisation automatique ; vérification que l'ouverture externe existante fonctionne.
+- Non-régression FAQ, widget, Livechat, appels audio lorsqu'ils seront implémentés, téléphone et réclamations.
+- Tests et données d'essai sur Replay uniquement ; aucune connexion d'une boîte personnelle ; aucun accès ou déploiement Production sans autorisation.
+
+### État au checkpoint
+
+- Décision Gmail unique officielle + accès des agents autorisés dans NAXA : **VALIDÉE**.
+- Conservation stricte de WhatsApp externe : **VALIDÉE**.
+- Spécification intégrée au cahier des charges support et au cahier NAXA : **DOCUMENTÉE** par le commit courant.
+- Connexion OAuth, synchronisation Gmail, boîte unifiée et permissions effectives : **NON IMPLÉMENTÉES / NON TESTÉES**.
+- Appels audio et plateforme multi-agents restent NON IMPLÉMENTÉS / NON TESTÉS conformément au §228.
+- Aucun changement applicatif, migration Replay/Production ou déploiement n'est effectué par cette mise à jour documentaire.
+
+### Point exact de reprise
+
+Auditer l'API Gmail/OAuth et les mécanismes de synchronisation compatibles avec le dépôt ; définir les scopes minimaux, le stockage sécurisé des jetons et le mapping Gmail thread/message vers les dossiers NAXA ; puis construire sur Replay les permissions multi-agents, la boîte centrale et les tests positifs/négatifs. Continuer en parallèle les lots d'identité agent et d'appels audio du §228. Maintenir WhatsApp inchangé et externe.
