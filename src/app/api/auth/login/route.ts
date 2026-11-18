@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data: matchingProfiles, error: profileLookupError } = await admin
       .from("profiles")
       .select("id,username,actif,role,pharmacie_id,first_name,last_name,phone,date_of_birth,age_verified,consent_accepted_at")
-      .ilike("username", username)
+      .eq("username", username)
       .limit(2);
     if (profileLookupError || !matchingProfiles || matchingProfiles.length !== 1) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
