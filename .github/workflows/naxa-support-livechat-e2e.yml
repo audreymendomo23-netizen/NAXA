@@ -8,6 +8,16 @@ on:
       - "scripts/e2e/naxa-support-livechat-browser.cjs"
       - "scripts/test-client-naxa-assistance.cjs"
       - "scripts/e2e/naxa-professional-support-browser.cjs"
+      - "scripts/e2e/naxa-support-agent-browser.cjs"
+      - "src/app/api/auth/login/route.ts"
+      - "src/app/api/auth/username-recognition/route.ts"
+      - "src/app/api/admin/support-agents/**"
+      - "src/app/api/support-agent/**"
+      - "src/app/equipe-support/**"
+      - "src/app/activation-agent/**"
+      - "src/components/admin/AdminSupportAgents.tsx"
+      - "src/components/support/**"
+      - "src/middleware.ts"
       - "src/components/NaxaSupportWidget.tsx"
       - "src/components/ParcoursClientShell.tsx"
       - "src/components/admin/AdminInbox.tsx"
@@ -105,6 +115,13 @@ jobs:
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         run: node scripts/e2e/naxa-professional-support-browser.cjs
+      - name: Recette navigateur Agents NAXA — comptes, permissions, RLS, Livechat et cycle de vie
+        env:
+          NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
+        run: node scripts/e2e/naxa-support-agent-browser.cjs
+      - name: Nettoyage de secours des comptes et tickets Agents Replay
+        if: always()
+        run: node scripts/e2e/naxa-support-agent-browser.cjs --cleanup
       - name: Nettoyage de secours des recettes professionnelles Replay
         if: always()
         run: node scripts/e2e/naxa-professional-support-browser.cjs --cleanup
