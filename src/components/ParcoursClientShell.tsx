@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { EnTeteClient } from "@/components/EnTeteClient";
+import { NaxaSupportWidget } from "@/components/NaxaSupportWidget";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 function appartientAuParcoursClient(pathname: string) {
@@ -14,6 +15,15 @@ function appartientAuParcoursClient(pathname: string) {
     || pathname === "/scanner"
     || pathname === "/recherche"
     || pathname === "/notifications"
+    || pathname === "/resultats"
+    || pathname === "/gardes"
+    || pathname.startsWith("/produit/")
+    || pathname.startsWith("/offre/")
+    || pathname === "/aide"
+    || pathname === "/commande/nouvelle"
+    || pathname === "/commande/bebe-maman"
+    || pathname === "/achats/credit"
+    || pathname.startsWith("/achats/credit/")
     || pathname === "/achats"
     || pathname.startsWith("/achats/")
     || pathname === "/favoris"
@@ -36,25 +46,56 @@ function appartientAuParcoursClient(pathname: string) {
     || (pathname.startsWith("/suivi/") && !pathname.startsWith("/suivi/professionnel"));
 }
 
+function bottomNavigationVisible(pathname: string) {
+  return pathname === "/client"
+    || pathname.startsWith("/client/")
+    || pathname === "/scanner"
+    || pathname === "/panier"
+    || pathname === "/notifications"
+    || pathname === "/resultats"
+    || pathname.startsWith("/univers-reservation/")
+    || pathname.startsWith("/reservation/");
+}
+
 export function ParcoursClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sessionReady, setSessionReady] = useState(false);
   const [clientConnecte, setClientConnecte] = useState(false);
+  const [clientIdActif, setClientIdActif] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = supabaseBrowser();
     let actif = true;
 
-    void supabase.auth.getSession().then(({ data, error }) => {
+    async function synchroniserClient(user: { id: string } | null) {
+      setClientConnecte(Boolean(user));
+      setClientIdActif(null);
+      if (!user) return;
+
+      const [{ data: profile, error }, { data: activeRole, error: activeRoleError }] = await Promise.all([
+        supabase.from("profiles").select("role,actif").eq("id", user.id).maybeSingle(),
+        supabase.rpc("naxa_business_function"),
+      ]);
+
       if (!actif) return;
-      setClientConnecte(!error && Boolean(data.session?.user));
-      setSessionReady(true);
+      if (!error && !activeRoleError && profile?.role === "client"
+        && profile.actif === true && activeRole === "client") {
+        setClientIdActif(user.id);
+      }
+    }
+
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (!actif) return;
+      void synchroniserClient(!error ? data.user : null).finally(() => {
+        if (actif) setSessionReady(true);
+      });
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!actif) return;
-      setClientConnecte(Boolean(session?.user));
-      setSessionReady(true);
+      void synchroniserClient(session?.user ?? null).finally(() => {
+        if (actif) setSessionReady(true);
+      });
     });
 
     return () => {
@@ -63,11 +104,14 @@ export function ParcoursClientShell({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  // L'accueil public et les routes d'authentification restent hors du parcours immersif.
-  // L'effet ne s'active que sur les routes client listées et après confirmation d'une session.
   const parcoursClientAuthentifie = sessionReady
     && clientConnecte
     && appartientAuParcoursClient(pathname);
+
+  const widgetVisible = sessionReady
+    && Boolean(clientIdActif)
+    && appartientAuParcoursClient(pathname)
+    && pathname !== "/faq";
 
   return (
     <>
@@ -81,6 +125,12 @@ export function ParcoursClientShell({ children }: { children: React.ReactNode })
           {children}
         </div>
       ) : children}
+      {widgetVisible && clientIdActif && (
+        <NaxaSupportWidget
+          clientId={clientIdActif}
+          hasBottomNav={bottomNavigationVisible(pathname)}
+        />
+      )}
     </>
   );
 }

@@ -55,12 +55,13 @@ export default async function AssistanceNaxaPage({
     redirect("/connexion?retour=%2Fassistance");
   }
 
-  const { data: profile, error: profileError } = await sb.from("profiles")
-    .select("id,role,actif,first_name")
-    .eq("id", auth.user.id)
-    .maybeSingle();
+  const [{ data: profile, error: profileError }, { data: activeRole, error: activeRoleError }] = await Promise.all([
+    sb.from("profiles").select("id,role,actif,first_name").eq("id", auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+  ]);
 
-  if (profileError || profile?.role !== "client" || profile.actif !== true) redirect("/");
+  if (profileError || activeRoleError || profile?.role !== "client"
+    || profile.actif !== true || activeRole !== "client") redirect("/");
 
   const { data: tickets, error: ticketsError } = await sb.from("tickets_support")
     .select("id,reference_code,sujet,categorie,statut,created_at,last_activity_at,first_response_at,resolved_at")

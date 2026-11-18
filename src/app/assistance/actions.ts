@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -23,12 +23,13 @@ async function clientSession() {
   const { data: auth, error: authError } = await sb.auth.getUser();
   if (authError || !auth.user) redirect("/connexion?retour=%2Fassistance");
 
-  const { data: profile, error } = await sb.from("profiles")
-    .select("id,role,actif")
-    .eq("id", auth.user.id)
-    .maybeSingle();
+  const [{ data: profile, error }, { data: activeRole, error: activeRoleError }] = await Promise.all([
+    sb.from("profiles").select("id,role,actif").eq("id", auth.user.id).maybeSingle(),
+    sb.rpc("naxa_business_function"),
+  ]);
 
-  if (error || !profile || profile.role !== "client" || profile.actif !== true) {
+  if (error || activeRoleError || !profile || profile.role !== "client"
+    || profile.actif !== true || activeRole !== "client") {
     redirect("/?erreur=assistance_compte");
   }
   return { sb, profile };
@@ -116,60 +117,28 @@ export async function creerDemandeNaxa(form: FormData) {
     redirect("/assistance?erreur=formulaire");
   }
 
-  const { data: ticket, error: ticketError } = await sb.from("tickets_support")
-    .insert({
-      auteur_profile_id: profile.id,
-      pharmacie_id: null,
-      sujet,
-      type: "support_naxa",
-      categorie,
-      statut: "ouvert",
-    })
-    .select("id,reference_code")
-    .single();
-
-  if (ticketError || !ticket) redirect("/assistance?erreur=envoi");
-
-  const { error: messageError } = await sb.from("messages_support").insert({
-    ticket_id: ticket.id,
-    auteur_profile_id: profile.id,
-    contenu: message,
-    interne: false,
+  const { data: opened, error: openError } = await sb.rpc("open_naxa_support_ticket", {
+    p_categorie: categorie,
+    p_sujet: sujet,
+    p_message: message,
   });
-
-  if (messageError) redirect("/assistance?ticket=" + encodeURIComponent(ticket.id) + "&erreur=envoi");
-
-  try {
-    const adminDb = supabaseAdmin();
-    const { data: admins } = await adminDb.from("profiles")
-      .select("id")
-      .eq("role", "admin")
-      .eq("actif", true);
-    if (admins?.length) {
-      const { error: notificationError } = await adminDb.from("notifications").insert(
-        admins.map((admin) => ({
-          user_id: admin.id,
-          type: "support_naxa_nouvelle_demande",
-          titre: "Nouvelle demande d’assistance Client",
-          corps: "Une nouvelle demande NAXA attend son traitement : " + ticket.reference_code + ".",
-          related_entity_id: ticket.id,
-        })),
-      );
-      if (notificationError) console.error("support_naxa_new_ticket_notification_failed", notificationError.message);
-    }
-  } catch (error) {
-    console.error("support_naxa_admin_notification_unavailable", error);
+  const ticket = Array.isArray(opened) ? opened[0] : opened;
+  const ticketId = ticket && typeof ticket === "object" && "ticket_id" in ticket
+    ? String(ticket.ticket_id)
+    : "";
+  if (openError || !/^[0-9a-f-]{36}$/i.test(ticketId)) {
+    redirect("/assistance?erreur=envoi");
   }
 
   let attachmentWarning = "";
   if (file) {
-    const uploaded = await joindreFichier(sb, profile.id, ticket.id, file);
+    const uploaded = await joindreFichier(sb, profile.id, ticketId, file);
     if (!uploaded) attachmentWarning = "&avertissement=piece_jointe";
   }
 
   actualiser();
   redirect(
-    "/assistance?ticket=" + encodeURIComponent(ticket.id) +
+    "/assistance?ticket=" + encodeURIComponent(ticketId) +
     "&envoye=1" + attachmentWarning,
   );
 }

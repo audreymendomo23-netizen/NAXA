@@ -52,6 +52,9 @@ test("l'interface ne charge que le fil sélectionné et gère les états asynchr
   assert.match(inbox, /threadLoading/);
   assert.match(inbox, /threadError/);
   assert.match(inbox, /setThreadRevision/);
+  assert.match(inbox, /postgres_changes/);
+  assert.match(inbox, /messages_support/);
+  assert.match(inbox, /router\.refresh\(\)/);
 });
 
 process.stdout.write("Contrat statique messagerie Admin vérifié.\n");

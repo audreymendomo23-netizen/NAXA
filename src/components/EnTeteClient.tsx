@@ -147,6 +147,9 @@ export function EnTeteClient() {
       return;
     }
     if (target) enregistrerEcosystemeSelectionne(target.id);
+    if (href.split("?")[0] === "/faq") {
+      notifierNAXA("Bienvenue dans le Centre d’aide NAXA. Consulte les réponses ou écris directement à notre équipe.");
+    }
     router.push(href);
   }
 

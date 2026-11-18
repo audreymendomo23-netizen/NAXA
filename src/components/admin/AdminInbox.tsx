@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Message = {
   id: string | number;
@@ -9,7 +11,9 @@ type Message = {
   contenu: string;
   interne: boolean;
   created_at: string;
+  piece_jointe_path?: string | null;
   piece_jointe_nom?: string | null;
+  piece_jointe_mime?: string | null;
   piece_jointe_taille?: number | null;
   attachmentUrl?: string | null;
 };
@@ -45,6 +49,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
+  const router = useRouter();
   const [selected, setSelected] = useState(tickets[0]?.id ?? "");
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
@@ -66,6 +71,22 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
   ));
 
   useEffect(() => {
+    const supabase = supabaseBrowser();
+    const channel = supabase.channel("naxa-admin-support-inbox")
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "tickets_support",
+        filter: "type=eq.support_naxa",
+      }, () => router.refresh())
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "tickets_support",
+        filter: "type=eq.support_naxa",
+      }, () => router.refresh())
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [router]);
+
+  useEffect(() => {
     if (!selected) {
       setMessages([]);
       setThreadLoading(false);
@@ -74,9 +95,23 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
     }
 
     const controller = new AbortController();
+    const supabase = supabaseBrowser();
     setMessages([]);
     setThreadLoading(true);
     setThreadError("");
+
+    const channel = supabase.channel("naxa-admin-ticket-" + selected)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages_support",
+        filter: "ticket_id=eq." + selected,
+      }, (payload) => {
+        const message = payload.new as Message;
+        setMessages((previous) => previous.some((item) => item.id === message.id)
+          ? previous
+          : [...previous, message]);
+        if (message.piece_jointe_path) setThreadRevision((revision) => revision + 1);
+      })
+      .subscribe();
 
     void fetch("/api/admin/messagerie?ticket_id=" + encodeURIComponent(selected), {
       method: "GET",
@@ -102,7 +137,10 @@ export function AdminInbox({ tickets }: { tickets: Ticket[] }) {
         if (!controller.signal.aborted) setThreadLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      void supabase.removeChannel(channel);
+    };
   }, [selected, threadRevision]);
 
   async function send(event: React.FormEvent<HTMLFormElement>) {

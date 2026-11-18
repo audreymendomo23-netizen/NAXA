@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§213)  
+**Dernière mise à jour :** 18 novembre 2026 (§214)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `0f2db4ac59ba247a3533dab27211c402a1a652fe`  
+**HEAD contrôlé avant cette mise à jour :** `5d60adf0086f7e361e2760bfb4aa7fc65f4ef3e7`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7910,4 +7910,19 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - À faire avant déclaration AU VERT : appliquer la migration uniquement sur Replay, exécuter le test SQL, npm test, TypeScript, ESLint, build, puis recette navigateur Client/Admin et test négatif RLS/Storage. Ne pas appliquer en Production, ne pas déployer.
 - Aucun changement Production ni déploiement ne sont autorisés ou revendiqués.
 - Première application Replay refusée par une erreur de syntaxe dans la contrainte des pièces jointes ; un contrôle SQL en lecture seule a confirmé l'absence de toute colonne, policy ou bucket créé. Le doublon de migration a été supprimé avant une nouvelle tentative.
+
+
+
+## 214 — FAQ interactive et widget Livechat Client — 18/11/2026
+
+**INTÉGRATION SOURCE PRÉPARÉE SUR main — VALIDATION REPLAY ET NAVIGATEUR EN COURS.**
+
+- La FAQ /faq devient un centre d’aide interactif : recherche texte, catégories, compteurs, réponses dépliables, distinction équipe NAXA/pharmacie, accès distincts /assistance et /aide.
+- Le clic « Besoin d’aide ? » depuis l’en-tête Client conserve le mécanisme de notification globale : un toast de confirmation est déclenché avant la navigation vers la FAQ. Les notifications de verrouillage des écosystèmes dans ouvrirAction restent inchangées.
+- Le widget jaune canari est intégré au shell du parcours Client, seulement si le profil est Client actif. Il couvre les six écosystèmes et les routes Client associées ; /faq, les parcours professionnels et Admin sont exclus.
+- Le widget liste les dossiers support_naxa, ouvre une nouvelle conversation via une RPC atomique ticket + premier message, envoie des réponses et s'abonne en temps réel aux messages et changements d'état du dossier. Les pièces jointes déjà déposées restent ouvrables via les URLs signées et le Client peut retrouver la page complète /assistance.
+- La boîte Admin s'abonne aux nouveaux dossiers et aux messages du ticket sélectionné ; les réponses Admin et notifications Client restent gérées par l'API existante. Les nouvelles demandes widget/Server Action sont notifiées aux Admins actifs par un trigger DB.
+- Migration additive Realtime créée : publication tickets_support/messages_support, RPC invoker protégée par RLS, notification de création. Aucun canal de présence/« agent en ligne » n'est simulé : l'UI indique uniquement si la connexion Realtime est active.
+- Contrats Node, tests SQL et recette R09-10 préparés. À exécuter : migration uniquement sur Replay, test SQL Livechat, npm test ciblé/global, TypeScript, ESLint, build, puis E2E Client↔Admin avec sessions de test et vérification non-régression /aide.
+- Aucun changement Production ni déploiement.
 

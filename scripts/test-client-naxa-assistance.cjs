@@ -19,17 +19,24 @@ const nextConfig = read("next.config.mjs");
 const pharmacyChat = read("src/app/aide/actions.ts");
 const notifications = read("src/app/notifications/page.tsx");
 const notificationHook = read("src/lib/messagerie.ts");
+const widget = read("src/components/NaxaSupportWidget.tsx");
+const faqInteractive = read("src/components/FaqInteractive.tsx");
+const header = read("src/components/EnTeteClient.tsx");
+const liveMigration = read("supabase/migrations/20261118150000_naxa_livechat_realtime.sql");
+const liveSqlTest = read("supabase/tests/20261118_naxa_livechat_realtime.sql");
 
 test("l’assistance Client NAXA est distincte du chat pharmacie", () => {
   assert.match(page, /Écrire à l’équipe NAXA/);
-  assert.match(actions, /type: "support_naxa"/);
-  assert.match(actions, /pharmacie_id: null/);
+  assert.match(actions, /rpc\("open_naxa_support_ticket"/);
   assert.doesNotMatch(actions, /open_pharmacist_chat/);
+  assert.match(liveMigration, /pharmacie_id is null/);
+  assert.match(liveMigration, /'support_naxa'/);
   assert.match(pharmacyChat, /open_pharmacist_chat/);
   assert.match(faq, /href="\/assistance"/);
   assert.match(faq, /href="\/aide"/);
   assert.match(notifications, /support_naxa_reponse/);
   assert.match(notifications, /support_naxa_nouvelle_demande/);
+  assert.match(notifications, /support_naxa_nouveau_message/);
   assert.match(notifications, /related_entity_id/);
   assert.match(notificationHook, /related_entity_id/);
 });
@@ -38,6 +45,8 @@ test("la demande est réservée au Client actif et validée côté serveur", () 
   assert.match(actions, /auth\.getUser\(\)/);
   assert.match(actions, /profile\.role !== "client"/);
   assert.match(actions, /profile\.actif !== true/);
+  assert.match(actions, /sb\.rpc\("naxa_business_function"\)/);
+  assert.match(actions, /activeRole !== "client"/);
   assert.match(actions, /CATEGORIES\.has\(categorie\)/);
   assert.match(actions, /sujet\.length < 5/);
   assert.match(actions, /MAX_MESSAGE_LENGTH = 2000/);
@@ -61,6 +70,7 @@ test("les pièces jointes sont limitées, vérifiées et stockées dans un bucke
 test("le Client peut suivre et reprendre son dossier sans accéder aux tickets d’autrui", () => {
   assert.match(page, /eq\("auteur_profile_id", profile\.id\)/);
   assert.match(page, /eq\("type", "support_naxa"\)/);
+  assert.match(page, /activeRole !== "client"/);
   assert.match(page, /reference_code/);
   assert.match(page, /last_activity_at/);
   assert.match(page, /createSignedUrl/);
@@ -74,7 +84,7 @@ test("la boîte Admin répond, change les statuts et notifie le Client", () => {
   assert.match(adminApi, /createSignedUrl/);
   assert.match(adminApi, /export async function PATCH/);
   assert.match(adminApi, /support_naxa_reponse/);
-  assert.match(actions, /support_naxa_nouvelle_demande/);
+  assert.match(liveMigration, /naxa_support_notify_new_ticket/);
   assert.match(adminApi, /support_naxa_statut/);
   assert.match(adminPage, /reference_code,categorie,last_activity_at/);
   assert.match(adminInbox, /Prendre en charge/);
@@ -94,8 +104,48 @@ test("la base sépare support_naxa et conseil_pharmacien et conserve le cycle d�
 
 test("la route est réservée et conserve l’en-tête Client ; les pièces jointes passent le body limit Next", () => {
   assert.match(shell, /pathname === "\/assistance"/);
+  assert.match(shell, /pathname === "\/parapharmacie"/);
+  assert.match(shell, /pathname === "\/bebe-maman"/);
+  assert.match(shell, /pathname === "\/suivi"/);
+  assert.match(shell, /pathname === "\/examens"/);
+  assert.match(shell, /pathname === "\/prestations"/);
+  assert.match(shell, /pathname !== "\/faq"/);
+  assert.match(shell, /suivi\/professionnel/);
+  assert.match(shell, /profile\?\.role === "client"/);
+  assert.match(shell, /activeRole === "client"/);
   assert.match(middleware, /"\/assistance"/);
   assert.match(nextConfig, /bodySizeLimit: "5mb"/);
 });
 
-process.stdout.write("Contrat statique Assistance Client NAXA défini.\n");
+test("le widget canari est un livechat temps réel et reste hors FAQ/professionnels", () => {
+  assert.match(shell, /NaxaSupportWidget/);
+  assert.match(shell, /pathname !== "\/faq"/);
+  assert.match(widget, /bg-\[#FFE23D\]/);
+  assert.match(widget, /rpc\("open_naxa_support_ticket"/);
+  assert.match(widget, /postgres_changes/);
+  assert.match(widget, /messages_support/);
+  assert.match(widget, /tickets_support/);
+  assert.match(widget, /aria-label="Livechat avec l’équipe NAXA"/);
+  assert.match(widget, /ticket_id=eq\./);
+  assert.match(widget, /MAX_MESSAGE_LENGTH/);
+});
+
+test("la FAQ recherche et filtre les réponses, et le raccourci conserve son feedback", () => {
+  assert.match(faqInteractive, /type="search"/);
+  assert.match(faqInteractive, /aria-label="Catégories de la FAQ"/);
+  assert.match(faqInteractive, /setCategory/);
+  assert.match(header, /notifierNAXA\("Bienvenue dans le Centre d’aide NAXA/);
+  assert.match(header, /Cet écosystème est actuellement verrouillé/);
+});
+
+test("la base active Realtime et crée un dossier atomique notifiant les Admins", () => {
+  assert.match(liveMigration, /open_naxa_support_ticket/);
+  assert.match(liveMigration, /security invoker/i);
+  assert.match(liveMigration, /supabase_realtime add table public\.tickets_support/);
+  assert.match(liveMigration, /supabase_realtime add table public\.messages_support/);
+  assert.match(liveMigration, /trg_naxa_support_notify_new_ticket/);
+  assert.match(liveMigration, /trg_naxa_support_notify_client_reply/);
+  assert.match(liveSqlTest, /naxa_livechat_realtime_structure_pass/);
+});
+
+process.stdout.write("Contrats statiques Assistance NAXA et Livechat définis.\n");
