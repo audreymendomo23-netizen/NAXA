@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { hasUsableRefreshTokenPair } = require("./e2e/refresh-session-check");
+const { hasUsableRefreshTokenPair } = require("./e2e/refresh-session-check.cjs");
 
 test("a successful refresh response with both tokens is a usable session", () => {
   assert.equal(hasUsableRefreshTokenPair({
