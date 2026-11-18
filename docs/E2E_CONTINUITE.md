@@ -7640,3 +7640,54 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 - **Qualité du HEAD courant : EN COURS** — syntaxe GitHub Actions PASS ; job tests/TypeScript/lint en cours.
 - **Auth refresh-token family reuse : ROUGE indépendant** — HTTP 400 pour l'ancêtre puis HTTP 200 pour le descendant de la même session ; réglage Auth effectif non lisible par le connecteur.
 - Aucune action Production, aucun déploiement, aucun changement Auth indirect par SQL.
+
+
+## 202. Clôture Lot B2 Marketplace Client — Replay — 18/11/2026
+
+### Références de recette et de code
+- Dépôt : `audreymendomo23-netizen/NAXA`, branche `main`.
+- HEAD applicatif testé : `f58233e11593736a459dd2edd129b97355a61f2e` (`test(e2e): vérifier l'indisponibilité B2 pour un second Client`).
+- Projet Supabase : Replay `pwfftcsjyeibxxqhwysw` (`naxa-ci-replay-2`, eu-west-1) exclusivement.
+- Pharmacie technique non commerciale : `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`.
+- Produit de recette : `dfd7313c-46a4-455a-b67d-50f0ce2a3686`.
+- Client A : `dcb2242b-50fb-46c8-8c90-e01d42fa4175`. Client B distinct : profil `cd04a64e-9ce2-482e-adcd-2f01afc94d62`.
+- Aucun accès ni changement Production `eouwtuusnsuxaejsxknf`. Aucun déploiement Vercel et aucun réglage Auth modifié.
+
+### Résultat terminal CI / Playwright
+- Workflow navigation Replay `44255797365`, commit `f58233e11593736a459dd2edd129b97355a61f2e` : **SUCCESS**. Le job Chromium termine avec la recette multi-rôles complète, nettoyage et arrêt serveur SUCCESS.
+- Workflow qualité `44255797510`, même commit : **SUCCESS**. Les contrôles GitHub Actions, tests Node, TypeScript, ESLint et build Next.js terminent avec succès.
+- L'exécution navigateur précédente `44255088408` sur `a460b42e234c997ad5182811bf89d06cade0021e` a également terminé SUCCESS pour le scénario positif. Le run final `44255797365` ajoute le contrôle d'indisponibilité Client B et constitue la preuve de clôture du B2.
+
+### Parcours navigateur B2 — tous les points PASS
+- Préparation : publication temporaire de la pharmacie technique uniquement pour la recette ; recherche Marketplace réelle à Yaoundé et offre positive, stock public initial 3.
+- Favoris Client A : ajout depuis la carte Marketplace, lecture persistée en base, affichage dans la page Favoris, puis retrait et vérification de suppression.
+- Commande / réservation : Client A sélectionne la pharmacie, soumet une réservation de 2 unités ; la ligne est lisible sous son JWT, au statut `en_attente`, et le stock disponible est réduit pendant le hold.
+- Indisponibilité concurrente : pendant le hold du Client A, Client B (autre compte) relance la recherche bulk pour 2 unités. Le navigateur constate l'absence d'offre complète, le message « sélection incomplète », et l'absence du bouton « Continuer avec cette pharmacie ». Marqueur terminal log : `PASS Lot B2 — Client B ne peut pas finaliser la quantité demandée pendant le hold du Client A.`
+- Décision pharmacie : le compte affecté sélectionne son rôle actif `gestionnaire_stock` par `naxa_select_active_role`, confirme depuis l'espace Gestionnaire Stock sous son propre JWT et son périmètre pharmacie ; le statut est persisté `confirmee`.
+- Suivi Client : la page affiche `Statut : Confirmée par la pharmacie`. L'assertion Playwright est alignée sur le texte complet réellement rendu.
+- Annulation et historique : Client A annule depuis son suivi ; le statut devient `annulee`, le stock disponible revient exactement au niveau initial de 3, et la page Historique affiche la réservation avec le statut « Annulée ».
+- Marqueur terminal navigateur : `PASS Lot B2 — recherche et favori persistants, réservation Client, confirmation Gestionnaire Stock, annulation Client, stock restauré=3, historique Annulée.`
+- Résultat global du runtime : `RESULTAT NAVIGATION : PASS` ; navigation Promoteur desktop/mobile, six entrées Comptable, Partenaire, Client desktop/mobile et Lot B2 positif/anti-survente.
+
+### Preuve SQL transactionnelle complémentaire
+- La version actuelle de `supabase/tests/306_lot_b2_client_marketplace_transaction.sql` a été exécutée sur Replay et termine par `LOT_B2_CLIENT_MARKETPLACE_FAVORITES_RESERVATION_PHARMACY_CONFIRM_CLIENT_CANCEL_HISTORY PASS`.
+- Ce test transactionnel couvre l'offre, le favori, le hold stock, le refus de sur-réservation, la sélection du rôle Gestionnaire Stock, la confirmation pharmacie, le retour au Client, l'annulation et l'historique ; il se termine par `ROLLBACK`.
+- Contrôle SQL A/B isolé avec deux UUID Client distincts : après réservation de 2 unités par le Client A, disponibilité publique restante = 1 et nombre d'offres bulk complètes de la pharmacie pour la demande de 2 du Client B = 0. Résultat : `remaining_public_stock=1`, `full_offer_count_for_client_b=0`. Transaction annulée par `ROLLBACK`.
+
+### Nettoyage et absence de résidus Replay
+- Après le run navigateur et son étape de nettoyage : stock brut = 3 ; pharmacie `visible_recherche=false) ; favori résiduel du Client A = 0 ; réservation récente résiduelle du Client A = 0 ; hold actif résiduel = 0.
+- La fonction Marketplace retourne 0 offre publique lorsque la pharmacie est masquée, conformément au garde de visibilité. Aucun stock ni aucune réservation commerciale n'a été laissé modifié.
+- Le run confirme `PASS nettoyage Lot B2 — réservation annulée/supprimée, stock restauré, favori supprimé, visibilité restaurée.`
+
+### Corrections de harnais consolidées
+- `858ba440d667f169ede778a6bd8e1b7dfd821eaa` : recherche bulk appelée avec le JWT Client, plus le client Admin.
+- `531d0ceaae0cef77748bb8941bfe65c4f6e2eaf8` et `114f070d438f4d3a578234af732f99aa225276bc` : sélecteur du titre Favoris et attente de persistance réelle du favori.
+- `5ac2f58c1dc0d3722ee2bec0648db7a7585995d9` : sélection explicite du rôle Gestionnaire Stock par le RPC métier et restauration du contexte initial.
+- `a460b42e234c997ad5182811bf89d06cade0021e` : assertion du libellé complet de statut sur le suivi Client.
+- `f58233e11593736a459dd2edd129b97355a61f2e` : contrôle navigateur du second Client pendant le hold du premier.
+
+### Verdict de clôture
+- **LOT B2 Marketplace Client : AU VERT sur Replay.** Recherche réelle, favoris persistants, réservation, anti-survente concurrente entre deux Clients, décision Gestionnaire Stock, suivi, annulation, restitution du stock, historique et nettoyage ont des preuves terminales SQL + Playwright.
+- **Qualité du HEAD `f58233e` : AU VERT** (workflow `44255797510` SUCCESS).
+- **Réserve Auth séparée : ROUGE, hors périmètre fonctionnel B2.** La recette indépendante de réutilisation des refresh tokens a précédemment prouvé le rejeu de l'ancêtre rejeté HTTP 400 `refresh_token_already_used`, puis le refresh descendant de la même session accepté HTTP 200. Ce rouge n'invalide pas la clôture Marketplace B2, mais interdit de déclarer tout le cycle Auth / E2E NAXA global AU VERT.
+- Aucune migration Production, aucune écriture Production, aucun déploiement Vercel, aucun changement de configuration Auth.
