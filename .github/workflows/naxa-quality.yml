@@ -32,6 +32,8 @@ jobs:
           node-version: 22
       - name: Installer les dépendances
         run: npm ci --no-audit --no-fund
+      - name: Installer Playwright pour les contrats E2E Auth
+        run: npm install --no-save --package-lock=false playwright@1.65.1
       - name: Qualité complète + build Next.js (Node 22)
         run: npm run quality && npm run build
 
