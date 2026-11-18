@@ -445,7 +445,7 @@ async function marketplaceAvailableQuantity() {
   return row && Number.isFinite(Number(row.quantite)) ? Number(row.quantite) : 0;
 }
 
-async function prepareClientMarketplaceFixture(clientProfile) {
+async function prepareClientMarketplaceFixture(clientProfile, client) {
   const [pharmacyResult, stockResult, productResult, favoriteResult] = await Promise.all([
     admin.from("pharmacies").select("id,nom,actif,est_demo,visible_recherche,archivee_le").eq("id", MARKETPLACE_PHARMACY_ID).single(),
     admin.from("stocks").select("pharmacie_id,produit_id,prix,quantite").eq("pharmacie_id", MARKETPLACE_PHARMACY_ID).eq("produit_id", MARKETPLACE_PRODUCT_ID).single(),
@@ -482,7 +482,7 @@ async function prepareClientMarketplaceFixture(clientProfile) {
   const [available, visible, search] = await Promise.all([
     marketplaceAvailableQuantity(),
     admin.rpc("marketplace_produit_visible", { p_produit: MARKETPLACE_PRODUCT_ID }),
-    admin.rpc("search_pharmacies_bulk", {
+    client.rpc("search_pharmacies_bulk", {
       p_terms: ["crédit comptoir"], p_quantities: [MARKETPLACE_QUANTITY],
       p_lat: 3.87, p_lng: 11.52, p_rayon_km: 35,
     }),
@@ -1104,11 +1104,11 @@ async function run() {
     console.log("PASS Client — recherche Marketplace, filtre ville et panneau Assurance interactifs.");
 
     // Lot B2 positif : offre réelle Replay, favori persistant, réservation et annulation Client.
-    const b2Fixture = await prepareClientMarketplaceFixture(partnerOwner);
     const b2Client = createClient(PROJECT_URL, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: { headers: { Authorization: "Bearer " + clientSession.accessToken } },
     });
+    const b2Fixture = await prepareClientMarketplaceFixture(partnerOwner, b2Client);
     const b2SearchUrl = BASE_URL + "/resultats?bulk=1&q=" + encodeURIComponent("crédit comptoir") + "&n=" + String(b2Fixture.quantity);
     await clientPage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/resultats", "Lot B2 → recherche de l'offre réelle Replay");

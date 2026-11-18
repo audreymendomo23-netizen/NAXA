@@ -137,7 +137,8 @@ test("les clics navigateur couvrent Promoteur desktop/mobile, Comptable, Partena
 
 test("Lot B2 exécute le vrai parcours Client Marketplace de bout en bout sur Replay", () => {
   assert.match(runtime, /prepareClientMarketplaceFixture/);
-  assert.match(runtime, /search_pharmacies_bulk/);
+  assert.match(runtime, /client\.rpc\("search_pharmacies_bulk"/);
+  assert.doesNotMatch(runtime, /admin\.rpc\("search_pharmacies_bulk"/);
   assert.match(runtime, /Continuer avec cette pharmacie/);
   assert.match(runtime, /creer_transactions_client|C’est enregistré/);
   assert.match(runtime, /naxa_e2e_expiry_stock/);
