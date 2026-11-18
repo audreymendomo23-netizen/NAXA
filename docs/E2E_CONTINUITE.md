@@ -8069,3 +8069,20 @@ Aucun compte, ticket, message, notification ou fichier de test n'a été conserv
 - Aucun fichier, compte, ticket, message ou notification de test persistant.
 - Aucun changement applicatif ou SQL n'a été poussé pendant ces vérifications. Le code validé reste `8a9df33dab54dc2747415bcfb32ea485a8d2c72e` (616/616 tests Node, TypeScript, ESLint, build et actionlint SUCCESS). Cette section ajoute uniquement une preuve documentaire sur `main`.
 
+
+
+## 222 — Démarrage de la recette navigateur Client ↔ Admin — 18/11/2026
+
+**ÉTAT : 🟠 RECETTE RÉELLE EN COURS — PAS AU VERT.**
+
+- Correction de méthode : Playwright est installé dans les workflows GitHub Actions ; Chromium est installé par le workflow navigateur. Le blocage n'était pas l'absence de Playwright, mais l'absence de scénario Support Client/Admin exécuté.
+- Identités Replay existantes vérifiées, sans création de comptes ni rotation de mots de passe : Client `naxa_e2e_acheteur` (profil actif, déclaration d'âge vérifiée) et Admin `e2e_admin_261104` (profil actif). Les sessions de recette utilisent un lien Auth ponctuel.
+- Ajouts sur `main` : `.github/workflows/naxa-support-livechat-e2e.yml` et `scripts/e2e/naxa-support-livechat-browser.cjs`. Le workflow refuse toute URL autre que `https://pwfftcsjyeibxxqhwysw.supabase.co`, construit l'application en local avec Replay, lance Chromium et prévoit le nettoyage des tickets/messages/notifications/fichiers de recette.
+- Premier lancement navigateur : secrets Replay validés, Playwright/Chromium installés, build Next.js et serveur local réussis, sessions Client/Admin vérifiées. Le scénario a échoué sur la lecture du ticket immédiatement après l'appel RPC (`Cannot coerce the result to a single JSON object`). Un ticket de recette a été retrouvé après l'échec et supprimé explicitement avec ses messages et notification ; contrôle final : 0 ticket Support E2E, 0 message et 0 notification résiduels.
+- Deuxième lancement : même erreur de lecture avant confirmation du parcours ; aucun ticket résiduel après contrôle.
+- Correctif du harnais : capture directe de la réponse HTTP de `open_naxa_support_ticket` pour récupérer le `ticket_id`, lecture Admin par cet identifiant et persistance préalable du sujet/UID dans le fichier d'état afin que le nettoyage retrouve aussi un ticket créé juste avant un échec.
+- L'instrumentation des checkpoints navigateur est ajoutée pour localiser toute prochaine erreur. Un lancement instrumenté est en cours ; un lancement suivant utilise le correctif RPC/cleanup.
+- Le premier contrôle actionlint a signalé `SC2155` dans l'export du secret de rate-limit ; correction appliquée en séparant déclaration et export. Le contrôle qualité du commit suivant doit confirmer la correction.
+- Aucun compte n'a été créé, aucun mot de passe n'a été modifié, aucune migration Production ni aucun déploiement n'a été lancé. `vercel.json` conserve la désactivation des déploiements automatiques de `main`.
+
+**Point de reprise exact :** attendre le workflow `NAXA Replay Support Livechat Browser E2E` sur le dernier commit `4b68f227a975386601980e9eaebce5f219c13708`, examiner les checkpoints et poursuivre les corrections jusqu'à réussite du parcours complet : création, échanges Client/Admin dans les deux sens, pièces jointes, statuts, reconnexion Realtime, notifications et non-régression `/aide`. Recontrôler ensuite l'absence de données résiduelles sur Replay. Ne pas déclarer R09-10 AU VERT avant cette preuve.
