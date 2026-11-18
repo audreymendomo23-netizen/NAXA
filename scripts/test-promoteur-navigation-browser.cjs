@@ -143,7 +143,7 @@ test("Lot B2 exécute le vrai parcours Client Marketplace de bout en bout sur Re
   assert.match(runtime, /Annuler la réservation/);
   assert.match(runtime, /marketplaceAvailableQuantity/);
   assert.match(runtime, /marketplaceInitialAvailable/);
-  assert.match(runtime, /Historique réel du Client/);
+  assert.match(runtime, /historique réel du Client/i);
   assert.match(runtime, /cleanupClientMarketplaceFixture/);
   assert.match(runtime, /PASS Lot B2 — réservation persistée|PASS Lot B2 — réservation JWT/);
 });

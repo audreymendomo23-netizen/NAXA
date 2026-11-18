@@ -49,7 +49,7 @@ test("Web et natif utilisent le même résolveur serveur du rôle actif et du p�
 
 test("un refus de périmètre Web ferme la session créée pendant la résolution", () => {
   const web = read("src/app/api/auth/login/route.ts");
-  assert.match(web, /await supabase\.auth\.signOut\(\)/);
+  assert.match(web, /await supabase\.auth\.signOut\(\{\s*scope:\s*["']local["']\s*\}\)/);
   assert.match(web, /PHARMACY_ROLE_CODES\.has\(activeRole\)/);
 });
 
