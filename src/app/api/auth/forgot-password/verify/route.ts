@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const { data: profile } = await supabaseAdmin()
       .from("profiles")
       .select("id, username")
-      .ilike("username", normalized)
+      .eq("username", normalized)
       .maybeSingle();
 
     if (!profile) return NextResponse.json({ error: "Code incorrect ou expiré." }, { status: 400 });
