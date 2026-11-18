@@ -243,14 +243,20 @@ async function run(env = process.env) {
       const journalLabel = event === "credit_octroi"
         ? "Octroi de crédit client"
         : "Remboursement de crédit client";
-      const existing = await rows("compta_parametre?select=id,cle,valeur,statut&pharmacie_id=eq."
+      const existing = await rows("compta_parametre?select=id,cle,valeur,statut,valide_du,valide_jusquau&pharmacie_id=eq."
         + pharmacyId + "&cle=eq.journal_code." + event);
       if (existing.length > 1) throw new Error("Journal comptable " + event + " dupliqué sur Replay.");
       if (existing.length === 1) {
         if (existing[0].valeur !== journalCode) {
           throw new Error("Le journal " + event + " existe avec un code différent ; aucun écrasement automatique.");
         }
-        if (existing[0].statut === "valide") return;
+        const validityCoversRun = existing[0].valide_du !== null
+          && existing[0].valide_du <= monthStart
+          && (existing[0].valide_jusquau === null || existing[0].valide_jusquau >= monthEnd);
+        if (existing[0].statut === "valide" && validityCoversRun) return;
+        if (existing[0].statut === "valide" && !validityCoversRun) {
+          throw new Error("Le journal " + event + " est validé mais ne couvre pas toutes les dates des événements Replay ; intervention manuelle requise.");
+        }
         if (existing[0].statut !== "a_valider") {
           throw new Error("État inattendu du journal " + event + " : " + existing[0].statut);
         }
@@ -334,9 +340,12 @@ async function run(env = process.env) {
 
     const finalAccounts = await rows("compta_plan_comptable?select=id,code,statut&pharmacie_id=eq." + pharmacyId);
     const finalMappings = await rows("compta_mapping_compte?select=id,evenement_type,sens,compte_id,statut&pharmacie_id=eq." + pharmacyId);
-    const finalParams = await rows("compta_parametre?select=id,cle,valeur,statut&pharmacie_id=eq." + pharmacyId);
-    const journalEvents = new Set(finalParams.filter(x => x.valeur === journalCode
-      && x.statut === "valide").map(x => x.cle.replace("journal_code.", "")));
+    const finalParams = await rows("compta_parametre?select=id,cle,valeur,statut,valide_du,valide_jusquau&pharmacie_id=eq." + pharmacyId);
+    const validJournals = finalParams.filter(x => x.valeur === journalCode
+      && x.statut === "valide"
+      && x.valide_du !== null && x.valide_du <= monthStart
+      && (x.valide_jusquau === null || x.valide_jusquau >= monthEnd));
+    const journalEvents = new Set(validJournals.map(x => x.cle.replace("journal_code.", "")));
     const expectedMappings = finalMappings.filter(x =>
       [debitAccount.id, creditAccount.id].includes(x.compte_id)
       && ["credit_octroi", "credit_remboursement"].includes(x.evenement_type)
@@ -347,7 +356,7 @@ async function run(env = process.env) {
     if (journalEvents.size !== 2 || !journalEvents.has("credit_octroi")
       || !journalEvents.has("credit_remboursement") || expectedMappings.length !== 4
       || validatedPeriod.length !== 1) {
-      throw new Error("La configuration comptable durable (journaux, mappings, période) n'est pas complète ou validée.");
+      throw new Error("La configuration comptable durable (journaux valides sur le mois, mappings, période) n'est pas complète ou validée.");
     }
 
     process.stdout.write("PASS — le Promoteur ouvre le plan comptable de sa pharmacie technique et dispose du droit d'écriture.\\n");
