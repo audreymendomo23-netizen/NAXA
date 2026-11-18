@@ -129,7 +129,11 @@ async function run(){
    await dialog.getByPlaceholder("Écrire un message…").fill(professionalReply);
    await dialog.getByRole("button",{name:"Envoyer le message"}).click();
    await dialog.getByText(professionalReply,{exact:true}).waitFor({state:"visible",timeout:20000});
+   const {data:professionalMessages,error:professionalMessagesError}=await admin.from("messages_support").select("id,auteur_profile_id,interne,contenu").eq("ticket_id",item.ticketId).order("created_at",{ascending:true});if(professionalMessagesError)throw professionalMessagesError;
+   console.log("TRACE — auteurs des messages "+fixture.role+" : "+JSON.stringify((professionalMessages||[]).map(m=>({id:m.id,auteur:m.auteur_profile_id,interne:m.interne,contenu:m.contenu}))));
+   assert.ok((professionalMessages||[]).some(m=>m.auteur_profile_id===session.profile.id&&m.contenu===professionalReply),"Le message professionnel n’est pas attribué au demandeur authentifié.");
    const {data:adminReplyNotifications,error:adminReplyError}=await admin.from("notifications").select("user_id,type,related_entity_id").eq("related_entity_id",item.ticketId).eq("type","support_naxa_nouveau_message");if(adminReplyError)throw adminReplyError;
+   console.log("TRACE — notifications Admin réponse professionnelle "+fixture.role+" : "+JSON.stringify(adminReplyNotifications));
    assert.ok((adminReplyNotifications||[]).some(n=>n.user_id===adminSession.profile.id),"Notification Admin de réponse professionnelle absente.");
    const {data:reopened,error:reopenedError}=await admin.from("tickets_support").select("statut,resolved_at").eq("id",item.ticketId).single();if(reopenedError)throw reopenedError;
    assert.equal(reopened.statut,"en_cours","La réponse du professionnel ne reprend pas son dossier.");
