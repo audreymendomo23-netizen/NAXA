@@ -143,3 +143,12 @@ R09-01 : **correction source intégrée, validation dynamique et automatisée en
 9. Vérifier l’isolation entre deux Clients, le refus de lire les messages internes et la non-régression de /aide (chat pharmacie).
 **Attendu :** un seul canal de données support_naxa partagé entre widget, page Assistance et boîte Admin, avec visibilité, droits, retours et synchronisation vérifiés sur Replay.
 
+
+
+**État des preuves au 18/11/2026 :**
+- Migrations Assistance et Livechat appliquées sur Replay uniquement.
+- Tests SQL structurels `naxa_client_support_workspace_structure_pass` et `naxa_livechat_realtime_structure_pass` : PASS.
+- Aucun ticket, message ou notification de test laissé dans Replay.
+- R09-10 reste à exécuter en navigateur Client/Admin ; tests Node, TypeScript, ESLint et build ne sont pas encore prouvés par un statut CI disponible.
+- Production et déploiement non touchés.
+

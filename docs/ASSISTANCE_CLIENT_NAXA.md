@@ -86,8 +86,8 @@ Les conversations de type `conseil_pharmacien` gardent leur parcours et leurs r�
 
 ## Validation avant ouverture générale
 
-1. Appliquer les migrations Assistance et Livechat uniquement sur Replay.
-2. Exécuter les tests SQL structurels Assistance et Livechat.
+1. Migrations Assistance et Livechat appliquées sur Replay.
+2. Tests SQL structurels Assistance et Livechat : PASS sur Replay.
 3. Exécuter `npm test`, `npx tsc --noEmit`, `npm run lint` et `npm run build`.
 4. Réaliser une recette navigateur Client ↔ Admin : création, notifications Admin, réponse instantanée, réponse Client, statuts, reconnexion et suivi widget/page.
 5. Vérifier l’isolation RLS entre deux Clients, le refus pour Admin inactif ou espace Admin non sélectionné, l’absence de fuite de notes internes et le bucket privé.

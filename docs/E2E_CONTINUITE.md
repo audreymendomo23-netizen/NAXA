@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§217)  
+**Dernière mise à jour :** 18 novembre 2026 (§218)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `567faf95f44c4a0cb19d39d86834740bcb3d16fb`  
+**HEAD contrôlé avant cette mise à jour :** `d5dd8d463bc05e1d05b02e10c9b2517e5596dc34`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7958,4 +7958,16 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Audit de données Replay : **0 ticket support_naxa, 0 message support_naxa, 0 notification de support** ; aucun compte ni jeu de données de test créé.
 - Le workflow `naxa-quality.yml` est configuré sur push `main`, mais le connecteur de statut consulté ne fournit aucun check attaché au commit `567faf9`. **Node tests, TypeScript, ESLint, build Next.js et test navigateur Client↔Admin restent NON PROUVÉS** ; ne pas déclarer le lot entièrement AU VERT avant ces exécutions.
 - Aucun accès, changement, migration ou test sur Production. Aucun déploiement.
+
+
+
+## 218 — Validation SQL des deux volets Assistance — 18/11/2026
+
+- Test structurel historique Assistance exécuté sur Replay : **PASS** — `naxa_client_support_workspace_structure_pass = true`.
+- Test structurel Livechat Realtime exécuté sur Replay : **PASS** — `naxa_livechat_realtime_structure_pass = true`.
+- Les deux migrations sont donc couvertes par leurs tests SQL structurels sur Replay. Aucun ticket, message, compte ou notification de recette n'a été créé.
+- Couverture statique des routes : widget sur les routes Client Pharmacie, Parapharmacie, Bébé & Maman, Dispositifs connectés, Examens médicaux, Soins à domicile, profils Client, recherche, résultats, gardes, produits/offres, commandes, réservations, suivi ; absent FAQ et routes professionnelles/Admin.
+- Le widget reçoit/émet via `support_naxa` et Supabase Realtime ; l'Admin reçoit INSERT/UPDATE tickets et INSERT messages. La conversation `conseil_pharmacien` reste distincte.
+- Contrats Node/TypeScript/ESLint/build et recette navigateur Client↔Admin : **NON PROUVÉS** faute de statut CI disponible et de session navigateur de recette vérifiable. Ne pas déclarer AU VERT terminal.
+- Aucun changement Production ni déploiement.
 
