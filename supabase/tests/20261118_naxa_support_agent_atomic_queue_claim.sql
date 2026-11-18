@@ -19,7 +19,8 @@ begin
   end if;
 
   select pg_get_functiondef('public.support_agent_claim_ticket(uuid,uuid)'::regprocedure) into v_def;
-  if position('for update' in lower(v_def))=0 then raise exception 'Verrou de ligne ticket absent'; end if;
+  if (length(lower(v_def))-length(replace(lower(v_def),'for update','')))/length('for update') < 2 then
+    raise exception 'Verrous Agent et ticket absents'; end if;
   if position('status=''active''' in v_def)=0 or position('presence=''available''' in v_def)=0 then
     raise exception 'Vérification statut/présence Agent absente'; end if;
   if position('queue_view' in v_def)=0 or position('ticket_view_assigned' in v_def)=0 then
