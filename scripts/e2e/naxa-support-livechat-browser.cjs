@@ -227,15 +227,15 @@ async function run() {
     saveState();
     console.log("PASS — pièce jointe PDF chargée, enregistrée en privé et reliée au message.");
 
-    await adminPage.getByRole("button", { name: "Marquer résolue" }).click();
-    await waitForText(clientPage, "Résolue", "statut Résolue synchronisé vers le Client");
-    await clientPage.getByRole("button", { name: "Assistance NAXA ouverte" }).count().then(async count => {
-      if (count === 0) {
-        const reopen = clientPage.getByRole("button", { name: "Ouvrir le livechat NAXA" });
-        if (await reopen.count()) await reopen.click();
-      }
-    });
+    await clientPage.goto(BASE_URL + "/client", { waitUntil: "domcontentloaded" });
+    const reopenedTrigger = clientPage.getByRole("button", { name: "Ouvrir le livechat NAXA" });
+    await reopenedTrigger.waitFor({ state: "visible", timeout: 30000 });
+    await reopenedTrigger.click();
     const activeDialog = clientPage.getByRole("dialog", { name: "Livechat avec l’équipe NAXA" });
+    await activeDialog.getByText("Temps réel actif", { exact: false }).waitFor({ state: "visible", timeout: 30000 });
+
+    await adminPage.getByRole("button", { name: "Marquer résolue" }).click();
+    await waitForText(activeDialog, "Résolue", "statut Résolue synchronisé vers le Client");
     await activeDialog.getByLabel("Votre message").fill("Réouverture par réponse Client — " + subject);
     await activeDialog.getByRole("button", { name: "Envoyer le message" }).click();
     await waitForText(activeDialog, "En cours", "réponse Client rouvre un ticket résolu");
