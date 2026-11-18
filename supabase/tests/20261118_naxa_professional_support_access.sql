@@ -37,5 +37,12 @@ begin
   select count(*) into n from pg_policies where schemaname='storage' and tablename='objects'
     and policyname in ('naxa_support_attachment_insert_own','naxa_support_attachment_read_own','naxa_support_attachment_delete_own');
   if n<>3 then raise exception 'Policies Storage support incomplètes'; end if;
+  select count(*) into n from public.notifications no
+    join public.tickets_support t on t.id=no.related_entity_id
+    where t.sujet in ('RLS Livreur support E2E','RLS Promoteur support E2E')
+      and no.type='support_naxa_nouvelle_demande';
+  if n<2 then raise exception 'Notifications Admin absentes pour les professionnels'; end if;
+  if position('demandeur' in lower(pg_get_functiondef('private.naxa_support_notify_client_reply()'::regprocedure)))=0
+     then raise exception 'Notification de réponse encore libellée Client'; end if;
 end $test$;
 rollback;

@@ -93,6 +93,8 @@ async function run(){
    const row=Array.isArray(payload)?payload[0]:payload;assert.ok(row?.ticket_id);item.ticketId=String(row.ticket_id);saveState();
    const {data:ticket,error:ticketError}=await admin.from("tickets_support").select("id,auteur_profile_id,type,pharmacie_id,categorie").eq("id",item.ticketId).single();if(ticketError)throw ticketError;
    assert.equal(ticket.auteur_profile_id,session.profile.id);assert.equal(ticket.type,"support_naxa");assert.equal(ticket.pharmacie_id,null);assert.equal(ticket.categorie,fixture.category);
+   const {data:adminNewNotifications,error:newNotificationError}=await admin.from("notifications").select("user_id,type,related_entity_id").eq("related_entity_id",item.ticketId).eq("type","support_naxa_nouvelle_demande");if(newNotificationError)throw newNotificationError;
+   assert.ok((adminNewNotifications||[]).some(n=>n.user_id===adminSession.profile.id),"Notification Admin de création absente pour "+fixture.role+".");
    await dialog.getByText(first,{exact:true}).waitFor({state:"visible",timeout:20000});
    await dialog.getByText("Temps réel actif",{exact:false}).waitFor({state:"visible",timeout:30000});
    console.log("PASS — création du dossier individuel "+fixture.role+" et abonnement Realtime.");
@@ -104,7 +106,13 @@ async function run(){
    console.log("PASS — réponse Admin reçue en direct par "+fixture.role+".");
    const {data:notifications,error:notificationError}=await admin.from("notifications").select("user_id,type,related_entity_id").eq("related_entity_id",item.ticketId);if(notificationError)throw notificationError;
    assert.ok((notifications||[]).some(n=>n.user_id===session.profile.id&&n.type==="support_naxa_reponse"));
-   console.log("PASS — notification de réponse privée "+fixture.role+".");
+   const professionalReply="Précision du compte "+fixture.role;
+   await dialog.getByPlaceholder("Écrire un message…").fill(professionalReply);
+   await dialog.getByRole("button",{name:"Envoyer le message"}).click();
+   await dialog.getByText(professionalReply,{exact:true}).waitFor({state:"visible",timeout:20000});
+   const {data:adminReplyNotifications,error:adminReplyError}=await admin.from("notifications").select("user_id,type,related_entity_id").eq("related_entity_id",item.ticketId).eq("type","support_naxa_nouveau_message");if(adminReplyError)throw adminReplyError;
+   assert.ok((adminReplyNotifications||[]).some(n=>n.user_id===adminSession.profile.id),"Notification Admin de réponse professionnelle absente.");
+   console.log("PASS — notifications de création, réponse Admin et réponse professionnelle "+fixture.role+".");
    await page.goto(BASE_URL+"/assistance",{waitUntil:"domcontentloaded"});
    await page.getByRole("heading",{name:"Écrire à l’équipe NAXA"}).waitFor({state:"visible",timeout:20000});
    await page.getByText(subject,{exact:true}).waitFor({state:"visible",timeout:20000});
