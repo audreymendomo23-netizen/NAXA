@@ -3,12 +3,12 @@ do $test$
 declare v_def text;
 begin
   if not exists(select 1 from pg_policies where schemaname='public'
-    and tablename='tickets_support' and policyname='support_agent_assigned_ticket_read'
+    and tablename='tickets_support' and policyname='tickets_support_acces'
     and cmd='SELECT' and position('naxa_support_agent_has_ticket_permission' in qual)>0) then
     raise exception 'Policy de lecture ticket Agent attribué absente'; end if;
 
   if not exists(select 1 from pg_policies where schemaname='public'
-    and tablename='messages_support' and policyname='support_agent_assigned_message_read'
+    and tablename='messages_support' and policyname='messages_support_acces'
     and cmd='SELECT' and position('ticket_internal_note' in qual)>0) then
     raise exception 'Policy de lecture messages/notes Agent absente'; end if;
 
