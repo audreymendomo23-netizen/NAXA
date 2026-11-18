@@ -100,7 +100,37 @@ begin
       end if;
   end;
 
-  -- Annulation par le Client : libération exacte du hold et présence dans son historique.
+  -- Décision de la pharmacie sous l'identité Gestionnaire Stock affectée à cette pharmacie.
+  perform set_config(
+    'request.jwt.claim.sub',
+    '875507d2-cdb8-4166-9c19-b243934f2177',
+    true
+  );
+  perform set_config(
+    'request.jwt.claims',
+    '{"sub":"875507d2-cdb8-4166-9c19-b243934f2177","role":"authenticated"}',
+    true
+  );
+  perform public.gestionnaire_stock_reservation_confirmer(v_reservation);
+
+  select r.statut::text into v_statut
+  from public.reservations r
+  where r.id = v_reservation;
+  if v_statut <> 'confirmee' then
+    raise exception 'B2_PHARMACY_CONFIRMATION_FAILED';
+  end if;
+
+  -- Le Client retrouve son identité et annule ensuite la réservation confirmée.
+  perform set_config(
+    'request.jwt.claim.sub',
+    'dcb2242b-50fb-46c8-8c90-e01d42fa4175',
+    true
+  );
+  perform set_config(
+    'request.jwt.claims',
+    '{"sub":"dcb2242b-50fb-46c8-8c90-e01d42fa4175","role":"authenticated"}',
+    true
+  );
   perform public.set_reservation_status(v_reservation, 'annulee'::public.resa_statut);
 
   select o.quantite into v_disponible
@@ -128,5 +158,5 @@ begin
 end
 $$;
 
-select 'LOT_B2_CLIENT_FAVORITES_RESERVATION_OVERSELL_CANCEL_HISTORY PASS' as result;
+select 'LOT_B2_CLIENT_MARKETPLACE_FAVORITES_RESERVATION_PHARMACY_CONFIRM_CLIENT_CANCEL_HISTORY PASS' as result;
 rollback;
