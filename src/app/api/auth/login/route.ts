@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     phase = "active_role_resolution";
     const { data: resolvedRole, error: roleError } = await supabase.rpc("naxa_business_function");
     if (roleError) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       return NextResponse.json({ error: "Contexte professionnel momentanément indisponible." }, { status: 503 });
     }
     const activeRole = typeof resolvedRole === "string" ? resolvedRole.trim() : "";
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     if (espacePharmacie) {
       if (!PHARMACY_ROLE_CODES.has(activeRole)) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         return NextResponse.json({ error: "Accès professionnel suspendu ou non attribué." }, { status: 403 });
       }
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           .eq("actif", true);
         const pharmacyIds = [...new Set((links ?? []).map((link) => link.pharmacie_id).filter(Boolean))];
         if (linksError || pharmacyIds.length === 0) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           return NextResponse.json({ error: "Aucune pharmacie active n'est rattachée à ce compte." }, { status: 403 });
         }
         const { data: pharmacies, error: pharmaciesError } = await admin
@@ -116,13 +116,13 @@ export async function POST(request: NextRequest) {
           .eq("actif", true)
           .is("archivee_le", null);
         if (pharmaciesError || !pharmacies?.length) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           return NextResponse.json({ error: "Aucune pharmacie active n'est accessible à ce compte." }, { status: 403 });
         }
       } else {
         const { data: pharmacyId, error: pharmacyScopeError } = await supabase.rpc("naxa_active_role_pharmacy");
         if (pharmacyScopeError || typeof pharmacyId !== "string" || !pharmacyId) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           return NextResponse.json({ error: "Aucune pharmacie active n'est liée à ce rôle." }, { status: 403 });
         }
         const { data: pharmacy, error: pharmacyError } = await admin
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           .is("archivee_le", null)
           .maybeSingle();
         if (pharmacyError || !pharmacy) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           return NextResponse.json({ error: "Cette pharmacie est suspendue ou indisponible." }, { status: 403 });
         }
       }
@@ -141,11 +141,11 @@ export async function POST(request: NextRequest) {
       // La révocation professionnelle ne désactive pas l'identité client d'un employé.
       // Un compte client désactivé reste toutefois bloqué.
       if (rootRole === "client" && !active) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         return NextResponse.json({ error: "Ce compte utilisateur est désactivé." }, { status: 403 });
       }
       if (rootRole !== "client" && !hasClientIdentity) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         return NextResponse.json({ error: "Cet identifiant ne dispose pas d'un espace client activé." }, { status: 403 });
       }
       // Do not only redirect to Client: activate its independent workspace context
@@ -156,11 +156,11 @@ export async function POST(request: NextRequest) {
         p_partner_id: null,
       });
       if (clientContextError) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         return NextResponse.json({ error: "Espace Client momentanément indisponible." }, { status: 503 });
       }
     } else if (!(requestedSpace === "auto" && activeRole === "admin" && rootRole === "admin")) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       return NextResponse.json({ error: "Aucun espace autorisé n'est associé à ce compte." }, { status: 403 });
     }
 
