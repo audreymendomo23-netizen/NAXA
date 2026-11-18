@@ -225,4 +225,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assertReplayUrl };
+module.exports = { assertReplayUrl, readAccessTokenFromCookies };
