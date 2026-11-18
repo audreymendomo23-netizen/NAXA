@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { notifierNAXA } from "@/components/NotificationGlobale";
 import { BoutonNAXA } from "@/components/BoutonNAXA";
 import { CodeOtp } from "@/components/CodeOtp";
@@ -70,9 +69,13 @@ function Formulaire(){
      const res=await fetch("/api/auth/update-user-password",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({password})});
      const result=await res.json().catch(()=>null) as {error?:string;code?:string}|null;
      if(!res.ok){setError(result?.error||"Impossible de mettre à jour le mot de passe. Vérifiez les critères et réessayez.");return}
-     // The server has already updated the password. Clear the recovery session
-     // locally before returning to the normal sign-in screen.
-     try { await supabaseBrowser().auth.signOut({ scope: "global" }); } catch { /* Password is already updated; continue to sign-in. */ }
+     // The server route has already revoked all sessions and cleared the
+     // recovery cookies before reporting success. Avoid a second concurrent
+     // browser-side global sign-out request.
+     if (result?.sessionsRevoked === false) {
+       setError(result.warning || "Mot de passe changé, mais la déconnexion des autres appareils n’a pas pu être confirmée.");
+       return;
+     }
      router.push(`/connexion?retour=${encodeURIComponent(retour)}&motDePasseMisAJour=1`);
    }catch{
      setError("Connexion impossible pour le moment. Vérifiez votre réseau puis réessayez.");
