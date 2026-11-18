@@ -13,6 +13,7 @@ const onboardingExempt = [
 
 const protectedPrefixes = [
   "/client",
+  "/assistance",
   "/pharmacie",
   "/admin",
   "/reservation",

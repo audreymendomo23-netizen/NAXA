@@ -26,8 +26,10 @@ const sections = [
   {
     title: "Assistance",
     items: [
-      { question: "Comment poser une question à une pharmacie ?", answer: "L’espace d’assistance permet d’envoyer une question écrite à une pharmacie du répertoire. Les réponses dépendent de la disponibilité de son équipe et ne sont pas instantanées." },
-      { question: "Le chat remplace-t-il un diagnostic ou une urgence médicale ?", answer: "Non. Ce canal ne fournit pas de diagnostic et ne remplace pas un examen médical. En cas d’urgence, contactez immédiatement les services d’urgence locaux." },
+      { question: "Comment écrire directement à NAXA ?", answer: "Depuis l’assistance Client, ouvre un dossier à l’équipe NAXA. Choisis une catégorie, explique ta demande et suis les réponses dans ton historique grâce à son numéro de référence." },
+      { question: "Comment contacter une pharmacie ?", answer: "Pour une question sur ses produits, ses prix, ses stocks ou ses services, utilise le chat pharmacie. Cette conversation est distincte du support NAXA." },
+      { question: "Puis-je joindre une capture d’écran à une demande NAXA ?", answer: "Oui. Un seul fichier PDF, JPG, PNG ou WebP de 4 Mo maximum peut être joint. N’envoie jamais de mot de passe, code OTP, données bancaires, pièce d’identité, ordonnance ou document médical." },
+      { question: "Le support NAXA remplace-t-il un diagnostic ou une urgence médicale ?", answer: "Non. L’assistance NAXA concerne l’utilisation de la plateforme et ne fournit pas de diagnostic médical. En cas d’urgence, contacte immédiatement les services d’urgence locaux." },
     ],
   },
 ];
@@ -61,8 +63,11 @@ export default function FaqPage() {
         </div>
         <section className="mt-6 rounded-2xl border border-[#FFE23D] bg-white p-5">
           <h2 className="text-lg font-extrabold text-[#064B2A]">Besoin d’une aide humaine ?</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Pour poser une question écrite à une pharmacie, ouvrez l’espace d’assistance dédié.</p>
-          <Link href="/aide" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#064B2A] px-4 py-2 text-sm font-bold text-white hover:bg-[#0A6B3A]">Parler à une pharmacie</Link>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Choisis le bon interlocuteur : l’équipe NAXA pour l’application et ton compte, ou une pharmacie pour ses produits et ses services.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Link href="/assistance" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#064B2A] px-4 py-3 text-center text-sm font-bold text-white hover:bg-[#0A6B3A]">Écrire au support NAXA</Link>
+            <Link href="/aide" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-emerald-800 px-4 py-3 text-center text-sm font-bold text-[#064B2A] hover:bg-emerald-50">Poser une question à une pharmacie</Link>
+          </div>
         </section>
       </div>
     </main>

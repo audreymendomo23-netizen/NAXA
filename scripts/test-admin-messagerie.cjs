@@ -13,7 +13,7 @@ test("GET et POST refusent toute session qui n'est pas un administrateur actif",
   assert.match(api, /sb\.rpc\("naxa_business_function"\)/);
   assert.match(api, /activeRole !== "admin"/);
   assert.match(api, /profile\?\.role !== "admin"/);
-  assert.equal((api.match(/const admin = await activeAdmin\(\);/g) ?? []).length, 2);
+  assert.equal((api.match(/const admin = await activeAdmin\(\);/g) ?? []).length, 3);
 });
 
 test("GET valide le ticket et ne lit que le fil demandé", () => {
@@ -24,11 +24,20 @@ test("GET valide le ticket et ne lit que le fil demandé", () => {
   assert.match(api, /Cache-Control.*private, no-store/);
 });
 
-test("POST conserve les garde-fous de statut et de longueur", () => {
+test("POST préserve le chat historique et gère les réponses support NAXA", () => {
   assert.match(api, /ticket\.statut !== "ouvert"/);
+  assert.match(api, /ticket\.type === "support_naxa"/);
   assert.match(api, /contenu\.length > 2000/);
   assert.match(api, /status: 409/);
   assert.match(api, /status: 201/);
+  assert.match(api, /support_naxa_reponse/);
+});
+
+test("PATCH ne modifie que les statuts des tickets support NAXA", () => {
+  assert.match(api, /export async function PATCH/);
+  assert.match(api, /ticket\.type !== "support_naxa"/);
+  assert.match(api, /resolved_at: resolvedAt/);
+  assert.match(api, /support_naxa_statut/);
 });
 
 test("la page serveur ne charge aucun message pour l'ensemble des tickets", () => {
@@ -37,7 +46,7 @@ test("la page serveur ne charge aucun message pour l'ensemble des tickets", () =
 });
 
 test("l'interface ne charge que le fil sélectionné et gère les états asynchrones", () => {
-  assert.match(inbox, /messagerie\?ticket_id=\$\{encodeURIComponent\(selected\)\}/);
+  assert.match(inbox, /messagerie\?ticket_id=" \+ encodeURIComponent\(selected\)/);
   assert.match(inbox, /maxLength=\{2000\}/);
   assert.match(inbox, /AbortController/);
   assert.match(inbox, /threadLoading/);

@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§212)  
+**Dernière mise à jour :** 18 novembre 2026 (§213)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `5130cdc8b7f8ecd710894e5bb9f18d05b1648acf`  
+**HEAD contrôlé avant cette mise à jour :** `0f2db4ac59ba247a3533dab27211c402a1a652fe`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7894,4 +7894,19 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Contrat Node ajusté : présence du libellé/lien FAQ dans l'en-tête Client et absence dans \`EnTeteAccueil\` et \`MenuUnivers\`.
 - R09-01 mise à jour pour vérifier l'exclusivité d'affichage. Test Node complet, TypeScript, lint, build et contrôle navigateur restent à exécuter.
 - Aucun accès base, aucune migration, aucune donnée Replay/Production touchée, aucun déploiement.
+
+
+
+## 213 — Assistance directe Client → NAXA — 18/11/2026
+
+**CORRECTION SOURCE INTÉGRÉE SUR main — VALIDATION REPLAY À CONSIGNER.**
+
+- Ajout de /assistance, canal écrit dédié Client → équipe NAXA, distinct de /aide (Client → pharmacie). La FAQ présente maintenant les deux destinations séparément ; « Besoin d’aide ? » reste exclusivement dans l'en-tête Client.
+- Le formulaire accepte catégorie, sujet, message jusqu'à 2 000 caractères et un seul fichier PDF/JPG/PNG/WebP de 4 Mio maximum. Le serveur vérifie le MIME déclaré et la signature du fichier avant l'upload ; les informations de mot de passe/OTP, paiement, identité et santé sont explicitement interdites dans le texte d'aide.
+- Les dossiers utilisent tickets_support / messages_support avec le type support_naxa, sans pharmacie liée, une référence NX-YYMM-#######, le suivi de l'activité, l'historique, le fil de réponses et des statuts dédiés. Les réponses Client remettent un dossier résolu en cours ; les dossiers fermés nécessitent une réouverture Admin ou une nouvelle demande.
+- Ajout d'un bucket privé Storage, de règles RLS séparées Client, de métadonnées de pièces jointes et de liens signés courts. L'Admin utilise exclusivement l'API serveur après vérification du profil Admin actif.
+- La boîte Admin existante permet prise en charge, attente Client, résolution, réouverture et clôture ; la création d'une demande notifie les Admins actifs et les réponses/changements de statut notifient le Client. Les liens de notification ouvrent le dossier concerné.
+- La limite Server Actions Next est fixée à 5 Mo pour transporter un fichier de 4 Mio avec les champs multipart. Documentation dédiée et contrats Node/SQL ajoutés.
+- À faire avant déclaration AU VERT : appliquer la migration uniquement sur Replay, exécuter le test SQL, npm test, TypeScript, ESLint, build, puis recette navigateur Client/Admin et test négatif RLS/Storage. Ne pas appliquer en Production, ne pas déployer.
+- Aucun changement Production ni déploiement ne sont autorisés ou revendiqués.
 

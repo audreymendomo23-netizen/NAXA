@@ -114,3 +114,17 @@ Aucune donnée Replay ni Production n'a été modifiée ; aucune migration ni au
 ## État de la recette 09
 
 R09-01 : **correction source intégrée, validation dynamique et automatisée en attente**. R09-02 à R09-08 : NON EXÉCUTÉES. Recettes 01–08 : toujours bloquées tant que les P1 serveur, identité, routes et Prestations ne sont pas prouvés. Aucun test navigateur, API/RPC ou SQL n'est revendiqué ici.
+
+
+### R09-09 — Assistance directe Client → NAXA
+
+1. Vérifier qu'un Client actif crée un ticket "support_naxa" sans "pharmacie_id", avec catégorie et référence unique.
+2. Vérifier que le Client ne peut lire que ses propres tickets et messages ; tester un UUID d'un autre Client.
+3. Vérifier que les pièces jointes sont limitées à un PDF/JPG/PNG/WebP de 4 Mio, que leur signature est contrôlée côté serveur et que le bucket Storage est privé.
+4. Vérifier les politiques Storage INSERT/SELECT/DELETE et l'impossibilité pour une pharmacie ou un autre Client de lire un fichier.
+5. Vérifier le fil Client/Admin, la notification in-app des Admins actifs à la création, les notifications Client à chaque réponse/changement de statut et les transitions "ouvert", "en_cours", "en_attente_client", "resolu", "ferme".
+6. Vérifier qu'une réponse Client rouvre un ticket résolu mais qu'un ticket fermé refuse toute réponse ; l'Admin peut le rouvrir.
+7. Vérifier la boîte Admin active, les URLs signées courtes des pièces jointes, et l'absence d'exposition de la clé service côté navigateur.
+8. Vérifier que la conversation pharmacie "conseil_pharmacien" sur /aide conserve son comportement et ne reçoit aucun ticket "support_naxa".
+**Attendu :** assistance NAXA indépendante du chat pharmacie, traçable, cloisonnée par RLS et testée de bout en bout, sans données sensibles ni transaction Client.
+
