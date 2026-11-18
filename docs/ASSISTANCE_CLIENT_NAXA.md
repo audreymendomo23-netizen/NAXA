@@ -149,3 +149,67 @@ Les canaux externes WhatsApp et téléphone ne sont pas artificiellement transfo
 - WhatsApp externe conservé tel quel : **DÉCISION VALIDÉE ; aucun changement demandé**.
 - Boîte unifiée, intégration Gmail, permissions agents et synchronisation : **À AUDITER / CONSTRUIRE / TESTER**.
 - Cette décision complète les chantiers appels audio (§226), agents internes et litiges (§227), programme et audit initial (§228).
+
+
+## Addendum technique — intégration Gmail officielle et audio WebRTC — 18/11/2026
+
+Cet addendum transforme les décisions métier en architecture technique de référence. Il ne signifie pas que les services externes ou les fonctionnalités sont déjà configurés.
+
+### Gmail — OAuth et synchronisation
+
+**Autorité et compte**
+- Un seul compte Gmail officiel NAXA est autorisé. Seul un Administrateur NAXA actif peut lancer, renouveler ou révoquer la connexion.
+- L'adresse de la boîte doit être vérifiée après OAuth via l'API Gmail (users.getProfile) et comparée à l'adresse officielle attendue ; ne jamais se fier à une adresse fournie par le navigateur.
+- Aucun Agent ne reçoit le refresh token, le client secret Google ou un jeton OAuth. Les Agents n'accèdent qu'aux dossiers Gmail attribués ou explicitement présents dans la file selon leurs permissions.
+
+**Scopes à demander**
+- Base proposée : https://www.googleapis.com/auth/gmail.readonly pour lire messages, fils et pièces jointes ; https://www.googleapis.com/auth/gmail.send pour envoyer les réponses.
+- Ne pas demander https://mail.google.com/ ni gmail.modify par défaut : NAXA n'a pas besoin de supprimer, déplacer ou modifier les messages Gmail pour gérer son propre statut de dossier.
+- Le scope gmail.readonly est restreint ; la vérification OAuth Google et l'évaluation de sécurité requise lorsque les données restreintes sont stockées/transmises sur les serveurs doivent être planifiées avant ouverture publique. Les exigences de vérification doivent être recontrôlées auprès de Google au moment de l'enregistrement.
+- Toute extension de scope exige une justification, une mise à jour de l'écran de consentement, une nouvelle autorisation Admin et des tests de révocation.
+
+**Flux OAuth**
+1. Route serveur réservée à l'Admin actif : créer un state aléatoire à usage unique, le lier à l'Admin et à une expiration courte, puis rediriger vers Google avec access_type=offline, les scopes approuvés et une URI de retour exacte.
+2. Callback serveur : vérifier state/expiration/usage unique, échanger le code côté serveur, obtenir l'identité Gmail, vérifier l'adresse officielle et les scopes réellement accordés.
+3. Chiffrer le refresh token côté serveur (AES-256-GCM avec clé d'enveloppe versionnée issue d'un secret d'environnement ou KMS) ; ne jamais l'envoyer au navigateur, au journal, au client ou au dépôt. Garder l'access token en mémoire le temps nécessaire ; le renouveler à expiration.
+4. Enregistrer l'identité de boîte, les scopes accordés, l'état de connexion, l'expiration et la version de clé ; journaliser les métadonnées d'autorisation, jamais les secrets.
+5. Déconnexion Admin : révoquer le jeton Google si possible, effacer les secrets chiffrés et désactiver le worker ; conserver uniquement l'historique d'audit non sensible.
+
+**Synchronisation et données**
+- Première synchronisation : users.messages.list paginé, puis users.messages.get pour récupérer les messages et pièces jointes nécessaires ; conserver le historyId le plus récent.
+- Synchronisation incrémentale : users.history.list(startHistoryId), pagination complète et déduplication par identifiant Gmail. Si Google retourne HTTP 404 pour un startHistoryId expiré, relancer une synchronisation complète contrôlée.
+- Pour une synchronisation quasi temps réel : Gmail users.watch avec Google Cloud Pub/Sub, validation de la notification, traitement idempotent et renouvellement périodique du watch avant expiration. Une réconciliation périodique reste nécessaire pour récupérer les notifications manquées.
+- Stockage relationnel recommandé : boîte unique, fils, messages, pièces jointes privées, curseur historyId, événements d'import et journal d'erreurs. Contraintes uniques sur gmail_message_id et gmail_thread_id ; chaque import doit être idempotent.
+- Relier un fil à un ticket NAXA par identifiant de fil et références RFC 2822. Une réponse doit utiliser le threadId, un sujet identique et les en-têtes In-Reply-To / References conformes ; le message envoyé doit être réimporté/confirmé dans le fil.
+- Les pièces jointes restent dans un bucket privé ; nom, type MIME et taille sont contrôlés ; téléchargement par URL signée courte après autorisation serveur. Aucun lien Gmail brut ne contourne l'affectation NAXA.
+- Les corps de mails, pièces jointes, tokens, en-têtes sensibles et adresses personnelles ne doivent jamais apparaître dans les logs techniques. L'audit conserve les identifiants, acteur, action, résultat et horodatage.
+
+**Prérequis externes bloquants pour le test réel**
+- Projet Google Cloud administré par NAXA, Gmail API activée, écran de consentement OAuth et vérification des scopes restreints.
+- OAuth Client ID/Secret, URI de redirection HTTPS enregistrée et adresse officielle de la boîte.
+- Si Pub/Sub est utilisé : projet/topic, droits de publication pour l'identité Gmail push de Google, abonnement et endpoint webhook authentifié.
+- Ces secrets doivent être saisis dans l'environnement serveur sécurisé ; ils ne doivent pas être demandés dans le chat ni commités dans Git.
+
+### Appels audio — WebRTC
+
+- V1 utilise getUserMedia({audio:true, video:false}) et une RTCPeerConnection ; aucun flux vidéo n'est demandé ou accepté.
+- Le canal de signalisation Supabase Realtime doit être privé, authentifié, limité aux participants de l'appel et aux Administrateurs autorisés. Les offres SDP, réponses et candidats ICE sont éphémères et ne sont pas conservés dans l'historique métier.
+- Les tables de métadonnées recommandées sont support_calls, support_call_participants et support_call_events. Elles stockent ticket, demandeur, Agent, état, délais, motif de fin et audit ; aucune donnée audio ni enregistrement.
+- La prise d'appel est atomique côté serveur : un seul Agent peut accepter une demande ; une contrainte/transaction verrouille l'appel et empêche les doubles acceptations ou les appels parallèles pour un même ticket/demandeur.
+- Routage : Agent affecté en premier ; si indisponible, refus ou délai expiré, file centrale ; retour au Livechat texte si aucun Agent ne répond. Les délais restent configurables (valeurs initiales du §226).
+- STUN et TURN sont nécessaires pour la connectivité réelle sur réseaux mobiles, NAT et pare-feux. Les identifiants TURN doivent être éphémères (REST/HMAC ou fournisseur équivalent), générés côté serveur et jamais exposés comme secret permanent dans le client.
+- Le serveur doit vérifier à chaque signalisation : session active, Agent actif, permission audio_call, affectation/escalade autorisée, ticket ouvert et absence d'appel parallèle. Suspension, révocation, clôture du ticket ou expiration de session terminent l'appel et invalident les participants.
+- UI : autorisation micro explicite, sonnerie, accepter/refuser, mute, haut-parleur, raccrocher, état de connexion et retour texte. Tester refus micro, perte réseau, changement Wi-Fi/4G, ICE restart, reconnexion, TURN relay et timeout.
+- Aucun enregistrement, transcription automatique, vidéo, conférence, transfert Agent ou appel sans ticket en V1.
+
+### Variables d'environnement à prévoir (noms indicatifs, secrets jamais versionnés)
+
+- Gmail : GOOGLE_GMAIL_CLIENT_ID, GOOGLE_GMAIL_CLIENT_SECRET, GOOGLE_GMAIL_REDIRECT_URI, NAXA_GOOGLE_TOKEN_ENCRYPTION_KEY, GOOGLE_PUBSUB_TOPIC et secrets d'authentification webhook si Pub/Sub est activé.
+- Audio : NAXA_STUN_URLS, NAXA_TURN_URLS, NAXA_TURN_SHARED_SECRET (ou secret fournisseur équivalent), NAXA_TURN_CREDENTIAL_TTL_SECONDS.
+- Les valeurs réelles, la disponibilité du service TURN et les permissions Google doivent être vérifiées dans l'environnement Replay avant tout test réel.
+
+### Conditions de vert
+
+- Gmail : OAuth Admin réel, adresse vérifiée, lecture, fils, pièces jointes privées, réponse dans le fil, idempotence, reconnexion, révocation, erreurs et isolation de deux Agents testés sur Replay ; validation Google obtenue avant production.
+- Audio : appel réel Client↔Agent sur STUN puis TURN, acceptation atomique, micro, mute, speaker, raccrochage, expiration, suspension, réseau mobile et fallback texte testés sur Replay.
+- Un test simulé ou une maquette UI ne remplace pas un appel audio réel ni une synchronisation Gmail réelle.
