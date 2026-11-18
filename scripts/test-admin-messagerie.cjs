@@ -13,7 +13,7 @@ test("GET et POST refusent toute session qui n'est pas un administrateur actif",
   assert.match(api, /sb\.rpc\("naxa_business_function"\)/);
   assert.match(api, /activeRole !== "admin"/);
   assert.match(api, /profile\?\.role !== "admin"/);
-  assert.equal((api.match(/const admin = await activeAdmin\(\);/g) ?? []).length, 3);
+  assert.equal((api.match(/await activeAdmin(?:\([^)]*\))?;/g) ?? []).length, 3);
 });
 
 test("GET valide le ticket et ne lit que le fil demandé", () => {
