@@ -45,6 +45,7 @@ async function contextFor(browser,session){
  const c=await browser.newContext({viewport:{width:1280,height:900}});
  if(session)await c.addCookies(cookieList(session));
  await c.addCookies([{name:"naxa-age-status-v2",value:"adult",domain:new URL(BASE).hostname,path:"/",httpOnly:false,secure:false,sameSite:"Lax"}]);
+ await c.addInitScript(()=>{try{localStorage.setItem("naxa-age-declaration-v1",JSON.stringify({confirmed:true,at:Date.now()}));}catch{}});
  return c;
 }
 async function createAgent(adminPage,tag,letter){
