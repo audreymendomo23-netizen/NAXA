@@ -40,10 +40,13 @@ begin
     end if;
   end loop;
 
+  if not has_table_privilege('authenticated','public.support_agents','SELECT') then
+    raise exception 'Lecture du profil propre Agent non accordée'; end if;
   if not exists(select 1 from pg_policies
     where schemaname='public' and tablename='support_agents'
-      and policyname='support_agents_self_read' and cmd='SELECT') then
-    raise exception 'Policy de lecture du seul profil Agent absent'; end if;
+      and policyname='support_agents_self_read' and cmd='SELECT'
+      and position('auth.uid' in qual)>0 and position('user_id' in qual)>0) then
+    raise exception 'Policy de lecture du seul profil Agent absente ou trop large'; end if;
 
   if exists(select 1 from pg_enum e join pg_type t on t.oid=e.enumtypid
     join pg_namespace n on n.oid=t.typnamespace
