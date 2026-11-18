@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 18 novembre 2026 (§216)  
+**Dernière mise à jour :** 18 novembre 2026 (§217)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `b9103418615f26603eee627b80de7807dcee3b96`  
+**HEAD contrôlé avant cette mise à jour :** `567faf95f44c4a0cb19d39d86834740bcb3d16fb`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7944,4 +7944,18 @@ Les éléments ci-dessous sont des preuves historiques acquises dans leur périm
 - Le test structurel Livechat a ensuite échoué uniquement sur son assertion `SECURITY INVOKER` : PostgreSQL ne restitue pas systématiquement ce libellé dans `pg_get_functiondef()` lorsque `prosecdef=false` (mode invoker par défaut). Le test est corrigé pour contrôler directement `pg_proc.prosecdef`, ainsi que l'isolation `support_naxa`/chat pharmacie.
 - À rejouer maintenant : test SQL structurel Livechat, puis contrôle SQL read-only des trois triggers, fonctions/privilèges, politiques RLS et publication Realtime. Aucun ticket ni message de test créé.
 - Contrats Node, TypeScript, lint, build et E2E navigateur restent à vérifier via le workflow qualité et la recette. Aucun accès Production, aucun déploiement.
+
+
+
+## 217 — Livechat Realtime validé structurellement sur Replay — 18/11/2026
+
+- Migration `20261118150000_naxa_livechat_realtime.sql` : **APPLIQUÉE AVEC SUCCÈS SUR REPLAY UNIQUEMENT**.
+- Test `supabase/tests/20261118_naxa_livechat_realtime.sql` : **PASS** — `naxa_livechat_realtime_structure_pass = true`.
+- RPC `open_naxa_support_ticket(text,text,text)` : `prosecdef=false` (SECURITY INVOKER), non exécutable par `anon`, exécutable par `authenticated`. La création ticket + premier message est atomique et exige profil Client actif + espace Client actif.
+- Trois triggers confirmés : notification Admin à la création, notification Admin aux réponses Client ultérieures, effacement de `resolved_at` lors de la reprise Client d’un ticket résolu.
+- Tables `tickets_support` et `messages_support` présentes dans `supabase_realtime`.
+- RLS contrôlée : lecture Admin exige profil actif + espace Admin ; lecture/écriture support Client exige profil actif + espace Client ; le chat pharmacie historique garde son chemin ; messages internes invisibles au Client. Storage `naxa-support-attachments` reste privé, 4 Mio maximum, PDF/JPG/PNG/WebP.
+- Audit de données Replay : **0 ticket support_naxa, 0 message support_naxa, 0 notification de support** ; aucun compte ni jeu de données de test créé.
+- Le workflow `naxa-quality.yml` est configuré sur push `main`, mais le connecteur de statut consulté ne fournit aucun check attaché au commit `567faf9`. **Node tests, TypeScript, ESLint, build Next.js et test navigateur Client↔Admin restent NON PROUVÉS** ; ne pas déclarer le lot entièrement AU VERT avant ces exécutions.
+- Aucun accès, changement, migration ou test sur Production. Aucun déploiement.
 
