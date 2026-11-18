@@ -65,6 +65,7 @@ async function loginAgent(browser,agent,letter){
  await p.waitForURL(u=>u.pathname==="/activation-agent",{timeout:30000});
  const next="NaxaAgent"+letter+"2026!";
  await p.getByLabel("Nouveau mot de passe").fill(next);await p.getByLabel("Confirmer le mot de passe").fill(next);
+ await p.getByRole("checkbox").check();
  await p.getByRole("button",{name:"Sécuriser mon compte"}).click();
  await p.waitForURL(u=>u.pathname==="/equipe-support",{timeout:30000});
  await p.getByRole("heading",{name:"Tableau de bord support"}).waitFor({timeout:30000});
