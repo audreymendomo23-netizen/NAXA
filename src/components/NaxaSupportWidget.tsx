@@ -63,6 +63,7 @@ export function NaxaSupportWidget({ accountId, hasBottomNav }: { accountId: stri
   const [error, setError] = useState("");
   const [realtime, setRealtime] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [connectionEpoch, setConnectionEpoch] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const current = tickets.find((ticket) => ticket.id === selectedId) ?? null;
   const isClosed = current?.statut === "ferme";
@@ -98,6 +99,14 @@ export function NaxaSupportWidget({ accountId, hasBottomNav }: { accountId: stri
   useEffect(() => {
     if (open) void refreshTickets();
   }, [open, refreshVersion, refreshTickets]);
+
+  // Supabase Realtime ne doit pas conserver un canal devenu obsolète après une coupure réseau.
+  // Recréer le canal à l’événement online relance l’abonnement et recharge l’historique.
+  useEffect(() => {
+    const handleOnline = () => setConnectionEpoch((version) => version + 1);
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
 
   const hydrateMessage = useCallback(async (message: SupportMessage) => {
     if (!message.piece_jointe_path) return { ...message, attachmentUrl: null };
@@ -165,7 +174,7 @@ export function NaxaSupportWidget({ accountId, hasBottomNav }: { accountId: stri
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [open, selectedId, supabase, hydrateMessage]);
+  }, [open, selectedId, supabase, hydrateMessage, connectionEpoch]);
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
