@@ -45,6 +45,15 @@ function assertSameAuthSession(expected, actual, label) {
   }
 }
 
+function readAuthErrorCode(data) {
+  if (!data || typeof data !== "object") return "non fourni";
+  // Supabase Auth can return a numeric HTTP-like `code` alongside the semantic
+  // `error_code`. Prefer the stable semantic code and ignore numeric transport codes.
+  const candidates = [data.error_code, data.code, data.error, data.error_description];
+  const value = candidates.find(candidate => typeof candidate === "string" && candidate.trim());
+  return value ? value.trim() : "non fourni";
+}
+
 function readSecret(path, label) {
   const file = required(path, label);
   if (!fs.existsSync(file)) throw new Error("Fichier secret absent : " + label + ".");
@@ -194,7 +203,7 @@ async function run(env = process.env) {
     if (replay.ok) {
       throw new Error("Un refresh token ancêtre (deux rotations précédentes) reste accepté après 15 secondes.");
     }
-    const replayError = String(replay.data?.code || replay.data?.error_code || replay.data?.error || "non fourni");
+    const replayError = readAuthErrorCode(replay.data);
     if (replay.status !== 400 || replayError !== "refresh_token_already_used") {
       throw new Error(
         "Le rejeu ancêtre n'a pas produit le rejet Auth attendu : HTTP "
@@ -235,12 +244,7 @@ async function run(env = process.env) {
         + (replay.diagnostics.counter || "absent") + "."
       );
     }
-    const descendantError = String(
-      afterReuseDetection.data?.code
-      || afterReuseDetection.data?.error_code
-      || afterReuseDetection.data?.error
-      || "non fourni"
-    );
+    const descendantError = readAuthErrorCode(afterReuseDetection.data);
     const revokedCodes = new Set([
       "refresh_token_already_used",
       "refresh_token_not_found",
@@ -299,4 +303,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { assertReplayUrl };
+module.exports = { assertReplayUrl, readAuthErrorCode };

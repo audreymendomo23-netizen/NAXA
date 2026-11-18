@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hasUsableRefreshTokenPair } = require("./e2e/refresh-session-check.cjs");
+const { readAuthErrorCode } = require("./e2e/verify-auth-session-lifecycle.cjs");
 const { readAccessTokenFromCookies } = require("./e2e/read-ssr-access-token.cjs");
 
 test("a successful refresh response with both tokens is a usable session", () => {
@@ -54,4 +55,14 @@ test("SSR cookie reader rejects absent or malformed authentication cookies", () 
   assert.throws(() => readAccessTokenFromCookies([
     { name: "sb-replay-auth-token", value: "base64-not-json" },
   ]), /Impossible de lire/);
+});
+
+
+test("Supabase Auth semantic error_code wins over a numeric response code", () => {
+  assert.equal(readAuthErrorCode({ code: 400, error_code: "refresh_token_already_used" }), "refresh_token_already_used");
+});
+
+test("Auth error code falls back to a string code and ignores numeric-only codes", () => {
+  assert.equal(readAuthErrorCode({ code: "session_not_found" }), "session_not_found");
+  assert.equal(readAuthErrorCode({ code: 400, msg: "Possible abuse attempt" }), "non fourni");
 });
