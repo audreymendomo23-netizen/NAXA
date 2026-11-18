@@ -2,9 +2,9 @@
 
 > **Document de reprise vivant.** Mettre à jour ce fichier dès qu'une réponse fait avancer une recette, apporte une preuve, découvre un blocage ou modifie une décision. Toute correction nécessaire doit être intégrée à la source versionnée sur `main`, vérifiée, puis référencée ici avec son commit. Aucun correctif ne doit rester uniquement dans la conversation.
 
-**Dernière mise à jour :** 17 novembre 2026 (§198)  
+**Dernière mise à jour :** 18 novembre 2026 (§199)  
 **Dépôt / branche :** `audreymendomo23-netizen/NAXA` / `main`  
-**HEAD contrôlé avant cette mise à jour :** `c4bd6d0f5a4c0126c7f64fc945f5149ec1386f69`  
+**HEAD contrôlé avant cette mise à jour :** `29b50ef947d662f5384e0dc68dbe1bd62254686b`  
 **État global :** 🟡 PARTIEL — le parcours transactionnel Livreur→Caisse→Client est désormais passé de bout en bout sur Replay via les RPC métier, avec confirmation explicite qu'aucune mission n'est publiée avant la préparation physique. Quatre migrations correctives ont été appliquées à Replay et versionnées sur `main` (§103). Le Comptable réussit la configuration du journal, de la période, du plan, des mappings et l'audit ; la publication d'écritures et la clôture restent réservées au worker `service_role`, non exécutées depuis la session authentifiée. Le Pharmacien réussit la création/lecture d'une consultation et d'une prescription fictives, ainsi que l'acceptation/rejet d'une ordonnance entrante synthétique ; le dépôt positif d'une ordonnance Client depuis Storage reste à prouver. Les connexions interactives Web/Android ne sont pas prouvées. Le chantier E2E global reste partiel, notamment cumul Pharmacie↔SPD (§99–101), recettes physiques et campagnes bulk B1–B11. Aucun résultat fictif n'est conservé : les recettes transactionnelles de ce lot ont été exécutées en `BEGIN/ROLLBACK`. La suppression Auth d'un compte possédant des sessions actives est désormais corrigée et testée sur Replay (§146) : la cascade ne tente plus d'insérer un audit qui référence le parent en cours de suppression, tandis que la révocation normale reste auditée. Aucune donnée Production ni aucun déploiement touchés. Les 28 événements comptables en erreur relevés sur une autre pharmacie Replay ne sont pas traités ici : le Comptable E2E n'y est pas affecté.
 > **Décision métier prioritaire (15 novembre 2026) :** NAXA est un connecteur, pas une autorité pharmaceutique ou réglementaire. NAXA ne comprend, ne contrôle, ne corrige, ne certifie, n'approuve ni ne valide les fiches déclarées par les pharmacies. La pharmacie déclare ses références, prix, stocks, lots et disponibilités sous sa propre responsabilité. La section §43 remplace les anciens garde-fous de validation centrale décrits en §41/§42 et tout ancien point de reprise exigeant une validation Admin/DPML avant publication.
 
@@ -7539,3 +7539,32 @@ Cette passe a enrichi l'audit, mais n'a appliqué aucune migration et n'a modifi
 2. Si les rotations conservent le même `session_id` et que le refresh descendant répond encore HTTP 200 après le rejeu ancêtre refusé, comparer la configuration Auth effective du projet (Management API GET) avec celle affichée au Dashboard et escalader au niveau Auth service si elles concordent.
 3. Si les `session_id` diffèrent, corriger le scénario de test ou le flux de rotation précis qui crée une session différente ; ne pas changer le réglage Auth.
 4. Garder le statut Auth ROUGE jusqu'à preuve que le refresh descendant est refusé ou jusqu'à explication technique validée ; aucune modification Production et aucun déploiement Vercel.
+
+
+## 199. Diagnostic contradictoire du parcours Auth — 18/11/2026
+
+### Cause racine prouvée du refus de connexion (Replay)
+- Trace Auth Replay du 17/11/2026 à 17:55:03Z, request_id `01a1eaa5-e618-7ad1-8138-deca5eeaa27f` : `POST /auth/v1/token?grant_type=password` → HTTP 500 / `unexpected_failure`.
+- Le détail Auth associé est explicite : `error creating new session ... NAXA_SESSION_LIMIT_REACHED`. L'événement d'audit est bien `login` pour le compte de recette Promoteur. Le mot de passe a donc franchi l'étape de vérification ; l'échec est survenu pendant la création de la session.
+- Cause : ancien mécanisme NAXA de plafond de quatre sessions concurrentes, via le trigger `auth.sessions.trg_naxa_session_limit` qui appelait `public.naxa_enforce_session_limit()`. Ce n'était ni un quota de connexions réseau Supabase, ni une limite de plan Supabase : c'était une règle applicative devenue obsolète qui faisait échouer la transaction Auth.
+- Correctifs versionnés sur `main` : `supabase/migrations/20261021040125_remove_concurrent_session_cap.sql` supprime le trigger et rend la fonction inoffensive ; `supabase/migrations/20261021040237_bypass_legacy_session_count_precheck.sql` neutralise le précontrôle utilisé par l'ancienne route. La route login actuelle sur `main` n'appelle plus le helper applicatif de plafond.
+- Contrôle direct de l'état Replay au 18/11 : aucun trigger de plafond n'est présent sur `auth.sessions` (seuls les triggers d'audit INSERT/DELETE sont présents) ; `naxa_enforce_session_limit()` retourne simplement `NEW`. Sur les dernières 24 h, les logs agrégés contiennent 834 réponses HTTP 200 et 16 réponses HTTP 400 sur `/auth/v1/token`, plus une HTTP 500 : cette dernière est précisément l'erreur du 17/11 à 17:55 ci-dessus. Des logins ultérieurs du run Replay du 18/11 (05:09Z) passent en HTTP 200.
+- Contradiction levée : l'ancien échec de login ne venait pas d'identifiants incorrects ni d'une indisponibilité générale d'Auth ; il venait du plafond de sessions NAXA. L'état actuel Replay ne présente plus le trigger bloquant, même si l'historique de migration ne permet pas ici de certifier par lui-même quelle opération l'a retiré.
+
+### Défaut indépendant encore reproductible sur Replay — récupération du mot de passe
+- La route `src/app/api/auth/forgot-password/route.ts` appelle `rateLimit("ip_password_reset", ...)` avant toute recherche de profil ou demande OTP.
+- Le code SQL actuellement présent sur Replay dans `public.naxa_rate_limit_v1` n'autorise que `ip_code, code, ip_login, login_user, ip_password, password_user` ; la contrainte `tentatives_code_scope_chk` exclut elle aussi `ip_password_reset`.
+- Appel de contrôle en lecture seule du RPC avec le scope exact : erreur `NAXA rate limit: paramètres invalides`. La route transforme cette exception en HTTP 503 « Service momentanément indisponible » ; le fournisseur OTP n'est donc même pas appelé.
+- Les migrations correctives existent sur `main` : `20261117224500_naxa_rate_limit_allow_password_reset_scope.sql` et `20261117224600_naxa_rate_limit_password_reset_scope_constraint.sql`. Elles ne sont pas reflétées dans la définition SQL actuellement lue sur Replay. La continuité IA documente des contrôles SQL Production réussis et le retour utilisateur du 18/11 confirme un reset réel réussi ; ce défaut est donc établi pour Replay, pas attribué à tort à Production.
+
+### Défaut latent dans les recherches de nom d'utilisateur
+- Login, reconnaissance, disponibilité et récupération utilisent `.ilike("username", valeur)` alors que la validation autorise le caractère `_`. Dans un motif SQL LIKE/ILIKE, `_` est un joker d'un caractère : certains noms peuvent donc être interprétés comme des motifs et sélectionner plusieurs profils ou le mauvais profil.
+- Sur les 11 profils Replay présents au contrôle, 11 noms normalisés sont uniques et aucune collision de motif n'a été trouvée. Ce défaut de code est réel mais ne prouve pas la cause de l'incident actuel ; la correction robuste est une comparaison exacte `.eq("username", valeur normalisée)` sur les quatre routes concernées.
+
+### Verdict
+- **Cause racine historique du login HTTP 500 : PROUVÉE — plafond NAXA de quatre sessions via trigger obsolète.**
+- **État actuel Replay pour login/mot de passe : trigger bloquant absent ; connexions récentes HTTP 200 observées.**
+- **Récupération OTP/mot de passe oublié sur Replay : BLOQUÉE par dérive SQL scope RPC/contrainte ; migrations présentes sur main mais non appliquées à Replay.**
+- **Inscription OTP et OAuth Google : non conclusifs dans ce contrôle ; les traces et la recette utilisateur ne couvrent pas tous les cas.**
+- **Défaut latent ILIKE/underscore : identifié, sans collision actuelle dans les données Replay contrôlées.**
+- Aucun code applicatif, schéma, donnée Replay/Production ou déploiement n'a été modifié pendant cet audit. Aucun vert global Auth revendiqué.
