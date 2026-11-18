@@ -3,7 +3,7 @@
 
 const fs = require("node:fs");
 const { chromium } = require("playwright");
-const { hasUsableRefreshTokenPair } = require("./refresh-session-check");
+const { hasUsableRefreshTokenPair } = require("./refresh-session-check.cjs");
 
 const PROJECT_REF = "pwfftcsjyeibxxqhwysw";
 const USERNAME = "naxa_e2e_stock";
