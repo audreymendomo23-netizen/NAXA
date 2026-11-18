@@ -8,12 +8,12 @@ export default async function SupportAgentActivationPage() {
   if (authError || !auth.user) redirect("/connexion");
 
   const { data: agent, error } = await sb.from("support_agents")
-    .select("status,must_change_password")
+    .select("status,must_change_password,consent_accepted_at")
     .eq("user_id", auth.user.id)
     .maybeSingle();
 
   if (error || !agent || agent.status !== "active") redirect("/connexion");
-  if (!agent.must_change_password) redirect("/equipe-support");
+  if (!agent.must_change_password && agent.consent_accepted_at) redirect("/equipe-support");
 
   return <SupportAgentPasswordRotation />;
 }
