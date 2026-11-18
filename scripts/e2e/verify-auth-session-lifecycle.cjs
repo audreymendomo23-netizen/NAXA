@@ -3,6 +3,7 @@
 
 const fs = require("node:fs");
 const { chromium } = require("playwright");
+const { hasUsableRefreshTokenPair } = require("./refresh-session-check");
 
 const PROJECT_REF = "pwfftcsjyeibxxqhwysw";
 const USERNAME = "naxa_e2e_stock";
@@ -145,10 +146,15 @@ async function run(env = process.env) {
     const afterReuseDetection = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: current.data.refresh_token,
     }, "current refresh token after ancestor reuse detection");
-    if (afterReuseDetection.ok) {
-      throw new Error("La détection de réutilisation n'a pas révoqué le refresh token courant de la session.");
+    if (hasUsableRefreshTokenPair(afterReuseDetection)) {
+      throw new Error(
+        "La détection de réutilisation n'a pas révoqué le refresh token courant : "
+        + "HTTP " + afterReuseDetection.status
+        + ", access_token=" + Boolean(afterReuseDetection.data?.access_token)
+        + ", refresh_token=" + Boolean(afterReuseDetection.data?.refresh_token) + "."
+      );
     }
-    process.stdout.write("PASS — détection de réutilisation : le refresh token courant de la session est également révoqué.\\n");
+    process.stdout.write("PASS — détection de réutilisation : aucun nouveau couple access/refresh utilisable n'est émis pour la session.\\n");
 
     // Independent session for explicit server-side revocation.
     const second = await passwordLogin();
@@ -163,12 +169,22 @@ async function run(env = process.env) {
     const afterRevoke = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: second.refresh_token,
     }, "refresh after global revoke");
-    if (afterRevoke.ok) {
+    if (hasUsableRefreshTokenPair(afterRevoke)) {
       throw new Error("Le refresh token reste utilisable après révocation globale.");
     }
     process.stdout.write("PASS — révocation globale : refresh token de la session révoquée refusé.\n");
     process.stdout.write("NOTE — l'expiration naturelle du JWT (durée configurée du projet) n'a pas été attendue ; le test d'expiration ci-dessus porte sur le cookie navigateur et non sur l'expiration cryptographique du JWT.\n");
   } finally {
+    // Clean only sessions created through this runtime test. Avoid global sign-out
+    // here because the dedicated E2E account may be used by another isolated job.
+    for (const accessToken of [...new Set(authTokens)].reverse()) {
+      try {
+        await fetch(supabaseUrl + "/auth/v1/logout?scope=local", {
+          method: "POST",
+          headers: { apikey: anonKey, Authorization: "Bearer " + accessToken },
+        });
+      } catch { /* best-effort cleanup; never hide the original assertion */ }
+    }
     if (browser) await browser.close().catch(() => {});
   }
 }
