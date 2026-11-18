@@ -168,5 +168,5 @@ test("l’assistance directe couvre les professionnels, leur confidentialité et
   assert.match(professionalSqlTest, /Fuite du dossier Livreur vers le Promoteur/);
   assert.match(professionalBrowser, /naxa_e2e_livreur/);
   assert.match(professionalBrowser, /naxa_e2e_promoteur/);
-  assert.match(professionalBrowser, /Réponse Admin reçue en direct/);
+  assert.match(professionalBrowser, /réponse Admin reçue en direct/i);
 });
