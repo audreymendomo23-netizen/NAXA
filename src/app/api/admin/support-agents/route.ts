@@ -145,12 +145,18 @@ export async function POST(request: Request) {
     }
   }
 
-  await admin.db.from("support_agent_events").insert({
+  const { error: eventError } = await admin.db.from("support_agent_events").insert({
     actor_user_id: admin.user.id,
     agent_user_id: userId,
     event_code: "agent_created",
     details: { username, permissions: requestedPermissions },
   });
+  if (eventError) {
+    await admin.db.from("support_agent_permissions").delete().eq("agent_user_id", userId);
+    await admin.db.from("support_agents").delete().eq("user_id", userId);
+    await admin.db.auth.admin.deleteUser(userId);
+    return NextResponse.json({ error: "Le journal de création Agent n’a pas été enregistré." }, { status: 500 });
+  }
 
   return NextResponse.json({
     success: true,
@@ -158,4 +164,56 @@ export async function POST(request: Request) {
     temporary_password: temporaryPassword,
     must_share_password_securely: true,
   }, { status: 201, headers: { "Cache-Control": "no-store" } });
+}
+
+
+export async function PATCH(request: Request) {
+  const admin = await requireActiveAdmin();
+  if (!admin.ok) return admin.response;
+
+  let body: {
+    user_id?: string;
+    status?: string;
+    presence?: string;
+    permissions?: string[];
+  };
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: "Données de mise à jour invalides." }, { status: 400 });
+  }
+
+  const userId = String(body.user_id ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+    return NextResponse.json({ error: "Identifiant Agent invalide." }, { status: 400 });
+  }
+
+  const { data: current, error: currentError } = await admin.db.from("support_agents")
+    .select("status,presence")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (currentError || !current) return NextResponse.json({ error: "Agent introuvable." }, { status: 404 });
+
+  const status = body.status ?? current.status;
+  const presence = body.presence ?? current.presence;
+  const permissions = body.permissions === undefined ? null : [...new Set(body.permissions)];
+
+  if (!["active","suspended","revoked"].includes(status)
+    || !["available","unavailable"].includes(presence)
+    || (permissions && permissions.some((permission) => !ALLOWED_PERMISSIONS.has(permission)))) {
+    return NextResponse.json({ error: "Statut, présence ou permissions invalides." }, { status: 400 });
+  }
+
+  const { error } = await admin.db.rpc("support_agent_admin_update", {
+    p_agent_user_id: userId,
+    p_actor_user_id: admin.user.id,
+    p_status: status,
+    p_presence: presence,
+    p_permissions: permissions,
+  });
+
+  if (error) {
+    const statusCode = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 400;
+    return NextResponse.json({ error: "La mise à jour Agent a été refusée : " + error.message }, { status: statusCode });
+  }
+
+  return NextResponse.json({ success: true, user_id: userId, status, presence });
 }
