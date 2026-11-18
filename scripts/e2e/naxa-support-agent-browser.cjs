@@ -36,7 +36,7 @@ async function sessionFor(username,role){
  const {data:g,error:ge}=await admin.auth.admin.generateLink({type:"magiclink",email:u.user.email});if(ge)throw ge;
  const jar=new Map();const ssr=createServerClient(SUPABASE_URL,ANON,{cookies:{getAll:()=>[...jar.values()].map(({name,value})=>({name,value})),setAll:cs=>cs.forEach(c=>jar.set(c.name,c))}});
  const {data:v,error:ve}=await ssr.auth.verifyOtp({token_hash:g.properties.hashed_token,type:"magiclink"});if(ve)throw ve;
- return {profile:p,accessToken:v.session.access_token,cookies:[...jar.values()]};
+ return {profile:p,accessToken:v.session.access_token,refreshToken:v.session.refresh_token,cookies:[...jar.values()]};
 }
 function cookieList(session){
  return session.cookies.map(c=>({name:c.name,value:c.value,domain:new URL(BASE).hostname,path:"/",httpOnly:!!c.options?.httpOnly,secure:false,sameSite:"Lax"}));
@@ -83,7 +83,12 @@ async function run(){
  let browser,adminContext,a,b;
  try{
   const [clientSession,adminSession]=await Promise.all([sessionFor("naxa_e2e_acheteur","client"),sessionFor("e2e_admin_261104","admin")]);
-  const client=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:"Bearer "+clientSession.accessToken}}});
+  const client=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const {error:clientSessionError}=await client.auth.setSession({access_token:clientSession.accessToken,refresh_token:clientSession.refreshToken});
+  if(clientSessionError)throw clientSessionError;
+  const {data:clientAuth,error:clientAuthError}=await client.auth.getUser();
+  if(clientAuthError)throw clientAuthError;
+  assert.equal(clientAuth.user.id,clientSession.profile.id,"Client E2E doit être authentifié avec son propre JWT.");
   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
   adminContext=await contextFor(browser,adminSession);const adminPage=await adminContext.newPage();
   await adminPage.goto(BASE+"/admin/support-agents");await adminPage.getByRole("heading",{name:"Agents du service client"}).waitFor({timeout:30000});
