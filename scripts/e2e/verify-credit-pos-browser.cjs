@@ -830,6 +830,18 @@ async function run(env = process.env) {
     }
     await refundReceiptHeading.waitFor({ state: "visible" });
     await clientPage.getByText("0 FCFA", { exact: false }).first().waitFor();
+    for (const plan of refundPlans) {
+      const expectedChannelLabel = plan.channel === "especes" ? "Espèces"
+        : plan.channel === "orange_money" ? "Orange Money" : "MTN MoMo";
+      const receipt = clientPage.locator(".credit-repayment-receipt").filter({ hasText: plan.reference });
+      if (await receipt.count() !== 1) {
+        throw new Error("Le reçu Client du remboursement " + plan.channel + " est absent ou dupliqué.");
+      }
+      await receipt.getByText(expectedChannelLabel, { exact: true }).waitFor({ state: "visible" });
+      await receipt.getByRole("heading", {
+        name: Number(plan.amount).toLocaleString("fr-FR") + " FCFA reçus", exact: true,
+      }).waitFor({ state: "visible" });
+    }
 
     process.stdout.write("PASS — Client acheteur, Promoteur, Caisse/Stock authentifiés dans le navigateur NAXA.\n");
     process.stdout.write("PASS — le panier au-dessus du plafond crée une demande Caisse sans paiement ni débit de stock.\n");
