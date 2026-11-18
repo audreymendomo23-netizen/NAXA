@@ -49,15 +49,18 @@ const formatDate = (value: string) => new Date(value).toLocaleDateString("fr-FR"
 export function NaxaSupportWidget({ hasBottomNav }: { hasBottomNav: boolean }) {
   const supabase = useMemo(() => supabaseBrowser(), []);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const authRevision = useRef(0);
   useEffect(() => {
     let active = true;
-    const syncAccount = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (active) setAccountId(!error ? data.user?.id ?? null : null);
-    };
-    void syncAccount();
+    const initialRevision = authRevision.current;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authRevision.current += 1;
       if (active) setAccountId(session?.user?.id ?? null);
+    });
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (active && authRevision.current === initialRevision) {
+        setAccountId(!error ? data.user?.id ?? null : null);
+      }
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, [supabase]);
@@ -242,7 +245,7 @@ export function NaxaSupportWidget({ hasBottomNav }: { hasBottomNav: boolean }) {
   async function sendReply(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = reply.trim();
-    if (!current || isClosed || !content || content.length > MAX_MESSAGE_LENGTH || sending) return;
+    if (!accountId || !current || isClosed || !content || content.length > MAX_MESSAGE_LENGTH || sending) return;
     setSending(true);
     setError("");
     const { data, error: insertError } = await supabase
