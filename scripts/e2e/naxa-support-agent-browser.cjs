@@ -121,8 +121,15 @@ async function run(){
   await a.page.getByPlaceholder("Votre réponse au demandeur…").fill(reply);
   await a.page.getByRole("button",{name:"Envoyer la réponse"}).click();
   await a.page.getByText(reply,{exact:true}).waitFor({timeout:20000});
-  const {data:clientMessages,error:cmError}=await client.from("messages_support").select("contenu,interne").eq("ticket_id",ticketA);
-  if(cmError)throw cmError;assert.ok(clientMessages.some(m=>m.contenu===reply&&!m.interne));assert.ok(!clientMessages.some(m=>m.contenu===note));
+  const [{data:clientMessages,error:cmError},{data:clientTicket,error:ctError},{data:storedMessages,error:smError}]=await Promise.all([
+   client.from("messages_support").select("id,contenu,interne,auteur_profile_id,auteur_support_agent_id").eq("ticket_id",ticketA),
+   client.from("tickets_support").select("id,auteur_profile_id,type,statut").eq("id",ticketA),
+   admin.from("messages_support").select("id,contenu,interne,auteur_profile_id,auteur_support_agent_id").eq("ticket_id",ticketA),
+  ]);
+  if(cmError)throw cmError;if(ctError)throw ctError;if(smError)throw smError;
+  console.log("TRACE — Client RLS ticket/messages:",JSON.stringify({ticket:clientTicket,messages:clientMessages,stored:storedMessages,clientId:clientSession.profile.id,reply,note}));
+  assert.ok(clientMessages.some(m=>m.contenu===reply&&!m.interne),"Réponse Agent publique absente de la lecture Client RLS.");
+  assert.ok(!clientMessages.some(m=>m.contenu===note),"La note interne est visible au Client.");
   const {data:agentMessages,error:amError}=await ca.from("messages_support").select("contenu,interne").eq("ticket_id",ticketA);
   if(amError)throw amError;assert.ok(agentMessages.some(m=>m.contenu===note&&m.interne));
   console.log("PASS — réponse publique visible Client ; note interne réservée Agent.");
