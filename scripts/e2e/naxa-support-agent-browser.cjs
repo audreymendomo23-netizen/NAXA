@@ -6,14 +6,14 @@ const {createClient}=require("@supabase/supabase-js");
 const {createServerClient}=require("@supabase/ssr");
 const {chromium}=require("playwright");
 const REF="pwfftcsjyeibxxqhwysw";
-const URL="https://"+REF+".supabase.co";
+const SUPABASE_URL="https://"+REF+".supabase.co";
 const BASE=(process.env.NAXA_E2E_WEB_BASE_URL||"http://127.0.0.1:3000").replace(/\/+$/,"");
 const STATE=path.join(process.env.RUNNER_TEMP||"/tmp","naxa-support-agent-e2e.json");
 const ANON=process.env.NAXA_STORAGE_E2E_ANON_KEY;
 const ADMIN_KEY=process.env.NAXA_STORAGE_E2E_ADMIN_KEY;
-assert.equal(new URL(process.env.NAXA_STORAGE_E2E_URL).origin,URL,"Replay uniquement.");
+assert.equal(new globalThis.URL(process.env.NAXA_STORAGE_E2E_URL).origin,SUPABASE_URL,"Replay uniquement.");
 assert.ok(ANON&&ADMIN_KEY,"Secrets Replay requis.");
-const admin=createClient(URL,ADMIN_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const admin=createClient(SUPABASE_URL,ADMIN_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 let state={agents:[],tickets:[]};
 const save=()=>fs.writeFileSync(STATE,JSON.stringify(state),{mode:0o600});
 
@@ -81,7 +81,7 @@ async function run(){
  let browser,adminContext,a,b;
  try{
   const [clientSession,adminSession]=await Promise.all([sessionFor("naxa_e2e_acheteur","client"),sessionFor("e2e_admin_261104","admin")]);
-  const client=createClient(URL,ANON,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:"Bearer "+clientSession.accessToken}}});
+  const client=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:"Bearer "+clientSession.accessToken}}});
   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
   adminContext=await contextFor(browser,adminSession);const adminPage=await adminContext.newPage();
   await adminPage.goto(BASE+"/admin/support-agents");await adminPage.getByRole("heading",{name:"Agents du service client"}).waitFor({timeout:30000});
@@ -99,8 +99,8 @@ async function run(){
   await cardB.getByRole("link",{name:"Ouvrir le dossier"}).waitFor({timeout:20000});
   console.log("PASS — chaque Agent prend son dossier depuis la file.");
 
-  const ca=createClient(URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
-  const cb=createClient(URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
+  const ca=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
+  const cb=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
   const [sa,sb]=await Promise.all([ca.auth.signInWithPassword({email:agentA.email,password:a.password}),cb.auth.signInWithPassword({email:agentB.email,password:b.password})]);
   if(sa.error)throw sa.error;if(sb.error)throw sb.error;
   const own=await ca.from("tickets_support").select("id").eq("id",ticketA);if(own.error)throw own.error;assert.equal(own.data.length,1);
