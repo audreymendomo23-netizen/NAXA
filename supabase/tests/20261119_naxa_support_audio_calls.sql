@@ -20,6 +20,10 @@ begin
  select count(*) into v_count from pg_policies where schemaname='realtime' and tablename='messages'
  and policyname in ('naxa_support_call_broadcast_read','naxa_support_call_broadcast_write');
  if v_count<>2 then raise exception 'Policies Realtime privées incomplètes'; end if;
+ if not exists(select 1 from pg_policies where schemaname='public' and tablename='support_call_events'
+   and policyname='support_call_events_deny_client_read'
+   and roles @> array['authenticated']::name[] and qual='false') then
+   raise exception 'Lecture directe des événements non refusée explicitement'; end if;
  if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  where n.nspname='public' and p.proname='naxa_support_call_request'
  and has_function_privilege('service_role',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE'))
