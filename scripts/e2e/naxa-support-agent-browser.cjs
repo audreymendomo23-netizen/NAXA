@@ -340,20 +340,67 @@ async function run(){
   console.log("PASS — refus d'accès croisé, double prise refusée et concurrence atomique.");
 
   const adminProfile=adminSession.profile;
+
+  // Cas 1 : suspension pendant un appel effectivement accepté doit terminer la session.
+  const suspensionTicket=await createTicket(client,"E2E Agent suspension accepted "+tag);
+  const suspensionAssignment=await admin.rpc("support_agent_claim_ticket",{p_agent_user_id:agentA.id,p_ticket_id:suspensionTicket});
+  if(suspensionAssignment.error)throw suspensionAssignment.error;
+  await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(suspensionTicket));
+  await clientPage.getByRole("heading",{name:"E2E Agent suspension accepted "+tag}).waitFor({timeout:20000});
+  const suspensionRequestPromise=clientPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  await clientPage.getByRole("button",{name:"Demander un appel audio"}).click();
+  const suspensionRequest=await suspensionRequestPromise;
+  const suspensionRequestData=await suspensionRequest.json();
+  assert.equal(suspensionRequest.status(),201,JSON.stringify(suspensionRequestData));
+  const suspensionCallId=suspensionRequestData.call.id;
+  state.calls.push({id:suspensionCallId,requesterId:clientSession.profile.id});save();
+  assert.equal(suspensionRequestData.call.status,"ringing");
+  assert.equal(suspensionRequestData.call.agent_user_id,agentA.id);
+  await waitForCallHeartbeat(suspensionCallId,"requester_heartbeat_at","Heartbeat Client avant suspension");
+
+  const suspensionAccept=await a.page.evaluate(async id=>{
+   const response=await fetch("/api/support/calls/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"accept"})});
+   return {status:response.status,data:await response.json()};
+  },suspensionCallId);
+  assert.equal(suspensionAccept.status,200,JSON.stringify(suspensionAccept.data));
+  const suspensionAgentHeartbeat=await a.page.evaluate(async id=>
+   (await fetch("/api/support/calls/"+id+"/heartbeat",{method:"POST"})).status,suspensionCallId);
+  assert.equal(suspensionAgentHeartbeat,200,"L'Agent doit être participant actif avant sa suspension.");
+  const activeCallProof=await admin.from("support_calls")
+   .select("status,agent_user_id,requester_user_id,accepted_at,ended_at")
+   .eq("id",suspensionCallId).single();
+  if(activeCallProof.error)throw activeCallProof.error;
+  assert.equal(activeCallProof.data.status,"accepted","Précondition impérative : appel réellement accepté avant suspension.");
+  assert.equal(activeCallProof.data.agent_user_id,agentA.id);
+  assert.equal(activeCallProof.data.requester_user_id,clientSession.profile.id);
+  assert.ok(activeCallProof.data.accepted_at);
+  assert.equal(activeCallProof.data.ended_at,null);
+
   const suspended=await admin.rpc("support_agent_admin_update",{p_agent_user_id:agentA.id,p_actor_user_id:adminProfile.id,p_status:"suspended",p_presence:"unavailable",p_permissions:null});
   if(suspended.error)throw suspended.error;
-  if(callId){
-   const endedCall=await admin.from("support_calls").select("status,end_reason").eq("id",callId).single();
-   if(endedCall.error)throw endedCall.error;
-   assert.equal(endedCall.data.status,"failed","La suspension de l'Agent doit terminer l'appel actif.");
-   assert.ok(["agent_status_suspended","agent_permission_revoked_audio_call","agent_permission_revoked_ticket_view_assigned"].includes(endedCall.data.end_reason));
-   console.log("PASS — suspension Agent terminant immédiatement la session audio.");
-  }
+  const endedCall=await admin.from("support_calls")
+   .select("status,end_reason,ended_at,agent_user_id")
+   .eq("id",suspensionCallId).single();
+  if(endedCall.error)throw endedCall.error;
+  assert.equal(endedCall.data.status,"failed","La suspension de l'Agent doit terminer l'appel qui était accepted.");
+  assert.equal(endedCall.data.end_reason,"agent_status_suspended");
+  assert.ok(endedCall.data.ended_at);
+  console.log("PASS — suspension Agent : appel accepted terminé avec agent_status_suspended.");
   const sessionStatus=await a.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
   assert.equal(sessionStatus,403);
-  const {data:ticketState,error:te}=await admin.from("tickets_support").select("statut").eq("id",ticketA).single();
-  if(te)throw te;assert.equal(ticketState.statut,"ouvert");
-  console.log("PASS — suspension révoque l'accès et libère le ticket.");
+  const [{data:ticketState,error:te},{data:suspensionAssignmentState,error:ase}]=await Promise.all([
+   admin.from("tickets_support").select("statut").eq("id",ticketA).single(),
+   admin.from("support_ticket_assignments").select("released_at,release_reason")
+    .eq("ticket_id",suspensionTicket).eq("agent_user_id",agentA.id).single()
+  ]);
+  if(te)throw te;if(ase)throw ase;
+  assert.equal(ticketState.statut,"ouvert");
+  assert.ok(suspensionAssignmentState.released_at);
+  assert.equal(suspensionAssignmentState.release_reason,"agent_suspended");
+  console.log("PASS — suspension révoque la session Agent et libère ses affectations.");
 
   const reassign=await admin.rpc("support_agent_claim_ticket",{p_agent_user_id:agentB.id,p_ticket_id:ticketA});
   if(reassign.error)throw reassign.error;
@@ -361,8 +408,55 @@ async function run(){
   if(reactivate.error)throw reactivate.error;
   const reactivated=await a.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
   assert.equal(reactivated,200);
-  console.log("PASS GLOBAL — cycle de vie Agent, login, permissions, RLS, messagerie, file et concurrence.");
- }finally{
+  console.log("PASS — réactivation Agent A et restauration contrôlée de ses permissions.");
+
+  // Cas 2 : suspension pendant la sonnerie doit retirer l'Agent et remettre l'appel en file centrale.
+  const ringingSuspensionTicket=await createTicket(client,"E2E Agent suspension ringing "+tag);
+  const ringingAssignment=await admin.rpc("support_agent_claim_ticket",{p_agent_user_id:agentB.id,p_ticket_id:ringingSuspensionTicket});
+  if(ringingAssignment.error)throw ringingAssignment.error;
+  await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ringingSuspensionTicket));
+  await clientPage.getByRole("heading",{name:"E2E Agent suspension ringing "+tag}).waitFor({timeout:20000});
+  const ringingRequestPromise=clientPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  await clientPage.getByRole("button",{name:"Demander un appel audio"}).click();
+  const ringingRequest=await ringingRequestPromise;
+  const ringingData=await ringingRequest.json();
+  assert.equal(ringingRequest.status(),201,JSON.stringify(ringingData));
+  const ringingCallId=ringingData.call.id;
+  state.calls.push({id:ringingCallId,requesterId:clientSession.profile.id});save();
+  assert.equal(ringingData.call.status,"ringing");
+  assert.equal(ringingData.call.agent_user_id,agentB.id);
+  const ringingProof=await admin.from("support_calls").select("status,agent_user_id")
+   .eq("id",ringingCallId).single();
+  if(ringingProof.error)throw ringingProof.error;
+  assert.equal(ringingProof.data.status,"ringing");
+  assert.equal(ringingProof.data.agent_user_id,agentB.id);
+
+  const suspendRingingAgent=await admin.rpc("support_agent_admin_update",{
+   p_agent_user_id:agentB.id,p_actor_user_id:adminProfile.id,p_status:"suspended",p_presence:"unavailable",p_permissions:null
+  });
+  if(suspendRingingAgent.error)throw suspendRingingAgent.error;
+  const requeuedCall=await admin.from("support_calls")
+   .select("status,agent_user_id,end_reason,fallback_at,queue_expires_at")
+   .eq("id",ringingCallId).single();
+  if(requeuedCall.error)throw requeuedCall.error;
+  assert.equal(requeuedCall.data.status,"queued","Un appel en sonnerie doit retourner en file centrale à la suspension de son Agent.");
+  assert.equal(requeuedCall.data.agent_user_id,null);
+  assert.equal(requeuedCall.data.end_reason,"agent_status_suspended");
+  assert.ok(requeuedCall.data.fallback_at&&requeuedCall.data.queue_expires_at);
+  const bSuspendedSession=await b.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
+  assert.equal(bSuspendedSession,403);
+  const bReactivated=await admin.rpc("support_agent_admin_update",{
+   p_agent_user_id:agentB.id,p_actor_user_id:adminProfile.id,p_status:"active",p_presence:"available",
+   p_permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note","audio_call"]
+  });
+  if(bReactivated.error)throw bReactivated.error;
+  const bSessionAfterReactivate=await b.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
+  assert.equal(bSessionAfterReactivate,200);
+  console.log("PASS — suspension pendant sonnerie : retour en file centrale, Agent B réactivé.");
+  console.log("PASS GLOBAL — cycle de vie Agents, appels accepted/ringing, permissions, RLS, Livechat et concurrence."); }finally{
   if(a?.context)await a.context.close().catch(()=>{});if(b?.context)await b.context.close().catch(()=>{});
   if(queueClientContext)await queueClientContext.close().catch(()=>{});if(clientContext)await clientContext.close().catch(()=>{});if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
   await cleanup();
