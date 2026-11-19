@@ -24,10 +24,13 @@ begin
  if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_end_calls' and not tgisinternal)
  or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_permission_end_calls' and not tgisinternal)
  or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_ticket_end_calls' and not tgisinternal)
+ or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_profile_end_calls' and not tgisinternal)
  then raise exception 'Garde de fin automatique absente'; end if;
  if exists(select 1 from information_schema.columns where table_schema='public' and table_name in ('support_calls','support_call_events')
  and (column_name ilike '%sdp%' or column_name ilike '%candidate%' or column_name ilike '%recording%')) then raise exception 'Média ou signalisation persisté'; end if;
  select pg_get_functiondef('private.naxa_support_call_realtime_access(text,uuid)'::regprocedure) into v_definition;
- if position('auth.uid()' in v_definition)=0 or position('status = ''accepted''' in v_definition)=0 then raise exception 'RLS Realtime ne limite pas aux participants'; end if;
+ if position('auth.uid()' in v_definition)=0 or position('status = ''accepted''' in v_definition)=0
+ or position('requester_profile.actif' in v_definition)=0 or position('resolu' in v_definition)=0
+ or position('ticket_view_assigned' in v_definition)=0 or position('audio_call' in v_definition)=0 then raise exception 'RLS Realtime ne limite pas aux participants'; end if;
 end; $test$;
 rollback;
