@@ -8968,3 +8968,51 @@ L'audit ACL avait isolé `public.naxa_sync_partner_subscription_dossier()` : fon
 2. Si la carte passe, vérifier la suite B2 : favori persistant, réservation, blocage du Client B, validation Gestionnaire Stock, annulation et restauration exacte du stock.
 3. Si la sélection est encore perdue, inspecter l'ordre des réponses RPC et l'état React des deux sélecteurs ; ne pas augmenter le rayon SQL ni modifier les filtres de visibilité pour contourner le test.
 4. Documenter le résultat final de la recette dans la section suivante.
+
+## §243 — Clôture technique du chantier Customer Service Assistant : état prouvé — 19/11/2026
+
+### Périmètre contrôlé
+
+Le contrôle porte sur l'assistance NAXA, les comptes Customer Service Assistant, le Livechat écrit, les appels audio intégrés et la boîte Gmail officielle. Environnement de données contrôlé : projet Supabase Replay `pwfftcsjyeibxxqhwysw`. Aucun test ou changement Production.
+
+### Éléments effectivement validés
+
+- Workflow GitHub Actions Replay `44412115231`, commit `052daf8bd7f5fb45ed68ee711a8e64fd97a40032` : toutes les étapes du job Client/Admin, Promoteur/Livreur et Agents sont PASS ; nettoyage des jeux de recette PASS.
+- Comptes Agents A/B : connexion, rotation de mot de passe, présence, prise de dossier, réponse publique HTTP 201, notes internes non visibles au Client, Realtime dans les deux sens, isolation inter-Agent, refus de double prise, sérialisation de la concurrence et révocation à la suspension PASS.
+- Support Client/Admin et professionnel : création de dossiers, réponses, statuts, notifications, pièces jointes privées, URL signées, réouverture et non-régression du parcours pharmacie PASS.
+- Les migrations Replay recensent le socle support, Livechat et identité/permissions/affectations/consentement/âge des agents. Les tests E2E suppriment les comptes Auth et tickets de recette ; les événements d'audit conservés sont anonymisés.
+- Le compte Agent et le Livechat écrit sont donc **VERTS sur Replay dans le périmètre testé**. Cela n'est pas une validation globale du service multicanal.
+
+### Vérification directe du schéma Replay
+
+- Présents : `public.tickets_support`, `public.messages_support`, `public.support_agents`, `public.support_agent_permissions`, `public.support_ticket_assignments`, `public.support_agent_events`.
+- Absents : `support_calls`, `support_call_participants`, `support_call_events`, tables de compte/messages Gmail NAXA et fonctions de signalisation/appel ou de synchronisation Gmail recherchées.
+- Aucune migration d'appel audio ou de connexion Gmail n'est enregistrée dans l'historique Replay contrôlé.
+- Le code agent déclare les types de permissions `audio_call`, `gmail_read` et `gmail_reply`, mais l'API et l'interface Admin ne permettent actuellement d'accorder que les permissions réellement implémentées pour le traitement des tickets. Ne pas activer ces droits avant livraison des fonctions correspondantes.
+
+### Points non clôturés — pas de faux vert
+
+1. **Appels audio WebRTC : ROUGE / NON IMPLÉMENTÉS.** Absence de tables d'appel, fonctions serveur, endpoints, signalisation privée et interface appel. La seule documentation d'architecture ne vaut pas implémentation. Prérequis d'environnement à configurer sur Replay : STUN/TURN et génération de credentials TURN éphémères (`NAXA_STUN_URLS`, `NAXA_TURN_URLS`, `NAXA_TURN_SHARED_SECRET`, `NAXA_TURN_CREDENTIAL_TTL_SECONDS`). Le vrai test Client↔Agent, mobile, réseau relais, mute, raccrochage, expiration et suspension reste à réaliser.
+2. **Gmail officiel : ROUGE / NON IMPLÉMENTÉ.** Absence du flux OAuth Admin, stockage chiffré du jeton, synchronisation incrémentale, déduplication, liaison des fils, envoi/réponse, gestion des pièces jointes, journalisation et UI de boîte centrale. Prérequis Google et environnement Replay : projet Google Cloud NAXA, Gmail API, consentement/OAuth et redirect URI, compte officiel autorisé, ainsi que `GOOGLE_GMAIL_CLIENT_ID`, `GOOGLE_GMAIL_CLIENT_SECRET`, `GOOGLE_GMAIL_REDIRECT_URI` et `NAXA_GOOGLE_TOKEN_ENCRYPTION_KEY`. Pub/Sub et `GOOGLE_PUBSUB_TOPIC` ne sont nécessaires que si le mode push est retenu. Les secrets ne doivent jamais être transmis dans le chat ou committés.
+3. **Permissions audio/Gmail : NON ACCORDABLES à ce stade.** Les droits `audio_call`, `gmail_read` et `gmail_reply` ne doivent être exposés à l'Admin qu'avec les contrôles API/RLS, fonctions et parcours UI correspondants.
+4. **Réclamations et litiges Client↔Pharmacie : hors preuve de clôture exhaustive dans ce run.** L'assistance et les dossiers support testés sont verts ; l'arbitrage et tous les scénarios de litiges ne sont pas réputés clos par extrapolation.
+
+### Décisions conservées
+
+- Une boîte Gmail officielle NAXA unique, sous contrôle Admin ; aucune boîte Gmail personnelle des agents.
+- WhatsApp reste externe et inchangé, sans synchronisation ni import automatique.
+- Aucun enregistrement audio, transcription automatique ou vidéo dans la V1 d'appel.
+- Aucun changement Production, aucune migration Production et aucun déploiement.
+- Les déploiements Vercel Git sur `main` restent désactivés dans `vercel.json`.
+
+### Verdict de clôture
+
+- **Compte Customer Service Assistant + support écrit : VERT Replay** selon le run cité.
+- **Appel audio intégré : ROUGE** — code et infrastructure non présents.
+- **Gmail intégré : ROUGE** — code et autorisations externes non présents.
+- **Chantier global Appel + Compte Customer Service Assistant : NON CLOS / PARTIEL.** Les recettes de compte et Livechat écrit peuvent continuer indépendamment ; aucune recette exigeant l'appel WebRTC ou Gmail ne doit être déclarée PASS.
+- Aucun correctif applicatif ni migration n'a été appliqué pendant ce checkpoint ; la requête Supabase était strictement en lecture seule.
+
+### Point exact de reprise
+
+Implémenter sur `main` le socle d'appel WebRTC (métadonnées/RPC atomiques, canaux privés filtrés par participant, endpoints de credentials TURN, interface Client et Agent, terminaison sur suspension/clôture), le déployer uniquement sur Replay après migration versionnée, puis prouver l'appel réel STUN/TURN. Construire ensuite l'intégration Gmail OAuth de la boîte unique, son stockage chiffré, sa synchronisation idempotente, sa boîte Agent cloisonnée et ses tests positifs/négatifs sur Replay. Réexécuter enfin le workflow Support complet et les tests de non-régression. Ne déclarer le chantier global vert qu'après ces preuves réelles.
