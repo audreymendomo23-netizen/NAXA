@@ -1196,11 +1196,43 @@ async function run() {
     const b2Fixture = await prepareClientMarketplaceFixture(partnerOwner, b2Client);
     const b2SearchUrl = BASE_URL + "/resultats?bulk=1&q=" + encodeURIComponent("crédit comptoir") + "&n=" + String(b2Fixture.quantity);
     const b2SearchTrace = [];
+    const b2MetadataTrace = [];
     clientPage.on("response", async (response) => {
+      const request = response.request();
       if (response.url().includes("/rest/v1/rpc/search_pharmacies_bulk")) {
         let body = null;
+        let requestBody = null;
         try { body = await response.json(); } catch {}
-        b2SearchTrace.push({ status: response.status(), body });
+        try { requestBody = request.postDataJSON(); } catch {}
+        b2SearchTrace.push({
+          status: response.status(),
+          request: requestBody && {
+            p_terms: requestBody.p_terms,
+            p_quantities: requestBody.p_quantities,
+            p_lat: requestBody.p_lat,
+            p_lng: requestBody.p_lng,
+            p_rayon_km: requestBody.p_rayon_km,
+          },
+          body: Array.isArray(body) ? body.map((row) => ({
+            pharmacie_id: row.pharmacie_id,
+            nom: row.nom,
+            distance_km: row.distance_km,
+            trouves: row.trouves,
+            demandes: row.demandes,
+          })) : body,
+        });
+      }
+      if (response.url().includes("/rest/v1/pharmacies?")) {
+        let body = null;
+        try { body = await response.json(); } catch {}
+        b2MetadataTrace.push({
+          status: response.status(),
+          body: Array.isArray(body) ? body.map((row) => ({
+            id: row.id, nom: row.nom, actif: row.actif,
+            est_demo: row.est_demo, visible_recherche: row.visible_recherche,
+            archivee_le: row.archivee_le, ville: row.ville,
+          })) : body,
+        });
       }
     });
     await clientPage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
@@ -1211,7 +1243,10 @@ async function run() {
       await b2OfferCard.waitFor({ state: "visible", timeout: 30000 });
     } catch (error) {
       const mainText = await clientPage.locator("main").innerText().catch(() => "");
-      console.error("TRACE B2 recherche bulk — " + JSON.stringify({ url: clientPage.url(), rpc: b2SearchTrace, mainText: mainText.slice(0, 5000) }));
+      console.error("TRACE B2 recherche bulk — " + JSON.stringify({
+        url: clientPage.url(), rpc: b2SearchTrace, metadata: b2MetadataTrace,
+        mainText: mainText.slice(0, 5000)
+      }));
       throw error;
     }
     await b2OfferCard.getByText(MARKETPLACE_PRODUCT_NAME, { exact: false }).waitFor({ state: "visible" });
