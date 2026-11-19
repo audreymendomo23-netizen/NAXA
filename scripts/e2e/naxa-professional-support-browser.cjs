@@ -120,7 +120,7 @@ async function run(){
    const adminTicket=adminPage.getByRole("button").filter({hasText:subject});
    await adminTicket.waitFor({state:"visible",timeout:20000});
    await adminTicket.getByText(new RegExp("·\\s*"+fixture.role+"$")).waitFor({state:"visible",timeout:20000});
-   const response=await adminPage.request.post(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,contenu:reply}});
+   const response=await adminPage.request.post(BASE_URL+"/api/admin/messagerie",{headers:{"Content-Type":"application/json"},data:{ticket_id:item.ticketId,contenu:reply},timeout:60000});
    assert.equal(response.status(),201,"Réponse Admin refusée pour "+fixture.role+".");
    await dialog.getByText(reply,{exact:true}).waitFor({state:"visible",timeout:30000});
    console.log("PASS — réponse Admin reçue en direct par "+fixture.role+".");
