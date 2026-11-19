@@ -6,13 +6,26 @@ export async function GET() {
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   const now = new Date().toISOString();
   const db = access.db;
+  const { data: grants, error: grantsError } = await db.from("support_agent_permissions")
+    .select("permission_code").eq("agent_user_id", access.user.id).is("revoked_at", null);
+  if (grantsError) return NextResponse.json({ error: "Les permissions d’appel sont indisponibles." }, { status: 503 });
+  const permissions = new Set((grants ?? []).map((grant) => grant.permission_code));
+  const canViewQueue = permissions.has("queue_view");
+  const canViewAssigned = permissions.has("ticket_view_assigned");
+  const empty = { data: [], error: null };
   const [queued, assigned, fallback] = await Promise.all([
-    db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
-      .eq("status", "queued").order("created_at", { ascending: true }).limit(20),
-    db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
-      .eq("status", "ringing").eq("agent_user_id", access.user.id).order("created_at", { ascending: true }).limit(20),
-    db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
-      .eq("status", "ringing").lte("fallback_at", now).order("created_at", { ascending: true }).limit(20),
+    canViewQueue
+      ? db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
+          .eq("status", "queued").order("created_at", { ascending: true }).limit(20)
+      : Promise.resolve(empty),
+    canViewAssigned
+      ? db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
+          .eq("status", "ringing").eq("agent_user_id", access.user.id).order("created_at", { ascending: true }).limit(20)
+      : Promise.resolve(empty),
+    canViewQueue
+      ? db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
+          .eq("status", "ringing").lte("fallback_at", now).order("created_at", { ascending: true }).limit(20)
+      : Promise.resolve(empty),
   ]);
   const error = queued.error || assigned.error || fallback.error;
   if (error) return NextResponse.json({ error: "La file d’appels est indisponible." }, { status: 503 });

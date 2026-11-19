@@ -16,6 +16,7 @@ assert.match(migration, /create table if not exists public\.support_calls/i);
 assert.match(migration, /create table if not exists public\.support_call_events/i);
 assert.match(migration, /support_calls_one_active_per_ticket_uq/i);
 assert.match(migration, /naxa_support_call_realtime_access/i);
+assert.match(migration, /permission_code=\x27ticket_view_assigned\x27/i);
 assert.match(migration, /naxa_support_agent_end_calls/i);
 assert.match(migration, /naxa_support_ticket_end_calls/i);
 assert.match(migration, /naxa_support_agent_permission_end_calls/i);

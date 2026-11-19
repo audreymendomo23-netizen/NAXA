@@ -148,6 +148,12 @@ begin
  where a.ticket_id=p_ticket_id and a.released_at is null and sa.status='active' and sa.presence='available'
  and sa.must_change_password is false and sa.consent_accepted_at is not null
  and p.permission_code='audio_call' and p.revoked_at is null
+ and exists(
+   select 1 from public.support_agent_permissions view_grant
+   where view_grant.agent_user_id=a.agent_user_id
+     and view_grant.permission_code='ticket_view_assigned'
+     and view_grant.revoked_at is null
+ )
  and not exists(select 1 from public.support_calls busy where busy.agent_user_id=a.agent_user_id and busy.status in ('ringing','accepted'))
  limit 1;
  if v_agent_id is not null then

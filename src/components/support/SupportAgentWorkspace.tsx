@@ -45,12 +45,13 @@ export function SupportAgentWorkspace(){
    const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Prise en charge échouée.");await refresh();
   }catch(cause){setError(cause instanceof Error?cause.message:"Prise en charge échouée.");}finally{setClaiming(null);}
  }
- async function acceptCall(call:IncomingCall){
+ async function transitionCall(call:IncomingCall,action:"accept"|"decline"){
   setClaiming(call.id);setError("");
-  try{const response=await fetch("/api/support/calls/"+encodeURIComponent(call.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"accept"})});
-   const data=await response.json();if(!response.ok)throw new Error(data.error||"Prise d’appel refusée.");
-   router.push("/equipe-support/dossiers/"+call.ticket_id+"?callId="+call.id);
-  }catch(cause){setError(cause instanceof Error?cause.message:"Prise d’appel refusée.");await refresh();}finally{setClaiming(null);}
+  try{const response=await fetch("/api/support/calls/"+encodeURIComponent(call.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action})});
+   const data=await response.json();if(!response.ok)throw new Error(data.error||"Transition d’appel refusée.");
+   if(action==="accept")router.push("/equipe-support/dossiers/"+call.ticket_id+"?callId="+call.id);
+   else await refresh();
+  }catch(cause){setError(cause instanceof Error?cause.message:"Transition d’appel refusée.");await refresh();}finally{setClaiming(null);}
  }
  const renderTicket=(ticket:Ticket,canClaim:boolean)=>(
   <article key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -83,7 +84,7 @@ export function SupportAgentWorkspace(){
    {incomingCalls.length?incomingCalls.map(call=><article key={call.id} className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
     <p className="font-mono text-xs font-bold text-emerald-800">{call.ticket?.reference_code||"Dossier support"}</p><h3 className="mt-1 font-bold">{call.ticket?.sujet||"Demande d’appel audio"}</h3>
     <p className="mt-1 text-xs text-slate-500">Demande reçue le {new Date(call.created_at).toLocaleString("fr-FR",{timeZone:"Africa/Douala"})}</p>
-    <button type="button" disabled={claiming!==null||session.agent.presence!=="available"} onClick={()=>void acceptCall(call)} className="mt-3 min-h-10 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{claiming===call.id?"Connexion…":"Accepter l’appel"}</button>
+    <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={claiming!==null||session.agent.presence!=="available"} onClick={()=>void transitionCall(call,"accept")} className="min-h-10 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{claiming===call.id?"Connexion…":"Accepter l’appel"}</button><button type="button" disabled={claiming!==null} onClick={()=>void transitionCall(call,"decline")} className="min-h-10 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 disabled:opacity-40">Refuser l’appel</button></div>
    </article>):<p className="rounded-xl bg-white p-4 text-sm text-slate-500">Aucun appel audio en attente.</p>}
   </section>}
   {!loading&&<section className="space-y-3"><div><h2 className="text-lg font-extrabold">Mes dossiers</h2><p className="text-sm text-slate-500">Dossiers exclusivement attribués à votre compte.</p></div>
