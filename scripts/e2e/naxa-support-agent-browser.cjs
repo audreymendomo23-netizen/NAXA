@@ -14,11 +14,22 @@ const ADMIN_KEY=process.env.NAXA_STORAGE_E2E_ADMIN_KEY;
 assert.equal(new globalThis.URL(process.env.NAXA_STORAGE_E2E_URL).origin,SUPABASE_URL,"Replay uniquement.");
 assert.ok(ANON&&ADMIN_KEY,"Secrets Replay requis.");
 const admin=createClient(SUPABASE_URL,ADMIN_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
-let state={agents:[],tickets:[]};
+let state={agents:[],tickets:[],calls:[]};
 const save=()=>fs.writeFileSync(STATE,JSON.stringify(state),{mode:0o600});
 
 async function cleanup(){
  if(fs.existsSync(STATE)){try{state={...state,...JSON.parse(fs.readFileSync(STATE,"utf8"))};}catch{}}
+ for(const call of (state.calls??[])){
+  const {data:current,error:readError}=await admin.from("support_calls").select("status").eq("id",call.id).maybeSingle();
+  if(readError)throw readError;
+  if(current&&["queued","ringing"].includes(current.status)){
+   const result=await admin.rpc("naxa_support_call_transition",{p_actor_user_id:call.requesterId,p_call_id:call.id,p_action:"cancel"});
+   if(result.error)throw result.error;
+  }else if(current?.status==="accepted"){
+   const result=await admin.rpc("naxa_support_call_transition",{p_actor_user_id:call.requesterId,p_call_id:call.id,p_action:"end"});
+   if(result.error)throw result.error;
+  }
+ }
  if(state.tickets.length){
   await admin.from("notifications").delete().in("related_entity_id",state.tickets);
   const m=await admin.from("messages_support").delete().in("ticket_id",state.tickets);if(m.error)throw m.error;
@@ -52,7 +63,7 @@ async function createAgent(adminPage,tag,letter){
  const username="e2eagent"+letter+tag;
  const r=await adminPage.evaluate(async x=>{const r=await fetch("/api/admin/support-agents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(x)});return {status:r.status,data:await r.json()};},{
   username,email:"naxa-agent-"+letter+"-"+tag+"@example.com",first_name:"E2E",last_name:"Agent"+letter,
-  date_of_birth:"1990-01-01",permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note"],
+  date_of_birth:"1990-01-01",permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note","audio_call"],
  });
  assert.equal(r.status,201,JSON.stringify(r.data));state.agents.push(r.data.agent.user_id);save();
  const invalidPermission=await adminPage.evaluate(async x=>{const r=await fetch("/api/admin/support-agents",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(x)});return r.status;},{user_id:r.data.agent.user_id,status:"active",presence:"unavailable",permissions:["queue_view"]});
@@ -80,7 +91,7 @@ async function createTicket(client,subject){
  const row=Array.isArray(r.data)?r.data[0]:r.data;assert.ok(row.ticket_id);state.tickets.push(row.ticket_id);save();return row.ticket_id;
 }
 async function run(){
- let browser,adminContext,a,b;
+ let browser,adminContext,clientContext,a,b,callId=null,clientPage=null;
  try{
   const [clientSession,adminSession]=await Promise.all([sessionFor("naxa_e2e_acheteur","client"),sessionFor("e2e_admin_261104","admin")]);
   const client=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
@@ -105,6 +116,60 @@ async function run(){
   await cardB.getByRole("button",{name:"Prendre ce dossier"}).click();
   await cardB.getByRole("link",{name:"Ouvrir le dossier"}).waitFor({timeout:20000});
   console.log("PASS — chaque Agent prend son dossier depuis la file.");
+
+  // Demande d'appel réelle depuis l'espace Client, puis refus des participants non prioritaires.
+  clientContext=await contextFor(browser,clientSession);
+  clientPage=await clientContext.newPage();
+  await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketA));
+  await clientPage.getByRole("heading",{name:"E2E Agent A "+tag}).waitFor({timeout:20000});
+  const requesterHeartbeatPromise=clientPage.waitForResponse(r=>
+   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  const requestResponsePromise=clientPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  await clientPage.getByRole("button",{name:"Demander un appel audio"}).click();
+  const requestResponse=await requestResponsePromise;
+  const requestData=await requestResponse.json();
+  assert.equal(requestResponse.status(),201,JSON.stringify(requestData));
+  callId=requestData.call.id;
+  assert.equal(requestData.call.status,"ringing");
+  assert.equal(requestData.call.agent_user_id,agentA.id,"L'Agent affecté doit être appelé en premier.");
+  state.calls.push({id:callId,requesterId:clientSession.profile.id});save();
+  const requesterHeartbeat=await requesterHeartbeatPromise;
+  assert.equal(requesterHeartbeat.status(),200,"Le heartbeat du demandeur doit être accepté.");
+
+  const foreignHeartbeat=await b.page.evaluate(async id=>
+   (await fetch("/api/support/calls/"+id+"/heartbeat",{method:"POST"})).status,callId);
+  assert.equal(foreignHeartbeat,403,"Un Agent non participant ne doit pas prolonger la session audio.");
+  const earlyQueueAccept=await b.page.evaluate(async id=>{
+   const r=await fetch("/api/support/calls/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"accept"})});
+   return r.status;
+  },callId);
+  assert.equal(earlyQueueAccept,409,"La file centrale ne doit pas contourner les 20 secondes de priorité.");
+
+  await a.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
+  const agentHeartbeatPromise=a.page.waitForResponse(r=>
+   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  await a.page.getByRole("button",{name:"Accepter l’appel"}).click();
+  await a.page.waitForURL(u=>u.pathname==="/equipe-support/dossiers/"+ticketA&&u.searchParams.get("callId")===callId,{timeout:20000});
+  const agentHeartbeat=await agentHeartbeatPromise;
+  assert.equal(agentHeartbeat.status(),200,"Le heartbeat Agent doit être accepté après la prise atomique.");
+  await a.page.getByRole("heading",{name:"Appel audio NAXA"}).waitFor({timeout:10000});
+  const callProof=await admin.from("support_calls")
+   .select("status,requester_user_id,agent_user_id,requester_heartbeat_at,agent_heartbeat_at")
+   .eq("id",callId).single();
+  if(callProof.error)throw callProof.error;
+  assert.equal(callProof.data.status,"accepted");
+  assert.equal(callProof.data.requester_user_id,clientSession.profile.id);
+  assert.equal(callProof.data.agent_user_id,agentA.id);
+  assert.ok(callProof.data.requester_heartbeat_at);
+  assert.ok(callProof.data.agent_heartbeat_at);
+  console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
 
   const ca=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
   const cb=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -169,6 +234,13 @@ async function run(){
   const adminProfile=adminSession.profile;
   const suspended=await admin.rpc("support_agent_admin_update",{p_agent_user_id:agentA.id,p_actor_user_id:adminProfile.id,p_status:"suspended",p_presence:"unavailable",p_permissions:null});
   if(suspended.error)throw suspended.error;
+  if(callId){
+   const endedCall=await admin.from("support_calls").select("status,end_reason").eq("id",callId).single();
+   if(endedCall.error)throw endedCall.error;
+   assert.equal(endedCall.data.status,"failed","La suspension de l'Agent doit terminer l'appel actif.");
+   assert.equal(endedCall.data.end_reason,"agent_status_suspended");
+   console.log("PASS — suspension Agent terminant immédiatement la session audio.");
+  }
   const sessionStatus=await a.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
   assert.equal(sessionStatus,403);
   const {data:ticketState,error:te}=await admin.from("tickets_support").select("statut").eq("id",ticketA).single();
@@ -184,7 +256,7 @@ async function run(){
   console.log("PASS GLOBAL — cycle de vie Agent, login, permissions, RLS, messagerie, file et concurrence.");
  }finally{
   if(a?.context)await a.context.close().catch(()=>{});if(b?.context)await b.context.close().catch(()=>{});
-  if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
+  if(clientContext)await clientContext.close().catch(()=>{});if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
   await cleanup();
  }
 }
