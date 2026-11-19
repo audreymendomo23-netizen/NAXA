@@ -43,6 +43,15 @@ begin
    raise exception 'Délais de routage assigné/central non conformes'; end if;
  if position('120 seconds' in lower(pg_get_functiondef('private.naxa_support_call_reap_expired()'::regprocedure)))=0 then
    raise exception 'Lease session heartbeat non configurée'; end if;
+ select pg_get_functiondef('private.naxa_support_call_reap_expired()'::regprocedure) into v_definition;
+ if position('central_queue_timeout' in v_definition)=0 then
+   raise exception 'Expiration de la file centrale non journalisée'; end if;
+ select pg_get_functiondef('public.naxa_support_call_transition(uuid,uuid,text)'::regprocedure) into v_definition;
+ if position('reconnect_timeout' in v_definition)=0
+   or position('60 seconds' in lower(v_definition))=0 then
+   raise exception 'Récusation/reconnexion ne réarme pas la file centrale'; end if;
+ if not exists(select 1 from cron.job where jobname='naxa-support-call-reaper' and active is true) then
+   raise exception 'Cron reaper désactivé'; end if;
  if has_function_privilege('authenticated','public.naxa_support_call_heartbeat(uuid,uuid)','EXECUTE') then
    raise exception 'RPC heartbeat accessible directement au client'; end if;
 
