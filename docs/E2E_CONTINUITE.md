@@ -8930,3 +8930,41 @@ L'audit ACL avait isolé `public.naxa_sync_partner_subscription_dossier()` : fon
 2. Si le SELECT des métadonnées échoue, corriger le contrat REST/champs ou faire remonter l'erreur au lieu de convertir silencieusement la recherche en zéro résultat ; si les métadonnées sont absentes/incohérentes, corriger la règle de visibilité à partir de la preuve.
 3. Rejouer le Lot B2 complet : affichage offre, favori persistant, réservation, hold de stock, indisponibilité Client B, validation Gestionnaire Stock, annulation et restauration du stock.
 4. Mettre à jour ce document avec les preuves du run avant de déclarer le Marketplace vert.
+
+
+## §242 — Cause racine Marketplace B2 isolée, stabilisation E2E — 19/11/2026
+
+### Trace complète du run `44441919874`
+
+- Le RPC `search_pharmacies_bulk` retourne bien l'offre Replay quand la recherche est centrée sur Yaoundé : HTTP 200, `p_lat=3.848`, `p_lng=11.5021`, `p_rayon_km=35`, pharmacie `1a4f1ce5-cccf-477e-9a5b-474c8c9fc713`, `trouves=1`, `demandes=1`.
+- Le SELECT des métadonnées pharmacie retourne HTTP 200 et une ligne cohérente : `est_demo=false`, `visible_recherche=true`, `archivee_le=null`, `ville=Yaoundé`. La RLS et le SELECT des métadonnées ne sont donc pas la cause de cette absence de carte.
+- Après cette première réponse, quatre appels ultérieurs transmettent le point de repli `6,12.5` et le rayon `2000`, retournent des tableaux vides et la page finit à zéro résultat. Le sélecteur de ville revient visuellement à « Toutes » et l'indication de localisation reste non renseignée.
+- Vérification SQL de `private.search_pharmacies_bulk` : le rayon effectif est borné par `least(greatest(coalesce(p_rayon_km,20),1),100)`. Le paramètre 2 000 km ne signifie donc pas une recherche nationale ; le repli au centre du Cameroun est limité à 100 km et ne trouve pas la pharmacie de Yaoundé.
+- La pharmacie de recette est active, non démo, non archivée ; après nettoyage `visible_recherche=false`. Aucun état de publication persistant n'a été laissé.
+
+### Correction de la recette navigateur
+
+- Cause test probable : interaction avec le sélecteur secondaire immédiatement après `DOMContentLoaded`, sans attendre la fin de l'hydratation du composant ; l'état de localité peut être perdu pendant la mise en place client.
+- Commit `ee569e34dde5612af26cc451a5731a7530aadfd6` modifie uniquement `.github/e2e/naxa-navigation-runtime.cjs` :
+  - attend la réponse du chargement des assureurs pour s'assurer que les effets client sont actifs ;
+  - vide les traces préalables pour ne garder que les appels après la sélection ;
+  - choisit Yaoundé avec le sélecteur principal `#naxa-ville`, qui synchronise aussi coordonnées et statut de localisation ;
+  - vérifie les deux sélecteurs, puis exige un RPC HTTP 200 avec les coordonnées Yaoundé et l'offre attendue avant d'attendre la carte.
+- Cette correction vise la stabilité de la recette ; elle ne modifie ni le plafond de 100 km, ni la règle d'exclusion des pharmacies démo, ni la visibilité publique métier.
+- Run qualité `44443517940` sur `ee569e3` : **SUCCESS** (syntax/workflows, tests, TypeScript, lint et build).
+- Run navigateur Replay `44443517820` sur `ee569e3` : en cours lors de cette mise à jour, étape Playwright/Chromium. Résultat fonctionnel non encore établi.
+
+### Verdict intermédiaire
+
+- Support Client/Admin : **VERT Replay**.
+- Support professionnel et Agents : **VERT Replay**.
+- Qualité CI sur `ee569e3` : **VERT**.
+- Marketplace B2 : **NON VERT navigateur** tant que le nouveau run ne confirme pas carte, favori, réservation et cycle de stock.
+- Aucun changement Production, aucune migration Production, aucun déploiement.
+
+### Point exact de reprise
+
+1. Lire le run `44443517820` dès qu'il termine ; vérifier la trace après sélection et l'apparition de la carte.
+2. Si la carte passe, vérifier la suite B2 : favori persistant, réservation, blocage du Client B, validation Gestionnaire Stock, annulation et restauration exacte du stock.
+3. Si la sélection est encore perdue, inspecter l'ordre des réponses RPC et l'état React des deux sélecteurs ; ne pas augmenter le rayon SQL ni modifier les filtres de visibilité pour contourner le test.
+4. Documenter le résultat final de la recette dans la section suivante.
