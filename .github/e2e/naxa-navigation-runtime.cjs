@@ -1237,7 +1237,38 @@ async function run() {
     });
     await clientPage.goto(b2SearchUrl, { waitUntil: "domcontentloaded" });
     await expectPath(clientPage, "/resultats", "Lot B2 → recherche de l'offre réelle Replay");
-    await clientPage.locator('select[aria-label="Filtrer par ville"]').selectOption("Yaoundé");
+    // Attendre l'effet client de chargement des assureurs : le simple DOMContentLoaded
+    // ne garantit pas que l'hydratation React ait terminé avant les interactions Playwright.
+    await clientPage.waitForResponse((response) =>
+      response.url().includes("/rest/v1/marketplace_assureurs?")
+      && response.status() === 200, { timeout: 15000 });
+    b2SearchTrace.length = 0;
+    b2MetadataTrace.length = 0;
+    // Utiliser le sélecteur principal de localité : il synchronise ville, coordonnées
+    // et statut de localisation, contrairement au filtre secondaire qui ne règle que la ville.
+    const b2CitySelect = clientPage.locator("#naxa-ville");
+    await b2CitySelect.waitFor({ state: "visible" });
+    const expectedB2Search = clientPage.waitForResponse((response) => {
+      if (!response.url().includes("/rest/v1/rpc/search_pharmacies_bulk")) return false;
+      try {
+        const body = response.request().postDataJSON();
+        return Number(body.p_lat) === 3.848
+          && Number(body.p_lng) === 11.5021
+          && Number(body.p_rayon_km) === 35;
+      } catch {
+        return false;
+      }
+    }, { timeout: 20000 });
+    await b2CitySelect.selectOption("Yaoundé");
+    await expect(b2CitySelect).toHaveValue("Yaoundé");
+    await expect(clientPage.locator('select[aria-label="Filtrer par ville"]')).toHaveValue("Yaoundé");
+    const b2SearchResponse = await expectedB2Search;
+    assert.equal(b2SearchResponse.status(), 200, "Le RPC bulk Yaoundé doit répondre HTTP 200.");
+    const b2SearchBody = await b2SearchResponse.json();
+    assert.ok(Array.isArray(b2SearchBody) && b2SearchBody.some((row) =>
+      row.pharmacie_id === MARKETPLACE_PHARMACY_ID
+      && row.trouves === 1 && row.demandes === 1
+    ), "Le RPC bulk Yaoundé n'a pas retourné l'offre Replay attendue après sélection de la localité.");
     const b2OfferCard = clientPage.locator("article").filter({ hasText: MARKETPLACE_PHARMACY_NAME }).first();
     try {
       await b2OfferCard.waitFor({ state: "visible", timeout: 30000 });
