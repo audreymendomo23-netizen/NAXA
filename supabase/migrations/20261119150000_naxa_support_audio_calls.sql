@@ -1,8 +1,8 @@
 begin;
 create table if not exists public.support_calls (
  id uuid primary key default gen_random_uuid(),
- ticket_id uuid not null references public.tickets_support(id) on delete cascade,
- requester_user_id uuid not null references auth.users(id) on delete restrict,
+ ticket_id uuid references public.tickets_support(id) on delete set null,
+ requester_user_id uuid references auth.users(id) on delete set null,
  agent_user_id uuid references public.support_agents(user_id) on delete set null,
  status text not null default 'queued' check(status in ('queued','ringing','accepted','cancelled','declined','completed','failed','missed')),
  fallback_at timestamptz not null default now(), accepted_at timestamptz, ended_at timestamptz,
@@ -13,13 +13,13 @@ create table if not exists public.support_calls (
  constraint support_calls_accept_state_ck check((status='accepted' and accepted_at is not null) or status<>'accepted')
 );
 create unique index if not exists support_calls_one_active_per_ticket_uq on public.support_calls(ticket_id) where status in ('queued','ringing','accepted');
-create unique index if not exists support_calls_one_active_per_requester_uq on public.support_calls(requester_user_id) where status in ('queued','ringing','accepted');
+create unique index if not exists support_calls_one_active_per_requester_uq on public.support_calls(requester_user_id) where requester_user_id is not null and status in ('queued','ringing','accepted');
 create unique index if not exists support_calls_one_active_per_agent_uq on public.support_calls(agent_user_id) where agent_user_id is not null and status in ('ringing','accepted');
 create index if not exists support_calls_queue_idx on public.support_calls(status,fallback_at,created_at) where status in ('queued','ringing');
 create table if not exists public.support_call_events (
  id uuid primary key default gen_random_uuid(),
  call_id uuid not null references public.support_calls(id) on delete cascade,
- actor_user_id uuid references auth.users(id) on delete set null,
+ actor_user_id uuid,
  event_code text not null check(event_code in ('call_requested','call_routed','call_accepted','call_declined','call_cancelled','call_completed','call_reassigned','call_failed')),
  details jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
 );
@@ -42,7 +42,7 @@ alter table public.support_call_events enable row level security;
 revoke all on public.support_calls from public,anon,authenticated;
 revoke all on public.support_call_events from public,anon,authenticated;
 grant select on public.support_calls to authenticated;
-grant select,insert,update,delete on public.support_calls to service_role;
+grant select,insert,update on public.support_calls to service_role;
 grant select,insert on public.support_call_events to service_role;
 drop policy if exists support_calls_participant_read on public.support_calls;
 create policy support_calls_participant_read on public.support_calls for select to authenticated
@@ -170,6 +170,54 @@ drop trigger if exists trg_naxa_support_profile_end_calls on public.profiles;
 create trigger trg_naxa_support_profile_end_calls after update of actif on public.profiles
 for each row when (old.actif is true and new.actif is false)
 execute function private.naxa_support_profile_end_calls();
+
+create or replace function private.naxa_support_profile_delete_end_calls()
+returns trigger language plpgsql security definer set search_path=''
+as $function$
+declare v_call record;
+begin
+ for v_call in select id from public.support_calls
+   where requester_user_id=old.id and status in ('queued','ringing','accepted') loop
+   perform private.naxa_support_call_finish_active(v_call.id,null,'requester_profile_deleted');
+ end loop;
+ return old;
+end; $function$;
+revoke all on function private.naxa_support_profile_delete_end_calls() from public,anon,authenticated;
+drop trigger if exists trg_naxa_support_profile_delete_end_calls on public.profiles;
+create trigger trg_naxa_support_profile_delete_end_calls before delete on public.profiles
+for each row execute function private.naxa_support_profile_delete_end_calls();
+
+create or replace function private.naxa_support_agent_delete_end_calls()
+returns trigger language plpgsql security definer set search_path=''
+as $function$
+declare v_call record;
+begin
+ for v_call in select id from public.support_calls
+   where agent_user_id=old.user_id and status in ('queued','ringing','accepted') loop
+   perform private.naxa_support_call_finish_active(v_call.id,old.user_id,'agent_account_deleted');
+ end loop;
+ return old;
+end; $function$;
+revoke all on function private.naxa_support_agent_delete_end_calls() from public,anon,authenticated;
+drop trigger if exists trg_naxa_support_agent_delete_end_calls on public.support_agents;
+create trigger trg_naxa_support_agent_delete_end_calls before delete on public.support_agents
+for each row execute function private.naxa_support_agent_delete_end_calls();
+
+create or replace function private.naxa_support_ticket_delete_end_calls()
+returns trigger language plpgsql security definer set search_path=''
+as $function$
+declare v_call record;
+begin
+ for v_call in select id from public.support_calls
+   where ticket_id=old.id and status in ('queued','ringing','accepted') loop
+   perform private.naxa_support_call_finish_active(v_call.id,null,'ticket_deleted');
+ end loop;
+ return old;
+end; $function$;
+revoke all on function private.naxa_support_ticket_delete_end_calls() from public,anon,authenticated;
+drop trigger if exists trg_naxa_support_ticket_delete_end_calls on public.tickets_support;
+create trigger trg_naxa_support_ticket_delete_end_calls before delete on public.tickets_support
+for each row execute function private.naxa_support_ticket_delete_end_calls();
 
 create or replace function private.naxa_support_ticket_end_calls()
 returns trigger language plpgsql security definer set search_path=''
