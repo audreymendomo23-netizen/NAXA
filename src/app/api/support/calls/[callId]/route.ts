@@ -14,7 +14,7 @@ export async function GET(_request:Request,context:Context){
 export async function PATCH(request:Request,context:Context){
  const {callId}=await context.params;if(!UUID.test(callId))return NextResponse.json({error:"Identifiant invalide."},{status:400});
  let body:{action?:string};try{body=await request.json();}catch{return NextResponse.json({error:"Transition invalide."},{status:400});}
- const action=String(body.action??"");if(!["accept","decline","cancel","end","fail"].includes(action)return NextResponse.json({error:"Transition non autorisée."},{status:400});
+ const action=String(body.action??"");if(!["accept","decline","cancel","end","fail"].includes(action))return NextResponse.json({error:"Transition non autorisée."},{status:400});
  const {data:auth,error:authError}=await supabaseServer().auth.getUser();if(authError||!auth.user)return NextResponse.json({error:"Connexion requise."},{status:401});
  const admin=supabaseAdmin();
  const {data:call,error}=await admin.from("support_calls").select("requester_user_id,agent_user_id").eq("id",callId).maybeSingle();
