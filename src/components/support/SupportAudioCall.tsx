@@ -1,7 +1,7 @@
 "use client";
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Props = { ticketId: string; mode: "requester" | "agent"; initialCallId?: string | null };
@@ -16,6 +16,8 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const remoteAudio = useRef<HTMLAudioElement | null>(null);
   const peer = useRef<RTCPeerConnection | null>(null);
   const channel = useRef<RealtimeChannel | null>(null);
@@ -23,8 +25,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const offerStarted = useRef(false);
   const readyReplySent = useRef(false);
-  const supabase = useRef<ReturnType<typeof supabaseBrowser> | null>(null);
-  if (!supabase.current) supabase.current = supabaseBrowser();
+  const supabase = useMemo(() => supabaseBrowser(), []);
 
   const stopMedia = useCallback(() => {
     peer.current?.close();
@@ -32,18 +33,18 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
     if (remoteAudio.current) remoteAudio.current.srcObject = null;
-    if (channel.current && supabase.current) void supabase.current.removeChannel(channel.current);
+    if (channel.current) void supabase.removeChannel(channel.current);
     channel.current = null;
     pendingCandidates.current = [];
     offerStarted.current = false;
     readyReplySent.current = false;
     setConnected(false);
-  }, []);
+  }, [supabase]);
 
   const sendSignal = useCallback(async (payload: Signal) => {
     if (!channel.current) return;
     const result = await channel.current.send({ type: "broadcast", event: "signal", payload });
-    if (result === "error") throw new Error("La signalisation audio privée a été refusée.");
+    if (result !== "ok") throw new Error("La signalisation audio privée n’a pas confirmé la livraison.");
   }, []);
 
   const startMedia = useCallback(async () => {
@@ -92,18 +93,18 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
         pc.ontrack = (event) => {
           if (remoteAudio.current) {
             remoteAudio.current.srcObject = event.streams[0];
-            void remoteAudio.current.play().catch(() => undefined);
+            void remoteAudio.current.play().then(() => setAudioBlocked(false)).catch(() => setAudioBlocked(true));
           }
         };
         pc.onicecandidate = (event) => {
-          if (event.candidate) void sendSignal({ kind: "candidate", candidate: event.candidate.toJSON() });
+          if (event.candidate) void sendSignal({ kind: "candidate", candidate: event.candidate.toJSON() }).catch((cause) => setError(cause instanceof Error ? cause.message : "Envoi du candidat réseau impossible."));
         };
         pc.onconnectionstatechange = () => {
           setConnected(pc.connectionState === "connected");
           if (pc.connectionState === "failed") setError("La connexion audio a échoué. Vérifie le réseau et le relais TURN.");
         };
 
-        const realtime = supabase.current!.channel("naxa-support-call:" + callId, {
+        const realtime = supabase.channel("naxa-support-call:" + callId, {
           config: { private: true, broadcast: { ack: true } },
         });
         channel.current = realtime;
@@ -145,25 +146,25 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
         });
 
         realtime.subscribe((state) => {
-          if (active && state === "SUBSCRIBED") void sendSignal({ kind: "ready" });
+          if (!active) return;
+          if (state === "SUBSCRIBED") void sendSignal({ kind: "ready" }).catch((cause) => setError(cause instanceof Error ? cause.message : "Signalisation indisponible."));
           if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
-            setError("La signalisation audio est interrompue. Reconnecte-toi au Livechat.");
+            setError("La signalisation audio est interrompue. Réessaie ou poursuis par Livechat.");
           }
         });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Préparation de l’appel impossible.");
-        setStatus("failed");
       }
     };
     void connect();
     return () => { active = false; };
-  }, [callId, status, mode, sendSignal, startMedia, stopMedia]);
+  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase, connectionAttempt]);
 
   useEffect(() => () => {
     peer.current?.close();
     stream.current?.getTracks().forEach((track) => track.stop());
-    if (channel.current && supabase.current) void supabase.current.removeChannel(channel.current);
-  }, []);
+    if (channel.current) void supabase.removeChannel(channel.current);
+  }, [supabase]);
 
   async function requestCall() {
     setBusy(true);
@@ -194,7 +195,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     setBusy(true);
     setError("");
     try {
-      await sendSignal({ kind: "hangup" });
+      try { await sendSignal({ kind: "hangup" }); } catch { /* La transition serveur reste prioritaire sur le signal best-effort. */ }
       const response = await fetch("/api/support/calls/" + encodeURIComponent(callId), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -217,6 +218,22 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     setMuted(next);
   }
 
+  async function activateRemoteAudio() {
+    try {
+      await remoteAudio.current?.play();
+      setAudioBlocked(false);
+    } catch {
+      setAudioBlocked(true);
+      setError("Le navigateur bloque encore le son. Autorise la lecture audio pour ce site.");
+    }
+  }
+
+  function retryConnection() {
+    stopMedia();
+    setError("");
+    setConnectionAttempt((attempt) => attempt + 1);
+  }
+
   if (mode === "agent" && !initialCallId) return null;
 
   return (
@@ -231,6 +248,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {notice && <p role="status" className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{notice}</p>}
       <audio ref={remoteAudio} autoPlay playsInline />
+      {audioBlocked && <button type="button" onClick={() => void activateRemoteAudio()} className="min-h-10 rounded-xl border border-emerald-700 px-3 py-2 text-xs font-bold text-emerald-900">Activer le son reçu</button>}
       {mode === "requester" && !callId && (
         <button type="button" disabled={busy} onClick={() => void requestCall()} className="min-h-11 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
           {busy ? "Préparation…" : "Demander un appel audio"}
@@ -242,6 +260,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             {status === "queued" ? "En attente dans la file" : status === "ringing" ? "Agent appelé" : status === "accepted" ? "Appel en cours" : "Appel terminé"}
           </span>
           {status === "accepted" && <>
+            {error && <button type="button" disabled={busy} onClick={retryConnection} className="min-h-10 rounded-xl border border-amber-500 px-3 py-2 text-xs font-bold text-amber-900">Réessayer la connexion audio</button>}
             <button type="button" onClick={toggleMute} className="min-h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold">{muted ? "Réactiver le micro" : "Couper le micro"}</button>
             <button type="button" disabled={busy} onClick={() => void transition("end")} className="min-h-10 rounded-xl bg-red-700 px-3 py-2 text-xs font-bold text-white">Raccrocher</button>
           </>}
