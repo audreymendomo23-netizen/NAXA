@@ -42,8 +42,10 @@ alter table public.support_call_events enable row level security;
 revoke all on public.support_calls from public,anon,authenticated;
 revoke all on public.support_call_events from public,anon,authenticated;
 grant select on public.support_calls to authenticated;
-grant select,insert,update on public.support_calls to service_role;
-grant select,insert on public.support_call_events to service_role;
+revoke all on public.support_calls from service_role;
+revoke all on public.support_call_events from service_role;
+grant select on public.support_calls to service_role;
+grant select on public.support_call_events to service_role;
 drop policy if exists support_calls_participant_read on public.support_calls;
 create policy support_calls_participant_read on public.support_calls for select to authenticated
 using(requester_user_id=(select auth.uid()) or agent_user_id=(select auth.uid()));

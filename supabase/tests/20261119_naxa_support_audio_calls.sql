@@ -5,10 +5,15 @@ begin
  if to_regclass('public.support_calls') is null or to_regclass('public.support_call_events') is null then raise exception 'Tables d’appels absentes'; end if;
  if not (select relrowsecurity from pg_class where oid='public.support_calls'::regclass)
  or not (select relrowsecurity from pg_class where oid='public.support_call_events'::regclass) then raise exception 'RLS absent'; end if;
- if has_table_privilege('service_role','public.support_call_events','UPDATE')
+ if has_table_privilege('service_role','public.support_call_events','INSERT')
+ or has_table_privilege('service_role','public.support_call_events','UPDATE')
  or has_table_privilege('service_role','public.support_call_events','DELETE')
- or has_table_privilege('service_role','public.support_calls','DELETE') then
- raise exception 'Journal ou métadonnées d’appel supprimables/modifiables'; end if;
+ or has_table_privilege('service_role','public.support_calls','INSERT')
+ or has_table_privilege('service_role','public.support_calls','UPDATE')
+ or has_table_privilege('service_role','public.support_calls','DELETE')
+ or not has_table_privilege('service_role','public.support_call_events','SELECT')
+ or not has_table_privilege('service_role','public.support_calls','SELECT') then
+ raise exception 'service_role doit être limité à SELECT sur les tables d’appel'; end if;
  if has_table_privilege('authenticated','public.support_calls','INSERT') or has_table_privilege('authenticated','public.support_calls','UPDATE')
  or has_table_privilege('authenticated','public.support_calls','DELETE') or has_table_privilege('authenticated','public.support_call_events','SELECT')
  then raise exception 'Privilège authenticated excessif'; end if;

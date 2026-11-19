@@ -33,7 +33,7 @@ assert.match(migration, /naxa_support_agent_delete_end_calls/i);
 assert.match(migration, /naxa_support_profile_delete_end_calls/i);
 assert.match(migration, /naxa_support_ticket_delete_end_calls/i);
 assert.match(migration, /on delete set null/);
-assert.doesNotMatch(migration, /grant select,insert,update,delete on public\.support_calls to service_role/i);
+assert.match(migration, /revoke all on public\.support_calls from service_role/i);\nassert.match(migration, /revoke all on public\.support_call_events from service_role/i);\nassert.doesNotMatch(migration, /grant select,insert,update on public\.support_calls to service_role/i);
 assert.match(migration, /naxa_support_call_event_immutable/i);
 assert.match(migration, /v_reassigned boolean:=false/i);
 assert.match(migration, /where ticket_id=p_ticket_id and status in \(\x27queued\x27,\x27ringing\x27,\x27accepted\x27\)/i);
