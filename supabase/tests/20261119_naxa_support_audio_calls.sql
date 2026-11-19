@@ -35,7 +35,7 @@ begin
  if exists(select 1 from information_schema.columns where table_schema='public' and table_name in ('support_calls','support_call_events')
  and (column_name ilike '%sdp%' or column_name ilike '%candidate%' or column_name ilike '%recording%')) then raise exception 'Média ou signalisation persisté'; end if;
  select pg_get_functiondef('private.naxa_support_call_realtime_access(text,uuid)'::regprocedure) into v_definition;
- if position('auth.uid()' in v_definition)=0 or position('status = ''accepted''' in v_definition)=0
+ if position('auth.uid()' in v_definition)=0 or position('status=''accepted''' in lower(v_definition))=0
  or position('requester_profile.actif' in v_definition)=0 or position('resolu' in v_definition)=0
  or position('ticket_view_assigned' in v_definition)=0 or position('audio_call' in v_definition)=0 then raise exception 'RLS Realtime ne limite pas aux participants'; end if;
  select pg_get_functiondef('public.naxa_support_call_accept(uuid,uuid)'::regprocedure) into v_definition;
