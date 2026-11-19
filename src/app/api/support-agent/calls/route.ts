@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { authorizeSupportAgent } from "@/lib/support/agent-auth";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 export async function GET() {
   const access = await authorizeSupportAgent("audio_call");
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   const now = new Date().toISOString();
   const db = access.db;
+  // Queue entries are not participant-readable under RLS. Only after validating the Agent's explicit queue/audio grants above, use the server role for minimal call metadata.
   const { data: grants, error: grantsError } = await db.from("support_agent_permissions")
     .select("permission_code").eq("agent_user_id", access.user.id).is("revoked_at", null);
   if (grantsError) return NextResponse.json({ error: "Les permissions d’appel sont indisponibles." }, { status: 503 });
@@ -15,15 +17,15 @@ export async function GET() {
   const empty = { data: [], error: null };
   const [queued, assigned, fallback] = await Promise.all([
     canViewQueue
-      ? db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
+      ? supabaseAdmin().from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
           .eq("status", "queued").order("created_at", { ascending: true }).limit(20)
       : Promise.resolve(empty),
     canViewAssigned
-      ? db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
+      ? supabaseAdmin().from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
           .eq("status", "ringing").eq("agent_user_id", access.user.id).order("created_at", { ascending: true }).limit(20)
       : Promise.resolve(empty),
     canViewQueue
-      ? db.from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
+      ? supabaseAdmin().from("support_calls").select("id,ticket_id,requester_user_id,status,fallback_at,created_at")
           .eq("status", "ringing").lte("fallback_at", now).order("created_at", { ascending: true }).limit(20)
       : Promise.resolve(empty),
   ]);
@@ -35,7 +37,7 @@ export async function GET() {
   const calls = [...unique.values()];
   const ids = [...new Set(calls.map((call) => call.ticket_id))];
   const { data: tickets, error: ticketError } = ids.length
-    ? await db.from("tickets_support").select("id,reference_code,sujet,statut").in("id", ids)
+    ? await supabaseAdmin().from("tickets_support").select("id,reference_code,sujet,statut").in("id", ids)
     : { data: [], error: null };
   if (ticketError) return NextResponse.json({ error: "Les dossiers d’appels sont indisponibles." }, { status: 503 });
   const byId = new Map((tickets ?? []).map((ticket) => [ticket.id, ticket]));

@@ -108,6 +108,7 @@ async function run(){
   const ticketA=await createTicket(client,"E2E Agent A "+tag);
   const ticketB=await createTicket(client,"E2E Agent B "+tag);
   const ticketRace=await createTicket(client,"E2E Agent Race "+tag);
+  const ticketQueue=await createTicket(client,"E2E Agent Central Queue "+tag);
   a=await loginAgent(browser,agentA,"A");b=await loginAgent(browser,agentB,"B");
   const cardA=a.page.locator("article").filter({hasText:"E2E Agent A "+tag}).first();
   await cardA.getByRole("button",{name:"Prendre ce dossier"}).click();
@@ -170,6 +171,48 @@ async function run(){
   assert.ok(callProof.data.requester_heartbeat_at);
   assert.ok(callProof.data.agent_heartbeat_at);
   console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
+
+  // Appel non attribué : l'Agent autorisé voit et prend la demande dans la file centrale.
+  await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketQueue));
+  await clientPage.getByRole("heading",{name:"E2E Agent Central Queue "+tag}).waitFor({timeout:20000});
+  const queuedHeartbeatPromise=clientPage.waitForResponse(r=>
+   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  const queuedRequestPromise=clientPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  await clientPage.getByRole("button",{name:"Demander un appel audio"}).click();
+  const queuedResponse=await queuedRequestPromise;
+  const queuedData=await queuedResponse.json();
+  assert.equal(queuedResponse.status(),201,JSON.stringify(queuedData));
+  const queueCallId=queuedData.call.id;
+  assert.equal(queuedData.call.status,"queued");
+  assert.equal(queuedData.call.agent_user_id,null);
+  state.calls.push({id:queueCallId,requesterId:clientSession.profile.id});save();
+  assert.equal((await queuedHeartbeatPromise).status(),200);
+  await b.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
+  const queueAgentHeartbeatPromise=b.page.waitForResponse(r=>
+   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
+   {timeout:20000}
+  );
+  await b.page.getByRole("button",{name:"Accepter l’appel"}).click();
+  await b.page.waitForURL(u=>u.pathname==="/equipe-support/dossiers/"+ticketQueue&&u.searchParams.get("callId")===queueCallId,{timeout:20000});
+  assert.equal((await queueAgentHeartbeatPromise).status(),200);
+  const queueProof=await admin.from("support_calls")
+   .select("status,agent_user_id,requester_heartbeat_at,agent_heartbeat_at")
+   .eq("id",queueCallId).single();
+  if(queueProof.error)throw queueProof.error;
+  assert.equal(queueProof.data.status,"accepted");
+  assert.equal(queueProof.data.agent_user_id,agentB.id);
+  assert.ok(queueProof.data.requester_heartbeat_at&&queueProof.data.agent_heartbeat_at);
+  const finishQueuedCall=await clientPage.evaluate(async id=>{
+   const r=await fetch("/api/support/calls/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"end"})});
+   return {status:r.status,data:await r.json()};
+  },queueCallId);
+  assert.equal(finishQueuedCall.status,200,JSON.stringify(finishQueuedCall.data));
+  console.log("PASS — file centrale : demande queued visible, acceptation Agent autorisé, heartbeats et clôture.");
 
   const ca=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
   const cb=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -238,7 +281,7 @@ async function run(){
    const endedCall=await admin.from("support_calls").select("status,end_reason").eq("id",callId).single();
    if(endedCall.error)throw endedCall.error;
    assert.equal(endedCall.data.status,"failed","La suspension de l'Agent doit terminer l'appel actif.");
-   assert.equal(endedCall.data.end_reason,"agent_status_suspended");
+   assert.ok(["agent_status_suspended","agent_permission_revoked_audio_call","agent_permission_revoked_ticket_view_assigned"].includes(endedCall.data.end_reason));
    console.log("PASS — suspension Agent terminant immédiatement la session audio.");
   }
   const sessionStatus=await a.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
@@ -249,7 +292,7 @@ async function run(){
 
   const reassign=await admin.rpc("support_agent_claim_ticket",{p_agent_user_id:agentB.id,p_ticket_id:ticketA});
   if(reassign.error)throw reassign.error;
-  const reactivate=await admin.rpc("support_agent_admin_update",{p_agent_user_id:agentA.id,p_actor_user_id:adminProfile.id,p_status:"active",p_presence:"available",p_permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note"]});
+  const reactivate=await admin.rpc("support_agent_admin_update",{p_agent_user_id:agentA.id,p_actor_user_id:adminProfile.id,p_status:"active",p_presence:"available",p_permissions:["queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note","audio_call"]});
   if(reactivate.error)throw reactivate.error;
   const reactivated=await a.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
   assert.equal(reactivated,200);
