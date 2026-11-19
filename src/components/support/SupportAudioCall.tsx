@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Props = { ticketId: string; mode: "requester" | "agent"; initialCallId?: string | null };
 type CallState = "queued" | "ringing" | "accepted" | "cancelled" | "declined" | "completed" | "failed" | "missed";
-type Signal = { kind: "ready" | "offer" | "answer" | "candidate" | "hangup"; sdp?: string; candidate?: RTCIceCandidateInit };
+type Signal = { kind: "ready" | "restart-request" | "offer" | "answer" | "candidate" | "hangup"; sdp?: string; candidate?: RTCIceCandidateInit };
 
 export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props) {
   const [callId, setCallId] = useState<string | null>(initialCallId);
@@ -18,6 +18,8 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   const [notice, setNotice] = useState("");
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
+  const [audioOutputs, setAudioOutputs] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [selectedOutput, setSelectedOutput] = useState("default");
   const remoteAudio = useRef<HTMLAudioElement | null>(null);
   const peer = useRef<RTCPeerConnection | null>(null);
   const channel = useRef<RealtimeChannel | null>(null);
@@ -115,16 +117,28 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             if (signal.kind === "ready" && mode === "agent" && !offerStarted.current) {
               offerStarted.current = true;
               const local = await startMedia();
-              local.getAudioTracks().forEach((track) => pc.addTrack(track, local));
+              local.getAudioTracks().forEach((track) => {
+                if (!pc.getSenders().some((sender) => sender.track?.id === track.id)) pc.addTrack(track, local);
+              });
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
               await sendSignal({ kind: "offer", sdp: offer.sdp ?? undefined });
             } else if (signal.kind === "ready" && mode === "requester" && !readyReplySent.current) {
               readyReplySent.current = true;
               await sendSignal({ kind: "ready" });
+            } else if (signal.kind === "restart-request" && mode === "agent") {
+              const iceResponse = await fetch("/api/support/calls/" + encodeURIComponent(callId) + "/ice", { cache: "no-store" });
+              const iceData = await iceResponse.json();
+              if (!iceResponse.ok) throw new Error(iceData.error || "Renouvellement TURN impossible.");
+              pc.setConfiguration({ iceServers: iceData.iceServers as RTCIceServer[] });
+              const restartOffer = await pc.createOffer({ iceRestart: true });
+              await pc.setLocalDescription(restartOffer);
+              await sendSignal({ kind: "offer", sdp: restartOffer.sdp ?? undefined });
             } else if (signal.kind === "offer" && mode === "requester" && signal.sdp) {
               const local = await startMedia();
-              local.getAudioTracks().forEach((track) => pc.addTrack(track, local));
+              local.getAudioTracks().forEach((track) => {
+                if (!pc.getSenders().some((sender) => sender.track?.id === track.id)) pc.addTrack(track, local);
+              });
               await pc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
               for (const candidate of pendingCandidates.current.splice(0)) await pc.addIceCandidate(candidate);
               const answer = await pc.createAnswer();
@@ -228,11 +242,53 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     }
   }
 
-  function retryConnection() {
-    stopMedia();
+  async function retryConnection() {
     setError("");
-    setConnectionAttempt((attempt) => attempt + 1);
+    try {
+      if (mode === "requester") {
+        await sendSignal({ kind: "restart-request" });
+      } else {
+        const iceResponse = await fetch("/api/support/calls/" + encodeURIComponent(callId ?? "") + "/ice", { cache: "no-store" });
+        const iceData = await iceResponse.json();
+        if (!iceResponse.ok) throw new Error(iceData.error || "Renouvellement TURN impossible.");
+        if (!peer.current) throw new Error("La session audio n’est pas prête.");
+        peer.current.setConfiguration({ iceServers: iceData.iceServers as RTCIceServer[] });
+        const restartOffer = await peer.current.createOffer({ iceRestart: true });
+        await peer.current.setLocalDescription(restartOffer);
+        await sendSignal({ kind: "offer", sdp: restartOffer.sdp ?? undefined });
+      }
+      setNotice("Reconnexion audio demandée…");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "La reconnexion audio a échoué.");
+    }
   }
+
+  async function changeOutput(deviceId: string) {
+    const audio = remoteAudio.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
+    setSelectedOutput(deviceId);
+    if (!audio?.setSinkId) {
+      setError("Le navigateur ne permet pas de changer la sortie audio sur cet appareil.");
+      return;
+    }
+    try {
+      await audio.setSinkId(deviceId);
+      setError("");
+    } catch {
+      setError("La sortie audio sélectionnée n’est pas disponible.");
+    }
+  }
+
+  useEffect(() => {
+    if (!callId || status !== "accepted" || !navigator.mediaDevices?.enumerateDevices) return;
+    let active = true;
+    void navigator.mediaDevices.enumerateDevices().then((devices) => {
+      if (!active) return;
+      const outputs = devices.filter((device) => device.kind === "audiooutput")
+        .map((device, index) => ({ deviceId: device.deviceId || "default", label: device.label || (index === 0 ? "Sortie par défaut" : "Sortie audio " + (index + 1)) }));
+      setAudioOutputs(outputs);
+    }).catch(() => setAudioOutputs([]));
+    return () => { active = false; };
+  }, [callId, status]);
 
   if (mode === "agent" && !initialCallId) return null;
 
@@ -248,6 +304,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {notice && <p role="status" className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{notice}</p>}
       <audio ref={remoteAudio} autoPlay playsInline />
+      {audioOutputs.length > 1 && <label className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">Sortie audio<select value={selectedOutput} onChange={(event) => void changeOutput(event.target.value)} className="rounded-lg border border-slate-300 p-2"><option value="default">Sortie par défaut</option>{audioOutputs.filter((device) => device.deviceId !== "default").map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}</select></label>}
       {audioBlocked && <button type="button" onClick={() => void activateRemoteAudio()} className="min-h-10 rounded-xl border border-emerald-700 px-3 py-2 text-xs font-bold text-emerald-900">Activer le son reçu</button>}
       {mode === "requester" && !callId && (
         <button type="button" disabled={busy} onClick={() => void requestCall()} className="min-h-11 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
@@ -260,7 +317,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             {status === "queued" ? "En attente dans la file" : status === "ringing" ? "Agent appelé" : status === "accepted" ? "Appel en cours" : "Appel terminé"}
           </span>
           {status === "accepted" && <>
-            {error && <button type="button" disabled={busy} onClick={retryConnection} className="min-h-10 rounded-xl border border-amber-500 px-3 py-2 text-xs font-bold text-amber-900">Réessayer la connexion audio</button>}
+            {error && <button type="button" disabled={busy} onClick={() => void retryConnection()} className="min-h-10 rounded-xl border border-amber-500 px-3 py-2 text-xs font-bold text-amber-900">Réessayer la connexion audio</button>}
             <button type="button" onClick={toggleMute} className="min-h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold">{muted ? "Réactiver le micro" : "Couper le micro"}</button>
             <button type="button" disabled={busy} onClick={() => void transition("end")} className="min-h-10 rounded-xl bg-red-700 px-3 py-2 text-xs font-bold text-white">Raccrocher</button>
           </>}
