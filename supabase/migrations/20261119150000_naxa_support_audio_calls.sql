@@ -117,20 +117,32 @@ grant execute on function private.naxa_support_call_finish_active(uuid,uuid,text
 create or replace function private.naxa_support_agent_end_calls()
 returns trigger language plpgsql security definer set search_path=''
 as $function$
-declare v_call record;
+declare v_call record; v_reason text;
 begin
- if new.status <> 'active' and old.status is distinct from new.status then
+ if (new.status <> 'active' and old.status is distinct from new.status)
+   or (new.must_change_password is true and old.must_change_password is distinct from new.must_change_password)
+   or (new.consent_accepted_at is null and old.consent_accepted_at is not null) then
+  v_reason:=case
+   when new.status <> 'active' and old.status is distinct from new.status then 'agent_status_'||new.status
+   when new.must_change_password is true then 'agent_password_rotation_required'
+   else 'agent_consent_withdrawn'
+  end;
   for v_call in select id from public.support_calls
     where agent_user_id=new.user_id and status in ('queued','ringing','accepted') loop
-    perform private.naxa_support_call_finish_active(v_call.id,new.user_id,'agent_status_'||new.status);
+    perform private.naxa_support_call_finish_active(v_call.id,new.user_id,v_reason);
   end loop;
  end if;
  return new;
 end; $function$;
 revoke all on function private.naxa_support_agent_end_calls() from public,anon,authenticated;
 drop trigger if exists trg_naxa_support_agent_end_calls on public.support_agents;
-create trigger trg_naxa_support_agent_end_calls after update of status on public.support_agents
-for each row when (old.status is distinct from new.status and new.status <> 'active')
+create trigger trg_naxa_support_agent_end_calls
+after update of status,must_change_password,consent_accepted_at on public.support_agents
+for each row when (
+ (old.status is distinct from new.status and new.status <> 'active')
+ or (old.must_change_password is distinct from new.must_change_password and new.must_change_password is true)
+ or (old.consent_accepted_at is not null and new.consent_accepted_at is null)
+)
 execute function private.naxa_support_agent_end_calls();
 
 create or replace function private.naxa_support_agent_permission_end_calls()
@@ -138,10 +150,11 @@ returns trigger language plpgsql security definer set search_path=''
 as $function$
 declare v_call record;
 begin
- if new.permission_code='audio_call' and old.revoked_at is null and new.revoked_at is not null then
+ if new.permission_code in ('audio_call','ticket_view_assigned')
+   and old.revoked_at is null and new.revoked_at is not null then
   for v_call in select id from public.support_calls
    where agent_user_id=new.agent_user_id and status in ('queued','ringing','accepted') loop
-   perform private.naxa_support_call_finish_active(v_call.id,new.revoked_by,'agent_audio_permission_revoked');
+   perform private.naxa_support_call_finish_active(v_call.id,new.revoked_by,'agent_permission_revoked_'||new.permission_code);
   end loop;
  end if;
  return new;
@@ -149,7 +162,7 @@ end; $function$;
 revoke all on function private.naxa_support_agent_permission_end_calls() from public,anon,authenticated;
 drop trigger if exists trg_naxa_support_agent_permission_end_calls on public.support_agent_permissions;
 create trigger trg_naxa_support_agent_permission_end_calls after update of revoked_at on public.support_agent_permissions
-for each row when (old.revoked_at is null and new.revoked_at is not null and new.permission_code='audio_call')
+for each row when (old.revoked_at is null and new.revoked_at is not null and new.permission_code in ('audio_call','ticket_view_assigned'))
 execute function private.naxa_support_agent_permission_end_calls();
 
 create or replace function private.naxa_support_profile_end_calls()
@@ -327,6 +340,14 @@ begin
  if v_call.status='ringing' and v_call.agent_user_id is not null
    and v_call.agent_user_id<>p_actor_user_id and v_call.fallback_at>clock_timestamp() then
    raise exception 'L’Agent affecté dispose encore de la priorité d’appel';
+ end if;
+ if v_call.agent_user_id is distinct from p_actor_user_id
+   and not exists(
+     select 1 from public.support_agent_permissions queue_grant
+     where queue_grant.agent_user_id=p_actor_user_id
+       and queue_grant.permission_code='queue_view' and queue_grant.revoked_at is null
+   ) then
+   raise exception 'Permission de prise en charge de la file centrale absente';
  end if;
  if exists(
    select 1 from public.support_calls busy

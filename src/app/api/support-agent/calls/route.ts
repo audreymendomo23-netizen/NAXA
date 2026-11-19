@@ -10,7 +10,7 @@ export async function GET() {
     .select("permission_code").eq("agent_user_id", access.user.id).is("revoked_at", null);
   if (grantsError) return NextResponse.json({ error: "Les permissions d’appel sont indisponibles." }, { status: 503 });
   const permissions = new Set((grants ?? []).map((grant) => grant.permission_code));
-  const canViewQueue = permissions.has("queue_view");
+  const canViewQueue = permissions.has("queue_view") && permissions.has("ticket_view_assigned");
   const canViewAssigned = permissions.has("ticket_view_assigned");
   const empty = { data: [], error: null };
   const [queued, assigned, fallback] = await Promise.all([

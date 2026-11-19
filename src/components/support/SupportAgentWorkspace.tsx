@@ -170,7 +170,7 @@ export function SupportAgentWorkspace() {
         <div className="rounded-2xl bg-white p-4 shadow-sm"><p className="text-sm text-slate-500">Appels entrants</p><p className="mt-1 text-3xl font-black">{incomingCalls.length}</p></div>
       </div>}
 
-      {!loading && session?.permissions.includes("audio_call") && <section className="space-y-3">
+      {!loading && session?.permissions.includes("audio_call") && session.permissions.includes("ticket_view_assigned") && <section className="space-y-3">
         <div><h2 className="text-lg font-extrabold">Appels audio entrants</h2><p className="text-sm text-slate-500">L’Agent affecté garde 20 secondes de priorité, puis l’appel rejoint la file centrale.</p></div>
         {incomingCalls.length ? incomingCalls.map((call) => <article key={call.id} className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
           <p className="font-mono text-xs font-bold text-emerald-800">{call.ticket?.reference_code || "Dossier support"}</p>

@@ -13,6 +13,8 @@ export async function GET(_request:Request,context:{params:Promise<{callId:strin
  if(call.agent_user_id===auth.user.id){
   const agent=await authorizeSupportAgent("audio_call");
   if(!agent.ok)return NextResponse.json({error:agent.error},{status:agent.status});
+  const ticketAccess=await authorizeSupportAgent("ticket_view_assigned");
+  if(!ticketAccess.ok)return NextResponse.json({error:ticketAccess.error},{status:ticketAccess.status});
  }else if(call.requester_user_id===auth.user.id){
   const {data:profile,error:profileError}=await db.from("profiles").select("actif").eq("id",auth.user.id).maybeSingle();
   if(profileError)return NextResponse.json({error:"Statut du profil indisponible."},{status:503});

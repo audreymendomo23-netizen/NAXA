@@ -120,7 +120,7 @@ export function SupportAgentTicket({ ticketId, callId = null }: { ticketId: stri
           <p className="mt-2 text-sm text-slate-500">{ticket.categorie || "Autre"} · {ticket.statut}</p>
         </header>
 
-        {callId && permissions.includes("audio_call") && <SupportAudioCall ticketId={ticketId} mode="agent" initialCallId={callId} />}
+        {callId && permissions.includes("audio_call") && permissions.includes("ticket_view_assigned") && <SupportAudioCall ticketId={ticketId} mode="agent" initialCallId={callId} />}
 
         <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="font-extrabold">Conversation</h2>
