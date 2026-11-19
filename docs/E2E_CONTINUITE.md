@@ -14,8 +14,11 @@ Recette ciblée Agents NAXA sur Supabase Replay uniquement. Les parcours déjà 
 - Nettoyage Replay : PASS.
 - WebRTC audio réel, média/micro, négociation ICE/TURN, reconnexion et expiration : non prouvés par les assertions précédentes.
 
+## Diagnostic du run 44582345266
+L'API Client GET explicite retourne HTTP 200 et `call.status=accepted`, mais l'assertion du rendu React « Appel en cours » échoue après 15 s. Le test prouve donc l'état serveur, pas sa propagation dans l'interface. Les parcours de connexion, affectation, acceptation et heartbeats passent. Nettoyage Replay PASS.
+
 ## Correction de recette en cours
-Le contrôle d'état Client est rendu déterministe : appel GET explicite depuis le contexte navigateur authentifié, vérification HTTP 200 + statut accepted, puis vérification distincte du rendu React « Appel en cours » et de la commande « Raccrocher ». Des traces requête/réponse GET sont conservées pour diagnostiquer le polling UI.
+Le test conserve l'exigence fonctionnelle d'un rendu UI `Appel en cours` et de la commande `Raccrocher`, sans assouplir le critère. L'instrumentation journalise désormais le corps du GET de polling et le DOM de la section en cas d'échec, afin de distinguer réponse serveur obsolète, composant non actualisé ou divergence du rendu.
 
 ## Critères de sortie
 Ne déclarer vert que si l'API Client, l'interface Client, le raccrochage, la file centrale, l'expiration/heartbeat et les contrôles d'accès passent sur Replay. La connectivité WebRTC réelle doit être qualifiée séparément avec deux participants et des médias utilisables; le statut SQL accepted ne prouve pas le son bidirectionnel.

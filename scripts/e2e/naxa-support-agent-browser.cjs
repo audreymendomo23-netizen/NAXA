@@ -169,9 +169,12 @@ async function run(){
    if(request.url().includes("/api/support/calls/"+callId)&&request.method()==="GET")
     console.log("TRACE — requester call-state GET "+request.url());
   });
-  clientPage.on("response",response=>{
-   if(response.url().includes("/api/support/calls/"+callId)&&response.request().method()==="GET")
-    console.log("TRACE — requester call-state response "+response.status()+" "+response.url());
+  clientPage.on("response",async response=>{
+   if(response.url().includes("/api/support/calls/"+callId)&&response.request().method()==="GET"){
+    let payload=null;
+    try{payload=await response.clone().json();}catch{}
+    console.log("TRACE — requester call-state response "+response.status()+" "+response.url()+" body="+JSON.stringify(payload?.call?{status:payload.call.status,agent_user_id:payload.call.agent_user_id}:payload));
+   }
   });
   const agentHeartbeatPromise=a.page.waitForResponse(r=>
    r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
@@ -199,8 +202,16 @@ async function run(){
   assert.equal(requesterStateResult.status,200,"Le Client doit pouvoir lire l’état de son appel : "+JSON.stringify(requesterStateResult.data));
   assert.equal(requesterStateResult.data.call?.status,"accepted","L’API de lecture doit exposer l’acceptation au demandeur.");
   console.log("PASS — API Client GET explicite : statut accepted confirmé.");
-  await clientPage.getByText("Appel en cours",{exact:true}).waitFor({timeout:15000});
-  await clientPage.getByRole("button",{name:"Raccrocher"}).waitFor({timeout:15000});
+  try{
+   await clientPage.waitForFunction(()=>{
+    const section=document.querySelector('section[aria-label="Appel audio NAXA"]');
+    return !!section&&section.innerText.includes("Appel en cours");
+   },null,{timeout:15000});
+  }catch(cause){
+   const rendered=await clientPage.locator('section[aria-label="Appel audio NAXA"]').innerText().catch(()=>" <section absente>");
+   throw new Error("L’API Client expose accepted mais l’interface ne reflète pas cet état. DOM rendu : "+rendered+"; cause : "+(cause instanceof Error?cause.message:String(cause)));
+  }
+  await clientPage.getByRole("button",{name:"Raccrocher",exact:true}).waitFor({timeout:15000});
   console.log("PASS — interface Client : état accepté et commande Raccrocher rendus.");
   const requesterEndPromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
