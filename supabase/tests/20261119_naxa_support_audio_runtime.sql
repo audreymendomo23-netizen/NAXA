@@ -13,7 +13,7 @@ begin
     into v_ticket_id,v_requester_id
   from public.tickets_support t
   join public.profiles p on p.id=t.auteur_profile_id
-  where p.username='naxa_e2e_acheteur'
+  where p.username='naxa_e2e_caisse'
     and p.actif is true
     and t.type='support_naxa'
     and t.statut not in ('resolu','ferme')
