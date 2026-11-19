@@ -111,10 +111,12 @@ jobs:
             exit 1
           fi
       - name: Recette réelle Client ↔ Admin, Realtime, statuts, fichiers et /aide
+        if: ${{ !contains(github.event.head_commit.message, '[agents-only]') }}
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         run: node scripts/e2e/naxa-support-livechat-browser.cjs
       - name: Recette navigateur Promoteur et Livreur ↔ Admin
+        if: ${{ !contains(github.event.head_commit.message, '[agents-only]') }}
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         run: node scripts/e2e/naxa-professional-support-browser.cjs

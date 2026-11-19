@@ -130,6 +130,9 @@ async function run(){
   clientPage=await clientContext.newPage();
   clientPage.on("close",()=>console.log("TRACE — client assigned-call page closed"));
   clientPage.on("crash",()=>console.log("TRACE — client assigned-call page crashed"));
+  clientPage.on("pageerror",error=>console.log("BROWSER PAGEERROR — "+error.message));
+  clientPage.on("console",message=>{if(message.type()==="error")console.log("BROWSER CONSOLE ERROR — "+message.text());});
+  clientPage.on("requestfailed",request=>console.log("BROWSER REQUEST FAILED — "+request.method()+" "+request.url()+" :: "+(request.failure()?.errorText??"unknown")));
   clientContext.on("close",()=>console.log("TRACE — assigned-call browser context closed"));
   await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketA));
   await clientPage.getByRole("heading",{name:"E2E Agent A "+tag}).waitFor({timeout:20000});
@@ -162,6 +165,10 @@ async function run(){
   assert.equal(earlyQueueAccept,409,"La file centrale ne doit pas contourner les 20 secondes de priorité.");
 
   await a.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
+  let requesterAcceptedStateResponsePromise=clientPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="GET",
+   {timeout:30000}
+  );
   const agentHeartbeatPromise=a.page.waitForResponse(r=>
    r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
    {timeout:20000}
@@ -181,7 +188,23 @@ async function run(){
   assert.ok(callProof.data.requester_heartbeat_at);
   assert.ok(callProof.data.agent_heartbeat_at);
   console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
+  let requesterStateResponse=await requesterAcceptedStateResponsePromise;
+  let requesterStateData=await requesterStateResponse.json();
+  const requesterStateDeadline=Date.now()+30000;
+  while(requesterStateResponse.status()===200&&requesterStateData.call?.status!=="accepted"&&Date.now()<requesterStateDeadline){
+   requesterAcceptedStateResponsePromise=clientPage.waitForResponse(r=>
+    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="GET",
+    {timeout:Math.max(1000,requesterStateDeadline-Date.now())}
+   );
+   requesterStateResponse=await requesterAcceptedStateResponsePromise;
+   requesterStateData=await requesterStateResponse.json();
+  }
+  assert.equal(requesterStateResponse.status(),200,"Le Client doit pouvoir lire l’état de son appel.");
+  assert.equal(requesterStateData.call?.status,"accepted","L’API de lecture doit exposer l’acceptation au demandeur.");
+  console.log("PASS — API Client GET : statut accepted confirmé.");
+  await clientPage.getByText("Appel en cours",{exact:true}).waitFor({timeout:15000});
   await clientPage.getByRole("button",{name:"Raccrocher"}).waitFor({timeout:15000});
+  console.log("PASS — interface Client : état accepté et commande Raccrocher rendus.");
   const requesterEndPromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
    {timeout:20000}
