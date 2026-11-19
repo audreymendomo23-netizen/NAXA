@@ -1248,6 +1248,7 @@ async function run() {
     // et statut de localisation, contrairement au filtre secondaire qui ne règle que la ville.
     const b2CitySelect = clientPage.locator("#naxa-ville");
     await b2CitySelect.waitFor({ state: "visible" });
+    const initialB2City = await b2CitySelect.inputValue();
     const expectedB2Search = clientPage.waitForResponse((response) => {
       if (!response.url().includes("/rest/v1/rpc/search_pharmacies_bulk")) return false;
       try {
@@ -1258,11 +1259,23 @@ async function run() {
       } catch {
         return false;
       }
-    }, { timeout: 20000 });
+    }, { timeout: 20000 }).then(
+      (response) => ({ response }),
+      (error) => ({ error })
+    );
     await b2CitySelect.selectOption("Yaoundé");
     await expect(b2CitySelect).toHaveValue("Yaoundé");
     await expect(clientPage.locator('select[aria-label="Filtrer par ville"]')).toHaveValue("Yaoundé");
-    const b2SearchResponse = await expectedB2Search;
+    const expectedB2SearchResult = await expectedB2Search;
+    if (expectedB2SearchResult.error) {
+      throw new Error(
+        "Réponse RPC bulk Yaoundé absente après sélection de la localité "
+        + "(valeur initiale=" + JSON.stringify(initialB2City)
+        + ", valeur finale=" + JSON.stringify(await b2CitySelect.inputValue().catch(() => "page fermée"))
+        + ") : " + expectedB2SearchResult.error.message
+      );
+    }
+    const b2SearchResponse = expectedB2SearchResult.response;
     assert.equal(b2SearchResponse.status(), 200, "Le RPC bulk Yaoundé doit répondre HTTP 200.");
     const b2SearchBody = await b2SearchResponse.json();
     assert.ok(Array.isArray(b2SearchBody) && b2SearchBody.some((row) =>
