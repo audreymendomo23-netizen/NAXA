@@ -93,6 +93,18 @@ async function loginAgent(browser,agent,letter){
  await p.getByRole("button",{name:"Passer indisponible"}).waitFor({timeout:20000});
  console.log("PASS — login Agent "+letter+", rotation initiale et présence disponible.");return {context:c,page:p,email:agent.email,password:next};
 }
+async function waitForCallHeartbeat(callId,column,label,timeoutMs=15000){
+ const deadline=Date.now()+timeoutMs;
+ let lastValue=null;
+ while(Date.now()<deadline){
+  const {data,error}=await admin.from("support_calls").select(column).eq("id",callId).maybeSingle();
+  if(error)throw error;
+  lastValue=data?.[column]??null;
+  if(lastValue)return lastValue;
+  await new Promise(resolve=>setTimeout(resolve,250));
+ }
+ throw new Error(label+" non persisté après "+timeoutMs+" ms (valeur finale : "+String(lastValue)+").");
+}
 async function createTicket(client,subject){
  const r=await client.rpc("open_naxa_support_ticket",{p_categorie:"technique",p_sujet:subject,p_message:"Demande E2E "+subject});if(r.error)throw r.error;
  const row=Array.isArray(r.data)?r.data[0]:r.data;assert.ok(row.ticket_id);state.tickets.push(row.ticket_id);save();return row.ticket_id;
@@ -136,10 +148,6 @@ async function run(){
   clientContext.on("close",()=>console.log("TRACE — assigned-call browser context closed"));
   await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketA));
   await clientPage.getByRole("heading",{name:"E2E Agent A "+tag}).waitFor({timeout:20000});
-  const requesterHeartbeatPromise=clientPage.waitForResponse(r=>
-   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
-   {timeout:20000}
-  );
   const requestResponsePromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
    {timeout:20000}
@@ -152,8 +160,8 @@ async function run(){
   assert.equal(requestData.call.status,"ringing");
   assert.equal(requestData.call.agent_user_id,agentA.id,"L'Agent affecté doit être appelé en premier.");
   state.calls.push({id:callId,requesterId:clientSession.profile.id});save();
-  const requesterHeartbeat=await requesterHeartbeatPromise;
-  assert.equal(requesterHeartbeat.status(),200,"Le heartbeat du demandeur doit être accepté.");
+  await waitForCallHeartbeat(callId,"requester_heartbeat_at","Heartbeat automatique du Client");
+  console.log("PASS — heartbeat automatique Client persisté dans support_calls.");
 
   const foreignHeartbeat=await b.page.evaluate(async id=>
    (await fetch("/api/support/calls/"+id+"/heartbeat",{method:"POST"})).status,callId);
@@ -176,14 +184,9 @@ async function run(){
     console.log("TRACE — requester call-state response "+response.status()+" "+response.url()+" body="+JSON.stringify(payload?.call?{status:payload.call.status,agent_user_id:payload.call.agent_user_id}:payload));
    }
   });
-  const agentHeartbeatPromise=a.page.waitForResponse(r=>
-   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
-   {timeout:20000}
-  );
   await a.page.getByRole("button",{name:"Accepter l’appel"}).click();
   await a.page.waitForURL(u=>u.pathname==="/equipe-support/dossiers/"+ticketA&&u.searchParams.get("callId")===callId,{timeout:20000});
-  const agentHeartbeat=await agentHeartbeatPromise;
-  assert.equal(agentHeartbeat.status(),200,"Le heartbeat Agent doit être accepté après la prise atomique.");
+  await waitForCallHeartbeat(callId,"agent_heartbeat_at","Heartbeat automatique de l’Agent");
   await a.page.getByRole("heading",{name:"Appel audio NAXA"}).waitFor({timeout:10000});
   const callProof=await admin.from("support_calls")
    .select("status,requester_user_id,agent_user_id,requester_heartbeat_at,agent_heartbeat_at")
@@ -238,10 +241,6 @@ async function run(){
   await queueClientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketQueue));
   await queueClientPage.getByRole("heading",{name:"E2E Agent Central Queue "+tag}).waitFor({timeout:20000});
   assert.equal(queueClientPage.isClosed(),false,"La page Client centrale doit rester ouverte après le chargement du dossier.");
-  const queuedHeartbeatPromise=queueClientPage.waitForResponse(r=>
-   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
-   {timeout:20000}
-  ).then(response=>({response}),error=>({error}));
   const queuedRequestPromise=queueClientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
    {timeout:20000}
@@ -256,17 +255,11 @@ async function run(){
   assert.equal(queuedData.call.status,"queued");
   assert.equal(queuedData.call.agent_user_id,null);
   state.calls.push({id:queueCallId,requesterId:clientSession.profile.id});save();
-  const queuedHeartbeatResult=await queuedHeartbeatPromise;
-  if(queuedHeartbeatResult.error) throw queuedHeartbeatResult.error;
-  assert.equal(queuedHeartbeatResult.response.status(),200);
+  await waitForCallHeartbeat(queueCallId,"requester_heartbeat_at","Heartbeat automatique du Client en file centrale");
   await b.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
-  const queueAgentHeartbeatPromise=b.page.waitForResponse(r=>
-   r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
-   {timeout:20000}
-  );
   await b.page.getByRole("button",{name:"Accepter l’appel"}).click();
   await b.page.waitForURL(u=>u.pathname==="/equipe-support/dossiers/"+ticketQueue&&u.searchParams.get("callId")===queueCallId,{timeout:20000});
-  assert.equal((await queueAgentHeartbeatPromise).status(),200);
+  await waitForCallHeartbeat(queueCallId,"agent_heartbeat_at","Heartbeat automatique de l’Agent en file centrale");
   const queueProof=await admin.from("support_calls")
    .select("status,agent_user_id,requester_heartbeat_at,agent_heartbeat_at")
    .eq("id",queueCallId).single();
