@@ -174,6 +174,7 @@ async function run(){
   assert.ok(callProof.data.requester_heartbeat_at);
   assert.ok(callProof.data.agent_heartbeat_at);
   console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
+  await clientPage.getByRole("button",{name:"Raccrocher"}).waitFor({timeout:15000});
   const requesterEndPromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
    {timeout:20000}
