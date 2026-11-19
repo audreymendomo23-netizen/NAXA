@@ -97,3 +97,70 @@ Le run ciblé doit démontrer successivement `Agent appelé`, puis `Appel en cou
 - Cause racine : collision entre le service Coturn post-install et l'instance de test ; le PID lancé par le workflow n'était pas propriétaire du socket que la vérification avait vu. L'API NAXA et le statut d'appel ne sont pas mis en cause par cette preuve.
 - Correction : arrêter le service Coturn système et tout processus turnserver post-install avant le démarrage, choisir un port libre, puis exiger que `ss -lunp` attribue le socket UDP au PID exact écrit par le workflow. Plus de vérification basée uniquement sur un numéro de port présent.
 - Diagnostic média renforcé : ne pas échouer avant lecture des statistiques si le badge `Connecté` n'apparaît pas. Les états PC/ICE/signaling/gathering, candidats, protocoles, compteurs RTP, pistes et audioContext sont désormais journalisés avant les assertions bloquantes.
+
+
+# Point de continuité — 20 novembre 2026, 00:27 (Africa/Douala)
+
+## État de référence
+- Dépôt : `audreymendomo23-netizen/NAXA`, branche `main`.
+- HEAD audité : `90c049c11edf9598e291c071f6848e4dc4deb65d` — `test(support): bind verified ephemeral TURN process and trace ICE state [agents-only]`.
+- Environnement autorisé : Supabase Replay uniquement (`pwfftcsjyeibxxqhwysw`) et navigateur CI. Aucun changement de Production, aucune migration Production, aucun déploiement.
+- Verdict global : **NON VERT**. Le sous-ensemble fonctionnel Agent/Livechat/cycle de vie est déjà passé dans un run antérieur, mais la preuve du transport audio WebRTC bidirectionnel est toujours en échec. Le contrôle actionlint/ShellCheck du dernier commit est également en échec.
+
+## Derniers runs observés
+| Run | Résultat | Portée et preuve |
+|---|---|---|
+| [44597102023 — Replay Support Livechat Browser E2E](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44597102023) | **FAIL** | Build Replay, serveur local et démarrage TURN PASS ; suite Agents échoue à l'authentification du canal privé de signalisation Realtime, avant les échanges SDP/ICE/RTP. Nettoyages PASS. |
+| [44597102291 — NAXA quality](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44597102291) | **FAIL partiel** | Job tests/TypeScript/lint/build PASS ; job actionlint FAIL uniquement sur ShellCheck `SC2009` dans le script du workflow. |
+| [44593655149 — Replay ciblé Agents](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44593655149) | **SUCCESS** | Parcours Agent, droits, RLS, Livechat, concurrence, appels acceptés/ringing, suspension et réactivation PASS. Ce run ne prouve pas le média WebRTC bidirectionnel. |
+| [44593655186 — NAXA quality](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44593655186) | **SUCCESS** | Qualité complète sur le commit de ce run. |
+
+## Faits positifs encore valides
+- Le défaut de conservation de l'état React a été corrigé dans `ParcoursClientShell` : le wrapper du parcours Client conserve une position stable dans l'arbre React.
+- Les tests précédents démontrent le rendu Client de `Agent appelé`, puis `Appel en cours` et `Raccrocher`, le raccrochage, les heartbeats persistés, la file centrale, le RLS inter-Agent, les notes internes/réponses publiques, Realtime du Livechat écrit, la concurrence atomique et les deux branches de suspension/réactivation.
+- Le scénario de suspension a été corrigé : il crée désormais un nouvel appel réellement `accepted` avant la suspension et exige `failed` avec `agent_status_suspended`. Un autre scénario vérifie qu'un appel `ringing` retourne `queued` lors de la suspension. Il ne réutilise plus un ancien appel déjà terminé.
+- Le faux négatif Playwright sur les heartbeats a été corrigé : le test vérifie les timestamps persistés dans `support_calls` plutôt qu'une attente fragile de réponse réseau.
+- Le bootstrap TURN de CI a été corrigé après collision avec le service Coturn système : arrêt du service post-install, port libre, puis vérification que le PID exact du processus lancé possède le socket UDP. Sur le run 44597102023, cette étape est PASS et les credentials ICE sont délivrés par l'API avec HTTP 200.
+
+## Diagnostic détaillé du blocage WebRTC — run 44597102023
+
+### Chronologie et preuves
+- L'appel Client est créé en `ringing`, puis accepté par l'Agent ; la base Replay contient `status=accepted`, `accepted_at` renseigné, ainsi que les deux heartbeats. L'API Client GET retourne HTTP 200 et `accepted`.
+- L'interface Client affiche `Appel en cours` et `Raccrocher`. La régression UI précédente n'est donc pas réapparue.
+- `GET /api/support/calls/:callId/ice` retourne HTTP 200 et un tableau `iceServers` contenant le TURN local, avec username et credential éphémères. Le problème de configuration TURN 503 est levé pour cet environnement CI.
+- Le log Supabase Realtime du 19 novembre 2026 à `19:23:52.507 UTC` contient : `Unauthorized: You do not have permissions to read from this Channel topic: naxa-support-call:41f69974-e241-4e38-844f-8d4e0b981b89`.
+- Au moment de l'échec, le navigateur Client rapporte un `RTCPeerConnection` à l'état `new`, ICE `new`, signaling `stable`, gathering `new`, zéro sender, zéro receiver, zéro candidat, zéro paquet RTP et aucun AudioContext. Ce constat est cohérent avec un échec de souscription/signaling avant le démarrage de `getUserMedia`, pas avec un échec TURN/RTP après négociation.
+- Le nettoyage a ensuite terminé l'appel avec `participant_ended`. Cet état final est une conséquence du `finally` E2E ; il ne doit pas être pris pour la cause racine du refus Realtime.
+
+### État de la politique et de la fonction d'autorisation observées sur Replay
+- La fonction déployée `private.naxa_support_call_realtime_access(text,uuid)` existe, est `SECURITY DEFINER`, appartient à `postgres`, et EXECUTE est accordé à `authenticated` et `service_role`.
+- La fonction vérifie notamment : acteur fourni égal à `auth.uid()`, format exact du topic, appel `accepted`, ticket non résolu/fermé, profil demandeur actif ; pour l'Agent, compte actif, activation initiale terminée, consentement accepté et permissions `audio_call` + `ticket_view_assigned`.
+- Les politiques `realtime.messages` existent pour SELECT et INSERT du rôle `authenticated`, limitées à `extension='broadcast'` et à cette fonction d'autorisation.
+- Ces constats prouvent l'existence de la fonction et des politiques, **pas** que la fonction renvoie `true` pour chaque participant avec le JWT réellement utilisé par le WebSocket. Les causes encore ouvertes sont : JWT utilisateur non synchronisé dans le client Realtime au moment du `subscribe()`, `auth.uid()` absent/différent dans le contexte Realtime, ou un prédicat métier de la fonction qui renvoie false. Aucune de ces trois causes ne doit être déclarée certaine sans test discriminant.
+
+### Piste de diagnostic prioritaire, non encore validée
+- `src/lib/supabase/client.ts` utilise `createBrowserClient` de `@supabase/ssr`.
+- `SupportAudioCall.tsx` crée un canal avec `config.private=true`, puis appelle `subscribe()` sans synchronisation explicite préalable via `supabase.realtime.setAuth(accessToken)`.
+- La documentation Supabase Realtime recommande de fixer le JWT avant la souscription pour l'autorisation des canaux privés. Cette absence est une hypothèse prioritaire, mais le comportement exact du client SSR installé (`@supabase/supabase-js 2.45.4`, `@supabase/ssr 0.5.2`) doit être vérifié avant de modifier le produit.
+- Ne pas élargir la politique à `authenticated` sans contrôle de topic/participant ; ne pas rendre le topic public ; ne pas contourner `naxa_support_call_realtime_access`. Le correctif doit préserver l'isolation stricte entre demandeur, Agent assigné et tiers.
+
+## Échec actionlint / ShellCheck
+- Run `44597102291` : `.github/workflows/naxa-support-livechat-e2e.yml:81:9`, ShellCheck `SC2009` sur `ps aux | grep '[t]urnserver'` dans le bloc diagnostic de l'étape TURN.
+- Correction ciblée attendue : remplacer ce diagnostic par `pgrep -a -x turnserver || true` (ou équivalent compatible ShellCheck), sans modifier la logique TURN déjà validée. Puis relancer le contrôle actionlint.
+- La qualité principale (tests, TypeScript, lint et build) a passé dans ce run ; seul le job actionlint a donné l'échec reporté.
+
+## Ordre de reprise obligatoire
+1. Corriger la seule alerte `SC2009` ; vérifier actionlint sur tous les workflows.
+2. Auditer le client Realtime et son JWT effectif : obtenir via le navigateur la session courante et l'identité (sans jamais journaliser access token/refresh token), observer l'état de souscription et l'erreur exacte pour chacun des deux participants.
+3. Ajouter une preuve discriminante avec le même JWT utilisateur : évaluer les prédicats de `naxa_support_call_realtime_access` en contexte authentifié ; enregistrer seulement le résultat booléen, le sujet utilisateur et les prédicats non sensibles, jamais le JWT.
+4. Vérifier si `setAuth(session.access_token)` doit être appelé avant `channel(...).subscribe()` avec les versions installées ; tester d'abord sur Replay et dans le navigateur. Ne modifier la fonction SQL ni ses politiques que si le résultat authentifié prouve une erreur de prédicat.
+5. Après acceptation Realtime pour Client ET Agent, exiger l'échange `ready → offer → answer → candidate`, puis ICE connecté, candidat local et distant `relay`, piste audio live et paquets RTP entrants/sortants des deux côtés, flux distant attaché et lecture active.
+6. Corriger ShellCheck, puis relancer la recette Agents ciblée et la qualité complète. Si un contrôle échoue, reprendre audit → contradiction → cause prouvée → correction minimale → test → preuve → doc.
+7. Ne déclarer vert qu'après succès de tous les critères de la portée retenue. Le son bidirectionnel doit être prouvé séparément ; `accepted`, HTTP 200 ou l'existence de credentials TURN ne sont pas une preuve audio.
+8. Le test média via TURN localhost prouve le chemin CI seulement. Un relais TURN public permanent pour appareils/réseaux mobiles réels est un point d'exploitation distinct à documenter avant une éventuelle mise en service.
+
+## Règles inchangées
+- Travailler sur `main` seulement ; préserver l'historique de ce document et ajouter un nouveau point de continuité à chaque changement d'état.
+- Recette exclusivement Replay ; aucun accès Production pour ces corrections ; pas de déploiement.
+- Ne jamais neutraliser les assertions, assouplir les politiques RLS/Realtime, ni confondre un statut de base avec une preuve média.
+- Le chantier reste **NON VERT** tant que la souscription privée Realtime et l'audio bidirectionnel réel n'ont pas passé, et que actionlint n'est pas vert.
