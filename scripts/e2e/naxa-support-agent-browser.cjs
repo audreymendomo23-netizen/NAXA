@@ -165,10 +165,14 @@ async function run(){
   assert.equal(earlyQueueAccept,409,"La file centrale ne doit pas contourner les 20 secondes de priorité.");
 
   await a.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
-  let requesterAcceptedStateResponsePromise=clientPage.waitForResponse(r=>
-   r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="GET",
-   {timeout:30000}
-  );
+  clientPage.on("request",request=>{
+   if(request.url().includes("/api/support/calls/"+callId)&&request.method()==="GET")
+    console.log("TRACE — requester call-state GET "+request.url());
+  });
+  clientPage.on("response",response=>{
+   if(response.url().includes("/api/support/calls/"+callId)&&response.request().method()==="GET")
+    console.log("TRACE — requester call-state response "+response.status()+" "+response.url());
+  });
   const agentHeartbeatPromise=a.page.waitForResponse(r=>
    r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
    {timeout:20000}
@@ -188,20 +192,13 @@ async function run(){
   assert.ok(callProof.data.requester_heartbeat_at);
   assert.ok(callProof.data.agent_heartbeat_at);
   console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
-  let requesterStateResponse=await requesterAcceptedStateResponsePromise;
-  let requesterStateData=await requesterStateResponse.json();
-  const requesterStateDeadline=Date.now()+30000;
-  while(requesterStateResponse.status()===200&&requesterStateData.call?.status!=="accepted"&&Date.now()<requesterStateDeadline){
-   requesterAcceptedStateResponsePromise=clientPage.waitForResponse(r=>
-    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="GET",
-    {timeout:Math.max(1000,requesterStateDeadline-Date.now())}
-   );
-   requesterStateResponse=await requesterAcceptedStateResponsePromise;
-   requesterStateData=await requesterStateResponse.json();
-  }
-  assert.equal(requesterStateResponse.status(),200,"Le Client doit pouvoir lire l’état de son appel.");
-  assert.equal(requesterStateData.call?.status,"accepted","L’API de lecture doit exposer l’acceptation au demandeur.");
-  console.log("PASS — API Client GET : statut accepted confirmé.");
+  const requesterStateResult=await clientPage.evaluate(async id=>{
+   const response=await fetch("/api/support/calls/"+encodeURIComponent(id),{cache:"no-store"});
+   return {status:response.status,data:await response.json()};
+  },callId);
+  assert.equal(requesterStateResult.status,200,"Le Client doit pouvoir lire l’état de son appel : "+JSON.stringify(requesterStateResult.data));
+  assert.equal(requesterStateResult.data.call?.status,"accepted","L’API de lecture doit exposer l’acceptation au demandeur.");
+  console.log("PASS — API Client GET explicite : statut accepted confirmé.");
   await clientPage.getByText("Appel en cours",{exact:true}).waitFor({timeout:15000});
   await clientPage.getByRole("button",{name:"Raccrocher"}).waitFor({timeout:15000});
   console.log("PASS — interface Client : état accepté et commande Raccrocher rendus.");
