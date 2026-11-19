@@ -9,6 +9,7 @@ on:
       - "scripts/test-client-naxa-assistance.cjs"
       - "scripts/e2e/naxa-professional-support-browser.cjs"
       - "scripts/e2e/naxa-support-agent-browser.cjs"
+      - "scripts/test-support-audio.cjs"
       - "src/app/api/auth/login/route.ts"
       - "src/app/api/auth/username-recognition/route.ts"
       - "src/app/api/admin/support-agents/**"
