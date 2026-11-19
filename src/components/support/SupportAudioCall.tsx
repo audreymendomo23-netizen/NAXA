@@ -67,7 +67,12 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
         if (!active) return;
         setStatus(data.call.status as CallState);
         if (["cancelled", "declined", "completed", "failed", "missed"].includes(data.call.status)) {
-          setNotice("L’appel est terminé : " + data.call.status + ".");
+          const terminalMessage = data.call.status === "missed"
+            ? "Aucun Agent n’a pu prendre l’appel dans le délai prévu. Le Livechat écrit reste disponible."
+            : data.call.status === "failed"
+              ? "La session audio s’est interrompue. Le Livechat écrit reste disponible."
+              : "L’appel est terminé : " + data.call.status + ".";
+          setNotice(terminalMessage);
           stopMedia();
         }
       } catch (cause) {
@@ -80,8 +85,29 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   }, [callId, stopMedia]);
 
   useEffect(() => {
+    if (!callId || !status || ["cancelled", "declined", "completed", "failed", "missed"].includes(status)) return;
+    let active = true;
+    const heartbeat = async () => {
+      try {
+        const response = await fetch("/api/support/calls/" + encodeURIComponent(callId) + "/heartbeat", {
+          method: "POST",
+          cache: "no-store",
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "La session d’appel a expiré.");
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : "Heartbeat audio indisponible.");
+      }
+    };
+    void heartbeat();
+    const timer = window.setInterval(() => void heartbeat(), 15_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [callId, status]);
+
+  useEffect(() => {
     if (!callId || status !== "accepted" || channel.current) return;
     let active = true;
+    let reconnectTimer: number | null = null;
     const connect = async () => {
       try {
         const response = await fetch("/api/support/calls/" + encodeURIComponent(callId) + "/ice", { cache: "no-store" });
@@ -101,8 +127,42 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
           if (event.candidate) void sendSignal({ kind: "candidate", candidate: event.candidate.toJSON() }).catch((cause) => setError(cause instanceof Error ? cause.message : "Envoi du candidat réseau impossible."));
         };
         pc.onconnectionstatechange = () => {
-          setConnected(pc.connectionState === "connected");
-          if (pc.connectionState === "failed") setError("La connexion audio a échoué. Vérifie le réseau et le relais TURN.");
+          const connectionState = pc.connectionState;
+          setConnected(connectionState === "connected");
+          if (connectionState === "connected") {
+            if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            setError("");
+            setNotice("Connexion audio rétablie.");
+            return;
+          }
+          if (connectionState === "disconnected" || connectionState === "failed") {
+            setNotice("Reconnexion audio en cours. Le chat écrit reste disponible.");
+            if (mode === "requester") {
+              void sendSignal({ kind: "restart-request" }).catch((cause) => {
+                setError(cause instanceof Error ? cause.message : "Relance ICE impossible.");
+              });
+            }
+            if (reconnectTimer === null) {
+              reconnectTimer = window.setTimeout(async () => {
+                if (pc.connectionState === "connected") return;
+                try {
+                  const response = await fetch("/api/support/calls/" + encodeURIComponent(callId), {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "fail" }),
+                  });
+                  const data = await response.json();
+                  if (!response.ok) throw new Error(data.error || "La reconnexion audio a expiré.");
+                  setStatus(data.call.status as CallState);
+                  setNotice("La reconnexion n’a pas abouti en 20 secondes. Le Livechat écrit reste disponible.");
+                  stopMedia();
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : "La reconnexion audio a expiré.");
+                }
+              }, 20_000);
+            }
+          }
         };
 
         const realtime = supabase.channel("naxa-support-call:" + callId, {
@@ -170,7 +230,10 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       }
     };
     void connect();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+    };
   }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase]);
 
   useEffect(() => () => {

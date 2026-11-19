@@ -29,6 +29,23 @@ begin
  and has_function_privilege('service_role',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE'))
  then raise exception 'RPC request non réservée au backend'; end if;
  if not exists(select 1 from pg_indexes where schemaname='public' and indexname='support_calls_one_active_per_ticket_uq') then raise exception 'Unicité ticket absente'; end if;
+ if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='support_calls' and column_name='requester_heartbeat_at')
+ or not exists(select 1 from information_schema.columns where table_schema='public' and table_name='support_calls' and column_name='agent_heartbeat_at')
+ or not exists(select 1 from information_schema.columns where table_schema='public' and table_name='support_calls' and column_name='queue_expires_at') then
+   raise exception 'Colonnes heartbeat/expiration absentes'; end if;
+ if to_regprocedure('public.naxa_support_call_heartbeat(uuid,uuid)') is null
+ or to_regprocedure('private.naxa_support_call_reap_expired()') is null then
+   raise exception 'RPC heartbeat ou reaper absent'; end if;
+ if not exists(select 1 from cron.job where jobname='naxa-support-call-reaper' and schedule='* * * * *') then
+   raise exception 'Expiration cron des appels absente'; end if;
+ if position('80 seconds' in lower(pg_get_functiondef('public.naxa_support_call_request(uuid,uuid)'::regprocedure)))=0
+ or position('60 seconds' in lower(pg_get_functiondef('public.naxa_support_call_request(uuid,uuid)'::regprocedure)))=0 then
+   raise exception 'Délais de routage assigné/central non conformes'; end if;
+ if position('120 seconds' in lower(pg_get_functiondef('private.naxa_support_call_reap_expired()'::regprocedure)))=0 then
+   raise exception 'Lease session heartbeat non configurée'; end if;
+ if has_function_privilege('authenticated','public.naxa_support_call_heartbeat(uuid,uuid)','EXECUTE') then
+   raise exception 'RPC heartbeat accessible directement au client'; end if;
+
  if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_call_event_immutable' and not tgisinternal)
  then raise exception 'Journal append-only absent'; end if;
  if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_end_calls' and not tgisinternal)
