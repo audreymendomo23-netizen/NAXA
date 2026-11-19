@@ -164,3 +164,117 @@ Le run ciblé doit démontrer successivement `Agent appelé`, puis `Appel en cou
 - Recette exclusivement Replay ; aucun accès Production pour ces corrections ; pas de déploiement.
 - Ne jamais neutraliser les assertions, assouplir les politiques RLS/Realtime, ni confondre un statut de base avec une preuve média.
 - Le chantier reste **NON VERT** tant que la souscription privée Realtime et l'audio bidirectionnel réel n'ont pas passé, et que actionlint n'est pas vert.
+
+
+# Extension du chantier — Support global NAXA (20 novembre 2026)
+
+## Décision de périmètre à intégrer au chantier en cours
+
+Le Support NAXA est un service transversal unique, accessible depuis le **Profil Client** et le **Profil Professionnel**. Il ne s'agit pas de créer deux centres de support indépendants : les deux espaces utilisent une infrastructure commune de conversations, tickets, affectation des agents, appels, permissions et traçabilité. Les parcours, catégories et informations consultables restent adaptés au profil et au dossier concerné.
+
+Cette extension est ajoutée au chantier Support déjà ouvert et doit avancer en parallèle de la résolution des points de recette encore en attente. Elle ne remplace ni le Livechat existant, ni le mécanisme de prise atomique, ni les règles RLS/permissions. Elle ne permet pas de déclarer l'audio opérationnel avant validation de la preuve média.
+
+### Profils et contexte d'assistance
+
+- **Profil Client :** commandes, réservations, pharmacies, paiements, compte et sécurité, utilisation de NAXA.
+- **Profil Professionnel :** gestion de pharmacie, stock et caisse, personnel, Marketplace, abonnements et gestion professionnelle.
+- **Centre de support commun :** agents, superviseurs, réception et attribution des dossiers, transfert entre services, appels et suivi, historique et comptes rendus.
+- Pour chaque dossier, l'agent ne voit que le contexte explicitement autorisé et nécessaire à son intervention. Un dossier Client ne donne pas automatiquement accès aux données professionnelles d'une pharmacie, et inversement. La consultation doit être limitée au dossier, au profil, à l'affectation et aux permissions de l'agent.
+
+### Socle fonctionnel commun attendu
+
+Les deux espaces doivent proposer, selon les droits et le contexte :
+- FAQ et aide contextuelle ;
+- ouverture et suivi d'une demande, Livechat et historique du support ;
+- envoi de captures d'écran et de pièces jointes ;
+- appel audio intégré à NAXA ;
+- proposition de partage d'écran pendant une assistance, avec acceptation explicite et démarrage volontaire par l'utilisateur ;
+- suivi de résolution, compte rendu et évaluation de l'assistance.
+
+Le contenu, les catégories, les libellés, les formulaires et les autorisations sont adaptés au profil Client ou Professionnel. L'utilisateur reste dans NAXA et retrouve le Livechat après la fin de l'appel.
+
+### Partage d'écran — règles fonctionnelles et de sécurité
+
+Le partage d'écran est une extension native du Support NAXA, facultative et déclenchée avec consentement. L'agent peut proposer le partage ; **seul l'utilisateur concerné** (Client ou Professionnel) le démarre depuis son propre appareil et accorde l'autorisation demandée par le navigateur ou le système. L'agent ne peut jamais l'activer à distance ou silencieusement.
+
+Règles obligatoires :
+1. Consentement explicite, spécifique à la session et déclenché par l'utilisateur avant toute capture.
+2. Avertissement préalable : l'écran peut révéler notifications, messages privés, données de compte ou autres informations sensibles ; inviter l'utilisateur à fermer/masquer ces contenus avant le partage.
+3. Commande permanente et visible **« Arrêter le partage »** côté utilisateur ; arrêt immédiat à sa demande.
+4. Arrêt automatique lorsque l'appel ou la session de support se termine, est interrompu ou perd ses autorisations.
+5. Aucun enregistrement automatique de l'écran, de l'appel audio ou de la vidéo.
+6. Accès à la session visuelle réservé à l'agent effectivement affecté au dossier et autorisé ; révocation immédiate à la fin ou au transfert du dossier.
+7. Journaliser au minimum le consentement, le démarrage, l'arrêt, l'identité de l'agent et les horodatages, sans enregistrer le contenu visuel.
+8. Ne jamais demander à l'utilisateur d'afficher ou de communiquer son mot de passe ; prévenir contre l'affichage de coordonnées bancaires et de données privées.
+9. Aucun contrôle à distance du téléphone ou de l'ordinateur, aucune saisie ni action de l'agent sur l'appareil de l'utilisateur.
+10. Vérifier côté serveur l'identité, l'affectation, les permissions et l'état de l'appel ; une simple dissimulation du bouton dans l'interface ne constitue pas une protection.
+
+Le partage repose sur une capture consentie (notamment Screen Capture API / `getDisplayMedia()` dans les environnements compatibles) transportée dans la session WebRTC NAXA. La compatibilité doit être progressive : ordinateur comme première cible de validation, puis vérifications séparées sur Android et iOS, en tenant compte des limites du navigateur et du mode d'installation. L'indisponibilité d'une API sur un appareil doit produire une explication et un retour au Livechat, jamais un contournement du consentement.
+
+### Ordre fonctionnel retenu
+
+- **Niveau 1 — socle obligatoire :** Livechat, suivi des demandes et appels audio intégrés à NAXA.
+- **Niveau 2 — extension prioritaire du chantier :** partage d'écran volontaire, sécurisé et limité à la session de support. Son cadrage et son intégration doivent être traités dès maintenant avec la correction de la recette audio, sans déclarer son fonctionnement tant que les tests réels ne sont pas passés.
+- **Niveau 3 — extension ultérieure :** vidéo avec caméra, à proposer seulement après évaluation de sa valeur et de la compatibilité ; elle n'est pas un prérequis pour la première livraison audio + partage d'écran.
+- **Hors périmètre :** contrôle à distance, accès silencieux à l'écran, activation distante du microphone/de la caméra/du partage, enregistrement automatique, dépendance obligatoire à WhatsApp, Google Meet ou Teams.
+
+## Points de recette à reprendre en parallèle — ne pas confondre cadrage et validation
+
+### A. Audio WebRTC bidirectionnel — toujours NON PROUVÉ
+
+L'état précis est celui du diagnostic ci-dessus (run `44597102023`) : refus d'autorisation du canal privé Realtime, `RTCPeerConnection` encore `new`, aucun sender/receiver, aucun candidat ICE et aucun paquet RTP. Le démarrage TURN local et le GET ICE HTTP 200 ne prouvent pas le transport média.
+
+La correction doit donc établir l'authentification Realtime correcte pour le Client et l'Agent, préserver l'isolation stricte du canal, puis prouver la négociation WebRTC et les flux audio RTP entrants/sortants des deux côtés via TURN. Ne pas neutraliser les assertions ni élargir les politiques.
+
+### B. Bouton « Raccrocher » — délai de 15 secondes à revalider
+
+Le document source de cette extension signale un timeout de 15 secondes sur le bouton « Raccrocher ». Ce point n'est pas couvert par les preuves du dernier run et ne doit pas être considéré comme corrigé par le simple fait que l'interface affiche le bouton ou que le nettoyage E2E termine l'appel.
+
+À la reprise :
+- reproduire séparément le délai à partir du clic utilisateur, pour le Client et pour l'Agent ;
+- tracer le temps jusqu'à la confirmation visible, la réponse HTTP et l'état persistant du call ;
+- distinguer un retard de l'interface, de l'API, de Realtime ou de la fermeture des transports ;
+- vérifier qu'un double clic / retry ne termine pas deux fois l'appel et que l'appel, les ressources média et la session sont effectivement clôturés ;
+- ne conclure à PASS qu'après une mesure horodatée et une assertion E2E stable.
+
+État documentaire de ce point : **À REVALIDER** — signalement source pris en compte, nouvelle preuve de reproduction/correction non encore enregistrée dans ce checkpoint.
+
+## Critères de recette additionnels pour le Support global et le partage d'écran
+
+La fonctionnalité ne sera déclarée prête qu'après des tests distincts :
+- disponibilité des mêmes fonctions de base depuis un compte Client et depuis un compte Professionnel autorisé ;
+- séparation des catégories, du contexte et des données accessibles selon le profil et le dossier ;
+- refus d'accès d'un agent non affecté, d'un agent sans permission, d'un autre professionnel et d'un utilisateur tiers ;
+- proposition de partage par l'agent, mais démarrage impossible tant que l'utilisateur n'a pas lui-même accepté et lancé le partage ;
+- réception du flux écran uniquement par l'agent affecté ; absence de flux pour les autres sessions ;
+- arrêt utilisateur, arrêt à la fin de l'appel, révocation d'accès et transfert de dossier ;
+- absence d'enregistrement automatique et absence de contrôle distant ;
+- journalisation des événements/consentements sans stockage du contenu partagé ;
+- scénarios de refus de permission, périphérique non compatible, perte réseau et retour au Livechat ;
+- essais de compatibilité distincts ordinateur, Android et iOS, sans extrapoler le résultat d'un navigateur desktop à tous les appareils.
+
+## Statut consolidé après cette décision
+
+| Élément | État à ce checkpoint |
+|---|---|
+| Livechat, RLS et permissions agents | PASS dans les runs antérieurs référencés ; à préserver lors de l'extension |
+| Cycle de vie Agent / appels acceptés et ringing | PASS dans le run ciblé `44593655149` |
+| Appel audio bidirectionnel réel | **BLOQUÉ / NON PROUVÉ** — autorisation Realtime et RTP |
+| Timeout 15 s du bouton « Raccrocher » | **À REVALIDER** — aucune nouvelle preuve dans ce checkpoint |
+| Support unifié Client + Professionnel | **PÉRIMÈTRE VALIDÉ, IMPLÉMENTATION / E2E À AUDITER** |
+| Partage d'écran volontaire et sécurisé | **DÉCISION / EXIGENCES VALIDÉES, IMPLÉMENTATION / E2E NON PROUVÉES** |
+| Appel vidéo caméra | **EXTENSION ULTÉRIEURE, NON PRIORITAIRE** |
+| Actionlint / ShellCheck | **ÉCHEC À CORRIGER** — `SC2009` du run `44597102291` |
+
+## Reprise opératoire actualisée
+
+1. Corriger `SC2009` sans toucher au comportement TURN et faire repasser actionlint.
+2. Reprendre la cause Realtime avec les sessions Client et Agent réelles ; prouver les autorisations du même JWT, puis seulement appliquer le correctif justifié.
+3. Relancer l'audio bidirectionnel avec contrôle ICE relay, pistes et RTP dans les deux sens.
+4. Reproduire et mesurer séparément le timeout de 15 secondes sur « Raccrocher » ; corriger la cause démontrée et tester les deux participants.
+5. Auditer le code actuel du Support afin d'identifier les composants, routes, tables, politiques, API et composants partagés Client/Professionnel ; réutiliser l'infrastructure existante plutôt que créer un deuxième système.
+6. Implémenter le partage d'écran dans le même service de session, avec consentement utilisateur, permissions côté serveur, réception par l'agent affecté, arrêt et traçabilité. Faire progresser en parallèle la conception et l'intégration sans marquer la fonction active avant les preuves.
+7. Ajouter les scénarios E2E d'isolation, consentement, arrêt, fin d'appel, transfert et non-enregistrement, puis valider la compatibilité par type d'appareil.
+8. Mettre à jour ce document après chaque preuve ; ne déclarer le Support global vert qu'après validation de la portée retenue, sans assimiler une décision de périmètre à une fonctionnalité livrée.
+
+Les règles de gouvernance de la continuité restent inchangées : branche `main` uniquement, environnement Replay pour la recette, aucune modification Production et aucun déploiement pendant ces travaux.
