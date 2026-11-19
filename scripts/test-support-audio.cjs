@@ -67,5 +67,5 @@ assert.match(sqlTest, /support_calls_one_active_per_ticket_uq/);
 assert.match(sqlTest, /support_call_events_deny_client_read/);
 assert.match(sqlTest, /trg_naxa_support_profile_end_calls/);
 assert.match(sqlTest, /ticket_view_assigned/);
-assert.match(sqlTest, /Journal d’événements modifiable/);
+assert.match(sqlTest, /service_role doit être limité à SELECT sur les tables d’appel/);
 console.log("PASS — contrat audio NAXA : audio-only, canal privé participant, HMAC TURN éphémère, arrêt sur révocation et interfaces Client/Agent.");
