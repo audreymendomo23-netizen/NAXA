@@ -6,8 +6,9 @@ begin
  if not (select relrowsecurity from pg_class where oid='public.support_calls'::regclass)
  or not (select relrowsecurity from pg_class where oid='public.support_call_events'::regclass) then raise exception 'RLS absent'; end if;
  if has_table_privilege('service_role','public.support_call_events','UPDATE')
- or has_table_privilege('service_role','public.support_call_events','DELETE') then
- raise exception 'Journal d’événements modifiable'; end if;
+ or has_table_privilege('service_role','public.support_call_events','DELETE')
+ or has_table_privilege('service_role','public.support_calls','DELETE') then
+ raise exception 'Journal ou métadonnées d’appel supprimables/modifiables'; end if;
  if has_table_privilege('authenticated','public.support_calls','INSERT') or has_table_privilege('authenticated','public.support_calls','UPDATE')
  or has_table_privilege('authenticated','public.support_calls','DELETE') or has_table_privilege('authenticated','public.support_call_events','SELECT')
  then raise exception 'Privilège authenticated excessif'; end if;
@@ -32,5 +33,12 @@ begin
  if position('auth.uid()' in v_definition)=0 or position('status = ''accepted''' in v_definition)=0
  or position('requester_profile.actif' in v_definition)=0 or position('resolu' in v_definition)=0
  or position('ticket_view_assigned' in v_definition)=0 or position('audio_call' in v_definition)=0 then raise exception 'RLS Realtime ne limite pas aux participants'; end if;
+ select pg_get_functiondef('public.naxa_support_call_accept(uuid,uuid)'::regprocedure) into v_definition;
+ if position('queue_view' in v_definition)=0 then raise exception 'Prise de file centrale non protégée'; end if;
+ if position('for update of sa skip locked' in lower(pg_get_functiondef('public.naxa_support_call_request(uuid,uuid)'::regprocedure)))=0 then
+   raise exception 'Routage Agent non sérialisé'; end if;
+ if not exists(select 1 from pg_constraint where conrelid='public.support_calls'::regclass and conname='support_calls_requester_user_id_fkey' and confdeltype='n')
+ or not exists(select 1 from pg_constraint where conrelid='public.support_calls'::regclass and conname='support_calls_ticket_id_fkey' and confdeltype='n') then
+   raise exception 'Suppression des références audit non résiliente'; end if;
 end; $test$;
 rollback;
