@@ -43,8 +43,35 @@ begin
  if p_actor_user_id is null or p_actor_user_id is distinct from (select auth.uid()) then return false; end if;
  if p_topic !~ '^naxa-support-call:[0-9a-fA-F-]{36}$' then return false; end if;
  v_call_id := substring(p_topic from 19)::uuid;
- return exists(select 1 from public.support_calls c where c.id=v_call_id and c.status='accepted'
-   and (c.requester_user_id=p_actor_user_id or c.agent_user_id=p_actor_user_id));
+ return exists(
+   select 1
+   from public.support_calls c
+   join public.tickets_support t on t.id=c.ticket_id
+   join public.profiles requester_profile on requester_profile.id=c.requester_user_id
+   where c.id=v_call_id
+     and c.status='accepted'
+     and t.statut not in ('resolu','ferme')
+     and requester_profile.actif is true
+     and (
+       c.requester_user_id=p_actor_user_id
+       or (
+         c.agent_user_id=p_actor_user_id
+         and exists (
+           select 1 from public.support_agents a
+           where a.user_id=p_actor_user_id and a.status='active'
+             and a.must_change_password is false and a.consent_accepted_at is not null
+         )
+         and exists (
+           select 1 from public.support_agent_permissions p
+           where p.agent_user_id=p_actor_user_id and p.permission_code='audio_call' and p.revoked_at is null
+         )
+         and exists (
+           select 1 from public.support_agent_permissions p
+           where p.agent_user_id=p_actor_user_id and p.permission_code='ticket_view_assigned' and p.revoked_at is null
+         )
+       )
+     )
+ );
 end; $function$;
 revoke all on function private.naxa_support_call_realtime_access(text,uuid) from public,anon;
 grant execute on function private.naxa_support_call_realtime_access(text,uuid) to authenticated,service_role;
@@ -111,6 +138,25 @@ drop trigger if exists trg_naxa_support_agent_permission_end_calls on public.sup
 create trigger trg_naxa_support_agent_permission_end_calls after update of revoked_at on public.support_agent_permissions
 for each row when (old.revoked_at is null and new.revoked_at is not null and new.permission_code='audio_call')
 execute function private.naxa_support_agent_permission_end_calls();
+
+create or replace function private.naxa_support_profile_end_calls()
+returns trigger language plpgsql security definer set search_path=''
+as $function$
+declare v_call record;
+begin
+ if old.actif is true and new.actif is false then
+  for v_call in select id from public.support_calls
+    where requester_user_id=new.id and status in ('queued','ringing','accepted') loop
+    perform private.naxa_support_call_finish_active(v_call.id,null,'requester_profile_suspended');
+  end loop;
+ end if;
+ return new;
+end; $function$;
+revoke all on function private.naxa_support_profile_end_calls() from public,anon,authenticated;
+drop trigger if exists trg_naxa_support_profile_end_calls on public.profiles;
+create trigger trg_naxa_support_profile_end_calls after update of actif on public.profiles
+for each row when (old.actif is true and new.actif is false)
+execute function private.naxa_support_profile_end_calls();
 
 create or replace function private.naxa_support_ticket_end_calls()
 returns trigger language plpgsql security definer set search_path=''

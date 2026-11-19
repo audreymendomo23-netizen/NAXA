@@ -13,6 +13,10 @@ export async function GET(_request:Request,context:{params:Promise<{callId:strin
  if(call.agent_user_id===auth.user.id){
   const agent=await authorizeSupportAgent("audio_call");
   if(!agent.ok)return NextResponse.json({error:agent.error},{status:agent.status});
+ }else if(call.requester_user_id===auth.user.id){
+  const {data:profile,error:profileError}=await db.from("profiles").select("actif").eq("id",auth.user.id).maybeSingle();
+  if(profileError)return NextResponse.json({error:"Statut du profil indisponible."},{status:503});
+  if(!profile||profile.actif!==true)return NextResponse.json({error:"Le profil demandeur est suspendu."},{status:403});
  }
  const parseUrls=(value:string|undefined)=>(value??"").split(",").map(x=>x.trim()).filter(x=>/^(stun|stuns|turn|turns):/i.test(x));
  const turns=parseUrls(process.env.NAXA_TURN_URLS),stuns=parseUrls(process.env.NAXA_STUN_URLS),secret=process.env.NAXA_TURN_SHARED_SECRET;
