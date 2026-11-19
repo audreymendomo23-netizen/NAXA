@@ -24,13 +24,26 @@ create table if not exists public.support_call_events (
  details jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
 );
 create index if not exists support_call_events_call_idx on public.support_call_events(call_id,created_at);
+
+create or replace function private.naxa_support_call_event_immutable()
+returns trigger language plpgsql set search_path=''
+as $function$
+begin
+ raise exception 'Le journal des appels NAXA est immuable';
+end; $function$;
+revoke all on function private.naxa_support_call_event_immutable() from public,anon,authenticated;
+drop trigger if exists trg_naxa_support_call_event_immutable on public.support_call_events;
+create trigger trg_naxa_support_call_event_immutable
+before update or delete on public.support_call_events
+for each row execute function private.naxa_support_call_event_immutable();
+
 alter table public.support_calls enable row level security;
 alter table public.support_call_events enable row level security;
 revoke all on public.support_calls from public,anon,authenticated;
 revoke all on public.support_call_events from public,anon,authenticated;
 grant select on public.support_calls to authenticated;
 grant select,insert,update,delete on public.support_calls to service_role;
-grant select,insert,update,delete on public.support_call_events to service_role;
+grant select,insert on public.support_call_events to service_role;
 drop policy if exists support_calls_participant_read on public.support_calls;
 create policy support_calls_participant_read on public.support_calls for select to authenticated
 using(requester_user_id=(select auth.uid()) or agent_user_id=(select auth.uid()));
@@ -186,8 +199,14 @@ begin
  for update of t;
  if not found then raise exception 'Dossier support inaccessible'; end if;
  if v_ticket.statut in ('resolu','ferme') then raise exception 'Dossier résolu ou clôturé'; end if;
+ select * into v_call from public.support_calls
+ where ticket_id=p_ticket_id and status in ('queued','ringing','accepted')
+ for update;
+ if found then return v_call; end if;
  insert into public.support_calls(ticket_id,requester_user_id,status,fallback_at)
  values(p_ticket_id,p_actor_user_id,'queued',clock_timestamp()) returning * into v_call;
+ insert into public.support_call_events(call_id,actor_user_id,event_code,details)
+ values(v_call.id,p_actor_user_id,'call_requested','{}'::jsonb);
  select a.agent_user_id into v_agent_id from public.support_ticket_assignments a
  join public.support_agents sa on sa.user_id=a.agent_user_id
  join public.support_agent_permissions p on p.agent_user_id=a.agent_user_id
@@ -211,8 +230,6 @@ begin
   insert into public.support_call_events(call_id,actor_user_id,event_code,details)
   values(v_call.id,p_actor_user_id,'call_routed',jsonb_build_object('route','central_queue'));
  end if;
- insert into public.support_call_events(call_id,actor_user_id,event_code,details)
- values(v_call.id,p_actor_user_id,'call_requested','{}'::jsonb);
  return v_call;
 end; $function$;
 
@@ -220,7 +237,7 @@ create or replace function public.naxa_support_call_accept(p_actor_user_id uuid,
 returns public.support_calls language plpgsql security definer set search_path=''
 as $function$
 declare v_call public.support_calls%rowtype; v_agent public.support_agents%rowtype;
- v_assignment public.support_ticket_assignments%rowtype; v_had_assignment boolean:=false;
+ v_assignment public.support_ticket_assignments%rowtype; v_had_assignment boolean:=false; v_reassigned boolean:=false;
 begin
  select * into v_agent from public.support_agents where user_id=p_actor_user_id for update;
  if not found or v_agent.status<>'active' or v_agent.presence<>'available' or v_agent.must_change_password is true or v_agent.consent_accepted_at is null
@@ -239,6 +256,7 @@ begin
  select * into v_assignment from public.support_ticket_assignments a where a.ticket_id=v_call.ticket_id and a.released_at is null for update;
  v_had_assignment:=found;
  if v_had_assignment and v_assignment.agent_user_id<>p_actor_user_id then
+  v_reassigned:=true;
   update public.support_ticket_assignments set released_by=p_actor_user_id,released_at=clock_timestamp(),release_reason='audio_call_queue_routing' where id=v_assignment.id;
   v_had_assignment:=false;
  end if;
@@ -249,7 +267,7 @@ begin
  update public.support_calls set agent_user_id=p_actor_user_id,status='accepted',accepted_at=clock_timestamp(),fallback_at=clock_timestamp(),updated_at=clock_timestamp()
  where id=p_call_id returning * into v_call;
  insert into public.support_call_events(call_id,actor_user_id,event_code,details)
- values(p_call_id,p_actor_user_id,case when v_had_assignment then 'call_accepted' else 'call_reassigned' end,jsonb_build_object('agent_user_id',p_actor_user_id));
+ values(p_call_id,p_actor_user_id,case when v_reassigned then 'call_reassigned' else 'call_accepted' end,jsonb_build_object('agent_user_id',p_actor_user_id));
  return v_call;
 end; $function$;
 

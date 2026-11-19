@@ -5,6 +5,9 @@ begin
  if to_regclass('public.support_calls') is null or to_regclass('public.support_call_events') is null then raise exception 'Tables d’appels absentes'; end if;
  if not (select relrowsecurity from pg_class where oid='public.support_calls'::regclass)
  or not (select relrowsecurity from pg_class where oid='public.support_call_events'::regclass) then raise exception 'RLS absent'; end if;
+ if has_table_privilege('service_role','public.support_call_events','UPDATE')
+ or has_table_privilege('service_role','public.support_call_events','DELETE') then
+ raise exception 'Journal d’événements modifiable'; end if;
  if has_table_privilege('authenticated','public.support_calls','INSERT') or has_table_privilege('authenticated','public.support_calls','UPDATE')
  or has_table_privilege('authenticated','public.support_calls','DELETE') or has_table_privilege('authenticated','public.support_call_events','SELECT')
  then raise exception 'Privilège authenticated excessif'; end if;
@@ -16,6 +19,8 @@ begin
  and has_function_privilege('service_role',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE'))
  then raise exception 'RPC request non réservée au backend'; end if;
  if not exists(select 1 from pg_indexes where schemaname='public' and indexname='support_calls_one_active_per_ticket_uq') then raise exception 'Unicité ticket absente'; end if;
+ if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_call_event_immutable' and not tgisinternal)
+ then raise exception 'Journal append-only absent'; end if;
  if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_end_calls' and not tgisinternal)
  or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_permission_end_calls' and not tgisinternal)
  or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_ticket_end_calls' and not tgisinternal)
