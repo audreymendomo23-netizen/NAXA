@@ -63,13 +63,23 @@ export function ParcoursClientShell({ children }: { children: React.ReactNode })
     });
     return () => { actif = false; subscription.unsubscribe(); };
   }, []);
-  const parcoursClientAuthentifie = sessionReady && clientConnecte && appartientAuParcoursClient(pathname);
-  const widgetClientVisible = sessionReady && Boolean(clientIdActif) && appartientAuParcoursClient(pathname) && pathname !== "/faq";
+  const parcoursClient = appartientAuParcoursClient(pathname);
+  const parcoursClientAuthentifie = sessionReady && clientConnecte && parcoursClient;
+  const widgetClientVisible = sessionReady && Boolean(clientIdActif) && parcoursClient && pathname !== "/faq";
   const widgetProfessionnelVisible = sessionReady && Boolean(professionnelIdActif) && appartientAuParcoursProfessionnel(pathname);
   const widgetVisible = widgetClientVisible || widgetProfessionnelVisible;
   return <>
     {parcoursClientAuthentifie && <EnTeteClient />}
-    {parcoursClientAuthentifie ? <div key={pathname} className="naxa-immersive-page naxa-immersive-scroll" data-naxa-parcours="client-authentifie">{children}</div> : children}
+    {parcoursClient ? (
+      <div
+        key={pathname}
+        className={parcoursClientAuthentifie ? "naxa-immersive-page naxa-immersive-scroll" : undefined}
+        style={parcoursClientAuthentifie ? undefined : { display: "contents" }}
+        data-naxa-parcours={parcoursClientAuthentifie ? "client-authentifie" : undefined}
+      >
+        {children}
+      </div>
+    ) : children}
     {widgetVisible && <NaxaSupportWidget hasBottomNav={widgetClientVisible && bottomNavigationVisible(pathname)} />}
   </>;
 }

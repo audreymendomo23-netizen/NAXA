@@ -142,6 +142,9 @@ async function run(){
   clientPage=await clientContext.newPage();
   clientPage.on("close",()=>console.log("TRACE — client assigned-call page closed"));
   clientPage.on("crash",()=>console.log("TRACE — client assigned-call page crashed"));
+  clientPage.on("framenavigated",frame=>{
+   if(frame===clientPage.mainFrame())console.log("TRACE — client main frame navigated "+frame.url());
+  });
   clientPage.on("pageerror",error=>console.log("BROWSER PAGEERROR — "+error.message));
   clientPage.on("console",message=>{if(message.type()==="error")console.log("BROWSER CONSOLE ERROR — "+message.text());});
   clientPage.on("requestfailed",request=>console.log("BROWSER REQUEST FAILED — "+request.method()+" "+request.url()+" :: "+(request.failure()?.errorText??"unknown")));
@@ -160,6 +163,8 @@ async function run(){
   assert.equal(requestData.call.status,"ringing");
   assert.equal(requestData.call.agent_user_id,agentA.id,"L'Agent affecté doit être appelé en premier.");
   state.calls.push({id:callId,requesterId:clientSession.profile.id});save();
+  await clientPage.getByText("Agent appelé",{exact:true}).waitFor({timeout:10000});
+  console.log("PASS — interface Client rend immédiatement l’état ringing après la demande.");
   await waitForCallHeartbeat(callId,"requester_heartbeat_at","Heartbeat automatique du Client");
   console.log("PASS — heartbeat automatique Client persisté dans support_calls.");
 
@@ -180,7 +185,7 @@ async function run(){
   clientPage.on("response",async response=>{
    if(response.url().includes("/api/support/calls/"+callId)&&response.request().method()==="GET"){
     let payload=null;
-    try{payload=await response.clone().json();}catch{}
+    try{payload=await response.json();}catch{}
     console.log("TRACE — requester call-state response "+response.status()+" "+response.url()+" body="+JSON.stringify(payload?.call?{status:payload.call.status,agent_user_id:payload.call.agent_user_id}:payload));
    }
   });
