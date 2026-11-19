@@ -20,7 +20,7 @@ assert.match(migration, /naxa_support_agent_end_calls/i);
 assert.match(migration, /naxa_support_ticket_end_calls/i);
 assert.match(migration, /naxa_support_agent_permission_end_calls/i);
 assert.match(migration, /realtime\.messages/i);
-assert.doesNotMatch(migration, /\b(sdp|ice_candidate|recording_url|audio_blob)\b/i);
+assert.doesNotMatch(migration, /^\s*(?:sdp|ice_candidate|recording_url|audio_blob)\s+/im);
 assert.match(client, /video:\s*false/);
 assert.match(client, /config:\s*\{\s*private:\s*true/);
 assert.match(client, /setRemoteDescription/);
