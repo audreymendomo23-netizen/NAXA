@@ -17,7 +17,6 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [audioOutputs, setAudioOutputs] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [selectedOutput, setSelectedOutput] = useState("default");
   const remoteAudio = useRef<HTMLAudioElement | null>(null);
@@ -172,7 +171,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     };
     void connect();
     return () => { active = false; };
-  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase, connectionAttempt]);
+  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase]);
 
   useEffect(() => () => {
     peer.current?.close();
