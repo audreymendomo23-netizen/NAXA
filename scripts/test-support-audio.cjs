@@ -78,6 +78,8 @@ assert.match(agentCallsApi, /supabaseAdmin\(\)\.from\("support_calls"\)/);
 assert.match(agentCallsApi, /supabaseAdmin\(\)\.from\("tickets_support"\)/);
 assert.match(agentBrowser, /E2E Agent Central Queue/);
 assert.match(agentBrowser, /file centrale : demande queued visible/);
+assert.match(agentBrowser, /Raccrocher/);
+assert.match(agentBrowser, /libération de l\x27unicité un appel actif/);
 assert.match(agentBrowser, /agent_permission_revoked_audio_call/);
 assert.match(agentUi, /Refuser l’appel/);
 assert.match(agentTicketUi, /attachmentUrl/);

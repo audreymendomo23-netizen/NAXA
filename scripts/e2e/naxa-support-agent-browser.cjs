@@ -174,6 +174,20 @@ async function run(){
   assert.ok(callProof.data.requester_heartbeat_at);
   assert.ok(callProof.data.agent_heartbeat_at);
   console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
+  const requesterEndPromise=clientPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
+   {timeout:20000}
+  );
+  await clientPage.getByRole("button",{name:"Raccrocher"}).click();
+  const requesterEnd=await requesterEndPromise;
+  assert.equal(requesterEnd.status(),200,"Le demandeur doit pouvoir raccrocher l'appel actif.");
+  const endedAssignedCall=await admin.from("support_calls").select("status,ended_at")
+   .eq("id",callId).single();
+  if(endedAssignedCall.error)throw endedAssignedCall.error;
+  assert.equal(endedAssignedCall.data.status,"completed");
+  assert.ok(endedAssignedCall.data.ended_at);
+  console.log("PASS — raccrochage Client, libération de l'unicité un appel actif par demandeur.");
+
 
   // Second appel dans un contexte navigateur isolé pour ne pas réutiliser la page WebRTC précédente.
   queueClientContext=await contextFor(browser,clientSession);
