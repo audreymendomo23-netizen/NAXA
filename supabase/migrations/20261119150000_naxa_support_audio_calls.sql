@@ -220,7 +220,9 @@ begin
      and view_grant.revoked_at is null
  )
  and not exists(select 1 from public.support_calls busy where busy.agent_user_id=a.agent_user_id and busy.status in ('ringing','accepted'))
- limit 1;
+ order by a.assigned_at asc
+ limit 1
+ for update of sa skip locked;
  if v_agent_id is not null then
   update public.support_calls set agent_user_id=v_agent_id,status='ringing',fallback_at=clock_timestamp()+interval '20 seconds',updated_at=clock_timestamp()
   where id=v_call.id returning * into v_call;
@@ -236,38 +238,78 @@ end; $function$;
 create or replace function public.naxa_support_call_accept(p_actor_user_id uuid,p_call_id uuid)
 returns public.support_calls language plpgsql security definer set search_path=''
 as $function$
-declare v_call public.support_calls%rowtype; v_agent public.support_agents%rowtype;
- v_assignment public.support_ticket_assignments%rowtype; v_had_assignment boolean:=false; v_reassigned boolean:=false;
+declare
+ v_call public.support_calls%rowtype;
+ v_agent public.support_agents%rowtype;
+ v_assignment public.support_ticket_assignments%rowtype;
+ v_ticket_id uuid;
+ v_had_assignment boolean:=false;
+ v_reassigned boolean:=false;
 begin
- select * into v_agent from public.support_agents where user_id=p_actor_user_id for update;
- if not found or v_agent.status<>'active' or v_agent.presence<>'available' or v_agent.must_change_password is true or v_agent.consent_accepted_at is null
- then raise exception 'Agent inactif ou indisponible'; end if;
- if not exists(select 1 from public.support_agent_permissions p where p.agent_user_id=p_actor_user_id and p.permission_code='audio_call' and p.revoked_at is null)
- or not exists(select 1 from public.support_agent_permissions p where p.agent_user_id=p_actor_user_id and p.permission_code='ticket_view_assigned' and p.revoked_at is null)
- then raise exception 'Permission appel audio ou lecture du dossier absente'; end if;
- select * into v_call from public.support_calls where id=p_call_id for update;
- if not found or v_call.status not in ('queued','ringing') then raise exception 'Appel indisponible ou déjà pris'; end if;
- if v_call.status='ringing' and v_call.agent_user_id is not null and v_call.agent_user_id<>p_actor_user_id and v_call.fallback_at>clock_timestamp()
- then raise exception 'L’Agent affecté dispose encore de la priorité d’appel'; end if;
- if exists(select 1 from public.support_calls busy where busy.agent_user_id=p_actor_user_id and busy.id<>p_call_id and busy.status in ('ringing','accepted'))
- then raise exception 'Cet Agent est déjà engagé dans un appel'; end if;
- perform 1 from public.tickets_support t where t.id=v_call.ticket_id and t.type='support_naxa' and t.statut not in ('resolu','ferme') for update;
+ -- Global lock order: ticket, Agent, then call. It matches the request path and
+ -- ticket/Agent lifecycle triggers, avoiding lock inversion during routing.
+ select c.ticket_id into v_ticket_id from public.support_calls c where c.id=p_call_id;
+ if not found then raise exception 'Appel introuvable'; end if;
+
+ perform 1
+ from public.tickets_support t
+ join public.profiles requester_profile on requester_profile.id=t.auteur_profile_id
+ where t.id=v_ticket_id and t.type='support_naxa'
+   and t.statut not in ('resolu','ferme') and requester_profile.actif is true
+ for update of t;
  if not found then raise exception 'Le dossier n’est plus ouvert'; end if;
- select * into v_assignment from public.support_ticket_assignments a where a.ticket_id=v_call.ticket_id and a.released_at is null for update;
+
+ select * into v_agent from public.support_agents where user_id=p_actor_user_id for update;
+ if not found or v_agent.status<>'active' or v_agent.presence<>'available'
+   or v_agent.must_change_password is true or v_agent.consent_accepted_at is null
+ then raise exception 'Agent inactif ou indisponible'; end if;
+ if not exists(
+   select 1 from public.support_agent_permissions p
+   where p.agent_user_id=p_actor_user_id and p.permission_code='audio_call' and p.revoked_at is null
+ ) or not exists(
+   select 1 from public.support_agent_permissions p
+   where p.agent_user_id=p_actor_user_id and p.permission_code='ticket_view_assigned' and p.revoked_at is null
+ ) then raise exception 'Permission appel audio ou lecture du dossier absente'; end if;
+
+ select * into v_call from public.support_calls where id=p_call_id for update;
+ if not found or v_call.ticket_id is distinct from v_ticket_id
+   or v_call.status not in ('queued','ringing') then
+   raise exception 'Appel indisponible ou déjà pris';
+ end if;
+ if v_call.status='ringing' and v_call.agent_user_id is not null
+   and v_call.agent_user_id<>p_actor_user_id and v_call.fallback_at>clock_timestamp() then
+   raise exception 'L’Agent affecté dispose encore de la priorité d’appel';
+ end if;
+ if exists(
+   select 1 from public.support_calls busy
+   where busy.agent_user_id=p_actor_user_id and busy.id<>p_call_id
+     and busy.status in ('ringing','accepted')
+ ) then raise exception 'Cet Agent est déjà engagé dans un appel'; end if;
+
+ select * into v_assignment
+ from public.support_ticket_assignments a
+ where a.ticket_id=v_call.ticket_id and a.released_at is null
+ for update;
  v_had_assignment:=found;
  if v_had_assignment and v_assignment.agent_user_id<>p_actor_user_id then
   v_reassigned:=true;
-  update public.support_ticket_assignments set released_by=p_actor_user_id,released_at=clock_timestamp(),release_reason='audio_call_queue_routing' where id=v_assignment.id;
+  update public.support_ticket_assignments
+    set released_by=p_actor_user_id,released_at=clock_timestamp(),release_reason='audio_call_queue_routing'
+  where id=v_assignment.id;
   v_had_assignment:=false;
  end if;
  if not v_had_assignment then
   insert into public.support_ticket_assignments(ticket_id,agent_user_id,assigned_by,assignment_source)
   values(v_call.ticket_id,p_actor_user_id,p_actor_user_id,'queue');
  end if;
- update public.support_calls set agent_user_id=p_actor_user_id,status='accepted',accepted_at=clock_timestamp(),fallback_at=clock_timestamp(),updated_at=clock_timestamp()
+ update public.support_calls
+  set agent_user_id=p_actor_user_id,status='accepted',accepted_at=clock_timestamp(),
+      fallback_at=clock_timestamp(),updated_at=clock_timestamp()
  where id=p_call_id returning * into v_call;
  insert into public.support_call_events(call_id,actor_user_id,event_code,details)
- values(p_call_id,p_actor_user_id,case when v_reassigned then 'call_reassigned' else 'call_accepted' end,jsonb_build_object('agent_user_id',p_actor_user_id));
+ values(p_call_id,p_actor_user_id,
+   case when v_reassigned then 'call_reassigned' else 'call_accepted' end,
+   jsonb_build_object('agent_user_id',p_actor_user_id));
  return v_call;
 end; $function$;
 
