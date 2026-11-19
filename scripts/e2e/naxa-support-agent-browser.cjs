@@ -91,7 +91,7 @@ async function createTicket(client,subject){
  const row=Array.isArray(r.data)?r.data[0]:r.data;assert.ok(row.ticket_id);state.tickets.push(row.ticket_id);save();return row.ticket_id;
 }
 async function run(){
- let browser,adminContext,clientContext,a,b,callId=null,clientPage=null;
+ let browser,adminContext,clientContext,queueClientContext,a,b,callId=null,clientPage=null,queueClientPage=null;
  try{
   const [clientSession,adminSession]=await Promise.all([sessionFor("naxa_e2e_acheteur","client"),sessionFor("e2e_admin_261104","admin")]);
   const client=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
@@ -121,6 +121,9 @@ async function run(){
   // Demande d'appel réelle depuis l'espace Client, puis refus des participants non prioritaires.
   clientContext=await contextFor(browser,clientSession);
   clientPage=await clientContext.newPage();
+  clientPage.on("close",()=>console.log("TRACE — client assigned-call page closed"));
+  clientPage.on("crash",()=>console.log("TRACE — client assigned-call page crashed"));
+  clientContext.on("close",()=>console.log("TRACE — assigned-call browser context closed"));
   await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketA));
   await clientPage.getByRole("heading",{name:"E2E Agent A "+tag}).waitFor({timeout:20000});
   const requesterHeartbeatPromise=clientPage.waitForResponse(r=>
@@ -172,26 +175,37 @@ async function run(){
   assert.ok(callProof.data.agent_heartbeat_at);
   console.log("PASS — appel Client→Agent affecté, acceptation atomique, refus inter-Agent et deux heartbeats.");
 
-  // Appel non attribué : l'Agent autorisé voit et prend la demande dans la file centrale.
-  await clientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketQueue));
-  await clientPage.getByRole("heading",{name:"E2E Agent Central Queue "+tag}).waitFor({timeout:20000});
-  const queuedHeartbeatPromise=clientPage.waitForResponse(r=>
+  // Second appel dans un contexte navigateur isolé pour ne pas réutiliser la page WebRTC précédente.
+  queueClientContext=await contextFor(browser,clientSession);
+  queueClientPage=await queueClientContext.newPage();
+  queueClientPage.on("close",()=>console.log("TRACE — central-queue client page closed"));
+  queueClientPage.on("crash",()=>console.log("TRACE — central-queue client page crashed"));
+  queueClientContext.on("close",()=>console.log("TRACE — central-queue client context closed"));
+  assert.equal(queueClientPage.isClosed(),false);
+  await queueClientPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(ticketQueue));
+  await queueClientPage.getByRole("heading",{name:"E2E Agent Central Queue "+tag}).waitFor({timeout:20000});
+  assert.equal(queueClientPage.isClosed(),false,"La page Client centrale doit rester ouverte après le chargement du dossier.");
+  const queuedHeartbeatPromise=queueClientPage.waitForResponse(r=>
    r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
    {timeout:20000}
-  );
-  const queuedRequestPromise=clientPage.waitForResponse(r=>
+  ).then(response=>({response}),error=>({error}));
+  const queuedRequestPromise=queueClientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",
    {timeout:20000}
-  );
-  await clientPage.getByRole("button",{name:"Demander un appel audio"}).click();
-  const queuedResponse=await queuedRequestPromise;
+  ).then(response=>({response}),error=>({error}));
+  await queueClientPage.getByRole("button",{name:"Demander un appel audio"}).click();
+  const queuedRequestResult=await queuedRequestPromise;
+  if(queuedRequestResult.error) throw queuedRequestResult.error;
+  const queuedResponse=queuedRequestResult.response;
   const queuedData=await queuedResponse.json();
   assert.equal(queuedResponse.status(),201,JSON.stringify(queuedData));
   const queueCallId=queuedData.call.id;
   assert.equal(queuedData.call.status,"queued");
   assert.equal(queuedData.call.agent_user_id,null);
   state.calls.push({id:queueCallId,requesterId:clientSession.profile.id});save();
-  assert.equal((await queuedHeartbeatPromise).status(),200);
+  const queuedHeartbeatResult=await queuedHeartbeatPromise;
+  if(queuedHeartbeatResult.error) throw queuedHeartbeatResult.error;
+  assert.equal(queuedHeartbeatResult.response.status(),200);
   await b.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
   const queueAgentHeartbeatPromise=b.page.waitForResponse(r=>
    r.url().includes("/api/support/calls/")&&r.url().endsWith("/heartbeat")&&r.request().method()==="POST",
@@ -207,7 +221,7 @@ async function run(){
   assert.equal(queueProof.data.status,"accepted");
   assert.equal(queueProof.data.agent_user_id,agentB.id);
   assert.ok(queueProof.data.requester_heartbeat_at&&queueProof.data.agent_heartbeat_at);
-  const finishQueuedCall=await clientPage.evaluate(async id=>{
+  const finishQueuedCall=await queueClientPage.evaluate(async id=>{
    const r=await fetch("/api/support/calls/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"end"})});
    return {status:r.status,data:await r.json()};
   },queueCallId);
@@ -299,7 +313,7 @@ async function run(){
   console.log("PASS GLOBAL — cycle de vie Agent, login, permissions, RLS, messagerie, file et concurrence.");
  }finally{
   if(a?.context)await a.context.close().catch(()=>{});if(b?.context)await b.context.close().catch(()=>{});
-  if(clientContext)await clientContext.close().catch(()=>{});if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
+  if(queueClientContext)await queueClientContext.close().catch(()=>{});if(clientContext)await clientContext.close().catch(()=>{});if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
   await cleanup();
  }
 }
