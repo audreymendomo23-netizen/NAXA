@@ -5,7 +5,7 @@ import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 const USERNAME = /^[a-z0-9][a-z0-9._-]{2,29}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_PERMISSIONS = new Set([
-  "queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note","attachments_read",
+  "queue_view","ticket_view_assigned","ticket_reply","ticket_internal_note","attachments_read","audio_call",
 ]);
 
 async function requireActiveAdmin() {

@@ -8,6 +8,7 @@ const PERMISSIONS = [
   ["ticket_reply","Répondre aux demandeurs"],
   ["ticket_internal_note","Ajouter des notes internes"],
   ["attachments_read","Lire les pièces jointes"],
+  ["audio_call","Prendre les appels audio"],
 ] as const;
 
 type Agent = {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { creerDemandeNaxa, envoyerReponseNaxa } from "./actions";
+import { SupportAudioCall } from "@/components/support/SupportAudioCall";
 
 export const metadata = {
   title: "Assistance NAXA — Écrire à notre équipe",
@@ -183,6 +184,7 @@ export default async function AssistanceNaxaPage({
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  {current.statut !== "ferme" && current.statut !== "resolu" && <div className="border-b border-slate-200 p-4"><SupportAudioCall ticketId={current.id} mode="requester" /></div>}
                   <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-4">
                     <div><p className="font-mono text-xs font-bold text-[#064B2A]">{current.reference_code}</p><h3 className="mt-1 font-extrabold">{current.sujet}</h3><p className="mt-1 text-xs text-slate-500">Ouverte le {formatter(current.created_at)}</p></div>
                     <span className={"rounded-full px-3 py-2 text-xs font-bold " + status?.tone}>{status?.label}</span>

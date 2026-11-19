@@ -1,0 +1,28 @@
+begin;
+do $test$
+declare v_count integer; v_definition text;
+begin
+ if to_regclass('public.support_calls') is null or to_regclass('public.support_call_events') is null then raise exception 'Tables d’appels absentes'; end if;
+ if not (select relrowsecurity from pg_class where oid='public.support_calls'::regclass)
+ or not (select relrowsecurity from pg_class where oid='public.support_call_events'::regclass) then raise exception 'RLS absent'; end if;
+ if has_table_privilege('authenticated','public.support_calls','INSERT') or has_table_privilege('authenticated','public.support_calls','UPDATE')
+ or has_table_privilege('authenticated','public.support_calls','DELETE') or has_table_privilege('authenticated','public.support_call_events','SELECT')
+ then raise exception 'Privilège authenticated excessif'; end if;
+ select count(*) into v_count from pg_policies where schemaname='realtime' and tablename='messages'
+ and policyname in ('naxa_support_call_broadcast_read','naxa_support_call_broadcast_write');
+ if v_count<>2 then raise exception 'Policies Realtime privées incomplètes'; end if;
+ if not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+ where n.nspname='public' and p.proname='naxa_support_call_request'
+ and has_function_privilege('service_role',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE'))
+ then raise exception 'RPC request non réservée au backend'; end if;
+ if not exists(select 1 from pg_indexes where schemaname='public' and indexname='support_calls_one_active_per_ticket_uq') then raise exception 'Unicité ticket absente'; end if;
+ if not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_end_calls' and not tgisinternal)
+ or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_agent_permission_end_calls' and not tgisinternal)
+ or not exists(select 1 from pg_trigger where tgname='trg_naxa_support_ticket_end_calls' and not tgisinternal)
+ then raise exception 'Garde de fin automatique absente'; end if;
+ if exists(select 1 from information_schema.columns where table_schema='public' and table_name in ('support_calls','support_call_events')
+ and (column_name ilike '%sdp%' or column_name ilike '%candidate%' or column_name ilike '%recording%')) then raise exception 'Média ou signalisation persisté'; end if;
+ select pg_get_functiondef('private.naxa_support_call_realtime_access(text,uuid)'::regprocedure) into v_definition;
+ if position('auth.uid()' in v_definition)=0 or position('status = ''accepted''' in v_definition)=0 then raise exception 'RLS Realtime ne limite pas aux participants'; end if;
+end; $test$;
+rollback;
