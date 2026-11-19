@@ -82,8 +82,15 @@ async function loginAgent(browser,agent,letter){
  await p.getByRole("button",{name:"Sécuriser mon compte"}).click();
  await p.waitForURL(u=>u.pathname==="/equipe-support",{timeout:30000});
  await p.getByRole("heading",{name:"Tableau de bord support"}).waitFor({timeout:30000});
+ const presenceResponsePromise=p.waitForResponse(r=>r.url().endsWith("/api/support-agent/presence")&&r.request().method()==="PATCH",{timeout:15000});
  await p.getByRole("button",{name:"Me rendre disponible"}).click();
- await p.getByRole("button",{name:"Passer indisponible"}).waitFor({timeout:10000});
+ const presenceResponse=await presenceResponsePromise;
+ assert.equal(presenceResponse.status(),200,"L’API doit confirmer le passage en disponibilité.");
+ const presenceProof=await admin.from("support_agents").select("presence,status").eq("user_id",agent.id).single();
+ if(presenceProof.error)throw presenceProof.error;
+ assert.equal(presenceProof.data.status,"active");
+ assert.equal(presenceProof.data.presence,"available","La présence doit être persistée avant de poursuivre la recette.");
+ await p.getByRole("button",{name:"Passer indisponible"}).waitFor({timeout:20000});
  console.log("PASS — login Agent "+letter+", rotation initiale et présence disponible.");return {context:c,page:p,email:agent.email,password:next};
 }
 async function createTicket(client,subject){
