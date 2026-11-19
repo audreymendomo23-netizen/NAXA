@@ -88,3 +88,12 @@ Le run ciblé doit démontrer successivement `Agent appelé`, puis `Appel en cou
 - Le test navigateur force `iceTransportPolicy=relay`, accorde le microphone dans Chromium headless et injecte un signal audio de test 440 Hz dans le flux issu de `getUserMedia`. Il doit prouver pour Client ET Agent : état ICE `connected`, candidat local et distant `relay`, piste audio sortante et entrante vivante, paquets RTP audio envoyés et reçus, flux distant attaché à l'élément audio et lecture non suspendue.
 - Les statistiques `getStats()` sont la preuve des paquets/audio RTP ; référence MDN : https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats.
 - Ce test prouve la négociation et le transport audio via TURN sur le runner Replay CI. La configuration d'un TURN public permanent pour des réseaux mobiles/clients réels reste un paramètre d'exploitation distinct ; aucun déploiement Production n'est effectué.
+
+
+## Contradiction — run 44595716497 (TURN local)
+- Build Replay, démarrage serveur, création des Agents, acceptation de l'appel et GET `/ice` HTTP 200 : PASS.
+- Le navigateur a attendu `Connecté` 45 s puis a échoué. Le GET ICE renvoyait bien `turn:127.0.0.1:3478` et un identifiant éphémère.
+- Les logs Coturn montrent `errno=98 / Address already in use` sur le listener TCP 3478 et plusieurs `Fatal final failure: cannot bind ... 127.0.0.1:3478`. Le script de disponibilité ne testait que la présence d'un socket UDP, ce qui était un faux positif : le paquet Debian avait démarré son service Coturn système, qui occupait le port avant notre instance avec secret généré.
+- Cause racine : collision entre le service Coturn post-install et l'instance de test ; le PID lancé par le workflow n'était pas propriétaire du socket que la vérification avait vu. L'API NAXA et le statut d'appel ne sont pas mis en cause par cette preuve.
+- Correction : arrêter le service Coturn système et tout processus turnserver post-install avant le démarrage, choisir un port libre, puis exiger que `ss -lunp` attribue le socket UDP au PID exact écrit par le workflow. Plus de vérification basée uniquement sur un numéro de port présent.
+- Diagnostic média renforcé : ne pas échouer avant lecture des statistiques si le badge `Connecté` n'apparaît pas. Les états PC/ICE/signaling/gathering, candidats, protocoles, compteurs RTP, pistes et audioContext sont désormais journalisés avant les assertions bloquantes.

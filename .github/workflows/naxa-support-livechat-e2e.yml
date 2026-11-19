@@ -82,17 +82,23 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y coturn
+          # Debian peut démarrer le service système au post-install. On l'arrête
+          # avant de lancer l'instance de recette avec notre secret éphémère.
+          sudo systemctl stop coturn.service 2>/dev/null || true
+          sudo service coturn stop 2>/dev/null || true
+          sudo pkill -x turnserver 2>/dev/null || true
           TURN_SECRET="$(openssl rand -hex 32)"
+          TURN_PORT="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
           echo "::add-mask::$TURN_SECRET"
           {
-            echo "NAXA_TURN_URLS=turn:127.0.0.1:3478?transport=udp"
+            echo "NAXA_TURN_URLS=turn:127.0.0.1:$TURN_PORT?transport=udp"
             echo "NAXA_TURN_SHARED_SECRET=$TURN_SECRET"
             echo "NAXA_TURN_CREDENTIAL_TTL_SECONDS=300"
           } >> "$GITHUB_ENV"
           cat > "$RUNNER_TEMP/coturn.conf" <<EOF
           listening-ip=127.0.0.1
           relay-ip=127.0.0.1
-          listening-port=3478
+          listening-port=$TURN_PORT
           min-port=49160
           max-port=49200
           realm=naxa-replay-e2e.local
@@ -108,20 +114,30 @@ jobs:
           log-file=$RUNNER_TEMP/coturn.log
           EOF
           turnserver -c "$RUNNER_TEMP/coturn.conf" > "$RUNNER_TEMP/coturn.stdout.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/coturn.pid"
+          TURN_PID=$!
+          echo "$TURN_PID" > "$RUNNER_TEMP/coturn.pid"
           ready=0
           for _ in $(seq 1 30); do
-            if ss -lunp | grep -q '127.0.0.1:3478'; then
-              ready=1
+            if kill -0 "$TURN_PID" 2>/dev/null; then
+              SOCKETS="$(ss -H -lunp "sport = :$TURN_PORT" 2>/dev/null || true)"
+              if echo "$SOCKETS" | grep -q "pid=$TURN_PID"; then
+                ready=1
+                break
+              fi
+            else
               break
             fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
+            echo "PID attendu : $TURN_PID ; port attendu : $TURN_PORT"
+            ps aux | grep '[t]urnserver' || true
+            ss -lntup || true
             cat "$RUNNER_TEMP/coturn.stdout.log" "$RUNNER_TEMP/coturn.log" 2>/dev/null || true
-            echo "::error::Le relais TURN local n'a pas démarré."
+            echo "::error::L'instance TURN personnalisée n'est pas propriétaire de son socket UDP."
             exit 1
           fi
+          echo "TURN éphémère prêt : port UDP $TURN_PORT, PID $TURN_PID."
       - name: Construire NAXA avec la configuration Replay
         shell: bash
         run: |

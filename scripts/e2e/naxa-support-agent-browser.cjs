@@ -141,24 +141,14 @@ async function waitForCallHeartbeat(callId,column,label,timeoutMs=15000){
  throw new Error(label+" non persisté après "+timeoutMs+" ms (valeur finale : "+String(lastValue)+").");
 }
 async function rtcAudioProof(page,label){
- await page.getByText("Connecté",{exact:true}).waitFor({timeout:45000});
+ await page.waitForFunction(()=>Array.isArray(window.__naxaE2EPeerConnections)&&window.__naxaE2EPeerConnections.length>0,
+  null,{timeout:10000});
  await page.waitForFunction(()=>{
   const peers=window.__naxaE2EPeerConnections||[];
   const pc=peers[peers.length-1];
-  return !!pc&&pc.connectionState==="connected";
- },null,{timeout:15000});
- await page.waitForFunction(async()=>{
-  const peers=window.__naxaE2EPeerConnections||[];
-  const pc=peers[peers.length-1];
-  if(!pc||pc.connectionState!=="connected")return false;
-  const report=await pc.getStats();
-  const rows=Array.from(report.values());
-  const isAudio=stat=>stat.kind==="audio"||stat.mediaType==="audio";
-  const inbound=rows.filter(stat=>stat.type==="inbound-rtp"&&isAudio(stat));
-  const outbound=rows.filter(stat=>stat.type==="outbound-rtp"&&isAudio(stat));
-  return inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0)>0
-   &&outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0)>0;
- },null,{timeout:20000});
+  return !pc||["connected","failed","closed"].includes(pc.connectionState)
+    ||["connected","completed","failed","closed"].includes(pc.iceConnectionState);
+ },null,{timeout:30000}).catch(()=>undefined);
  const proof=await page.evaluate(async()=>{
   const peers=window.__naxaE2EPeerConnections||[];
   const pc=peers[peers.length-1];
@@ -175,34 +165,98 @@ async function rtcAudioProof(page,label){
   const remote=pair&&report.get(pair.remoteCandidateId);
   const audio=document.querySelector('section[aria-label="Appel audio NAXA"] audio');
   const remoteTracks=audio?.srcObject?.getAudioTracks?.()??[];
+  const candidateTypes=rows.filter(stat=>stat.type==="local-candidate"||stat.type==="remote-candidate")
+   .map(stat=>({type:stat.type,candidateType:stat.candidateType,protocol:stat.protocol}));
   return {
    connectionState:pc.connectionState,
+   iceConnectionState:pc.iceConnectionState,
+   iceGatheringState:pc.iceGatheringState,
+   signalingState:pc.signalingState,
    senders:pc.getSenders().filter(sender=>sender.track?.kind==="audio"&&sender.track.readyState==="live").length,
    receivers:pc.getReceivers().filter(receiver=>receiver.track?.kind==="audio"&&receiver.track.readyState==="live").length,
    outboundPackets:outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0),
    inboundPackets:inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0),
    localCandidateType:local?.candidateType??null,
    remoteCandidateType:remote?.candidateType??null,
+   selectedPairState:pair?.state??null,
+   localProtocol:local?.protocol??null,
+   remoteProtocol:remote?.protocol??null,
+   candidateTypes,
+   remoteAudioTracks:remoteTracks.length,
+   remoteAudioTrackStates:remoteTracks.map(track=>track.readyState),
+   remoteAudioReadyState:audio?.readyState??0,
+   remoteAudioPaused:audio?.paused??true,
+   audioContextStates:(window.__naxaE2EAudioContexts||[]).map(item=>item.audioContext?.state??"unknown"),
+  };
+ });
+ console.log("TRACE — diagnostic WebRTC "+label+" "+JSON.stringify(proof));
+ assert.ok(!proof.error,label+" : "+JSON.stringify(proof));
+ assert.equal(proof.connectionState,"connected",label+" : RTCPeerConnection doit être connecté : "+JSON.stringify(proof));
+ assert.ok(["connected","completed"].includes(proof.iceConnectionState),label+" : ICE doit être connecté : "+JSON.stringify(proof));
+ await page.waitForFunction(()=>{
+  const peers=window.__naxaE2EPeerConnections||[];
+  const pc=peers[peers.length-1];
+  if(!pc||pc.connectionState!=="connected")return false;
+  return pc.getSenders().some(sender=>sender.track?.kind==="audio"&&sender.track.readyState==="live")
+   &&pc.getReceivers().some(receiver=>receiver.track?.kind==="audio"&&receiver.track.readyState==="live");
+ },null,{timeout:10000});
+ const withPackets=await page.waitForFunction(async()=>{
+  const peers=window.__naxaE2EPeerConnections||[];
+  const pc=peers[peers.length-1];
+  if(!pc||pc.connectionState!=="connected")return false;
+  const rows=Array.from((await pc.getStats()).values());
+  const isAudio=stat=>stat.kind==="audio"||stat.mediaType==="audio";
+  const inbound=rows.filter(stat=>stat.type==="inbound-rtp"&&isAudio(stat));
+  const outbound=rows.filter(stat=>stat.type==="outbound-rtp"&&isAudio(stat));
+  return inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0)>0
+   &&outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0)>0;
+ },null,{timeout:15000}).then(()=>true).catch(()=>false);
+ const finalProof=await page.evaluate(async()=>{
+  const peers=window.__naxaE2EPeerConnections||[];
+  const pc=peers[peers.length-1];
+  const report=await pc.getStats();
+  const rows=Array.from(report.values());
+  const isAudio=stat=>stat.kind==="audio"||stat.mediaType==="audio";
+  const inbound=rows.filter(stat=>stat.type==="inbound-rtp"&&isAudio(stat));
+  const outbound=rows.filter(stat=>stat.type==="outbound-rtp"&&isAudio(stat));
+  const transport=rows.find(stat=>stat.type==="transport"&&stat.selectedCandidatePairId);
+  const pair=(transport&&report.get(transport.selectedCandidatePairId))
+   ||rows.find(stat=>stat.type==="candidate-pair"&&stat.state==="succeeded"&&stat.nominated);
+  const local=pair&&report.get(pair.localCandidateId);
+  const remote=pair&&report.get(pair.remoteCandidateId);
+  const audio=document.querySelector('section[aria-label="Appel audio NAXA"] audio');
+  const remoteTracks=audio?.srcObject?.getAudioTracks?.()??[];
+  return {
+   connectionState:pc.connectionState,
+   iceConnectionState:pc.iceConnectionState,
+   senders:pc.getSenders().filter(sender=>sender.track?.kind==="audio"&&sender.track.readyState==="live").length,
+   receivers:pc.getReceivers().filter(receiver=>receiver.track?.kind==="audio"&&receiver.track.readyState==="live").length,
+   outboundPackets:outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0),
+   inboundPackets:inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0),
+   localCandidateType:local?.candidateType??null,
+   remoteCandidateType:remote?.candidateType??null,
+   selectedPairState:pair?.state??null,
    remoteAudioTracks:remoteTracks.length,
    remoteAudioTrackStates:remoteTracks.map(track=>track.readyState),
    remoteAudioReadyState:audio?.readyState??0,
    remoteAudioPaused:audio?.paused??true,
   };
  });
- assert.ok(!proof.error,label+" : "+JSON.stringify(proof));
- assert.equal(proof.connectionState,"connected",label+" : ICE doit être connecté.");
- assert.ok(proof.senders>0,label+" : aucune piste audio sortante active.");
- assert.ok(proof.receivers>0,label+" : aucune piste audio entrante active.");
- assert.ok(proof.outboundPackets>0,label+" : aucun paquet audio RTP sortant.");
- assert.ok(proof.inboundPackets>0,label+" : aucun paquet audio RTP entrant.");
- assert.equal(proof.localCandidateType,"relay",label+" : le candidat local doit passer par TURN.");
- assert.equal(proof.remoteCandidateType,"relay",label+" : le candidat distant doit passer par TURN.");
- assert.ok(proof.remoteAudioTracks>0,label+" : aucun flux audio distant attaché.");
- assert.ok(proof.remoteAudioTrackStates.includes("live"),label+" : piste audio distante non vivante.");
- assert.ok(proof.remoteAudioReadyState>=2,label+" : le lecteur audio n'a pas reçu de trames.");
- assert.equal(proof.remoteAudioPaused,false,label+" : la lecture audio distante est suspendue.");
- console.log("PASS — WebRTC "+label+" : TURN relay, pistes audio bidirectionnelles et RTP confirmé "+JSON.stringify(proof));
- return proof;
+ console.log("TRACE — preuve finale WebRTC "+label+" "+JSON.stringify(finalProof));
+ assert.ok(withPackets,label+" : aucun paquet RTP audio dans les deux sens : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.senders>0,label+" : aucune piste audio sortante : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.receivers>0,label+" : aucune piste audio entrante : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.outboundPackets>0,label+" : aucun paquet audio RTP sortant : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.inboundPackets>0,label+" : aucun paquet audio RTP entrant : "+JSON.stringify(finalProof));
+ assert.equal(finalProof.localCandidateType,"relay",label+" : candidat local non TURN : "+JSON.stringify(finalProof));
+ assert.equal(finalProof.remoteCandidateType,"relay",label+" : candidat distant non TURN : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.remoteAudioTracks>0,label+" : aucun flux audio distant attaché : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.remoteAudioTrackStates.includes("live"),label+" : piste audio distante non vivante : "+JSON.stringify(finalProof));
+ assert.ok(finalProof.remoteAudioReadyState>=2,label+" : le lecteur audio n'a pas reçu de trames : "+JSON.stringify(finalProof));
+ assert.equal(finalProof.remoteAudioPaused,false,label+" : lecture audio distante suspendue : "+JSON.stringify(finalProof));
+ await page.getByText("Connecté",{exact:true}).waitFor({timeout:5000});
+ console.log("PASS — WebRTC "+label+" : TURN relay, pistes audio bidirectionnelles et RTP confirmé.");
+ return finalProof;
 }
 async function createTicket(client,subject){
  const r=await client.rpc("open_naxa_support_ticket",{p_categorie:"technique",p_sujet:subject,p_message:"Demande E2E "+subject});if(r.error)throw r.error;
