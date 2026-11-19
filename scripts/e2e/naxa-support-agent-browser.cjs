@@ -54,9 +54,44 @@ function cookieList(session){
 }
 async function contextFor(browser,session){
  const c=await browser.newContext({viewport:{width:1280,height:900}});
+ await c.grantPermissions(["microphone"],{origin:BASE});
  if(session)await c.addCookies(cookieList(session));
  await c.addCookies([{name:"naxa-age-status-v2",value:"adult",domain:new URL(BASE).hostname,path:"/",httpOnly:false,secure:false,sameSite:"Lax"}]);
- await c.addInitScript(()=>{try{localStorage.setItem("naxa-age-declaration-v1",JSON.stringify({confirmed:true,at:Date.now()}));}catch{}});
+ await c.addInitScript(()=>{
+  try{localStorage.setItem("naxa-age-declaration-v1",JSON.stringify({confirmed:true,at:Date.now()}));}catch{}
+  const peerConnections=[];
+  Object.defineProperty(window,"__naxaE2EPeerConnections",{value:peerConnections,configurable:false});
+  const NativePeerConnection=window.RTCPeerConnection;
+  window.RTCPeerConnection=class extends NativePeerConnection{
+   constructor(configuration,...args){
+    super({...configuration,iceTransportPolicy:"relay"},...args);
+    peerConnections.push(this);
+   }
+  };
+  const nativeGetUserMedia=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+  const audioContexts=[];
+  Object.defineProperty(window,"__naxaE2EAudioContexts",{value:audioContexts,configurable:false});
+  if(nativeGetUserMedia){
+   navigator.mediaDevices.getUserMedia=async constraints=>{
+    const captured=await nativeGetUserMedia(constraints);
+    if(!constraints?.audio||!window.AudioContext)return captured;
+    const audioContext=new window.AudioContext();
+    await audioContext.resume();
+    const oscillator=audioContext.createOscillator();
+    oscillator.type="sine";
+    oscillator.frequency.value=440;
+    const gain=audioContext.createGain();
+    gain.gain.value=0.04;
+    const destination=audioContext.createMediaStreamDestination();
+    oscillator.connect(gain);
+    gain.connect(destination);
+    oscillator.start();
+    audioContexts.push({audioContext,oscillator,gain});
+    captured.getTracks().forEach(track=>track.stop());
+    return destination.stream;
+   };
+  }
+ });
  return c;
 }
 async function createAgent(adminPage,tag,letter){
@@ -105,6 +140,70 @@ async function waitForCallHeartbeat(callId,column,label,timeoutMs=15000){
  }
  throw new Error(label+" non persisté après "+timeoutMs+" ms (valeur finale : "+String(lastValue)+").");
 }
+async function rtcAudioProof(page,label){
+ await page.getByText("Connecté",{exact:true}).waitFor({timeout:45000});
+ await page.waitForFunction(()=>{
+  const peers=window.__naxaE2EPeerConnections||[];
+  const pc=peers[peers.length-1];
+  return !!pc&&pc.connectionState==="connected";
+ },null,{timeout:15000});
+ await page.waitForFunction(async()=>{
+  const peers=window.__naxaE2EPeerConnections||[];
+  const pc=peers[peers.length-1];
+  if(!pc||pc.connectionState!=="connected")return false;
+  const report=await pc.getStats();
+  const rows=Array.from(report.values());
+  const isAudio=stat=>stat.kind==="audio"||stat.mediaType==="audio";
+  const inbound=rows.filter(stat=>stat.type==="inbound-rtp"&&isAudio(stat));
+  const outbound=rows.filter(stat=>stat.type==="outbound-rtp"&&isAudio(stat));
+  return inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0)>0
+   &&outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0)>0;
+ },null,{timeout:20000});
+ const proof=await page.evaluate(async()=>{
+  const peers=window.__naxaE2EPeerConnections||[];
+  const pc=peers[peers.length-1];
+  if(!pc)return {error:"RTCPeerConnection absent"};
+  const report=await pc.getStats();
+  const rows=Array.from(report.values());
+  const isAudio=stat=>stat.kind==="audio"||stat.mediaType==="audio";
+  const inbound=rows.filter(stat=>stat.type==="inbound-rtp"&&isAudio(stat));
+  const outbound=rows.filter(stat=>stat.type==="outbound-rtp"&&isAudio(stat));
+  const transport=rows.find(stat=>stat.type==="transport"&&stat.selectedCandidatePairId);
+  const pair=(transport&&report.get(transport.selectedCandidatePairId))
+   ||rows.find(stat=>stat.type==="candidate-pair"&&stat.state==="succeeded"&&stat.nominated);
+  const local=pair&&report.get(pair.localCandidateId);
+  const remote=pair&&report.get(pair.remoteCandidateId);
+  const audio=document.querySelector('section[aria-label="Appel audio NAXA"] audio');
+  const remoteTracks=audio?.srcObject?.getAudioTracks?.()??[];
+  return {
+   connectionState:pc.connectionState,
+   senders:pc.getSenders().filter(sender=>sender.track?.kind==="audio"&&sender.track.readyState==="live").length,
+   receivers:pc.getReceivers().filter(receiver=>receiver.track?.kind==="audio"&&receiver.track.readyState==="live").length,
+   outboundPackets:outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0),
+   inboundPackets:inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0),
+   localCandidateType:local?.candidateType??null,
+   remoteCandidateType:remote?.candidateType??null,
+   remoteAudioTracks:remoteTracks.length,
+   remoteAudioTrackStates:remoteTracks.map(track=>track.readyState),
+   remoteAudioReadyState:audio?.readyState??0,
+   remoteAudioPaused:audio?.paused??true,
+  };
+ });
+ assert.ok(!proof.error,label+" : "+JSON.stringify(proof));
+ assert.equal(proof.connectionState,"connected",label+" : ICE doit être connecté.");
+ assert.ok(proof.senders>0,label+" : aucune piste audio sortante active.");
+ assert.ok(proof.receivers>0,label+" : aucune piste audio entrante active.");
+ assert.ok(proof.outboundPackets>0,label+" : aucun paquet audio RTP sortant.");
+ assert.ok(proof.inboundPackets>0,label+" : aucun paquet audio RTP entrant.");
+ assert.equal(proof.localCandidateType,"relay",label+" : le candidat local doit passer par TURN.");
+ assert.equal(proof.remoteCandidateType,"relay",label+" : le candidat distant doit passer par TURN.");
+ assert.ok(proof.remoteAudioTracks>0,label+" : aucun flux audio distant attaché.");
+ assert.ok(proof.remoteAudioTrackStates.includes("live"),label+" : piste audio distante non vivante.");
+ assert.ok(proof.remoteAudioReadyState>=2,label+" : le lecteur audio n'a pas reçu de trames.");
+ assert.equal(proof.remoteAudioPaused,false,label+" : la lecture audio distante est suspendue.");
+ console.log("PASS — WebRTC "+label+" : TURN relay, pistes audio bidirectionnelles et RTP confirmé "+JSON.stringify(proof));
+ return proof;
+}
 async function createTicket(client,subject){
  const r=await client.rpc("open_naxa_support_ticket",{p_categorie:"technique",p_sujet:subject,p_message:"Demande E2E "+subject});if(r.error)throw r.error;
  const row=Array.isArray(r.data)?r.data[0]:r.data;assert.ok(row.ticket_id);state.tickets.push(row.ticket_id);save();return row.ticket_id;
@@ -119,7 +218,7 @@ async function run(){
   const {data:clientAuth,error:clientAuthError}=await client.auth.getUser();
   if(clientAuthError)throw clientAuthError;
   assert.equal(clientAuth.user.id,clientSession.profile.id,"Client E2E doit être authentifié avec son propre JWT.");
-  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  browser=await chromium.launch({headless:true,args:["--no-sandbox","--use-fake-device-for-media-stream","--use-fake-ui-for-media-stream","--autoplay-policy=no-user-gesture-required"]});
   adminContext=await contextFor(browser,adminSession);const adminPage=await adminContext.newPage();
   await adminPage.goto(BASE+"/admin/support-agents");await adminPage.getByRole("heading",{name:"Agents du service client"}).waitFor({timeout:30000});
   const tag=Date.now().toString(36);
@@ -221,6 +320,13 @@ async function run(){
   }
   await clientPage.getByRole("button",{name:"Raccrocher",exact:true}).waitFor({timeout:15000});
   console.log("PASS — interface Client : état accepté et commande Raccrocher rendus.");
+  const [clientRtcProof,agentRtcProof]=await Promise.all([
+   rtcAudioProof(clientPage,"Client demandeur"),
+   rtcAudioProof(a.page,"Agent affecté")
+  ]);
+  assert.equal(clientRtcProof.localCandidateType,"relay");
+  assert.equal(agentRtcProof.localCandidateType,"relay");
+  console.log("PASS GLOBAL — audio WebRTC bidirectionnel via TURN, les deux pairs envoient et reçoivent des paquets RTP.");
   const requesterEndPromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
    {timeout:20000}

@@ -78,3 +78,13 @@ Le run ciblé doit démontrer successivement `Agent appelé`, puis `Appel en cou
 - Assertion devenue obsolète : `scripts/test-support-audio.cjs` cherchait `agent_permission_revoked_audio_call` dans le script navigateur, alors que le test de suspension désormais vérifie le motif métier exact `agent_status_suspended`.
 - Mise à jour du contrat : contrôle de la branche SQL de révocation permission dans la migration, et du nouveau scénario E2E de suspension d'un appel accepted ainsi que du scénario ringing renvoyé à la file centrale. Aucun contrôle n'est supprimé.
 - Les runs 44593259134 / 44593259110 sont donc des échecs pré-recette, pas des verdicts sur le comportement applicatif. Le nouveau commit déclenche la nouvelle vérification.
+
+
+## Diagnostic TURN / média WebRTC
+- La recette Agents 44593655149 est PASS (acceptation, état Client, raccrochage, file centrale, RLS, Livechat, concurrence, suspension accepted et remise en file ringing) ; la qualité 44593655186 est PASS.
+- Le run précédent a relevé HTTP 503 sur `/api/support/calls/:id/ice` : le workflow ne fournissait pas `NAXA_TURN_URLS` ni `NAXA_TURN_SHARED_SECRET`. Le routeur ICE refuse volontairement de produire des identifiants TURN lorsque ces valeurs manquent. Ce n'est pas une erreur d'état de l'appel mais un environnement de test incomplet.
+- Coturn supporte l'authentification TURN REST par `use-auth-secret` + `static-auth-secret`; l'option `allow-loopback-peers` n'est activée que pour le relais localhost de CI (jamais pour la Production). Références Coturn : https://github.com/coturn/coturn/wiki/turnserver et https://github.com/coturn/coturn/blob/master/README.turnserver.
+- Le workflow démarre désormais un relais Coturn éphémère sur loopback, avec secret généré par exécution, ports relay bornés et identifiants éphémères générés par l'API NAXA. Aucun secret réel ou service Production n'est utilisé.
+- Le test navigateur force `iceTransportPolicy=relay`, accorde le microphone dans Chromium headless et injecte un signal audio de test 440 Hz dans le flux issu de `getUserMedia`. Il doit prouver pour Client ET Agent : état ICE `connected`, candidat local et distant `relay`, piste audio sortante et entrante vivante, paquets RTP audio envoyés et reçus, flux distant attaché à l'élément audio et lecture non suspendue.
+- Les statistiques `getStats()` sont la preuve des paquets/audio RTP ; référence MDN : https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats.
+- Ce test prouve la négociation et le transport audio via TURN sur le runner Replay CI. La configuration d'un TURN public permanent pour des réseaux mobiles/clients réels reste un paramètre d'exploitation distinct ; aucun déploiement Production n'est effectué.

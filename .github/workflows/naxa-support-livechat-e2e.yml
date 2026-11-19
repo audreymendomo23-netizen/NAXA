@@ -76,6 +76,52 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.65.1
           npx playwright install chromium
+      - name: Démarrer TURN éphémère pour la preuve WebRTC
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y coturn
+          TURN_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$TURN_SECRET"
+          {
+            echo "NAXA_TURN_URLS=turn:127.0.0.1:3478?transport=udp"
+            echo "NAXA_TURN_SHARED_SECRET=$TURN_SECRET"
+            echo "NAXA_TURN_CREDENTIAL_TTL_SECONDS=300"
+          } >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/coturn.conf" <<EOF
+          listening-ip=127.0.0.1
+          relay-ip=127.0.0.1
+          listening-port=3478
+          min-port=49160
+          max-port=49200
+          realm=naxa-replay-e2e.local
+          fingerprint
+          use-auth-secret
+          static-auth-secret=$TURN_SECRET
+          allow-loopback-peers
+          no-multicast-peers
+          no-cli
+          no-tls
+          no-dtls
+          simple-log
+          log-file=$RUNNER_TEMP/coturn.log
+          EOF
+          turnserver -c "$RUNNER_TEMP/coturn.conf" > "$RUNNER_TEMP/coturn.stdout.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/coturn.pid"
+          ready=0
+          for _ in $(seq 1 30); do
+            if ss -lunp | grep -q '127.0.0.1:3478'; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat "$RUNNER_TEMP/coturn.stdout.log" "$RUNNER_TEMP/coturn.log" 2>/dev/null || true
+            echo "::error::Le relais TURN local n'a pas démarré."
+            exit 1
+          fi
       - name: Construire NAXA avec la configuration Replay
         shell: bash
         run: |
@@ -139,6 +185,9 @@ jobs:
         run: |
           echo "::group::Logs serveur NAXA Support E2E"
           tail -n 160 "$RUNNER_TEMP/naxa-support-server.log" || true
+          echo "::group::Logs relais TURN"
+          tail -n 160 "$RUNNER_TEMP/coturn.stdout.log" "$RUNNER_TEMP/coturn.log" 2>/dev/null || true
+          echo "::endgroup::"
           echo "::endgroup::"
       - name: Arrêter le serveur local
         if: always()
@@ -146,4 +195,7 @@ jobs:
         run: |
           if [ -f "$RUNNER_TEMP/naxa-support-server.pid" ]; then
             kill "$(cat "$RUNNER_TEMP/naxa-support-server.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/coturn.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/coturn.pid")" 2>/dev/null || true
           fi
