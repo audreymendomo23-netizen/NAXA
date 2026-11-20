@@ -1220,3 +1220,12 @@ Autres limites non levées :
 3. Faire activer et prouver la protection des mots de passe compromis dans Auth.
 4. Provisionner les sessions de test par rôle sans inventer de comptes ni contourner les contrôles de création.
 5. Exécuter les scénarios positifs/négatifs et inter-tenant sur Web, PWA installée et APK physique.
+
+### 10.11 Réconciliation du lint RLS sans policy — 73 confirmés
+
+- L'écart apparent entre les 65 tables publiques et l'alerte Advisor (73) est résolu : inventaire complet par schéma = **65 tables public + 8 tables private = 73**. Le contrôle précédent ne comptait que `public`.
+- Les 8 tables `private` concernées sont des états/outbox internes : `client_product_availability_deliveries`, `client_product_availability_state`, `email_delivery_outbox`, `naxa_delivery_event_notification_dedup`, `naxa_offline_lww_config`, `notification_email_outbox`, `notification_push_outbox`, `pharmacy_lot_expiry_notification_dispatches`.
+- ACL individuelles des 8 tables `private` : aucun privilège direct `SELECT/INSERT/UPDATE/DELETE` pour `anon` ou `authenticated`.
+- ACL individuelles des 65 tables `public` : aucun privilège direct `SELECT/INSERT/UPDATE/DELETE` pour `anon` ou `authenticated`.
+- Réconciliation : **73/73 tables RLS sans policy sont fermées en accès direct pour les rôles API contrôlés**. Cela justifie le lint INFO dans ce périmètre, sous réserve de vérifier les appels indirects privilégiés et la liste réelle des schémas exposés PostgREST.
+- Le lint n'est donc pas une faille directe démontrée et aucune policy permissive ne doit être ajoutée pour faire disparaître l'alerte. L'action correcte est de conserver les tables internes fermées et d'auditer les fonctions SECURITY DEFINER qui les utilisent.
