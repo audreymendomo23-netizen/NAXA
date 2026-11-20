@@ -1503,3 +1503,14 @@ Vérifications ACL/configuration après migration :
 3. Une fois ces preuves réunies, clôturer B01. B00 reste BLOQUÉ sur sessions réelles/révocation ; B02 reste BLOQUÉ sur cohortes multi-organisations/Centre d'examens. Ne pas ouvrir B03 tant que B00–B02 ne sont pas fermés.
 
 **Périmètre :** Replay uniquement ; aucune écriture Production ; aucun déploiement Vercel.
+
+### 10.19 État de reprise après correction B01 — 20/11/2026
+
+- B01 : configuration Replay réconciliée sans activer aucun univers ; RPC publique combinée appliquée et testée sous rôle anon ; middleware et API statut versionnés pour utiliser cette RPC. Verdict de lot : **PARTIEL** tant que build/typecheck et E2E runtime URL directe/menu/API ne sont pas passés. Les preuves SQL et ACL de la sous-partie sont **PASS**.
+- B00 : vérification de la liste réelle des connecteurs Supabase effectuée ; aucun outil Auth Admin / create user / invite user / create session n'est disponible dans les outils connectés. Ne pas insérer directement dans auth.users ni fabriquer un JWT. Le cycle de vie des sessions reste **BLOQUÉ** jusqu'à une voie de provisioning Auth autorisée et des tests réels.
+- B02 : les cohortes distinctes et le Centre d'examens ne peuvent pas être provisionnés de façon fiable sans le même mécanisme Auth contrôlé ; aucune création manuelle de profil isolé n'est acceptée comme substitut à un compte Auth réel.
+- La campagne reste séquentielle : terminer B00, puis B01 runtime, puis B02 ; aucun B03 n'est ouvert.
+- Dernier commit documentaire catalogue bulk : 27fbea1d285feb8bf8060a4a48e4dfea3716ad49. Continuité à synchroniser avec la tête main après ce checkpoint.
+- Aucun changement Production, aucun déploiement Vercel ; vercel.json garde deploymentEnabled.main=false.
+
+**Point exact de reprise :** obtenir une voie de provisioning Auth sur Replay (outil Auth Admin connecté ou parcours de création de compte contrôlé avec accès aux identifiants de test), puis exécuter B00 avec sessions/JWT réels. En parallèle, faire valider/exécuter le build et les scénarios navigateur B01 sans déployer Production.
