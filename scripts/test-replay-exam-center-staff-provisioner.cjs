@@ -8,6 +8,9 @@ const {
   assertDirectorFixture,
   assertExamRoster,
   STAFF_ROLES,
+  EXAM_SECURITY_STAFF,
+  buildStaffMetadata,
+  assertStaffFixture,
 } = require("./e2e/provision-replay-exam-center-staff.cjs");
 
 const user = () => ({
@@ -27,6 +30,25 @@ const profile = () => ({
   first_name: "Compte",
   last_name: "Directeur Centre E2E",
   phone: "+237600000088",
+});
+
+const securityUser = () => ({
+  id: "exam-security-id",
+  email: EXAM_SECURITY_STAFF.email,
+  email_confirmed_at: "2026-11-20T08:00:00.000Z",
+  user_metadata: buildStaffMetadata(EXAM_SECURITY_STAFF),
+});
+const securityProfile = () => ({
+  id: "exam-security-id",
+  username: EXAM_SECURITY_STAFF.username,
+  role: "client",
+  actif: true,
+  age_verified: true,
+  consent_accepted_at: "2026-11-20T08:00:00.000Z",
+  date_of_birth: "1990-01-01",
+  first_name: EXAM_SECURITY_STAFF.firstName,
+  last_name: EXAM_SECURITY_STAFF.lastName,
+  phone: EXAM_SECURITY_STAFF.phone,
 });
 
 test("provisionnement strictement Replay", () => {
@@ -77,4 +99,21 @@ test("matrice des neuf postes et directeur distincts", () => {
   assert.throws(() => assertExamRoster(assignments.slice(0, 8), "director-id"), /9 postes/);
   assert.throws(() => assertExamRoster([{ ...assignments[0], user_id: "director-id" }, ...assignments.slice(1)], "director-id"), /distinct/);
   assert.throws(() => assertExamRoster([assignments[0], ...assignments.slice(1).map(x => ({ ...x, user_id: assignments[0].user_id }))], "director-id"), /distinct/);
+});
+
+test("provisionne et contrôle le neuvième Client Responsable sécurité avec un marqueur E2E dédié", () => {
+  const metadata = buildStaffMetadata(EXAM_SECURITY_STAFF);
+  assert.equal(metadata.username, EXAM_SECURITY_STAFF.username);
+  assert.equal(metadata.naxa_signup_completed, true);
+  assert.equal(metadata.naxa_e2e_persona, "exam_security");
+  assert.equal(assertStaffFixture(securityUser(), securityProfile(), EXAM_SECURITY_STAFF), true);
+});
+
+test("refuse une identité sécurité non confirmée ou un profil de personnel non conforme", () => {
+  const unconfirmed = securityUser();
+  unconfirmed.email_confirmed_at = null;
+  assert.throws(() => assertStaffFixture(unconfirmed, securityProfile(), EXAM_SECURITY_STAFF), /confirmée/);
+  assert.throws(() => assertStaffFixture(securityUser(), { ...securityProfile(), role: "promoteur" }, EXAM_SECURITY_STAFF), /Client actif/);
+  assert.throws(() => assertStaffFixture(securityUser(), { ...securityProfile(), actif: false }, EXAM_SECURITY_STAFF), /Client actif/);
+  assert.throws(() => assertStaffFixture(securityUser(), { ...securityProfile(), phone: null }, EXAM_SECURITY_STAFF), /profil/i);
 });
