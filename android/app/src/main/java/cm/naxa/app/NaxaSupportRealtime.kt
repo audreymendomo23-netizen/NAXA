@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Minimal Supabase Realtime v1.0.0 private-channel client for NAXA Support.
- * It intentionally transports only signalling metadata; media remains WebRTC.
+ * It intentionally transports signalling metadata only; media remains WebRTC.
  */
 class NaxaSupportRealtime(
     private val supabaseUrl: String,
