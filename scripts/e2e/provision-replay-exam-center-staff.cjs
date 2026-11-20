@@ -392,12 +392,12 @@ async function provision(env = process.env) {
         + randomBytes(8).toString("hex") + ".secret";
       fs.writeFileSync(securityPasswordFile, securityPassword, { encoding: "utf8", flag: "wx", mode: 0o600 });
       fs.appendFileSync(env.GITHUB_ENV,
-        "NAXA_STORAGE_E2E_EXAM_SECURITY_PASSWORD_FILE=" + securityPasswordFile + "\\n",
+        "NAXA_STORAGE_E2E_EXAM_SECURITY_PASSWORD_FILE=" + securityPasswordFile + "\n",
         { encoding: "utf8", mode: 0o600 });
       refreshedAuthUsers = await findAuthUsers();
       securityMatches = refreshedAuthUsers.filter(user =>
         String(user.email || "").trim().toLowerCase() === securityStaff.email);
-      process.stdout.write("PASS — identité Auth Client Responsable sécurité Centre créée et confirmée sur Replay.\\n");
+      process.stdout.write("PASS — identité Auth Client Responsable sécurité Centre créée et confirmée sur Replay.\n");
     }
     if (securityMatches.length !== 1) {
       throw new Error("Identité Auth Responsable sécurité absente ou dupliquée après création.");
