@@ -14,8 +14,15 @@ const {
 test("statut public exige exactement les six écosystèmes et les deux alias Dispositifs/Suivi", () => {
   assert.equal(assertUniverseStatus({ universes: { ...EXPECTED_UNIVERSES } }), true);
   assert.equal(PUBLIC_PICKER.length, 6);
+  assert.equal(new Set(PUBLIC_PICKER.map(item => item.id)).size, 6);
   assert.equal(LOCKED_MENU.length, 5);
   assert.equal(LOCKED_ROUTES.length, 6);
+});
+
+test("les six cartes possèdent un identifiant de sélection stable", () => {
+  assert.deepEqual(PUBLIC_PICKER.map(item => item.id), [
+    "pharmacie","parapharmacie","bebe-maman","dispositifs","examens","prestations",
+  ]);
 });
 
 test("le statut fail-closed refuse un slug manquant, un slug ouvert ou une réponse inconnue", () => {
