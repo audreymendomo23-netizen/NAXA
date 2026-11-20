@@ -41,7 +41,7 @@ if [[ "$agent_ready" -ne 1 ]]; then
 fi
 
 set +e
-(cd android && gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest)
+(cd android && gradle --no-daemon --stacktrace --init-script ../scripts/e2e/gradle-central-mirror.init.gradle :app:connectedDebugAndroidTest)
 TEST_STATUS=$?
 set -e
 
