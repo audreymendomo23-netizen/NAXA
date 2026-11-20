@@ -377,3 +377,30 @@ La recette navigation indépendante `44653637307` a validé le Promoteur desktop
 # Correctif assertions navigation — 20 novembre 2026
 
 Le run `44654715657` a dépassé le blocage initial du chargement mobile Promoteur (délai de navigation spécifique 30 s). Le parcours Comptable a validé ses vues, le cycle Partenaire/Examens a passé ses assertions, et le parcours Client a validé Favoris, Panier et Recherche Marketplace. Le harnais s'est ensuite arrêté sur `ReferenceError: expect is not defined` dans deux assertions du filtre ville B2 (lignes 1268–1269) : ce script CommonJS utilise `node:assert/strict` et Playwright mais n'importe pas `expect`. Correction : remplacer ces deux appels par `locator.inputValue()` + `assert.equal`, avec les mêmes valeurs attendues. Aucun contrôle métier n'est supprimé ou assoupli ; aucune modification applicative.
+
+
+# Diagnostic contradictoire partage écran — 20 novembre 2026
+
+## Faits établis avant correction
+- Le run Agents `44653637342` (commit fonctionnalité initiale, avant le wrapper RPC) avait validé l'audio WebRTC bidirectionnel via TURN, puis avait attendu 15 s sur `Écran partagé par le demandeur`. Le DOM montrait encore `<video class="hidden">` : aucun `track` vidéo distant n'avait activé l'affichage.
+- Le correctif RPC PostgREST a été appliqué à Replay (migration `20261120013251_naxa_support_screen_share_public_rpc`) et les ACL vérifiées par SQL : service_role autorisé, authenticated/anon refusés. Le run suivant `44654715600` a échoué plus tôt dans le test Promoteur/Livreur et a donc sauté le scénario Agents ; il ne prouvait pas le correctif RPC.
+- L'ancien test ne capturait pas de diagnostics sur les transceivers SDP au moment du remplacement de piste. Il ne permettait donc pas de distinguer une capture absente, un sender non négocié, un signalement perdu ou un rendu vidéo bloqué.
+
+## Raisonnement par contradiction / cause racine
+- La capture E2E synthétique est disponible dans Chromium, la case NAXA est cochée et le bouton déclenche `getDisplayMedia()` dans le geste utilisateur. Une absence de capture n'expliquait donc pas à elle seule le fait que l'Agent ne recevait aucun track.
+- Le RPC public manquant explique une erreur d'audit après capture, mais n'explique pas pourquoi le `<video>` distant reste caché avant le contrôle d'audit ; le wrapper RPC était en outre appliqué ensuite à Replay.
+- Le code créait un transceiver vidéo via `addTransceiver()` sur les deux pairs. Or WebRTC ne réassocie pas au m-line distant un transceiver disassocié créé par `addTransceiver()` lors de `setRemoteDescription(offer)` ; il crée un transceiver négocié distinct. Le demandeur conservait le sender de l'instance disassociée et y appelait `replaceTrack()` : le sender n'était pas celui du m-line vidéo de l'offre. Cette contradiction correspond au symptôme observé : audio fonctionnel, SDP stable, mais aucun RTP vidéo entrant.
+- Référence normative : W3C WebRTC, section de traitement d'une offer distante ; les transceivers disassociés issus de `addTrack()` peuvent être associés, contrairement à ceux créés par `addTransceiver()` : https://www.w3.org/TR/webrtc/ . La méthode `replaceTrack()` ne dispense pas d'un sender correctement associé au m-line négocié : https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack.
+
+## Corrections appliquées au code
+- Seul l'Agent, qui crée l'offre, ajoute le transceiver `video/recvonly`.
+- Le demandeur ne crée plus de transceiver vidéo parasite : après réception de l'offre et création de la réponse, il retrouve le transceiver vidéo réellement associé à un `mid`, vérifie sa direction négociée sortante, puis conserve son `RTCRtpSender`.
+- Avant tout `replaceTrack()`, le code vérifie à nouveau que le sender appartient au transceiver vidéo associé au SDP.
+- Le rendu distant appelle explicitement `play()` sur le lecteur vidéo muet et remonte une erreur si le navigateur bloque la lecture.
+- Le diagnostic a également révélé un défaut UI indépendant : l'aperçu local était attaché avant le montage conditionnel de l'élément vidéo ; un effet le relie maintenant après le rendu de l'élément.
+
+## Périmètre de recette renforcé
+- Le scénario Chromium vérifie le transceiver vidéo SDP avant capture, l'absence de partage sans consentement, le refus Agent (403), le sender/receiver, les paquets et octets RTP vidéo, le rendu 640×360 et l'arrêt manuel.
+- Un scénario distinct avec le compte professionnel Replay Comptable doit prouver le même parcours professionnel→Agent et l'arrêt serveur automatique à la fin de l'appel, via l'événement append-only `screen_share_stopped` avec `actor_user_id IS NULL` et `reason=call_ended`.
+- Le sélecteur natif de l'ordinateur et les essais physiques Android/iOS restent hors de la capture canvas CI ; aucune compatibilité mobile physique n'est déclarée sans essai matériel.
+- Aucun déploiement ni changement Production. Verdict reste NON VERT jusqu'aux nouvelles preuves qualité et Replay.

@@ -61,6 +61,18 @@ assert.match(screenApi, /requester_user_id!==auth\.user\.id/);
 assert.match(screenApi, /naxa_support_call_screen_share_event/);
 assert.match(client, /getDisplayMedia/);
 assert.match(client, /addTransceiver\("video"/);
+assert.match(client, /if \(mode === "agent"\) \{[\s\S]*?pc\.addTransceiver\("video", \{ direction: "recvonly" \}\)/);
+assert.doesNotMatch(client, /mode === "requester" \? "sendonly"/);
+assert.match(client, /transceiver\.mid !== null && transceiver\.receiver\.track\.kind === "video"/);
+assert.match(client, /screenShareSender\.current = negotiatedVideo\.sender/);
+assert.match(client, /if \(!screenShareActive\) return;/);
+assert.match(client, /preview\.srcObject = capture/);
+assert.match(client, /preview\.play\(\)/);
+assert.match(agentBrowser, /E2E Partage écran Comptable/);
+assert.match(agentBrowser, /professionalRole,"comptable"/);
+assert.match(agentBrowser, /professionalAudit\[2\]\.details\.reason,"call_ended"/);
+assert.match(agentBrowser, /currentDirection\?\.includes\("send"\)/);
+
 assert.match(client, /replaceTrack\(track\)/);
 assert.match(client, /J’accepte de partager mon écran avec l’Agent NAXA/);
 assert.match(client, /aucun contrôle à distance/i);

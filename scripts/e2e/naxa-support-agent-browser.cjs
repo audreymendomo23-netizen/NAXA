@@ -268,14 +268,18 @@ async function rtcAudioProof(page,label){
  console.log("PASS — WebRTC "+label+" : TURN relay, pistes audio bidirectionnelles et RTP confirmé.");
  return finalProof;
 }
-async function createTicket(client,subject){
- const r=await client.rpc("open_naxa_support_ticket",{p_categorie:"technique",p_sujet:subject,p_message:"Demande E2E "+subject});if(r.error)throw r.error;
+async function createTicket(client,subject,category="technique"){
+ const r=await client.rpc("open_naxa_support_ticket",{p_categorie:category,p_sujet:subject,p_message:"Demande E2E "+subject});if(r.error)throw r.error;
  const row=Array.isArray(r.data)?r.data[0]:r.data;assert.ok(row.ticket_id);state.tickets.push(row.ticket_id);save();return row.ticket_id;
 }
 async function run(){
- let browser,adminContext,clientContext,queueClientContext,a,b,callId=null,clientPage=null,queueClientPage=null;
+ let browser,adminContext,clientContext,queueClientContext,professionalContext,a,b,c,callId=null,clientPage=null,queueClientPage=null,professionalPage=null;
  try{
-  const [clientSession,adminSession]=await Promise.all([sessionFor("naxa_e2e_acheteur","client"),sessionFor("e2e_admin_261104","admin")]);
+  const [clientSession,adminSession,professionalSession]=await Promise.all([
+   sessionFor("naxa_e2e_acheteur","client"),
+   sessionFor("e2e_admin_261104","admin"),
+   sessionFor("naxa_e2e_comptable","client")
+  ]);
   const client=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
   const {error:clientSessionError}=await client.auth.setSession({access_token:clientSession.accessToken,refresh_token:clientSession.refreshToken});
   if(clientSessionError)throw clientSessionError;
@@ -286,12 +290,16 @@ async function run(){
   adminContext=await contextFor(browser,adminSession);const adminPage=await adminContext.newPage();
   await adminPage.goto(BASE+"/admin/support-agents");await adminPage.getByRole("heading",{name:"Agents du service client"}).waitFor({timeout:30000});
   const tag=Date.now().toString(36);
-  const agentA=await createAgent(adminPage,tag,"a");const agentB=await createAgent(adminPage,tag,"b");
+  const agentA=await createAgent(adminPage,tag,"a");
+  const agentB=await createAgent(adminPage,tag,"b");
+  const agentC=await createAgent(adminPage,tag,"c");
   const ticketA=await createTicket(client,"E2E Agent A "+tag);
   const ticketB=await createTicket(client,"E2E Agent B "+tag);
   const ticketRace=await createTicket(client,"E2E Agent Race "+tag);
   const ticketQueue=await createTicket(client,"E2E Agent Central Queue "+tag);
-  a=await loginAgent(browser,agentA,"A");b=await loginAgent(browser,agentB,"B");
+  a=await loginAgent(browser,agentA,"A");
+  b=await loginAgent(browser,agentB,"B");
+  c=await loginAgent(browser,agentC,"C");
   const cardA=a.page.locator("article").filter({hasText:"E2E Agent A "+tag}).first();
   await cardA.getByRole("button",{name:"Prendre ce dossier"}).click();
   await cardA.getByRole("link",{name:"Ouvrir le dossier"}).waitFor({timeout:20000});
@@ -403,9 +411,45 @@ async function run(){
   assert.equal(agentCannotShare.status(),403,"L’Agent ne doit pas pouvoir autoriser lui-même un partage écran.");
   const shareButton=clientPage.getByRole("button",{name:"Partager mon écran",exact:true});
   assert.equal(await shareButton.isDisabled(),true,"Le partage doit rester désactivé sans consentement NAXA.");
+  const requesterVideoNegotiation=await clientPage.evaluate(()=>{
+   const pc=window.__naxaE2EPeerConnections.at(-1);
+   return pc.getTransceivers().filter(t=>t.receiver.track.kind==="video").map(t=>({
+    mid:t.mid,direction:t.direction,currentDirection:t.currentDirection,
+    senderHasTrack:Boolean(t.sender.track),senderTrackKind:t.sender.track?.kind??null
+   }));
+  });
+  console.log("TRACE — transceivers vidéo du demandeur "+JSON.stringify(requesterVideoNegotiation));
+  assert.equal(requesterVideoNegotiation.filter(t=>t.mid!==null&&t.currentDirection?.includes("send")).length,1,
+   "Le demandeur doit posséder exactement un transceiver vidéo négocié en émission : "+JSON.stringify(requesterVideoNegotiation));
   await clientPage.getByRole("checkbox",{name:/J’accepte de partager mon écran avec l’Agent NAXA/}).check();
   await shareButton.click();
-  await a.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
+  try {
+   await a.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
+  } catch(cause) {
+   const [requester,agent]=await Promise.all([
+    clientPage.evaluate(()=>{
+     const pc=window.__naxaE2EPeerConnections.at(-1);
+     return {transceivers:pc.getTransceivers().filter(t=>t.receiver.track.kind==="video").map(t=>({
+      mid:t.mid,direction:t.direction,currentDirection:t.currentDirection,senderTrack:t.sender.track?.readyState??null
+     })),error:document.querySelector('section[aria-label="Appel audio NAXA"]')?.innerText};
+    }),
+    a.page.evaluate(()=>{
+     const pc=window.__naxaE2EPeerConnections.at(-1);
+     const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+     return {connectionState:pc.connectionState,transceivers:pc.getTransceivers().filter(t=>t.receiver.track.kind==="video").map(t=>({
+      mid:t.mid,direction:t.direction,currentDirection:t.currentDirection
+     })),videoClass:video?.className??null,videoWidth:video?.videoWidth??0,
+      videoHeight:video?.videoHeight??0,readyState:video?.readyState??0};
+    })
+   ]);
+   throw new Error("Écran distant non visible après l’accord et la capture. Diagnostic demandeur="+JSON.stringify(requester)+
+    ", Agent="+JSON.stringify(agent)+", cause="+(cause instanceof Error?cause.message:String(cause)));
+  }
+  await clientPage.locator('video[aria-label="Aperçu de votre écran partagé"]').waitFor({state:"visible",timeout:10000});
+  await clientPage.waitForFunction(()=>{
+   const video=document.querySelector('video[aria-label="Aperçu de votre écran partagé"]');
+   return !!video&&video.videoWidth===640&&video.videoHeight===360&&video.readyState>=2&&!video.paused;
+  },null,{timeout:10000});
   await a.page.waitForFunction(()=>{
    const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
    return !!video&&video.videoWidth===640&&video.videoHeight===360&&video.readyState>=2;
@@ -516,6 +560,114 @@ async function run(){
   assert.equal(finishQueuedCall.status,200,JSON.stringify(finishQueuedCall.data));
   console.log("PASS — file centrale : demande queued visible, acceptation Agent autorisé, heartbeats et clôture.");
 
+  // Deuxième origine : un compte professionnel actif (Comptable) utilise le même
+  // support /assistance et partage son écran vers un Agent distinct.
+  const professional=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const professionalAuth=await professional.auth.setSession({
+   access_token:professionalSession.accessToken,refresh_token:professionalSession.refreshToken
+  });
+  if(professionalAuth.error)throw professionalAuth.error;
+  const [{data:professionalUser,error:professionalUserError},{data:professionalRole,error:professionalRoleError}]=await Promise.all([
+   professional.auth.getUser(),
+   professional.rpc("naxa_business_function")
+  ]);
+  if(professionalUserError)throw professionalUserError;
+  if(professionalRoleError)throw professionalRoleError;
+  assert.equal(professionalUser.user.id,professionalSession.profile.id);
+  assert.equal(professionalRole,"comptable","Le scénario professionnel doit utiliser le rôle actif Comptable.");
+  const professionalSubject="E2E Partage écran Comptable "+tag;
+  const professionalTicket=await createTicket(professional,professionalSubject,"caisse");
+  const cardC=c.page.locator("article").filter({hasText:professionalSubject}).first();
+  await cardC.getByRole("button",{name:"Prendre ce dossier"}).click();
+  await cardC.getByRole("link",{name:"Ouvrir le dossier"}).waitFor({timeout:20000});
+  professionalContext=await contextFor(browser,professionalSession);
+  professionalPage=await professionalContext.newPage();
+  professionalPage.on("pageerror",error=>console.log("PRO BROWSER PAGEERROR — "+error.message));
+  await professionalPage.goto(BASE+"/assistance?ticket="+encodeURIComponent(professionalTicket));
+  await professionalPage.getByRole("heading",{name:professionalSubject}).waitFor({timeout:20000});
+  const professionalCallResponsePromise=professionalPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls")&&r.request().method()==="POST",{timeout:20000}
+  );
+  await professionalPage.getByRole("button",{name:"Demander un appel audio"}).click();
+  const professionalCallResponse=await professionalCallResponsePromise;
+  const professionalCallData=await professionalCallResponse.json();
+  assert.equal(professionalCallResponse.status(),201,JSON.stringify(professionalCallData));
+  const professionalCallId=professionalCallData.call.id;
+  assert.equal(professionalCallData.call.agent_user_id,agentC.id,"Le dossier professionnel doit rester affecté à son Agent.");
+  state.calls.push({id:professionalCallId,requesterId:professionalSession.profile.id});save();
+  await c.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
+  await c.page.getByRole("button",{name:"Accepter l’appel"}).click();
+  await c.page.waitForURL(u=>u.pathname==="/equipe-support/dossiers/"+professionalTicket&&u.searchParams.get("callId")===professionalCallId,{timeout:20000});
+  await Promise.all([
+   professionalPage.getByText("Canal sécurisé connecté",{exact:true}).waitFor({timeout:15000}),
+   c.page.getByText("Canal sécurisé connecté",{exact:true}).waitFor({timeout:15000})
+  ]);
+  await Promise.all([
+   rtcAudioProof(professionalPage,"demandeur professionnel Comptable"),
+   rtcAudioProof(c.page,"Agent C face au Comptable")
+  ]);
+  assert.equal(await c.page.getByRole("button",{name:"Partager mon écran",exact:true}).count(),0);
+  const professionalAgentDenied=await c.page.request.post(BASE+"/api/support/calls/"+professionalCallId+"/screen-share",{
+   data:{action:"consented",share_session_id:"00000000-0000-4000-8000-000000000002"}
+  });
+  assert.equal(professionalAgentDenied.status(),403,"L’Agent ne doit pas pouvoir autoriser le partage depuis le dossier professionnel.");
+  const professionalShareButton=professionalPage.getByRole("button",{name:"Partager mon écran",exact:true});
+  assert.equal(await professionalShareButton.isDisabled(),true,"Le consentement NAXA reste obligatoire dans l’espace professionnel.");
+  const professionalNegotiation=await professionalPage.evaluate(()=>{
+   const pc=window.__naxaE2EPeerConnections.at(-1);
+   return pc.getTransceivers().filter(t=>t.receiver.track.kind==="video").map(t=>({
+    mid:t.mid,currentDirection:t.currentDirection
+   }));
+  });
+  assert.equal(professionalNegotiation.filter(t=>t.mid!==null&&t.currentDirection?.includes("send")).length,1,
+   "Le Comptable doit disposer d’un transceiver vidéo SDP sortant unique : "+JSON.stringify(professionalNegotiation));
+  await professionalPage.getByRole("checkbox",{name:/J’accepte de partager mon écran avec l’Agent NAXA/}).check();
+  await professionalShareButton.click();
+  await c.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
+  await c.page.waitForFunction(()=>{
+   const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+   return !!video&&video.videoWidth===640&&video.videoHeight===360&&video.readyState>=2&&!video.paused;
+  },null,{timeout:15000});
+  const professionalVideoProof=await Promise.all([
+   professionalPage.evaluate(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    const out=rows.filter(s=>s.type==="outbound-rtp"&&(s.kind==="video"||s.mediaType==="video"));
+    return {liveSenders:pc.getSenders().filter(s=>s.track?.kind==="video"&&s.track.readyState==="live").length,
+     packets:out.reduce((n,s)=>n+(s.packetsSent||0),0),bytes:out.reduce((n,s)=>n+(s.bytesSent||0),0)};
+   }),
+   c.page.evaluate(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    const input=rows.filter(s=>s.type==="inbound-rtp"&&(s.kind==="video"||s.mediaType==="video"));
+    const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+    return {liveReceivers:pc.getReceivers().filter(r=>r.track?.kind==="video"&&r.track.readyState==="live").length,
+     packets:input.reduce((n,s)=>n+(s.packetsReceived||0),0),bytes:input.reduce((n,s)=>n+(s.bytesReceived||0),0),
+     width:video?.videoWidth??0,height:video?.videoHeight??0,paused:video?.paused??true};
+   })
+  ]);
+  console.log("TRACE — partage vidéo Comptable→Agent "+JSON.stringify(professionalVideoProof));
+  assert.ok(professionalVideoProof[0].liveSenders>0&&professionalVideoProof[0].packets>0&&professionalVideoProof[0].bytes>0,
+   "Le Comptable ne transmet aucun paquet vidéo RTP : "+JSON.stringify(professionalVideoProof));
+  assert.ok(professionalVideoProof[1].liveReceivers>0&&professionalVideoProof[1].packets>0&&professionalVideoProof[1].bytes>0
+   &&professionalVideoProof[1].width===640&&professionalVideoProof[1].height===360&&!professionalVideoProof[1].paused,
+   "L’Agent ne reçoit pas la vidéo du Comptable : "+JSON.stringify(professionalVideoProof));
+  // Laisser le partage actif : la fermeture de l’appel doit enregistrer l’arrêt côté DB.
+  const endProfessionalCall=await c.page.request.patch(BASE+"/api/support/calls/"+professionalCallId,{
+   headers:{"Content-Type":"application/json"},data:{action:"end"}
+  });
+  assert.equal(endProfessionalCall.status(),200,"L’Agent doit pouvoir terminer l’appel professionnel.");
+  await c.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:15000});
+  const {data:professionalAudit,error:professionalAuditError}=await admin.from("support_call_events")
+   .select("actor_user_id,event_code,details,created_at").eq("call_id",professionalCallId)
+   .in("event_code",["screen_share_consented","screen_share_started","screen_share_stopped"])
+   .order("created_at",{ascending:true});
+  if(professionalAuditError)throw professionalAuditError;
+  assert.deepEqual((professionalAudit||[]).map(e=>e.event_code),["screen_share_consented","screen_share_started","screen_share_stopped"],
+   "La fermeture serveur doit arrêter et auditer le partage professionnel : "+JSON.stringify(professionalAudit));
+  assert.equal(professionalAudit[2].actor_user_id,null,"L’arrêt call_ended doit provenir du trigger serveur.");
+  assert.equal(professionalAudit[2].details.reason,"call_ended","Le trigger doit qualifier l’arrêt comme fermeture d’appel.");
+  console.log("PASS GLOBAL — partage écran professionnel Comptable→Agent, RTP vidéo reçu et arrêt automatique trigger à la clôture.");
+
+  await professionalContext.close();professionalContext=null;
   const ca=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
   const cb=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}});
   const [sa,sb]=await Promise.all([ca.auth.signInWithPassword({email:agentA.email,password:a.password}),cb.auth.signInWithPassword({email:agentB.email,password:b.password})]);
@@ -695,6 +847,8 @@ async function run(){
   console.log("PASS — suspension pendant sonnerie : retour en file centrale, Agent B réactivé.");
   console.log("PASS GLOBAL — cycle de vie Agents, appels, permissions, RLS, Livechat et partage écran."); }finally{
   if(a?.context)await a.context.close().catch(()=>{});if(b?.context)await b.context.close().catch(()=>{});
+  if(c?.context)await c.context.close().catch(()=>{});
+  if(professionalContext)await professionalContext.close().catch(()=>{});
   if(queueClientContext)await queueClientContext.close().catch(()=>{});if(clientContext)await clientContext.close().catch(()=>{});if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
   await cleanup();
  }

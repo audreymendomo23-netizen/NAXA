@@ -77,6 +77,20 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     }
   }, [postScreenShareEvent]);
 
+  useEffect(() => {
+    if (!screenShareActive) return;
+    const preview = localScreenPreview.current;
+    const capture = screenShareStream.current;
+    if (!preview || !capture) return;
+    preview.srcObject = capture;
+    void preview.play().catch(() => {
+      setError("L’aperçu local du partage est indisponible dans ce navigateur.");
+    });
+    return () => {
+      if (preview.srcObject === capture) preview.srcObject = null;
+    };
+  }, [screenShareActive]);
+
   const stopMedia = useCallback((reason: ScreenShareReason = "unexpected_track_end") => {
     void stopScreenShare(reason);
     peer.current?.close();
@@ -198,12 +212,14 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
 
         const pc = new RTCPeerConnection({ iceServers: data.iceServers as RTCIceServer[] });
         peer.current = pc;
-        // Negotiate video in the initial audio SDP. Later capture only replaces
-        // the requester's pre-negotiated sender track; no mid-call renegotiation.
-        const videoTransceiver = pc.addTransceiver("video", {
-          direction: mode === "requester" ? "sendonly" : "recvonly",
-        });
-        screenShareSender.current = mode === "requester" ? videoTransceiver.sender : null;
+        // The Agent is the offerer and negotiates one receive-only video m-line.
+        // The requester binds to the transceiver created for that remote m-line:
+        // WebRTC does not associate a disassociated addTransceiver() instance with
+        // an incoming offer, so pre-creating one here would leave a stale sender.
+        if (mode === "agent") {
+          pc.addTransceiver("video", { direction: "recvonly" });
+        }
+        screenShareSender.current = null;
         pc.ontrack = (event) => {
           if (event.track.kind === "audio") {
             if (remoteAudio.current) {
@@ -212,8 +228,16 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             }
             return;
           }
-          if (event.track.kind === "video" && mode === "agent" && remoteScreenPreview.current) {
-            remoteScreenPreview.current.srcObject = new MediaStream([event.track]);
+          if (event.track.kind === "video" && mode === "agent") {
+            const preview = remoteScreenPreview.current;
+            if (!preview) {
+              setError("La piste vidéo est arrivée avant que l’aperçu distant soit disponible.");
+              return;
+            }
+            preview.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+            void preview.play().catch(() => {
+              setError("La vidéo de partage est reçue, mais sa lecture est bloquée par le navigateur.");
+            });
             setRemoteScreenActive(true);
             event.track.addEventListener("ended", () => {
               if (remoteScreenPreview.current) remoteScreenPreview.current.srcObject = null;
@@ -300,6 +324,13 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
               for (const candidate of pendingCandidates.current.splice(0)) await pc.addIceCandidate(candidate);
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
+              const negotiatedVideo = pc.getTransceivers().find((transceiver) =>
+                transceiver.mid !== null && transceiver.receiver.track.kind === "video"
+              );
+              if (!negotiatedVideo || !negotiatedVideo.currentDirection?.includes("send")) {
+                throw new Error("Le SDP de l’appel ne contient pas de transceiver vidéo sortant associé.");
+              }
+              screenShareSender.current = negotiatedVideo.sender;
               await sendSignal({ kind: "answer", sdp: answer.sdp ?? undefined });
             } else if (signal.kind === "answer" && mode === "agent" && signal.sdp) {
               await pc.setRemoteDescription({ type: "answer", sdp: signal.sdp });
@@ -454,12 +485,15 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
         capture.getTracks().forEach((item) => item.stop());
         throw new Error("La session audio n’est pas prête à recevoir le partage écran.");
       }
+      const transceiver = peer.current.getTransceivers().find((item) => item.sender === sender);
+      if (!transceiver || transceiver.mid === null || !transceiver.currentDirection?.includes("send")) {
+        capture.getTracks().forEach((item) => item.stop());
+        throw new Error("Le flux vidéo n’est pas lié au transceiver SDP négocié. Relancez l’appel avant de partager.");
+      }
       screenShareStream.current = capture;
       screenShareSessionId.current = shareSessionId;
-      if (localScreenPreview.current) {
-        localScreenPreview.current.srcObject = capture;
-        await localScreenPreview.current.play().catch(() => undefined);
-      }
+      // The local preview is mounted after screenShareActive changes; an effect
+      // attaches this stream once React has rendered the video element.
       // Native browser source selection is the second consent step.
       await postScreenShareEvent("consented", shareSessionId);
       await sender.replaceTrack(track);
