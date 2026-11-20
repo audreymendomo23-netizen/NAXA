@@ -2,7 +2,7 @@
 
 **Version :** 1.0 — 20 novembre 2026  
 **Dépôt :** audreymendomo23-netizen/NAXA — main  
-**HEAD source inspecté :** d050f598fe9731753af4d2f3f4ea9956724cea09  
+**HEAD source inspecté :** 4f22c724379f54ae751972fed0b54c3c9b88eec7  
 **Environnement d'exécution :** Supabase Replay et environnements CI/local isolés uniquement  
 **Statut :** CONCEPTION DOCUMENTÉE — CAMPAGNE BULK PARTIELLEMENT EXÉCUTÉE (contrôles SQL Replay B00/B01/B02 du 20/11/2026) — NAXA NON CERTIFIÉE GO LIVE
 
@@ -666,3 +666,25 @@ Commencer avec les comptes Auth séparés et les fixtures multi-organisations Re
 
 - Qualité GitHub Actions 44736999210 : **SUCCESS** — syntaxe/actionlint, tests, TypeScript, lint et build Next.js terminés sans échec.
 - Replay 44736999133 : préflight, fixtures, rôles Pharmacie, Centre + neuf postes, Playwright, build Next et Chrome stable PASS ; Web Push Chrome réel encore en cours au dernier contrôle. Les tests crédit navigateur et Storage restent à exécuter dans ce run. Ce run ne doit pas être compté comme PASS avant sa conclusion finale et ses logs.
+
+## 10.23 — Résultats définitifs du Replay 44736999133 — 20/11/2026
+
+**Code testé :** `ad213a52fe6ae3ce9e97db3667ef3afda0987ec6`. **HEAD actuel de main :** `4f22c724379f54ae751972fed0b54c3c9b88eec7`. Depuis le commit testé, les quatre commits supplémentaires ne modifient que les documents E2E. Aucun déploiement ni changement Production.
+
+| Périmètre | Résultat vérifié | Portée |
+|---|---|---|
+| Qualité | **SUCCESS** — run `44737709192` sur HEAD actuel | actionlint, tests, TypeScript, lint et build Next.js PASS |
+| B00 — crédit comptoir | **PASS** | approbation Promoteur, reprise du brouillon, débit unique, remboursement JWT Caisse et rapprochement |
+| B00 — crédit Marketplace | **PASS** | soumission Client, justificatif privé, refus Promoteur, aucun hold/débit |
+| B00 — Storage | **17 PASS / 0 SKIP** | accès propriétaire/Admin/Promoteur, refus croisés et nettoyage |
+| B00 — Auth | **FAIL / BLOQUÉ** | refresh ancêtre rejeté HTTP 400, descendant encore accepté HTTP 200 ; révocation globale indépendante PASS ; expiration JWT non testée |
+| Push réel | **FAIL / BLOQUÉ** | FCM HTTP 410, `sent=0`, `webPushSent=0`, une défaillance Push |
+| B01 — API/choix public | **PASS** | API combinée HTTP 200 ; six cartes ; Pharmacie seule activée |
+| B01 — menu Client browser | **FAIL** | après login et arrivée sur `/client`, attente du bouton « Autres services » expirée à 30 s ; le fetch API explicite prévu après cette attente n'a pas été exécuté |
+| B02 — Centre + neuf postes | **PASS (sous-recette)** | étape dédiée du run Replay terminée en succès ; Centre reste draft/pending et univers désactivé |
+| B02 — global multi-organisations | **PARTIEL** | Parapharmacie, Prestations, seconds Promoteurs et isolation croisée non démontrés |
+| PWA / Android natif | **NOT RUN / non prouvé par ce run** | aucune parité déduite du navigateur Web |
+
+**Run Replay :** `44736999133` — conclusion finale **FAILURE**. C'est le dernier run de ce workflow visible dans l'historique contrôlé ; aucun rerun plus récent n'a été constaté. Le workflow qualité vert ne vaut pas succès E2E.
+
+**Verdict :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL ; B02 PARTIEL. NAXA reste **NON CERTIFIÉE GO LIVE**. Reprise : diagnostiquer le DOM/ARIA du shell Client avant de modifier le test, corriger l'ordre du harnais, traiter la détection de réutilisation Auth Replay, renouveler et vérifier une souscription Push valide, puis exécuter les cohortes multi-organisations B02. Production et déploiement hors périmètre.
