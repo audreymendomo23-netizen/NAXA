@@ -144,6 +144,7 @@ begin
   perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
 
+  reset role;
   select count(*) into v_count
   from public.partners pa
   join public.admin_partner_dossiers d on d.partner_id=pa.id
