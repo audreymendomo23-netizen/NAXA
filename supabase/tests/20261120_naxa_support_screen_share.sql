@@ -38,6 +38,12 @@ begin
     where schemaname='public' and indexname='support_call_screen_share_event_once_uq'
   ) then raise exception 'Index idempotent absent'; end if;
 
+  select pg_get_functiondef('private.naxa_support_call_close_screen_shares()'::regprocedure)
+    into v_definition;
+  if position('new.requester_user_id' in v_definition)>0
+    or position(E'        null,\n' in v_definition)=0
+  then raise exception 'L’arrêt call_ended doit être un événement système avec actor_user_id NULL'; end if;
+
   select pg_get_functiondef('private.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)'::regprocedure)
     into v_definition;
   if position('requester_user_id' in v_definition)=0

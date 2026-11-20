@@ -495,3 +495,16 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Cause exacte : casse dans le motif statique seulement. Le texte E2E utilise `L’état de partage actif doit disparaître avec la clôture de l’appel.` (minuscule après l'apostrophe), alors que le contrat recherchait `État` majuscule. Le parcours fonctionnel et son assertion n'ont pas échoué.
 - Correction : le contrat recherche maintenant le fragment exact en minuscule `état de partage actif doit disparaître`. Aucun seuil ni contrôle n'est modifié.
 - Le run Replay correspondant est toujours en cours à l'étape de build ; aucune donnée de recette n'a été déclarée verte sur la base du test statique seul.
+
+# Audio Comptable : émission RTP et trigger d'arrêt système — 20 novembre 2026
+
+## Run Replay 44665713515 sur d3a89e4
+- Client audio/vidéo et file centrale : PASS.
+- Comptable : les deux pairs atteignent connectionState=connected, iceConnectionState=connected, SDP stable et couple TURN relay réussi ; pistes audio distantes vivantes et lecteur non suspendu, mais compteurs RTP audio nuls pendant 15 secondes. Le run échoue avant l'autorisation de partage d'écran.
+- Le contrôle n'est pas assoupli. Le harnais ajoute la journalisation du sender/receiver audio, de l'état de l'oscillateur, du nœud MediaStreamDestination, de ses pistes et des lignes RTP détaillées. La destination et son stream sont conservés fortement référencés afin d'éliminer la collecte du nœud de sortie synthétique comme variable d'exécution.
+
+## Écart du trigger Replay
+- La définition installée de private.naxa_support_call_close_screen_shares() utilisait new.requester_user_id pour actor_user_id, contrairement à la migration d'origine, qui attend NULL pour un arrêt automatique.
+- Nouvelle migration additive 20261120040000_naxa_support_screen_share_auto_stop_system_actor.sql : remplace la fonction avec actor_user_id=NULL, conserve SECURITY DEFINER, search_path='', révoque l'exécution directe des rôles JWT et recrée le trigger.
+- Le contrat SQL inspecte la définition installée et rejette l'attribution de l'arrêt automatique au demandeur. Le scénario Comptable conserve l'assertion actor_user_id IS NULL et reason=call_ended.
+- Cette migration s'applique uniquement à Supabase Replay. Production reste inchangée.

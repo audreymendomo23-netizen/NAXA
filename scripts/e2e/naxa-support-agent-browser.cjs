@@ -131,9 +131,13 @@ async function contextFor(browser,session){
     oscillator.connect(gain);
     gain.connect(destination);
     oscillator.start();
-    audioContexts.push({audioContext,oscillator,gain});
+    // Keep the MediaStreamDestination and its stream strongly reachable while
+    // Chromium is sending RTP. The synthetic graph must not depend on garbage
+    // collection of an otherwise-unreferenced destination node.
+    const destinationStream=destination.stream;
+    audioContexts.push({audioContext,oscillator,gain,destination,destinationStream});
     captured.getTracks().forEach(track=>track.stop());
-    return destination.stream;
+    return destinationStream;
    };
   }
  });
@@ -232,7 +236,23 @@ async function rtcAudioProof(page,label){
    remoteAudioTrackStates:remoteTracks.map(track=>track.readyState),
    remoteAudioReadyState:audio?.readyState??0,
    remoteAudioPaused:audio?.paused??true,
-   audioContextStates:(window.__naxaE2EAudioContexts||[]).map(item=>item.audioContext?.state??"unknown"),
+   audioContextStates:(window.__naxaE2EAudioContexts||[]).map(item=>({
+    state:item.audioContext?.state??"unknown",
+    oscillatorState:item.oscillator?.state??"unknown",
+    destinationTracks:item.destinationStream?.getAudioTracks?.().map(track=>({
+     readyState:track.readyState,enabled:track.enabled,muted:track.muted
+    }))??[],
+   })),
+   audioSenderTracks:pc.getSenders().filter(sender=>sender.track?.kind==="audio").map(sender=>({
+    readyState:sender.track?.readyState??null,enabled:sender.track?.enabled??null,muted:sender.track?.muted??null
+   })),
+   audioReceiverTracks:pc.getReceivers().filter(receiver=>receiver.track?.kind==="audio").map(receiver=>({
+    readyState:receiver.track?.readyState??null,enabled:receiver.track?.enabled??null,muted:receiver.track?.muted??null
+   })),
+   audioRtpRows:{
+    outbound:outbound.map(stat=>({kind:stat.kind,mediaType:stat.mediaType,packetsSent:stat.packetsSent??0,bytesSent:stat.bytesSent??0,totalSamplesSent:stat.totalSamplesSent??null,mediaSourceId:stat.mediaSourceId??null})),
+    inbound:inbound.map(stat=>({kind:stat.kind,mediaType:stat.mediaType,packetsReceived:stat.packetsReceived??0,bytesReceived:stat.bytesReceived??0,totalSamplesReceived:stat.totalSamplesReceived??null,trackIdentifier:stat.trackIdentifier??null})),
+   },
    videoTransceivers:pc.getTransceivers().filter(t=>t.receiver.track.kind==="video").map(t=>({
     mid:t.mid,direction:t.direction,currentDirection:t.currentDirection,
     senderTrack:t.sender.track?.kind??null,receiverTrack:t.receiver.track?.readyState??null
