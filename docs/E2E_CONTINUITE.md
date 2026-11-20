@@ -919,3 +919,72 @@ Les contrôles SQL montrent :
 4. Créer un partenaire Parapharmacie Replay par le flux métier ; tester toutes les fonctions autorisées, quotas, privilèges, expirations, chevauchements et refus Livreur.
 5. Vérifier la configuration réelle des schémas API exposés et les ACL depuis la console/configuration Supabase ; tester l'accès privé direct avec JWT.
 6. Mettre à jour le manifeste de fixtures et la matrice scénario → UI → RPC → tables/RLS → preuve avant d'ouvrir les lots suivants.
+
+
+---
+
+## Campagne bulk — troisième passe : chemins de provisionnement et sécurité API — 20 novembre 2026
+
+**Périmètre :** inspection du code main et contrôles SQL en lecture seule sur Replay pwfftcsjyeibxxqhwysw. Aucun compte, partenaire, centre, invitation ou affectation créé. Aucune écriture Production et aucun déploiement.
+
+### 1. Provisionnement Auth du personnel Centre — chemin applicatif confirmé
+
+Fichier inspecté : src/app/centre-examens/actions.ts (blob a37c0761f709b305d7000c1e809d129613ecd644).
+
+- createExamStaffAccount exige un acteur ayant la capacité staff_manage sur le centre.
+- Pour un nouvel e-mail, la Server Action crée une invitation par exam_create_staff_invite, puis un utilisateur Auth via supabaseAdmin().auth.admin.createUser avec email_confirm:false, naxa_signup_pending:true et exam_staff_direct_pending:true.
+- Le lien d'activation est transmis par e-mail. Le code réserve cet envoi automatique à Production ; hors Production, il demande une transmission manuelle du lien. Le flux Replay doit donc être testé avec un canal d'activation maîtrisé, sans prétendre qu'un e-mail Replay est envoyé.
+- Pour un utilisateur existant, l'affectation directe n'est autorisée que si son profil Client est complet, actif et si l'e-mail Auth est confirmé ; sinon le flux invitation est utilisé.
+- assignExamStaff appelle exam_assign_existing_staff. La liste des neuf rôles autorisés exclut directeur.
+
+Fichiers complémentaires inspectés :
+- src/app/api/auth/complete-signup/route.ts : finalisation du compte à partir d'un jeton Bearer Auth valide ; contrôle e-mail confirmé, profil Client, âge majeur, consentement, identifiant et téléphone.
+- src/app/api/auth/signup-otp/verify/route.ts : vérification OTP et ouverture de session.
+- src/app/(auth)/creation-compte/page.tsx : parcours d'inscription public ; ce parcours doit être exercé réellement pour valider l'activation, pas remplacé par une insertion SQL dans profiles.
+
+**Conclusion :** le code de provisionnement et les préconditions sont identifiés. Le compte invité, l'e-mail d'activation, la finalisation du profil et l'acceptation d'invitation n'ont pas encore été exécutés sur Replay.
+
+### 2. Création du partenaire Centre et du centre — contrat DB confirmé
+
+Fonction Replay inspectée : public.admin_create_partner_dossier(uuid,text,text,text,text,text,text,numeric,numeric,text,bigint,text,jsonb).
+
+Cette fonction SECURITY DEFINER :
+- exige public.is_admin() pour l'acteur courant ;
+- exige un titulaire existant dans auth.users et profiles, de rôle Client, actif, majeur selon la date camerounaise, âge vérifié, consentement accepté et e-mail confirmé ;
+- crée le partenaire en statut pending, son univers désactivé, le membership owner du titulaire, le dossier administratif en attente ;
+- lorsque p_universe_slug='examens', crée aussi automatiquement le exam_center en statut draft ;
+- journalise l'événement dans audit_log sans modifier le statut global d'identité du titulaire.
+
+Le flux applicatif de gestion du centre, dans src/app/partenaire/examens/actions.ts (blob 9184b771b79a0f4b991561196c1ba0b5f14f7532), permet ensuite au propriétaire/manager actif de créer un centre en brouillon. Ce flux alternatif ne remplace pas le bootstrap du dossier initial et son trigger Directeur doit être vérifié sur données réelles.
+
+**Conséquence de recette :** pour le scénario initial le plus déterministe, utiliser un Client Replay existant, complet et confirmé comme titulaire, faire exécuter la fonction par un administrateur authentifié, puis vérifier le membership owner, le centre brouillon et l'affectation Directeur automatique. Aucun de ces actes n'a encore été exécuté.
+
+### 3. Nouvelle photographie Replay — état toujours sans fixtures métier
+
+Contrôle SQL séparé, 20 novembre 2026 : Auth users 11 ; profiles 11 ; partners 0 ; exam_centers 0 ; exam_staff_assignments 0 ; exam_staff_invites 0.
+
+La cohérence Auth/Profiles reste à 11/11. L'absence de partenaires et centres confirme que le blocage E2E métier demeure ; aucune fixture ne doit être créée en contournant les flux Auth et Admin.
+
+### 4. Qualification des droits du schéma privé — avancée, mais exposition API non résolue
+
+Contrôle des fonctions private.exam_*_impl sur Replay : sept implémentations examinées sont SECURITY DEFINER ; EXECUTE est accordé à authenticated sur les sept ; EXECUTE n'est pas accordé à anon sur ces sept ; USAGE sur le schéma private est accordé à anon, authenticated et service_role.
+
+Le réglage PostgREST n'est pas exposé dans les paramètres SQL consultables (pg_settings ne retourne aucun paramètre pgrst / db_schema dans ce contexte). La liste effective des schémas exposés à l'API ne peut donc pas être déduite de ces résultats. Les grants SQL seuls ne prouvent ni l'exposition REST ni l'inaccessibilité HTTP.
+
+**Verdict sécurité : BLOCKED / configuration API non vérifiée.** Aucune vulnérabilité confirmée et aucune correction ACL appliquée. Il faut obtenir la configuration effective « Exposed schemas » du projet Replay, puis tenter des appels REST directs avec un JWT utilisateur de test autorisé et un JWT non autorisé. Si private est exposé, revoir les grants USAGE et EXECUTE en conservant les RPC publiques contrôlées, puis rejouer les tests positifs et négatifs.
+
+### 5. État de la passe
+
+- **PASS maintenu :** B00-IDENTITY-01, 4/4 contrôles référentiels lors de la première exécution ; état actuel Auth/Profiles 11/11.
+- **PASS structurel ajouté :** chemin Auth d'invitation Centre identifié ; contrat de création du dossier partenaire et du centre identifié ; contrat d'acceptation et finalisation Auth identifié.
+- **BLOCKED :** exécution réelle de ces flux, faute de session Admin/Responsable de centre contrôlée et de canal d'activation Replay confirmé.
+- **BLOCKED sécurité :** liste des schémas API exposés et essais HTTP avec JWT non disponibles depuis les outils connectés présents.
+- **NON EXÉCUTÉ :** toute recette métier B00/B01/B02 UI/RPC, tests négatifs avec JWT, PWA installée, Android natif et lots B03–B16.
+
+### Point de reprise exact
+
+1. Obtenir une session Admin de test et un Client Replay complet, actif, majeur et e-mail confirmé ; ne pas réutiliser un profil Promoteur comme titulaire.
+2. Exécuter admin_create_partner_dossier dans le contexte d'une session Admin authentifiée, avec univers examens, puis contrôler le partenaire, le membership owner, le centre brouillon et le Directeur auto-affecté.
+3. Exécuter le cycle complet de création/activation d'un compte invité Centre, finalisation de profil et acceptation d'invitation ; vérifier ensuite les neuf rôles, leurs refus et révocations.
+4. Obtenir la configuration Exposed schemas de Replay et exécuter les appels REST privés avec JWT autorisé/non autorisé. Ne pas modifier les ACL avant cette preuve.
+5. Documenter les identifiants de fixtures non sensibles, les préconditions et les preuves ; poursuivre B00–B02 jusqu'aux PASS requis avant B03.
