@@ -46,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -449,7 +451,10 @@ internal fun NativeSupportScreen(
                                     Checkbox(
                                         checked = screenShareConsent,
                                         onCheckedChange = { screenShareConsent = it },
-                                        enabled = !shareBusy
+                                        enabled = !shareBusy,
+                                        modifier = Modifier.semantics {
+                                            contentDescription = "NAXA consentement partage écran"
+                                        }
                                     )
                                     Text(
                                         "J’accepte de partager mon écran avec l’Agent NAXA. Seule la capture système que je confirme sera transmise. Aucun enregistrement ni contrôle à distance.",

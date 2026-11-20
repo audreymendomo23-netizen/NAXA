@@ -22,6 +22,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["naxaSupportE2EAccessToken"] =
+            providers.environmentVariable("NAXA_SUPPORT_E2E_ACCESS_TOKEN").orElse("").get()
+        testInstrumentationRunnerArguments["naxaSupportE2ERefreshToken"] =
+            providers.environmentVariable("NAXA_SUPPORT_E2E_REFRESH_TOKEN").orElse("").get()
+        testInstrumentationRunnerArguments["naxaSupportE2ESubject"] =
+            providers.environmentVariable("NAXA_SUPPORT_E2E_SUBJECT").orElse("").get()
         buildConfigField("String", "NAXA_BASE_URL", quoted(naxaBaseUrl))
         buildConfigField("String", "SUPABASE_URL", quoted(supabaseUrl))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoted(supabaseAnonKey))
@@ -58,4 +64,6 @@ dependencies {
     testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }

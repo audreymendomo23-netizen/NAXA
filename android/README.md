@@ -47,7 +47,14 @@ Cette tranche couvre le contrôle de majorité, l'authentification, le catalogue
 Aucun APK signé de production n'est généré ici. Le build Gradle, les tests instrumentés, la recette sur appareils Android et la signature de release doivent être exécutés avant toute diffusion. La distribution prévue reste l'APK signé depuis le site officiel NAXA, sans publication Play Store.
 
 
-## Assistance audio et partage d'écran — limite actuelle
-Le client Android natif Kotlin/Compose n'intègre pas encore les appels Support audio ni le partage d'écran natif. Le partage navigateur repose sur `getDisplayMedia()`, qui n'est pas disponible dans Chrome Android ; le client Android ne doit donc pas afficher cette fonction comme prise en charge native.
+## Assistance audio et partage d’écran natifs — état
 
-L'intégration native future devra utiliser un consentement MediaProjection explicite pour chaque session, une notification/service foreground de type `mediaProjection`, un transport WebRTC natif et une signalisation API v1 authentifiée par Bearer/RLS. Elle devra arrêter la projection au raccrochage, à la révocation de session ou à l'arrêt du partage, sans enregistrement ni contrôle distant. La génération d'un APK ne constitue pas une preuve de compatibilité matérielle : une recette sur appareils Android réels est nécessaire.
+Le parcours Support natif Kotlin/Compose est intégré aux espaces Client et Professionnel. Il utilise les API v1 authentifiées par Bearer, la signalisation Supabase Realtime privée et le transport WebRTC natif. L’appel audio requiert la permission microphone Android. Le partage d’écran est facultatif : consentement NAXA explicite, confirmation système MediaProjection pour chaque session, service foreground déclaré `mediaProjection|microphone`, arrêt explicite ou au raccrochage et audit serveur des événements.
+
+Le parcours ne fournit aucun canal de contrôle distant, ne capture pas l’audio système et n’enregistre pas les flux. Une révocation de session/identité ferme le média. La configuration HTTP `10.0.2.2` est permise uniquement dans le manifeste du variant Android `debug` pour les tests sur émulateur ; le manifeste commun et les builds de production conservent `usesCleartextTraffic=false`.
+
+### Recette automatisée GitHub Actions
+
+Le workflow `.github/workflows/naxa-support-native-android-e2e.yml` orchestre sur Replay un Client Android API 35 et un Agent Support Chromium : création d’un ticket authentifié, attribution à l’Agent, demande/acceptation d’appel, connexion audio WebRTC, confirmation MediaProjection, réception vidéo par l’Agent, arrêt du partage, raccrochage et vérification des heartbeats/audits. Les fixtures sont supprimées à la fin du job. Les jetons de session sont éphémères, masqués dans les logs et ne sont pas intégrés à l’APK.
+
+Cette recette d’émulateur complète les tests navigateurs existants mais ne remplace pas la validation finale sur appareils Android physiques (microphones, audio, couches constructeurs et interruptions système). Aucun APK de production n’est signé ou diffusé par cette recette ; la distribution prévue reste l’APK du site officiel NAXA, sans Play Store.

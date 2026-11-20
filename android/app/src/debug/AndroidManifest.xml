@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Runner-local HTTP endpoint is allowed only for debug emulator tests. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

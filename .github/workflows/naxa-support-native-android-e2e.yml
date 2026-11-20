@@ -1,0 +1,241 @@
+name: NAXA Native Support Android ↔ Agent E2E (Replay)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/naxa-support-native-android-e2e.yml"
+      - "android/app/build.gradle.kts"
+      - "android/app/src/main/java/cm/naxa/app/NativeSupportScreen.kt"
+      - "android/app/src/debug/**"
+      - "android/app/src/androidTest/**"
+      - "scripts/e2e/naxa-support-native-android-e2e.cjs"
+      - "android/README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naxa-native-support-android-e2e
+  cancel-in-progress: false
+
+jobs:
+  native-support-android:
+    name: Client Android API 35 ↔ Agent Support Chromium — Replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      NAXA_STORAGE_E2E_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      NAXA_STORAGE_E2E_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      NAXA_STORAGE_E2E_ADMIN_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.NAXA_STORAGE_E2E_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.NAXA_STORAGE_E2E_ADMIN_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
+      NAXA_BASE_URL: http://10.0.2.2:3000
+      NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Installer Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installer JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Vérifier secrets Replay et interdire Production
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$NAXA_STORAGE_E2E_URL" = "https://pwfftcsjyeibxxqhwysw.supabase.co"
+          test -n "$NAXA_STORAGE_E2E_ANON_KEY"
+          test -n "$NAXA_STORAGE_E2E_ADMIN_KEY"
+          test "$NAXA_BASE_URL" = "http://10.0.2.2:3000"
+      - name: Installer Node et Chromium
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.65.1
+          npx playwright install chromium
+      - name: Démarrer TURN éphémère accessible depuis l’émulateur
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y coturn
+          sudo systemctl stop coturn.service 2>/dev/null || true
+          sudo service coturn stop 2>/dev/null || true
+          sudo pkill -x turnserver 2>/dev/null || true
+          HOST_IP="$(ip route get 1.1.1.1 | awk '{print $7; exit}')"
+          test -n "$HOST_IP"
+          TURN_PORT=3478
+          TURN_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$TURN_SECRET"
+          {
+            echo "NAXA_TURN_URLS=turn:127.0.0.1:$TURN_PORT?transport=udp,turn:10.0.2.2:$TURN_PORT?transport=udp,turn:$HOST_IP:$TURN_PORT?transport=udp"
+            echo "NAXA_TURN_SHARED_SECRET=$TURN_SECRET"
+            echo "NAXA_TURN_CREDENTIAL_TTL_SECONDS=300"
+          } >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/coturn-native-support.conf" <<EOF
+          listening-ip=0.0.0.0
+          relay-ip=$HOST_IP
+          listening-port=$TURN_PORT
+          min-port=49160
+          max-port=49200
+          realm=naxa-native-support-e2e.local
+          fingerprint
+          use-auth-secret
+          static-auth-secret=$TURN_SECRET
+          allow-loopback-peers
+          no-multicast-peers
+          no-cli
+          no-tls
+          no-dtls
+          simple-log
+          log-file=$RUNNER_TEMP/coturn-native-support.log
+          EOF
+          turnserver -c "$RUNNER_TEMP/coturn-native-support.conf" > "$RUNNER_TEMP/coturn-native-support.stdout.log" 2>&1 &
+          TURN_PID=$!
+          echo "$TURN_PID" > "$RUNNER_TEMP/coturn-native-support.pid"
+          ready=0
+          for _ in $(seq 1 30); do
+            if kill -0 "$TURN_PID" 2>/dev/null && ss -H -lunp "sport = :$TURN_PORT" 2>/dev/null | grep -q "pid=$TURN_PID"; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat "$RUNNER_TEMP/coturn-native-support.stdout.log" "$RUNNER_TEMP/coturn-native-support.log" 2>/dev/null || true
+            echo "::error::Coturn n’a pas démarré correctement."
+            exit 1
+          fi
+          echo "PASS — Coturn UDP prêt sur le runner $HOST_IP:$TURN_PORT."
+      - name: Préparer le secret de limitation éphémère
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$SECRET"
+          echo "NAXA_RATE_LIMIT_SECRET=$SECRET" >> "$GITHUB_ENV"
+      - name: Construire NAXA avec Replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"
+          echo "::add-mask::$SUPABASE_SECRET_KEY"
+          npm run build
+      - name: Démarrer le serveur NAXA local pour Android et Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SUPABASE_SECRET_KEY="$NAXA_STORAGE_E2E_ADMIN_KEY"
+          npm start -- --hostname 0.0.0.0 > "$RUNNER_TEMP/naxa-native-support-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/naxa-native-support-server.pid"
+          ready=0
+          for _ in $(seq 1 60); do
+            if curl --silent --show-error --fail http://127.0.0.1:3000/connexion >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 160 "$RUNNER_TEMP/naxa-native-support-server.log" || true
+            echo "::error::Le serveur NAXA local ne démarre pas."
+            exit 1
+          fi
+      - name: Préparer Client, ticket et Agent Replay
+        run: node scripts/e2e/naxa-support-native-android-e2e.cjs --prepare
+      - name: Activer KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Recette Android native ↔ Agent Support sur émulateur API 35
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim
+          script: |
+            set -euo pipefail
+            adb shell settings put system system_locales en-US || true
+            AGENT_LOG="$RUNNER_TEMP/naxa-native-support-agent.log"
+            node scripts/e2e/naxa-support-native-android-e2e.cjs --agent > "$AGENT_LOG" 2>&1 &
+            AGENT_PID=$!
+            agent_ready=0
+            for _ in $(seq 1 75); do
+              if grep -q "AGENT READY" "$AGENT_LOG" 2>/dev/null; then
+                agent_ready=1
+                break
+              fi
+              if ! kill -0 "$AGENT_PID" 2>/dev/null; then
+                cat "$AGENT_LOG" || true
+                echo "::error::L’Agent Support ne s’est pas préparé."
+                exit 1
+              fi
+              sleep 1
+            done
+            if [ "$agent_ready" -ne 1 ]; then
+              cat "$AGENT_LOG" || true
+              kill "$AGENT_PID" 2>/dev/null || true
+              echo "::error::L’Agent Support n’est pas prêt."
+              exit 1
+            fi
+            set +e
+            (cd android && gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest)
+            TEST_STATUS=$?
+            set -e
+            if [ "$TEST_STATUS" -ne 0 ]; then
+              kill "$AGENT_PID" 2>/dev/null || true
+            fi
+            set +e
+            wait "$AGENT_PID"
+            AGENT_STATUS=$?
+            set -e
+            cat "$AGENT_LOG"
+            test "$TEST_STATUS" -eq 0
+            test "$AGENT_STATUS" -eq 0
+      - name: Publier rapports Android
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: naxa-native-support-android-instrumentation
+          path: |
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Nettoyer les fixtures Replay
+        if: always()
+        run: node scripts/e2e/naxa-support-native-android-e2e.cjs --cleanup
+      - name: Logs serveur/TURN si échec
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::Serveur NAXA"
+          tail -n 160 "$RUNNER_TEMP/naxa-native-support-server.log" || true
+          echo "::endgroup::"
+          echo "::group::Coturn"
+          tail -n 160 "$RUNNER_TEMP/coturn-native-support.stdout.log" "$RUNNER_TEMP/coturn-native-support.log" 2>/dev/null || true
+          echo "::endgroup::"
+      - name: Arrêter les services temporaires
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/naxa-native-support-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/naxa-native-support-server.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/coturn-native-support.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/coturn-native-support.pid")" 2>/dev/null || true
+          fi
