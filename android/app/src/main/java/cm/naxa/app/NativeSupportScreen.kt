@@ -38,6 +38,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -254,7 +255,7 @@ internal fun NativeSupportScreen(
 
     LaunchedEffect(currentCall?.id, rtcRetryNonce) {
         val callId = currentCall?.id ?: return@LaunchedEffect
-        if (currentCall?.status in TerminalCallStates) return@LaunchedEffect
+        if (currentCall?.status?.let { it in TerminalCallStates } == true) return@LaunchedEffect
 
         var lastHeartbeatAt = 0L
         try {
