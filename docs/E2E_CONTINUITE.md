@@ -327,3 +327,26 @@ Le Support global et le partage d'écran restent NON VERT tant que l'extension d
 - L'étape « Démarrer TURN éphémère » est marquée PASS. Le message SQLite `/var/lib/turn/turndb` apparaît dans la sortie Coturn, mais n'a pas provoqué l'échec du step ; ne pas modifier le bootstrap TURN sur cette seule base. Le contrôle du socket UDP a bien passé.
 - Correctif ciblé : traiter `setAuth()` comme un appel synchrone et intercepter uniquement une exception synchrone dans le listener de renouvellement du JWT. Ne pas changer le flux de souscription initiale déjà précédé de `getSession()` et de `setAuth()`.
 - Reprise : relancer qualité + build + E2E Agents ciblé ; seulement après obtention des logs Realtime des deux participants décider si la cause JWT est confirmée ou si l'investigation doit se déplacer vers la configuration Realtime ou le prédicat SQL.
+
+
+# Reprise partage écran — checkpoint Replay (20 novembre 2026)
+
+## Audio déjà confirmé vert
+Parent conservé `df7f105212efbba32db1e492b86888ae9ee76985`. Les runs `44646612311` (Replay E2E) et `44646612255` (qualité) ont validé le canal privé authentifié, l’audio WebRTC bidirectionnel via TURN relay, des paquets RTP dans les deux sens, le raccrochage en 668 ms, 618 tests et qualité PASS.
+
+## Partage écran
+- Le demandeur (Client ou professionnel) seul capture sa propre source ; l’Agent reçoit et affiche, sans contrôle distant.
+- Double étape : case d’accord explicite NAXA, puis sélection native du navigateur. `getDisplayMedia()` est appelé dans le geste du clic, avant tout réseau.
+- Transceiver vidéo pré-négocié dans le SDP audio initial ; piste activée par `replaceTrack`, sans renégociation.
+- Arrêt explicite, fin de piste, démontage du composant et fermeture automatique de session à la fin de l’appel.
+- Aucun enregistrement, image/frame, vidéo, SDP ou candidat ICE stocké. Audit append-only : code, identifiant de session aléatoire, motif allowlisté.
+
+## Migration Replay
+Migration `20261120005321_naxa_support_screen_share_audit` appliquée au seul projet Replay. Codes consented/started/stopped/denied, index idempotent, RPC réservé à `service_role`, trigger de fermeture. Vérification : service_role=true ; authenticated=false ; anon=false ; trigger présent.
+
+## Accès commun Client et professionnel
+Le widget NAXA, déjà partagé dans les deux profils, fournit `Mes dossiers → /assistance`. La page Support commune porte le composant appel audio/partage écran. La messagerie Client↔Pharmacie reste indépendante.
+
+## Recette ciblée
+Le marqueur `[support-team-only]` saute seulement le scénario autonome Client↔Admin ; la recette professionnelle existante et la recette Agents s’exécutent. La recette Agents doit prouver l’interdiction côté Agent, le consentement côté demandeur, la réception de paquets vidéo RTP, l’arrêt et l’ordre d’audit.
+CI utilise une capture canvas synthétique : elle valide le transport WebRTC et l’audit applicatif, pas le sélecteur natif sur un véritable écran ni les essais physiques Android/iOS. Verdict global NON VERT jusqu’au succès des runs qualité et Replay ciblés.

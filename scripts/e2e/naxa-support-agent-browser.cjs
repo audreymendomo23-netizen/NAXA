@@ -71,6 +71,16 @@ async function contextFor(browser,session){
   const nativeGetUserMedia=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
   const audioContexts=[];
   Object.defineProperty(window,"__naxaE2EAudioContexts",{value:audioContexts,configurable:false});
+  if(navigator.mediaDevices){
+   // CI's synthetic canvas validates the WebRTC transport, not a physical desktop picker.
+   navigator.mediaDevices.getDisplayMedia=async constraints=>{
+    if(constraints?.audio!==false)throw new Error("Le partage écran E2E ne doit pas capturer l’audio système.");
+    const canvas=document.createElement("canvas");canvas.width=640;canvas.height=360;
+    const context=canvas.getContext("2d");
+    if(context){context.fillStyle="#0B3D26";context.fillRect(0,0,640,360);context.fillStyle="#FFE23D";context.font="bold 30px sans-serif";context.fillText("NAXA E2E SCREEN",36,90);}
+    return canvas.captureStream(15);
+   };
+  }
   if(nativeGetUserMedia){
    navigator.mediaDevices.getUserMedia=async constraints=>{
     const captured=await nativeGetUserMedia(constraints);
@@ -386,6 +396,64 @@ async function run(){
   assert.equal(clientRtcProof.localCandidateType,"relay");
   assert.equal(agentRtcProof.localCandidateType,"relay");
   console.log("PASS GLOBAL — audio WebRTC bidirectionnel via TURN, les deux pairs envoient et reçoivent des paquets RTP.");
+  assert.equal(await a.page.getByRole("button",{name:"Partager mon écran",exact:true}).count(),0,"L’Agent ne doit pas initier le partage écran.");
+  const agentCannotShare=await a.page.request.post(BASE+"/api/support/calls/"+callId+"/screen-share",{
+    data:{action:"consented",share_session_id:"00000000-0000-4000-8000-000000000001"}
+  });
+  assert.equal(agentCannotShare.status(),403,"L’Agent ne doit pas pouvoir autoriser lui-même un partage écran.");
+  const shareButton=clientPage.getByRole("button",{name:"Partager mon écran",exact:true});
+  assert.equal(await shareButton.isDisabled(),true,"Le partage doit rester désactivé sans consentement NAXA.");
+  await clientPage.getByRole("checkbox",{name:/J’accepte de partager mon écran avec l’Agent NAXA/}).check();
+  await shareButton.click();
+  await a.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
+  await a.page.waitForFunction(()=>{
+   const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+   return !!video&&video.videoWidth===640&&video.videoHeight===360&&video.readyState>=2;
+  },null,{timeout:15000});
+  await Promise.all([
+   clientPage.waitForFunction(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    return rows.some(s=>s.type==="outbound-rtp"&&(s.kind==="video"||s.mediaType==="video")&&(s.packetsSent||0)>0);
+   },null,{timeout:15000}),
+   a.page.waitForFunction(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    return rows.some(s=>s.type==="inbound-rtp"&&(s.kind==="video"||s.mediaType==="video")&&(s.packetsReceived||0)>0);
+   },null,{timeout:15000})
+  ]);
+  const videoProof=await Promise.all([
+   clientPage.evaluate(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    const out=rows.filter(s=>s.type==="outbound-rtp"&&(s.kind==="video"||s.mediaType==="video"));
+    return {senders:pc.getSenders().filter(s=>s.track?.kind==="video"&&s.track.readyState==="live").length,packets:out.reduce((n,s)=>n+(s.packetsSent||0),0),bytes:out.reduce((n,s)=>n+(s.bytesSent||0),0)};
+   }),
+   a.page.evaluate(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    const input=rows.filter(s=>s.type==="inbound-rtp"&&(s.kind==="video"||s.mediaType==="video"));
+    const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+    return {receivers:pc.getReceivers().filter(r=>r.track?.kind==="video"&&r.track.readyState==="live").length,packets:input.reduce((n,s)=>n+(s.packetsReceived||0),0),bytes:input.reduce((n,s)=>n+(s.bytesReceived||0),0),width:video?.videoWidth??0,height:video?.videoHeight??0};
+   })
+  ]);
+  console.log("TRACE — preuve vidéo partage écran "+JSON.stringify(videoProof));
+  assert.ok(videoProof[0].senders>0&&videoProof[0].packets>0&&videoProof[0].bytes>0,"RTP vidéo sortant absent : "+JSON.stringify(videoProof));
+  assert.ok(videoProof[1].receivers>0&&videoProof[1].packets>0&&videoProof[1].bytes>0&&videoProof[1].width===640&&videoProof[1].height===360,"RTP vidéo distant absent : "+JSON.stringify(videoProof));
+  await clientPage.getByRole("button",{name:"Arrêter le partage",exact:true}).click();
+  await a.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:10000});
+  let screenAudit=null,screenAuditError=null;
+  for(let attempt=0;attempt<20;attempt++){
+   const result=await admin.from("support_call_events").select("event_code,details")
+    .eq("call_id",callId).in("event_code",["screen_share_consented","screen_share_started","screen_share_stopped","screen_share_denied"])
+    .order("created_at",{ascending:true});
+   if(result.error){screenAuditError=result.error;break;}
+   screenAudit=result.data;
+   if((screenAudit||[]).some(event=>event.event_code==="screen_share_stopped"))break;
+   await new Promise(resolve=>setTimeout(resolve,250));
+  }
+  if(screenAuditError)throw screenAuditError;
+  assert.deepEqual((screenAudit||[]).map(event=>event.event_code),["screen_share_consented","screen_share_started","screen_share_stopped"],"Audit consentement/démarrage/arrêt incorrect : "+JSON.stringify(screenAudit));
+  assert.ok((screenAudit||[]).every(event=>typeof event.details.share_session_id==="string"),"Identifiant de session d’audit absent.");
+  assert.ok(!(screenAudit||[]).some(event=>Object.keys(event.details||{}).some(key=>/frame|image|video_blob|recording|sdp|candidate/i.test(key))),"Aucun média ne doit être stocké dans l’audit.");
+  console.log("PASS GLOBAL — demandeur consent, partage et arrête ; Agent reçoit le RTP vidéo ; audit append-only vérifié.");
+
   const requesterEndPromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
    {timeout:20000}
@@ -625,7 +693,7 @@ async function run(){
   const bSessionAfterReactivate=await b.page.evaluate(async()=>(await fetch("/api/support-agent/session")).status);
   assert.equal(bSessionAfterReactivate,200);
   console.log("PASS — suspension pendant sonnerie : retour en file centrale, Agent B réactivé.");
-  console.log("PASS GLOBAL — cycle de vie Agents, appels accepted/ringing, permissions, RLS, Livechat et concurrence."); }finally{
+  console.log("PASS GLOBAL — cycle de vie Agents, appels, permissions, RLS, Livechat et partage écran."); }finally{
   if(a?.context)await a.context.close().catch(()=>{});if(b?.context)await b.context.close().catch(()=>{});
   if(queueClientContext)await queueClientContext.close().catch(()=>{});if(clientContext)await clientContext.close().catch(()=>{});if(adminContext)await adminContext.close().catch(()=>{});if(browser)await browser.close().catch(()=>{});
   await cleanup();

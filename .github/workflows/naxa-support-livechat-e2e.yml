@@ -1,4 +1,4 @@
-name: NAXA Replay Support Livechat Browser E2E
+name: NAXA Replay Support, Livechat, Audio and Screen Share E2E
 
 on:
   push:
@@ -14,6 +14,7 @@ on:
       - "src/app/api/auth/username-recognition/route.ts"
       - "src/app/api/admin/support-agents/**"
       - "src/app/api/support-agent/**"
+      - "src/app/api/support/**"
       - "src/app/equipe-support/**"
       - "src/app/activation-agent/**"
       - "src/components/admin/AdminSupportAgents.tsx"
@@ -173,7 +174,7 @@ jobs:
             exit 1
           fi
       - name: Recette réelle Client ↔ Admin, Realtime, statuts, fichiers et /aide
-        if: ${{ !contains(github.event.head_commit.message, '[agents-only]') }}
+        if: ${{ !contains(github.event.head_commit.message, '[agents-only]') && !contains(github.event.head_commit.message, '[support-team-only]') }}
         env:
           NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
         run: node scripts/e2e/naxa-support-livechat-browser.cjs
