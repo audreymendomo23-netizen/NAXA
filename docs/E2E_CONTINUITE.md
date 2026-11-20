@@ -508,3 +508,10 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Nouvelle migration additive 20261120040000_naxa_support_screen_share_auto_stop_system_actor.sql : remplace la fonction avec actor_user_id=NULL, conserve SECURITY DEFINER, search_path='', révoque l'exécution directe des rôles JWT et recrée le trigger.
 - Le contrat SQL inspecte la définition installée et rejette l'attribution de l'arrêt automatique au demandeur. Le scénario Comptable conserve l'assertion actor_user_id IS NULL et reason=call_ended.
 - Cette migration s'applique uniquement à Supabase Replay. Production reste inchangée.
+
+# Contrat de priorité d'appel vérifié sans franchir la fenêtre — run 44667093303
+- L'E2E s'arrêtait avant le Comptable : l'assertion d'acceptation anticipée par Agent B recevait 200 au lieu de 409.
+- L'appel avait pourtant été créé 45 secondes plus tôt. Le harnais attendait l'affichage Client puis le heartbeat (qui peut durer jusqu'à 15 s) avant de tester l'acceptation non prioritaire. Cette séquence peut franchir la fenêtre de priorité de 20 s.
+- Le RPC public naxa_support_call_accept vérifie fallback_at > clock_timestamp() avant de refuser un Agent autre que celui affecté. Après l'expiration, un Agent disposant de queue_view peut légitimement reprendre l'appel ; le 200 et l'événement call_reassigned étaient donc conformes à la fenêtre expirée, pas la preuve que l'API la contournait.
+- Correction du harnais : la tentative Agent B est faite immédiatement après la réponse POST de création de l'appel, avant UI et heartbeat. L'assertion 409 vérifie maintenant le vrai cas pré-fallback ; le contrôle du heartbeat 403 est conservé.
+- La recette doit ensuite confirmer que l'Agent A prend l'appel, puis dérouler les parcours Client et Comptable.

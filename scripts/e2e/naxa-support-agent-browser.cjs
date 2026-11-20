@@ -399,19 +399,21 @@ async function run(){
   assert.equal(requestData.call.status,"ringing");
   assert.equal(requestData.call.agent_user_id,agentA.id,"L'Agent affecté doit être appelé en premier.");
   state.calls.push({id:callId,requesterId:clientSession.profile.id});save();
-  await clientPage.getByText("Agent appelé",{exact:true}).waitFor({timeout:10000});
-  console.log("PASS — interface Client rend immédiatement l’état ringing après la demande.");
-  await waitForCallHeartbeat(callId,"requester_heartbeat_at","Heartbeat automatique du Client");
-  console.log("PASS — heartbeat automatique Client persisté dans support_calls.");
-
-  const foreignHeartbeat=await b.page.evaluate(async id=>
-   (await fetch("/api/support/calls/"+id+"/heartbeat",{method:"POST"})).status,callId);
-  assert.equal(foreignHeartbeat,403,"Un Agent non participant ne doit pas prolonger la session audio.");
+  // Assert the assigned-agent priority immediately after call creation. Waiting
+  // for the requester heartbeat first can consume the entire 20-second window
+  // and would test the post-fallback queue contract instead of early rejection.
   const earlyQueueAccept=await b.page.evaluate(async id=>{
    const r=await fetch("/api/support/calls/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"accept"})});
    return r.status;
   },callId);
   assert.equal(earlyQueueAccept,409,"La file centrale ne doit pas contourner les 20 secondes de priorité.");
+  const foreignHeartbeat=await b.page.evaluate(async id=>
+   (await fetch("/api/support/calls/"+id+"/heartbeat",{method:"POST"})).status,callId);
+  assert.equal(foreignHeartbeat,403,"Un Agent non participant ne doit pas prolonger la session audio.");
+  await clientPage.getByText("Agent appelé",{exact:true}).waitFor({timeout:10000});
+  console.log("PASS — interface Client rend immédiatement l’état ringing après la demande.");
+  await waitForCallHeartbeat(callId,"requester_heartbeat_at","Heartbeat automatique du Client");
+  console.log("PASS — heartbeat automatique Client persisté dans support_calls.");
 
   await a.page.getByRole("button",{name:"Accepter l’appel"}).waitFor({timeout:20000});
   clientPage.on("request",request=>{
