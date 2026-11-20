@@ -632,3 +632,33 @@ Commencer avec les comptes Auth séparés et les fixtures multi-organisations Re
 **Verdict global au checkpoint :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL (contrôles négatifs API/routes prouvés, nouveau navigateur en attente) ; B02 VERT (Centre draft + Directeur + neuf postes). NAXA n'est pas encore certifiée Go Live.
 
 **Point de reprise précis :** récupérer le résultat navigateur du run `44723454124` pour B01 et terminer les étapes Replay `44723159403`. Pour B00, faire activer/vérifier la rotation Auth avec détection de réutilisation sur le projet Replay, puis rejouer le scénario qui doit rejeter le jeton descendant. Aucun changement Production, aucun déploiement.
+
+## 10.22 — Résultats B00/B01/B02 actualisés — 20/11/2026
+
+**Code testé :** ad213a52fe6ae3ce9e97db3667ef3afda0987ec6. **HEAD documentaire :** fe6142a6f8ef6da2546f424b5de4b096a32a3dbe. **Environnement :** Supabase Replay uniquement ; aucune écriture Production, aucun déploiement.
+
+### B02 — sous-recettes validées
+
+- **Pharmacie : PASS sur la cohorte exécutée.** Les comptes Client, Caisse, Stock, Comptable et Pharmacien se connectent et résolvent leur poste actif ; caisse physique et lecture RLS du stock vérifiées ; approbation Pharmacien par Promoteur vérifiée. Le Livreur issu d'une invitation est actif et vérifié par JWT.
+- **Centre d'examens : PASS pour la mise en place du Directeur et des neuf postes.** Le run 44724233040 a créé le dossier par la RPC Admin, le Centre draft et le poste Directeur synchronisé ; neuf comptes Client distincts occupent les neuf rôles ; une invitation est acceptée, huit affectations sont directes ; doublon refusé ; poste supplémentaire et invitation révoqués. Le Partenaire/dossier restent pending et l'univers examens disabled : aucun paiement ou accès public fictif.
+- **B02 global reste PARTIEL.** Restent à exécuter : deux Promoteurs réellement distincts, Parapharmacie (owner/manager et rôles autorisés), Prestations à domicile (owner/manager/operator), seconde organisation de chaque type retenu, et appels directs/isolations croisés. Les dix comptes du Centre ne remplacent pas ces cohortes.
+
+### B00 — sous-recettes crédit et stockage validées, cycle Auth bloqué
+
+- PASS navigateur crédit comptoir : décision Promoteur, reprise du brouillon, débit stock unique, suivi Client, remboursement réel via JWT Caisse et rapprochement comptable/outbox.
+- PASS navigateur crédit Marketplace : justificatif privé, soumission Client, statut pending sans hold ni débit, refus Promoteur et stock inchangé.
+- PASS paramétrage comptable technique ; PASS Storage **17/17, 0 SKIP**.
+- Auth : login navigateur et refus d'accès après suppression cookie PASS ; deux rotations conservent user/session_id ; ancêtre rejeté HTTP 400 ; **descendant encore accepté HTTP 200 après rejeu ancêtre** ; révocation globale indépendante PASS ; expiration naturelle JWT non attendue. B00 reste PARTIEL/BLOQUÉ jusqu'à activation/vérification de la détection de réutilisation dans Auth Advanced Settings Replay et test réel du rejet descendant, plus expiration JWT réelle.
+
+### B01 — correction du harnais en cours de validation
+
+- Run 44724233040 : API combinée 200 et six cartes visibles, Pharmacie seule activée PASS ; le test du menu expirait en attendant l'événement de fetch déclenché par un effet React.
+- Correction du harnais sur le code ad213a52 : requête explicite no-store vers /api/universes/status après montage du shell Client, puis vérification indépendante du menu rendu.
+- Run Replay 44736999133 et qualité 44736999210 déclenchés sur ad213a52. Au dernier contrôle : actionlint PASS ; les tests/TypeScript/lint/build et le parcours Replay étaient encore en cours. Ne pas compter ces runs comme PASS avant conclusion et logs.
+- B01 reste PARTIEL tant que le navigateur final, les routes directes et l'absence d'effets métier ne sont pas prouvés sur la configuration voulue. La parité PWA et Android natif reste également à démontrer selon la règle de conception de ce catalogue.
+
+### Verdict de ce checkpoint
+
+**B00 PARTIEL/BLOQUÉ ; B01 PARTIEL (correctif de recette relancé) ; B02 PARTIEL avec deux sous-recettes vertes : cohorte Pharmacie et équipe Centre.** Aucun des trois lots n'est certifié vert total. B03–B16 restent dépendants des critères bulk et ne sont pas déclarés verts.
+
+**Reprise exacte :** récupérer les conclusions et logs de 44736999133 / 44736999210 ; corriger et relancer tout échec ; obtenir l'accès de gestion Auth Replay pour activer la détection de réutilisation ; étendre B02 aux organisations Parapharmacie et Prestations et aux Promoteurs distincts. Production et déploiement restent hors périmètre.
