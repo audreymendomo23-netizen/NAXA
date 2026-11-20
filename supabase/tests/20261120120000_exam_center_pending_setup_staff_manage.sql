@@ -18,13 +18,13 @@ insert into auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,ra
 select owner_id,'authenticated','authenticated',
   'pending-director-'||left(owner_id::text,8)||'@example.invalid',now(),
   '{"provider":"email","providers":["email"]}'::jsonb,
-  '{"naxa_signup_pending":"false","naxa_signup_completed":true}'::jsonb,now(),now()
+  '{"naxa_signup_pending":"true"}'::jsonb,now(),now()
 from exam_pending_setup_fixture
 union all
 select staff_id,'authenticated','authenticated',
   'pending-staff-'||left(staff_id::text,8)||'@example.invalid',now(),
   '{"provider":"email","providers":["email"]}'::jsonb,
-  '{"naxa_signup_pending":"false","naxa_signup_completed":true}'::jsonb,now(),now()
+  '{"naxa_signup_pending":"true"}'::jsonb,now(),now()
 from exam_pending_setup_fixture;
 
 insert into public.profiles(id,username,first_name,last_name,phone,phone_country,date_of_birth,age_verified,consent_accepted_at,actif)
