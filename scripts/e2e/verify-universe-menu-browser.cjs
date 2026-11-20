@@ -16,12 +16,12 @@ const EXPECTED_UNIVERSES = {
   suivi: false,
 };
 const PUBLIC_PICKER = [
-  "Pharmacie",
-  "Parapharmacie",
-  "Bébé & Maman",
-  "Dispositifs connectés",
-  "Examens médicaux",
-  "Soins & Prestations à domicile",
+  { id: "pharmacie", label: "Pharmacie" },
+  { id: "parapharmacie", label: "Parapharmacie" },
+  { id: "bebe-maman", label: "Bébé & Maman" },
+  { id: "dispositifs", label: "Dispositifs connectés" },
+  { id: "examens", label: "Examens médicaux" },
+  { id: "prestations", label: "Soins & Prestations à domicile" },
 ];
 const LOCKED_MENU = [
   "Parapharmacie",
@@ -125,15 +125,18 @@ async function run(env = process.env) {
       .waitFor({ state: "visible", timeout: 30000 });
     const selectorResponse = await selectorStatus;
     if (!selectorResponse.ok()) throw new Error("Le sélecteur public n'a pas reçu l'état central.");
-    const publicCards = publicPage.locator("main button");
-    for (const label of PUBLIC_PICKER) {
-      const card = publicCards.filter({ hasText: label });
+    const publicCards = publicPage.locator("main button[data-universe-id]");
+    for (const item of PUBLIC_PICKER) {
+      const card = publicPage.locator('main button[data-universe-id="' + item.id + '"]');
       if (await card.count() !== 1) {
-        throw new Error("Carte publique absente ou dupliquée : " + label + ".");
+        throw new Error("Carte publique absente ou dupliquée : " + item.id + " (" + item.label + ").");
+      }
+      if (await card.getByText(item.label, { exact: true }).count() !== 1) {
+        throw new Error("Libellé public absent ou dupliqué pour " + item.label + ".");
       }
       const enabled = await card.isEnabled();
-      if (enabled !== (label === "Pharmacie")) {
-        throw new Error("Disponibilité incohérente sur la carte publique " + label + ".");
+      if (enabled !== (item.id === "pharmacie")) {
+        throw new Error("Disponibilité incohérente sur la carte publique " + item.label + ".");
       }
     }
     if (await publicCards.count() !== 6) {
