@@ -372,3 +372,8 @@ Le chantier reste NON VERT tant que la recette Agents n’a pas prouvé la séqu
 # Ajustement délai navigation Promoteur mobile — 20 novembre 2026
 
 La recette navigation indépendante `44653637307` a validé le Promoteur desktop et le périmètre Comptable, puis a échoué au chargement initial de `/pharmacie/promoteur` dans un nouveau contexte mobile : `page.goto` a expiré à 15 s, avant l'ouverture du menu. Le serveur Next.js était prêt et aucun défaut serveur explicite n'a été rapporté. Correctif du harnais uniquement : délai de navigation spécifique à cette ouverture mobile porté à 30 s ; les délais d'interaction/assertion restent 15 s. Aucun contrôle métier n'est supprimé ni assoupli. Le run Promoteur relancé sur le commit suivant doit confirmer ce point.
+
+
+# Correctif assertions navigation — 20 novembre 2026
+
+Le run `44654715657` a dépassé le blocage initial du chargement mobile Promoteur (délai de navigation spécifique 30 s). Le parcours Comptable a validé ses vues, le cycle Partenaire/Examens a passé ses assertions, et le parcours Client a validé Favoris, Panier et Recherche Marketplace. Le harnais s'est ensuite arrêté sur `ReferenceError: expect is not defined` dans deux assertions du filtre ville B2 (lignes 1268–1269) : ce script CommonJS utilise `node:assert/strict` et Playwright mais n'importe pas `expect`. Correction : remplacer ces deux appels par `locator.inputValue()` + `assert.equal`, avec les mêmes valeurs attendues. Aucun contrôle métier n'est supprimé ou assoupli ; aucune modification applicative.

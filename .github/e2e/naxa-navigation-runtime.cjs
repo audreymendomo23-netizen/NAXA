@@ -1265,8 +1265,8 @@ async function run() {
       (error) => ({ error })
     );
     await b2CitySelect.selectOption("Yaoundé");
-    await expect(b2CitySelect).toHaveValue("Yaoundé");
-    await expect(clientPage.locator('select[aria-label="Filtrer par ville"]')).toHaveValue("Yaoundé");
+    assert.equal(await b2CitySelect.inputValue(), "Yaoundé", "Le filtre ville doit conserver Yaoundé après la sélection.");
+    assert.equal(await clientPage.locator('select[aria-label="Filtrer par ville"]').inputValue(), "Yaoundé", "Le filtre ville visible doit refléter Yaoundé.");
     const expectedB2SearchResult = await expectedB2Search;
     if (expectedB2SearchResult.error) {
       throw new Error(
