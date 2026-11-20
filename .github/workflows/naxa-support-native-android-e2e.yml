@@ -11,6 +11,7 @@ on:
       - "android/app/src/androidTest/**"
       - "scripts/e2e/naxa-support-native-android-e2e.cjs"
       - "scripts/e2e/run-native-android-emulator.sh"
+      - "scripts/e2e/gradle-central-mirror.init.gradle"
       - "android/README.md"
   workflow_dispatch:
 
@@ -37,6 +38,7 @@ jobs:
       SUPABASE_ANON_KEY: ${{ secrets.NAXA_STORAGE_E2E_ANON_KEY }}
       NAXA_BASE_URL: http://10.0.2.2:3000
       NAXA_E2E_WEB_BASE_URL: http://127.0.0.1:3000
+      NAXA_SUPPORT_E2E_STATE_FILE: /tmp/naxa-support-native-android-e2e.json
     steps:
       - name: Checkout main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
