@@ -1313,3 +1313,35 @@ La transaction a été annulée ; le profil Admin n'a pas été suspendu durable
 2. Vérifier les call-sites serveur et l'authentification des appels `service_role` de paiement.
 3. Obtenir des identités Auth de test réelles pour les scénarios multi-tenant.
 4. Fermer la configuration Auth de protection des mots de passe compromis et refaire les tests Web/PWA/APK.
+
+
+### 10.14 Correction du contrôle de suspension dans les transitions de prestations à domicile (20/11/2026)
+
+#### Contradiction et cause racine
+- La revue de `public.transition_home_service_request(uuid,text)` a montré que la fonction exigeait une identité Auth, mais ne vérifiait pas directement l'activité globale du profil avant de traiter la demande.
+- La branche d'annulation par le Client (`client_id = auth.uid()`) pouvait donc être atteinte sans contrôle `profiles.actif`, même si le contrôle de l'adhésion partenaire vérifiait déjà un profil actif.
+- Une suspension globale doit bloquer également les actions Client de cette fonction.
+
+#### Correction appliquée
+- Migration source créée sur `main` : `supabase/migrations/20261120104500_guard_active_profile_home_service_transition.sql`.
+- Migration appliquée sur Replay uniquement : `guard_active_profile_home_service_transition`.
+- Ajout d'un contrôle global `profiles.id=auth.uid() AND profiles.actif IS TRUE` avant la lecture et toute transition.
+- `search_path` reste vide et les références d'objets sont qualifiées.
+- ACL confirmées : aucun `EXECUTE` pour `anon`, `authenticated` conserve l'exécution attendue.
+
+#### Test Replay
+Transaction annulée par `ROLLBACK`, rôle PostgreSQL `authenticated`, revendication `request.jwt.claim.sub` simulée (pas de JWT signé/PostgREST) :
+| Cas | Résultat | Verdict |
+|---|---|---|
+| Profil actif, demande inexistante | `Demande introuvable` | PASS limité : identité active acceptée jusqu'au contrôle de ressource |
+| Profil temporairement suspendu dans la transaction | `Profil inactif ou suspendu` | PASS : refus avant lecture métier |
+| ACL `anon` / `authenticated` | `false / true` | PASS attendu |
+| `search_path` | vide | PASS |
+
+Aucune modification de profil n'a persisté et aucune demande n'a été modifiée.
+
+#### Verdict
+**Correction appliquée et testée sur Replay ; garde de suspension PASS sur test de revendication simulée ; E2E métier avec JWT signé = NON EXÉCUTÉ ; sécurité globale = NON VERTE.**
+
+#### Point exact de reprise
+Poursuivre l'examen des fonctions de transition Client/Partenaire et des fonctions qui acceptent un identifiant d'utilisateur en paramètre, en vérifiant systématiquement le statut global du profil et le statut du partenaire avant toute mutation.
