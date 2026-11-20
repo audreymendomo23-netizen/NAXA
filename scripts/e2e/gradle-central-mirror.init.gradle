@@ -1,0 +1,24 @@
+// CI-only fallback for Maven Central. Android project repository configuration
+// in android/settings.gradle.kts remains unchanged.
+gradle.beforeSettings { settings ->
+    settings.pluginManagement.repositories {
+        maven {
+            name = "googleMavenCentralMirror"
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        }
+        maven {
+            name = "repo1MavenCentralFallback"
+            url = uri("https://repo1.maven.org/maven2/")
+        }
+    }
+    settings.dependencyResolutionManagement.repositories {
+        maven {
+            name = "googleMavenCentralMirror"
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        }
+        maven {
+            name = "repo1MavenCentralFallback"
+            url = uri("https://repo1.maven.org/maven2/")
+        }
+    }
+}
