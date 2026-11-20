@@ -1514,3 +1514,44 @@ Vérifications ACL/configuration après migration :
 - Aucun changement Production, aucun déploiement Vercel ; vercel.json garde deploymentEnabled.main=false.
 
 **Point exact de reprise :** obtenir une voie de provisioning Auth sur Replay (outil Auth Admin connecté ou parcours de création de compte contrôlé avec accès aux identifiants de test), puis exécuter B00 avec sessions/JWT réels. En parallèle, faire valider/exécuter le build et les scénarios navigateur B01 sans déployer Production.
+
+### 10.20 Reprise corrective bulk simultanée B00/B01/B02 — 20/11/2026
+
+**Candidat source :** `main` — HEAD au checkpoint : `915d656152c7ad97561adf90d94e03853bc76b46`. Replay uniquement. Aucun changement Production et aucun déploiement.
+
+#### B00 — crédits E2E : cause isolée et garde de récupération versionnée
+- Le run Replay précédent a confirmé le provisionnement Auth/Profils et les prérequis de la pharmacie technique masquée. Le scénario navigateur s'est arrêté avant la fin de la matrice.
+- Cause des scénarios crédit : une ancienne demande Marketplace non consommée restait en `en_attente` pour le Client technique (`created_at=2026-11-18`, demande `f2be9a5f-d5ca-457d-b664-2f263478f3d4`). Les deux recettes refusaient de démarrer avec cet état résiduel.
+- Corrections sur `main` :
+  - `scripts/e2e/verify-credit-pos-browser.cjs` : ne récupère qu'une demande ancienne `origine=marketplace`, `statut=en_attente`, rattachée au Client et à la pharmacie techniques attendus ; décision par le Promoteur via `client_credit_demande_decider(..., false)) ; contrôle du statut `rejetee`, de `decided_by` et de `decided_at`. Toute autre demande active bloque toujours la recette.
+  - `scripts/e2e/verify-credit-marketplace-browser.cjs` : même garde métier ciblée et vérification de l'audit de refus.
+- Cette récupération est **versionnée mais pas encore prouvée par un run Replay post-correction**. Aucun SQL DELETE, aucun effacement d'historique et aucune approbation automatique.
+- Cycle de vie Auth : le test réel a prouvé la rotation des refresh tokens et le rejet de l'ancien jeton, mais le jeton descendant de la même session est resté renouvelable après le rejeu ancêtre. La révocation de famille n'est donc pas démontrée. B00 **reste PARTIEL/BLOQUÉ** jusqu'à correction ou clarification vérifiée de ce comportement Auth ; ne pas déclarer vert sur le seul rejet du jeton ancêtre.
+
+#### B01 — route et statut combiné : preuve négative runtime ajoutée
+- Replay local : `GET /api/universes/status` a répondu 200 avec Pharmacie autorisée et les cinq univers verrouillés à false.
+- Navigation directe Playwright : Parapharmacie, Bébé & Maman, Examens, Prestations et Suivi ont été redirigés vers l'accueil avec le paramètre `universVerrouille` correspondant.
+- Contrôle fail-closed : avec une clé Replay volontairement invalide dans l'environnement local, l'API a répondu HTTP 503 `universe_status_unavailable` et les routes verrouillées sont restées fermées.
+- Ces preuves ne couvrent pas encore le rendu du menu, les parcours positifs des univers autorisés, les Server Actions/RPC/RLS, le panier/checkout ni la parité PWA/APK.
+- B01 **PARTIEL** : configuration combinée + API + garde URL négative prouvées ; menu et parcours complets restent à tester.
+
+#### B02 — Centre d'examens : recette E2E construite, exécution en attente
+- Inspection Replay confirmée : Auth 11 / profils 11 ; 9 profils Client complets et confirmés candidats ; partenaires 0 ; memberships 0 ; centres d'examens 0 ; affectations Centre 0 ; affectations professionnelles Pharmacie actives 8.
+- Le code métier existant a été vérifié : `admin_create_partner_dossier` crée un partenaire, son membership propriétaire et le `exam_centers` associé ; le trigger synchronise le propriétaire comme Directeur ; `exam_assign_existing_staff` et `exam_accept_staff_invite` appliquent les contrôles Client confirmé/majeur/complet.
+- Nouvelle recette Replay ajoutée :
+  - `scripts/e2e/provision-replay-exam-center-staff.cjs`
+  - `scripts/test-replay-exam-center-staff-provisioner.cjs`
+  - workflow `.github/workflows/naxa-replay-promoteur-secret-safe-v2.yml)
+- Scénario prévu : créer/reprendre une fixture Directeur Client dédiée via Auth Admin Replay ; créer le dossier Centre via RPC Admin ; vérifier le Directeur synchronisé ; affecter 8 postes directement et faire accepter l'invitation nominative du 9e poste ; vérifier les neuf comptes distincts ; tester le refus d'une affectation dupliquée et la révocation d'un poste temporaire et d'une invitation.
+- La recette garde volontairement le Partenaire et son dossier à `pending`, l'univers désactivé et le Centre en brouillon : aucun paiement, aucune validation ni publication n'est inventé. Elle doit encore passer en exécution Replay ; B02 n'est donc pas vert.
+
+#### Contrôles automatisés et statut de livraison
+- Qualité officielle sur commit `e5be9bb7b5f398426cc1d6ad3a4d06fa8eb82563` : PASS (workflow NAXA quality `44718389217`).
+- Le checkpoint intermédiaire `e179252b` a révélé une erreur YAML de mon insertion de test (ligne 213). Elle a été corrigée et vérifiée dans le fichier versionné ; le commit `915d656` relance actionlint, tests/TypeScript/lint/build et Replay.
+- Runs post-correction au moment du checkpoint : qualité `44719574890` en attente ; Replay `44719574822` en attente. Ne pas les compter comme PASS avant leur conclusion et leurs logs.
+- Le contrôle Supabase Preview indépendant a été annulé par la limite mensuelle de 1 000 événements git-push du projet Preview ; cette limite n'est pas une preuve de test métier ni un motif pour inventer un statut vert.
+- B03–B16 restent non ouverts tant que B00–B02 ne sont pas fermés selon les critères bulk.
+
+**Verdict à cet instant :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL ; B02 RECETTE AJOUTÉE, EXÉCUTION EN ATTENTE ; NAXA non certifiée Go Live.
+
+**Point exact de reprise :** attendre uniquement les conclusions des runs `44719574890` et `44719574822`, corriger leurs erreurs constatées, puis exécuter/valider le scénario Centre. Garder le périmètre Replay, sans Production ni déploiement.
