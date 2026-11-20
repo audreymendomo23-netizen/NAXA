@@ -24,11 +24,11 @@ const PUBLIC_PICKER = [
   { id: "prestations", label: "Soins & Prestations à domicile" },
 ];
 const LOCKED_MENU = [
-  "Parapharmacie",
-  "Bébé & Maman",
-  "Dispositifs connectés",
-  "Examens médicaux",
-  "Soins & Prestations à domicile",
+  { id: "parapharmacie", label: "Parapharmacie" },
+  { id: "bebe-maman", label: "Bébé & Maman" },
+  { id: "dispositifs", label: "Dispositifs connectés" },
+  { id: "examens", label: "Examens médicaux" },
+  { id: "prestations", label: "Soins & Prestations à domicile" },
 ];
 const LOCKED_ROUTES = [
   ["parapharmacie", "parapharmacie"],
@@ -195,17 +195,21 @@ async function run(env = process.env) {
     await menu.waitFor({ state: "visible", timeout: 15000 });
     await menu.getByText("Changer d’écosystème", { exact: true }).waitFor({ state: "visible" });
 
-    for (const label of LOCKED_MENU) {
-      const item = menu.locator("button").filter({ hasText: label });
+    for (const entry of LOCKED_MENU) {
+      const item = menu.locator('button[data-universe-id="' + entry.id + '"]');
       if (await item.count() !== 1 || !(await item.isDisabled())
         || await item.getAttribute("aria-disabled") !== "true") {
-        throw new Error("Le menu Client doit garder " + label + " visible et non cliquable.");
+        throw new Error("Le menu Client doit garder " + entry.label + " visible et non cliquable.");
+      }
+      const renderedLabel = await item.locator("span.min-w-0 > span.block").first().textContent();
+      if ((renderedLabel || "").trim() !== entry.label) {
+        throw new Error("Libellé du menu inattendu pour " + entry.id + ".");
       }
     }
     if (await menu.locator("a").count() !== 0) {
       throw new Error("Aucun lien d'accès ne doit être rendu pour un univers verrouillé.");
     }
-    if (await menu.locator("button").filter({ hasText: "Pharmacie" }).count() !== 0) {
+    if (await menu.locator('[data-universe-id="pharmacie"]').count() !== 0) {
       throw new Error("Le menu secondaire ne doit pas dupliquer l'écosystème actuellement actif.");
     }
     process.stdout.write("PASS — menu Client : cinq univers secondaires visibles, tous verrouillés et non cliquables.\n");
