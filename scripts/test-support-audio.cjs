@@ -107,6 +107,10 @@ assert.match(agentBrowser, /PASS GLOBAL — refus OS journalisé, consentement e
 assert.match(agentBrowser, /screen_share_denied/);
 assert.match(agentBrowser, /browser_permission_denied/);
 assert.match(agentBrowser, /denyNext/);
+assert.match(agentBrowser, /screenAudit\[1\]\.details\.share_session_id,screenAudit\[2\]\.details\.share_session_id/);
+assert.match(agentBrowser, /screenAudit\[2\]\.details\.share_session_id,screenAudit\[3\]\.details\.share_session_id/);
+assert.match(agentBrowser, /screenAudit\[4\]\.details\.share_session_id,screenAudit\[5\]\.details\.share_session_id/);
+assert.match(agentBrowser, /screenAudit\[5\]\.details\.share_session_id,screenAudit\[6\]\.details\.share_session_id/);
 assert.match(agentBrowser, /second partage : reprise du même transceiver vidéo/);
 assert.match(agentBrowser, /requestVideoFrameCallback|resumedVideoPackets/);
 assert.match(read("src/components/NaxaSupportWidget.tsx"), /href="\/assistance"/);

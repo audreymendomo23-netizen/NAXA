@@ -690,12 +690,21 @@ async function run(){
   assert.equal(screenAudit[0].details.reason,"browser_permission_denied");
   assert.equal(screenAudit[0].actor_user_id,clientSession.profile.id);
   assert.ok((screenAudit||[]).every(event=>typeof event.details.share_session_id==="string"),"Identifiant de session d’audit absent.");
+  // Denied picker attempt and the two successful sessions must all have
+  // independent IDs. Within each successful session, consent/start/stop share
+  // one constant ID. Event order: denied(0), session one(1..3), session two(4..6).
   assert.notEqual(screenAudit[0].details.share_session_id,screenAudit[1].details.share_session_id,
    "Une capture refusée ne doit pas réutiliser l'identifiant d'une capture autorisée.");
-  assert.equal(screenAudit[1].details.share_session_id,screenAudit[4].details.share_session_id,
-   "La première capture autorisée doit garder un identifiant constant.");
-  assert.notEqual(screenAudit[1].details.share_session_id,screenAudit[5].details.share_session_id,
-   "Chaque redémarrage de partage doit avoir une session d'audit distincte.");
+  assert.equal(screenAudit[1].details.share_session_id,screenAudit[2].details.share_session_id,
+   "La première session doit garder son identifiant entre consentement et démarrage.");
+  assert.equal(screenAudit[2].details.share_session_id,screenAudit[3].details.share_session_id,
+   "La première session doit garder son identifiant jusqu'à l'arrêt.");
+  assert.notEqual(screenAudit[1].details.share_session_id,screenAudit[4].details.share_session_id,
+   "Chaque redémarrage de partage doit créer une session d'audit distincte.");
+  assert.equal(screenAudit[4].details.share_session_id,screenAudit[5].details.share_session_id,
+   "La deuxième session doit garder son identifiant entre consentement et démarrage.");
+  assert.equal(screenAudit[5].details.share_session_id,screenAudit[6].details.share_session_id,
+   "La deuxième session doit garder son identifiant jusqu'à l'arrêt.");
   assert.equal(screenAudit[3].details.reason,"user_stopped");
   assert.equal(screenAudit[6].details.reason,"user_stopped");
   assert.ok(!(screenAudit||[]).some(event=>Object.keys(event.details||{}).some(key=>/frame|image|video_blob|recording|sdp|candidate/i.test(key))),"Aucun média ne doit être stocké dans l’audit.");

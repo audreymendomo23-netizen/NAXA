@@ -581,3 +581,12 @@ Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refu
 ## Correction du typage du lecteur distant — 20 novembre 2026
 - Le premier build après reprise du lecteur a signalé TS2339 : `HTMLVideoElement.srcObject` est de type `MediaProvider`, pas uniquement `MediaStream`.
 - Le helper de reprise vérifie maintenant `srcObject instanceof MediaStream` avant d'accéder aux pistes vidéo. Il n'ajoute aucune hypothèse sur une source de type Blob ou MediaSource.
+
+
+## Correction d'une assertion d'indices du journal — run E2E 44680310622
+- Le parcours Client a prouvé l'audio soutenu (75–76 paquets RTP supplémentaires par sens et par pair), le refus du sélecteur, le premier partage/arrêt et le second partage sur le même transceiver avec de nouvelles images et paquets RTP.
+- Replay a confirmé 7 événements ordonnés : refus OS (session A), puis consentement/démarrage/arrêt (session B), puis consentement/démarrage/arrêt (session C). Les trois identifiants étaient conformes et distincts.
+- Le run a échoué uniquement parce que l'assertion comparait l'identifiant de la session B (index 1) à celui de la session C (index 4) tout en prétendant vérifier la cohérence interne de la première session.
+- Correction : la recette compare désormais B aux événements 1/2/3, C aux événements 4/5/6, et B différent de C. Les raisons `user_stopped`, le refus `browser_permission_denied` et l'acteur demandeur restent exigés.
+- Le contrat statique protège les correspondances d'indices correctes.
+- Le scénario Comptable n'a pas encore été exécuté dans ce run, car l'assertion client a arrêté la recette avant la file centrale et le parcours professionnel.
