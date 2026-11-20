@@ -3,7 +3,7 @@ const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("n
 const {createClient}=require("@supabase/supabase-js"),{createServerClient}=require("@supabase/ssr"),{chromium}=require("playwright");
 const REF="pwfftcsjyeibxxqhwysw",SUPABASE_URL="https://"+REF+".supabase.co";
 const BASE=(process.env.NAXA_E2E_WEB_BASE_URL||"http://127.0.0.1:3000").replace(/\/+$/,"");
-const STATE=path.join(process.env.RUNNER_TEMP||"/tmp","naxa-support-native-android-e2e.json");
+const STATE=process.env.NAXA_SUPPORT_E2E_STATE_FILE||"/tmp/naxa-support-native-android-e2e.json";
 const ANON=process.env.NAXA_STORAGE_E2E_ANON_KEY,ADMIN_KEY=process.env.NAXA_STORAGE_E2E_ADMIN_KEY;
 const required=(v,n)=>{if(!v)throw Error("Variable manquante : "+n);return v;};
 function adminClient(){
