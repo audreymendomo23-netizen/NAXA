@@ -808,3 +808,55 @@ Chaque scénario contient : identifiant stable ; lot ; univers ; plateforme et a
 6. Intégrer les injections hors ligne dans chaque lot, puis rejouer la campagne de résilience sur les trois versions et appareils physiques.
 7. Maintenir Production intacte, aucun déploiement et aucun Play Store. Ne prononcer AU VERT global qu'après clôture des critères obligatoires, preuves 3/3, sécurité, pilote terrain et absence de blocage critique.
 
+---
+
+## Campagne bulk — première exécution B00 sur Replay — 20 novembre 2026
+
+**Environnement contrôlé :** Supabase Replay `pwfftcsjyeibxxqhwysw`, statut `ACTIVE_HEALTHY`, PostgreSQL 17.11. Aucun accès ni aucune écriture Production. Aucun déploiement demandé ou effectué. Le code applicatif de référence observé par le catalogue est `d050f598fe9731753af4d2f3f4ea9956724cea09` ; les commits de continuité postérieurs sont documentaires/CI.
+
+### Résultat réellement exécuté — sous-contrat B00-IDENTITY-01
+
+Contrôles SQL en lecture seule, directement sur Replay :
+
+| Assertion | Résultat |
+|---|---:|
+| Profils sans utilisateur Auth correspondant | 0 |
+| Utilisateurs Auth sans profil correspondant | 0 |
+| IDs de profils dupliqués | 0 |
+| IDs Auth dupliqués | 0 |
+
+**Verdict : PASS — cohérence référentielle Auth ↔ profiles (4/4 assertions).** Cela prouve la correspondance des identités présentes, pas le parcours complet B00, ni la capacité de connexion, le changement d'espace, l'invitation ou les permissions UI/API.
+
+### Inventaire Replay constaté pendant cette passe
+
+- 11 profils et 11 utilisateurs Auth correspondants : 9 profils `client`, 1 `promoteur`, 1 `admin`.
+- 10 lignes `pharmacies`, 3 liens `promoteur_pharmacies`.
+- 7 profils Client portent une `fonction_interne` métier (Livreur, Gestionnaire stock, Caisse, Responsable, Comptable, Pharmacien) ; ce champ seul ne prouve aucune affectation organisationnelle ni aucun espace opérationnel.
+- 0 ligne `partners`, 0 `exam_centers`, 0 `exam_staff_assignments`, 0 `exam_staff_invites`.
+
+**Contradiction importante avec l'ancien snapshot de continuité :** les données Replay actuelles ne contiennent pas les centres/affectations qui avaient été évoqués comme fixtures antérieures. Le snapshot exécuté ici prévaut ; ne pas réutiliser un ancien décompte pour déclarer B00/B02 prêts.
+
+### Audit structurel B02 — personnel des centres
+
+- Les dix valeurs de rôle sont contraintes dans `exam_staff_assignments`; la valeur `directeur` est exclue de `exam_staff_invites` et de `exam_assign_existing_staff`. Le provisionnement du Directeur est donc un chemin distinct à identifier/tester, pas une invitation ordinaire.
+- L'ajout direct `exam_assign_existing_staff` exige un acteur `staff_manage`, un compte Client actif, complet, majeur et e-mail confirmé ; l'identifiant doit correspondre sans ambiguïté au username ou téléphone. L'auto-affectation est refusée. L'affectation est journalisée.
+- L'invitation exige `staff_manage`, normalise l'e-mail et refuse les rôles hors des neuf rôles du personnel. L'acceptation exige une session du destinataire, un e-mail confirmé identique à l'invitation, un profil Client actif/complet/majeur, une invitation non expirée/non révoquée/non déjà utilisée et un centre non suspendu. L'affectation et l'acceptation sont journalisées.
+- RLS est activé sur `exam_centers`, `exam_staff_assignments` et `exam_staff_invites`. `exam_staff_invites` n'a aucune policy directe ; les opérations prévues passent par les RPC publiques et leurs implémentations privées `SECURITY DEFINER`. L'audit des grants EXECUTE et les tests négatifs en contexte Auth restent à exécuter avant toute conclusion de sécurité.
+- Le trigger de mise à jour des affectations interdit à un membre de modifier son centre, son utilisateur, son poste, son activation, sa révocation ou son auteur ; la gestion par un responsable exige `staff_manage`. Ce contrôle de code/DB n'est pas encore une preuve E2E de non-élévation.
+
+### Verdict et blocage opérationnel
+
+- **PASS partiel :** B00-IDENTITY-01, cohérence référentielle des 11 identités Auth/Profiles.
+- **NON EXÉCUTÉ :** B00 cycle de session/changement d'espace/révocation multi-organisation ; B01 ; B02 ; toutes les variantes Web/PWA/Android.
+- **BLOCKED pour les parcours Centre :** aucun partenaire ni centre ni affectation ni invitation n'existe dans Replay ; aucun compte Auth séparé pour les dix rôles Centre n'est provisionné. Les seules données observées ne permettent pas de tester l'accès métier du Directeur ou des neuf collaborateurs.
+- **Aucune fixture n'a été créée** : les fonctions de provisionnement Auth disponibles, les identifiants de test utilisables et le parcours d'initialisation du Directeur doivent être établis avant les écritures. Ne pas fabriquer des profils SQL sans Auth, ni des affectations sans utilisateur authentifié. Les tests sont restés en lecture seule.
+- **Aucune correction produit n'a été appliquée** : les éléments observés ne démontrent pas un défaut applicatif. Les politiques et fonctions nécessitent des tests Auth discriminants, pas une modification spéculative.
+
+### Point de reprise exact
+
+1. Identifier dans le dépôt le chemin supporté de création/confirmation des utilisateurs Auth de test et le bootstrap du Directeur de centre ; ne pas écrire directement des profils orphelins.
+2. Résoudre les fixtures Replay multi-organisations (deux Promoteurs, Pharmacies, Parapharmacies, centres, Clients et deux Livreurs) en s'appuyant sur les parcours réels.
+3. Provisionner les dix comptes Centre distincts ; tester séparément l'ajout direct et l'invitation acceptée pour les neuf rôles éligibles, et le bootstrap Directeur.
+4. Exécuter les refus (auto-affectation, mauvais e-mail, invitation expirée/révoquée/consommée, compte incomplet/suspendu, doublon, accès inter-centre), puis les parcours positifs UI/RPC/RLS.
+5. Rattacher chaque scénario aux preuves Web, PWA installée et Android natif ; ne pas passer à B03 tant que les gardes B00–B02 bloquantes ne sont pas démontrées.
+
