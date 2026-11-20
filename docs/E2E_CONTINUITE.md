@@ -488,3 +488,10 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Elle conserve la vérification d'audit SQL `consented → started → stopped`, l'acteur SQL nul et le motif `call_ended`. Aucun contrôle média ou de sécurité n'est supprimé ou abaissé.
 - Le contrat statique protège la nouvelle assertion pour éviter de réintroduire l'attente d'un bloc UI qui doit être démonté après clôture.
 - Verdict reste NON VERT jusqu'à un run complet vert, incluant nettoyages et build.
+
+
+# Ajustement du contrat statique — run qualité `44665514319` (20 novembre 2026)
+- Le premier run après la correction d'assertion UI a exécuté 618 tests ; 617 PASS et un test de contrat a échoué avant build.
+- Cause exacte : casse dans le motif statique seulement. Le texte E2E utilise `L’état de partage actif doit disparaître avec la clôture de l’appel.` (minuscule après l'apostrophe), alors que le contrat recherchait `État` majuscule. Le parcours fonctionnel et son assertion n'ont pas échoué.
+- Correction : le contrat recherche maintenant le fragment exact en minuscule `état de partage actif doit disparaître`. Aucun seuil ni contrôle n'est modifié.
+- Le run Replay correspondant est toujours en cours à l'étape de build ; aucune donnée de recette n'a été déclarée verte sur la base du test statique seul.
