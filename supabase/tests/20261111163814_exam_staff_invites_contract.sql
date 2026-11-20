@@ -49,14 +49,23 @@ select invitee_id,'invitee_'||replace(invitee_id::text,'-',''),'Test','Invitee',
 from exam_staff_invite_fixture;
 
 insert into public.partners(id,name,partner_type,status,created_by)
-select partner_id,'Examens invitation fixture '||left(partner_id::text,8),'centre_examen','active',owner_id
+select partner_id,'Examens invitation fixture '||left(partner_id::text,8),'centre_examen','pending',owner_id
+from exam_staff_invite_fixture;
+
+insert into public.partner_universes(partner_id,universe_slug,enabled)
+select partner_id,'examens',false from exam_staff_invite_fixture;
+
+insert into public.admin_partner_dossiers(
+  partner_id,promoteur_id,universe_slug,monthly_fee_fcfa,documents_received,dossier_status,created_by
+)
+select partner_id,owner_id,'examens',10000,'{"sql_test_fixture":true}'::jsonb,'pending',owner_id
 from exam_staff_invite_fixture;
 
 insert into public.partner_members(partner_id,user_id,member_role)
 select partner_id,owner_id,'owner' from exam_staff_invite_fixture;
 
 insert into public.exam_centers(id,partner_id,display_name,address_label,status)
-select center_id,partner_id,'Invitation fixture '||left(center_id::text,8),'Rollback test','active'
+select center_id,partner_id,'Invitation fixture '||left(center_id::text,8),'Rollback test','draft'
 from exam_staff_invite_fixture;
 
 update public.partner_members pm
