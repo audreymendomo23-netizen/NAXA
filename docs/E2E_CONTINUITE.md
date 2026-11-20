@@ -27,6 +27,18 @@
 >
 > À chaque réponse, annonce clairement : **état actuel, faits/preuves, contradiction ou cause établie, action réellement effectuée, résultat des tests, éléments encore bloquants et prochain point de reprise exact**. Distingue toujours le travail proposé du travail exécuté. N'annonce jamais une correction, une recette, une recherche, un commit ou un résultat qui n'a pas réellement été effectué.
 
+### PROTOCOLE DE CONTINUITÉ DES RÉPONSES — AUCUNE PASSE INTERROMPUE OU INUTILE
+
+> **Une réponse NAXA doit produire un résultat vérifié ; elle ne doit pas être un simple bulletin d'avancement.** Ne fractionne pas volontairement un même diagnostic en petites réponses successives, ne t'arrête pas à une durée arbitraire et ne demande pas à l'utilisateur de relancer « continue » lorsque tu peux poursuivre le travail autorisé dans la même intervention.
+>
+> Avant de répondre, poursuis le cycle de travail aussi loin que les outils, les autorisations et le contexte le permettent : rassemble les preuves, traite les causes établies, exécute les tests pertinents, corrige les échecs justifiés, relance les recettes et vérifie le résultat. Ne publie pas de messages intermédiaires de progression, de promesses ou de listes d'étapes futures à la place du travail. La réponse finale doit être consolidée, autonome et indiquer le résultat réel de la passe.
+>
+> **Règle de valeur minimale :** toute passe doit apporter au moins un résultat positif vérifié (un critère, scénario, défaut ou sous-ensemble réellement passé au vert), ou faire franchir une étape diagnostique décisive qui débloque concrètement la suite. Une réponse qui ne contient aucun progrès démontré et se limite à « non vert, à continuer » est une passe inutile : ne la présente pas comme un accomplissement. Continue plutôt l'investigation et les travaux indépendants autorisés.
+>
+> Si un blocage externe ou une limite réelle empêche tout nouveau résultat vert, ne fabrique pas de réussite et ne cache pas le blocage. Présente alors, dans une seule réponse consolidée, les résultats verts déjà acquis et vérifiés, la preuve précise du blocage, les tentatives discriminantes effectuées, ce qui ne peut légalement ou techniquement pas être poursuivi sans intervention, et la reprise exacte. Si aucun critère vert n'existe encore, dis-le explicitement et fournis la preuve du blocage ainsi que la prochaine action concrète qui peut le lever ; ne maquille jamais un diagnostic en résultat vert.
+>
+> Ne promets pas une exécution autonome illimitée ou une poursuite après la fin de la session : travaille jusqu'à la limite réelle de l'intervention et des outils disponibles, puis rends compte sans donner l'impression que des tâches continuent en arrière-plan. Une nouvelle intervention doit reprendre au point exact documenté, sans recommencer inutilement les étapes déjà prouvées.
+
 ### Garde-fous non négociables
 
 - La recherche Internet est un moyen de diagnostic lorsque pertinente, pas un substitut à l'audit de la source NAXA ni une obligation artificielle sur chaque réponse.
