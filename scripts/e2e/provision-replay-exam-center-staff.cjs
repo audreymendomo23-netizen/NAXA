@@ -32,7 +32,7 @@ const STAFF = [
   { username: "naxa_e2e_livreur", email: "naxa.e2e.livreur@example.invalid", role_key: "manipulateur_imagerie" },
   { username: "naxa_e2e_expiry_stock", email: "naxa.e2e.expiry-stock@example.invalid", role_key: "radiologue" },
   { username: "naxa_e2e_expiry_responsable", email: "naxa.e2e.expiry-responsable@example.invalid", role_key: "responsable_qualite" },
-  { username: "naxa_e2e_expiry_overflow", email: "naxa.e2e.expiry-overflow@example.invalid", role_key: "responsable_securite" },
+  { username: "naxa_e2e_expiry_overflow", email: "naxa.e2e.expiry-responsable-overflow@example.invalid", role_key: "responsable_securite" },
 ];
 
 function assertReplayUrl(value) {
@@ -481,6 +481,7 @@ async function provision(env = process.env) {
       });
     }
   }
+  if (primaryFailure) throw primaryFailure;
 }
 
 if (require.main === module) {
