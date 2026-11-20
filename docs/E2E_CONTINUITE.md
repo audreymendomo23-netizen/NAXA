@@ -1272,3 +1272,44 @@ Aucune mutation n'a été conservée. Ce test ne remplace pas un appel PostgREST
 3. Obtenir des sessions Auth de test distinctes et exécuter les cas positifs/négatifs/inter-tenant via PostgREST.
 4. Faire activer et vérifier dans Auth Dashboard la protection contre les mots de passe compromis.
 5. Reprendre les recettes UI Web/PWA/APK et appareils physiques ; aucun PASS SQL ne certifie la parité utilisateur.
+
+
+### 10.13 Correction d'un contrôle de suspension dans les transitions de réservation universelle (20/11/2026)
+
+#### Contradiction et cause racine
+- La revue de `public.transition_universe_reservation(uuid,text)` a révélé que le booléen Admin était calculé avec `profiles.role='admin'` sans condition `profiles.actif=true`.
+- Le contrôle des membres partenaire vérifiait le lien et le rôle (`owner/manager/operator`) mais ne vérifiait pas explicitement `partners.status='active'`.
+- La fonction ne refusait pas en amont un profil globalement suspendu. Cela contredisait la règle NAXA selon laquelle `profiles.actif` est indépendant des rôles/adhésions et prévaut sur l'accès aux espaces.
+- Aucun accès non autorisé n'a été démontré sur des données métier réelles ; il s'agissait d'une faiblesse de contrôle statique, corrigée avant de déclarer le parcours conforme.
+
+#### Correction appliquée
+- Migration source créée sur `main` : `supabase/migrations/20261120103000_guard_active_profile_universe_reservation.sql`.
+- Migration appliquée sur Replay uniquement : `guard_active_profile_universe_reservation`.
+- La fonction vérifie désormais, avant lecture/transition, que `auth.uid()` existe et que le profil global est actif.
+- Le rôle Admin est reconnu uniquement si le profil correspondant est actif.
+- La gestion partenaire exige une adhésion autorisée et un partenaire dont `status='active'`.
+- `search_path` de la fonction `SECURITY DEFINER` est désormais vide ; les objets utilisés sont qualifiés par schéma.
+- Les grants ont été réaffirmés explicitement : `authenticated` et `service_role`, sans accès `anon`/PUBLIC.
+
+#### Tests Replay
+Tests exécutés dans une transaction annulée par `ROLLBACK`, en simulant la revendication JWT PostgreSQL `request.jwt.claim.sub` sous le rôle `authenticated` (ceci n'est pas un JWT signé ni un appel HTTP PostgREST) :
+| Cas | Résultat observé | Verdict |
+|---|---|---|
+| Profil Admin actif, réservation inexistante | `Réservation introuvable` — le contrôle d'activité laisse passer l'identité active jusqu'au contrôle de ressource | PASS limité |
+| Même profil temporairement passé à `actif=false` dans la transaction | `Profil inactif ou suspendu` avant recherche de la réservation | PASS |
+| ACL `anon` | `EXECUTE=false` | PASS |
+| ACL `authenticated` | `EXECUTE=true` | PASS attendu |
+| Configuration fonction | `search_path=""` | PASS |
+
+La transaction a été annulée ; le profil Admin n'a pas été suspendu durablement et aucune réservation/stock n'a été modifié.
+
+#### Vérifications complémentaires et limites
+- Le Security Advisor Replay relancé après migration conserve les mêmes catégories/volumes globaux : 73 tables RLS sans policy (INFO), 3 fonctions catalogue SECURITY DEFINER accessibles à anon, fonctions SECURITY DEFINER accessibles à authenticated et protection des mots de passe compromis désactivée. La correction ne vise qu'une fonction et ne peut pas faire disparaître les alertes générales.
+- Aucun test positif complet de réservation/confirmation/préparation/retrait n'est possible sur Replay dans cette passe : aucun jeu de réservation/produit partenaire admissible n'a été créé et aucun JWT signé de rôle métier n'est disponible.
+- **Verdict : correction SQL appliquée et vérifiée sur Replay ; garde de suspension PASS sur test simulé ; E2E métier signé/non simulé = NON EXÉCUTÉ ; sécurité globale = NON VERTE.**
+
+#### Point exact de reprise
+1. Continuer l'audit des RPC restantes en priorité sur les fonctions de transition d'état et les chemins de données sensibles.
+2. Vérifier les call-sites serveur et l'authentification des appels `service_role` de paiement.
+3. Obtenir des identités Auth de test réelles pour les scénarios multi-tenant.
+4. Fermer la configuration Auth de protection des mots de passe compromis et refaire les tests Web/PWA/APK.
