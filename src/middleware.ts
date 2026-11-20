@@ -99,22 +99,24 @@ export async function middleware(req: NextRequest) {
     let enabled = false;
     try {
       if (!supabaseUrl || !anonKey) throw new Error("public_supabase_not_configured");
-      const statusUrl = new URL("/rest/v1/universes", supabaseUrl);
-      statusUrl.searchParams.set("select", "slug,enabled");
-      statusUrl.searchParams.set("slug", `eq.${universVerrouillable.slug}`);
+      const statusUrl = new URL("/rest/v1/rpc/get_universe_public_status", supabaseUrl);
       const statusResponse = await fetch(statusUrl.toString(), {
-        method: "GET",
+        method: "POST",
         headers: {
           apikey: anonKey,
           Authorization: `Bearer ${anonKey}`,
           Accept: "application/json",
+          "Content-Type": "application/json",
         },
+        body: "{}",
         cache: "no-store",
       });
       if (!statusResponse.ok) throw new Error("universe_status_unavailable");
-      const rows = await statusResponse.json();
+      const rows: unknown = await statusResponse.json();
       enabled = Array.isArray(rows) && rows.some(
-        (row) => row && row.slug === universVerrouillable.slug && row.enabled === true
+        (row) => row && typeof row === "object"
+          && "slug" in row && row.slug === universVerrouillable.slug
+          && "enabled" in row && row.enabled === true
       );
     } catch {
       // Fail closed : un état Admin inconnu ne doit jamais ouvrir un univers.
