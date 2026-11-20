@@ -1468,3 +1468,38 @@ Vérifications ACL/configuration après migration :
 5. Reprendre B02 uniquement après résolution des prérequis de comptes/organisations ; ne pas ouvrir B03 avant fermeture B00–B02.
 
 **Limites de cette passe :** aucun changement SQL, aucune mutation de donnée métier, aucune écriture Production, aucun déploiement.
+
+### 10.18 B01 — correction du statut univers combiné et preuve Replay (20/11/2026)
+
+#### Correction versionnée
+- Migration ajoutée : supabase/migrations/20261120092351_universe_public_combined_status.sql.
+- Commit de migration initiale : ef146d79705756788293d9229a27d4ba03c7b214 ; renommage/alignement timestamp avec la version Replay : 24c6a5492494cfeee7a68465258c563450d1b1f6 ; fichier final vérifié sur main (blob cf234feca588318ac9644d191da1f6b62b2225ab).
+- Fonction public.get_universe_public_status() : SECURITY DEFINER, search_path vide, retourne uniquement slug + (universes.enabled AND feature_flags.enabled). Elle ne divulgue aucune ligne de feature_flags.
+- ACL : EXECUTE anon/authenticated ; anon SELECT sur feature_flags reste false.
+- src/middleware.ts appelle désormais le RPC au lieu de lire uniquement universes ; erreur RPC, slug absent ou réponse invalide = univers fermé.
+- src/app/api/universes/status/route.ts appelle le même RPC ; slug absent = false, erreur = HTTP 503. Le menu Client reçoit donc le même état agrégé.
+- Migration appliquée au projet Replay pwfftcsjyeibxxqhwysw uniquement. Version enregistrée par Supabase : 20261120092351 / universe_public_combined_status.
+
+#### Réconciliation de la configuration Replay
+- Avant correction : registre activé mais flag désactivé pour Parapharmacie, Examens et Prestations.
+- Décision conservatrice : aucune activation. Les trois valeurs du registre ont été alignées sur leurs flags désactivés, avec journalisation dans audit_log, actor_id nul et métadonnées scope=Replay.
+- Après correction : 5/5 univers false/false ; 0 divergence registre/flag ; 0 univers effectivement activé. Parapharmacie et Bébé & Maman restent bloqués ; Examens/Prestations restent fermés jusqu'à décision explicite de lancement.
+
+#### Preuves exécutées
+- Test SQL B01 : PASS. Vérifie 5 lignes, cohérence RPC avec registre+flag, privilège EXECUTE anon, absence de SELECT anon sur feature_flags, SECURITY DEFINER et search_path vide.
+- Exécution réelle du RPC après SET ROLE anon : 5/5 lignes retournées ; tous les états false.
+- Vérification ACL : anon_execute=true, auth_execute=true, anon_flags_select=false, anon_universes_select=true.
+- Fichier de test versionné : supabase/tests/20261120092351_universe_public_combined_status.sql.
+- Contrôle final de configuration : 0 mismatch, 0 univers effectivement ouverts.
+
+#### Verdict et limites
+- **PASS** : cohérence de configuration Replay, RPC SQL, ACL et exécution sous rôle anon.
+- **PARTIEL** : code middleware/API mis à jour et relu sur main, mais pas de build TypeScript/Next ni d'E2E navigateur exécuté. Le verrou des URL directes et l'affichage du menu ne sont donc pas encore validés en runtime.
+- Pas de changement Production, pas de déploiement, pas de création de compte ou fixture métier.
+
+#### Point exact de reprise
+1. Exécuter build/typecheck et tests ciblés sur la tête main ; corriger tout défaut avant E2E.
+2. Sur Replay, vérifier en navigateur les URL directes Parapharmacie/Bébé & Maman/Examens/Prestations/Suivi, l'état du menu, l'API statut et les parcours catalogue ; vérifier fail-closed en cas d'erreur RPC.
+3. Une fois ces preuves réunies, clôturer B01. B00 reste BLOQUÉ sur sessions réelles/révocation ; B02 reste BLOQUÉ sur cohortes multi-organisations/Centre d'examens. Ne pas ouvrir B03 tant que B00–B02 ne sont pas fermés.
+
+**Périmètre :** Replay uniquement ; aucune écriture Production ; aucun déploiement Vercel.
