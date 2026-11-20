@@ -1049,3 +1049,47 @@ Aucun index ni policy n'a été modifié. Il faut analyser la cardinalité, les 
 3. Auditer prioritairement les RPC SECURITY DEFINER d'administration, paiement, staff/invitations, rôles, stock et sécurité, en reliant chaque fonction à son contrôle `auth.uid()`, rôle et périmètre ; tester les refus avec JWT non autorisé.
 4. Vérifier individuellement les ACL et refus RLS des tables sensibles sans policy ; ne créer aucune policy générique pour faire disparaître l'advisor.
 5. Continuer B00–B02 sur Replay avec les sessions de test authentifiées ; le provisionnement initial partenaire/centre reste bloqué tant qu'aucune session Admin test n'est disponible.
+
+
+---
+
+## Campagne bulk — cinquième passe : audit structurel du circuit Livreur — 20 novembre 2026
+
+**Périmètre :** inspection des fonctions SQL Replay et de leurs privilèges EXECUTE. Aucune donnée métier modifiée ; aucun test d'écriture métier ; aucune écriture Production ; aucun déploiement.
+
+### 1. Invitation et affectation Livreur — contrats serveur inspectés
+
+Les fonctions suivantes sont `SECURITY DEFINER`, accessibles à `authenticated` et non à `anon` : `naxa_create_livreur_invite`, `naxa_accept_livreur_invite`, `naxa_revoke_livreur_invite`, `naxa_grant_livreur_assignment`, `naxa_livreurs_management_list`.
+
+- Création d'invitation : exige une pharmacie active ; l'acteur doit être Promoteur valide avec pharmacie dans son réseau et privilège `ASSIGN_USER_TO_PHARMACY`, ou compte Pharmacie sur son établissement actif.
+- Acceptation : exige session Auth, e-mail confirmé, profil Client actif/majeur/complet/consentant, invitation non expirée/non révoquée/non consommée et adresse e-mail identique ; l'invitant doit encore être autorisé ; un autre poste professionnel actif rend le compte inéligible ; crée l'affectation Livreur et sélectionne le rôle actif.
+- Affectation directe : valide le candidat, l'âge, le consentement, l'e-mail, l'autorité Promoteur/Pharmacie, la portée de la pharmacie, le privilège, les périodes et les chevauchements. Le poste Livreur est exclu de la RPC générique d'affectation Parapharmacie.
+- Le code prévoit une affectation dédiée permanente pour un profil Client autonome et une affectation temporaire de permanence pour certains membres du personnel déjà rattachés au périmètre autorisé. Les règles exactes de multi-pharmacie restent à confirmer par tests de sessions et de changement de rôle actif.
+
+### 2. Mise à disposition de la mission — gate Stock confirmé dans le code
+
+`naxa_delivery_make_available` exige une session, une pharmacie dans le périmètre de l'acteur, une commande valide, `livraison_confirmee_stock_at` renseigné, `preparation_statut='prete_au_retrait'`, un mode de paiement choisi et un paiement électronique vérifié (sauf espèces à la livraison). Elle délègue à une fonction interne non exécutable directement par `anon` ou `authenticated`.
+
+La fonction interne contrôle en plus le rôle Gestionnaire de stock/Magasinier (ou Admin), la demande de livraison, le statut de commande, la préparation physique confirmée et le paiement ; elle crée la mission une seule fois, génère les offres aux Livreurs actifs de cette pharmacie et les notifications. Cela respecte structurellement la règle : le Livreur ne reçoit la mission qu'après préparation confirmée par Stock.
+
+### 3. Acceptation, retrait et suivi — contrôles serveur inspectés
+
+- `naxa_delivery_accept` exige le poste Livreur actif, la pharmacie active, la mission disponible dans cette pharmacie, une affectation Livreur active/non expirée, la préparation prête et le paiement sélectionné/vérifié.
+- `naxa_delivery_pickup` exige le Livreur affecté, le statut accepté, la commande déclarée prête par Stock et le paiement vérifié ; la transition passe à `picked_up` et met à jour le suivi de livraison.
+- Les actions GPS/arrivée/remise vérifient la mission et le Livreur actif ; la confirmation finale combine la confirmation du Livreur et celle du Client via `naxa_delivery_finalize_if_confirmed`.
+- `naxa_delivery_tracking` filtre explicitement sur `client_id=auth.uid()` ; `naxa_delivery_my_missions` exige le rôle Livreur et l'affectation active ; `naxa_delivery_my_performance` agrège les offres du Livreur connecté.
+- Les RPC du circuit Livreur examinées ne sont pas exécutables par `anon`. Les fonctions de rapprochement SMS et d'auto-confirmation paiement sont réservées au `service_role`.
+
+### 4. Verdict du circuit Livreur
+
+- **PASS structurel :** contrôle de l'autorité d'invitation/affectation, séparation du rôle Livreur, gate préparation Stock, gate paiement, acceptation liée à la pharmacie, restriction de consultation des missions, et suivi Client limité à sa propre commande.
+- **NON PROUVÉ / BLOQUANT E2E :** aucune invitation réelle, acceptation, affectation multi-pharmacie, notification reçue, mission préparée, acceptée, retirée, suivie ou terminée n'a été exécutée sur Replay ; aucune preuve UI Web/PWA/APK n'a été obtenue. La présence des fonctions SQL ne suffit pas à certifier la fonctionnalité complète.
+- **À vérifier :** idempotence et concurrence sur acceptation simultanée ; comportement quand un Livreur change d'espace actif ou perd son affectation pendant une mission ; révocation/suspension pharmacie en cours de livraison ; confidentialité des coordonnées/adresse/téléphone ; notifications push réelles ; synchronisation offline et redémarrage Android.
+
+### Point de reprise exact
+
+1. Dès qu'une session Promoteur/Pharmacie et un compte Client de test contrôlés sont disponibles, exécuter le cycle d'invitation Livreur et son acceptation ; vérifier l'affectation et l'exclusivité du rôle.
+2. Préparer une commande via le Gestionnaire Stock, puis tenter la publication avant/après préparation et avant/après paiement : seuls les cas conformes doivent réussir.
+3. Tester deux Livreurs en acceptation concurrente, refus, expiration, révocation, suspension pharmacie, changement de rôle actif et affectation multi-pharmacie.
+4. Terminer le trajet avec les deux confirmations, vérifier la clôture, le stock, les paiements, les notifications et le suivi Client ; rejouer sur Web, PWA installée et APK Android physique.
+5. Joindre les preuves UI, RPC, tables/events, notifications reçues, JWT et plateformes au manifeste E2E ; aucun statut fonctionnel Livreur ne doit être déclaré vert avant ces preuves.
