@@ -4,7 +4,7 @@
 **Dépôt :** audreymendomo23-netizen/NAXA — main  
 **HEAD source inspecté :** d050f598fe9731753af4d2f3f4ea9956724cea09  
 **Environnement d'exécution :** Supabase Replay et environnements CI/local isolés uniquement  
-**Statut :** CONCEPTION DOCUMENTÉE — CAMPAGNE BULK NON EXÉCUTÉE — NAXA NON CERTIFIÉE GO LIVE
+**Statut :** CONCEPTION DOCUMENTÉE — CAMPAGNE BULK PARTIELLEMENT EXÉCUTÉE (contrôles SQL Replay B00/B01/B02 du 20/11/2026) — NAXA NON CERTIFIÉE GO LIVE
 
 ---
 
@@ -517,3 +517,26 @@ Commencer avec les comptes Auth séparés et les fixtures multi-organisations Re
 - vercel.json contient deploymentEnabled.main=false ; aucune opération de déploiement n'est demandée par cette mise à jour documentaire.
 
 **Verdict au 20/11/2026 :** conception transversale documentée ; B00–B16 non exécutés comme campagne globale ; NAXA non certifiée prête pour Go Live.
+
+
+## 10. Journal d'exécution bulk — checkpoint SQL Replay du 20/11/2026
+
+**Périmètre de cette passe :** contrôles SQL en lecture seule, Supabase Replay `pwfftcsjyeibxxqhwysw`. Aucun fixture, compte Auth, rôle, organisation, stock ou donnée métier n'a été créé/modifié. Les tests navigateur/PWA/APK ne sont pas couverts par ces requêtes.
+
+| ID de preuve | Lot | Contrôle bulk | Résultat | Verdict |
+|---|---|---|---|---|
+| B00-SQL-IDENTITY-SNAPSHOT-01 | B00 | Auth ↔ profiles, activité, majorité, consentement, rôles de base | 11 Auth / 11 profils ; 11 emails confirmés ; 0 Auth sans profil ; 0 profil sans Auth ; 11 profils actifs, âge vérifié et consentants ; répartition 9 Client / 1 Promoteur / 1 Admin | PASS référentiel, limité |
+| B00-SQL-ROLE-CONTEXT-02 | B00 | Rôles professionnels actifs et unicité du contexte | 10 lignes de rôle actif ; 0 profil avec plusieurs contextes actifs ; l'Admin ne figure pas dans cette table de contexte métier | PARTIEL — session Auth réelle et sélection/changement UI non testés |
+| B01-SQL-UNIVERSE-FLAGS-01 | B01 | Cohérence feature_flags ↔ universes | Parapharmacie : feature flag false, registre true ; Bébé & Maman false/false ; Examens false/true ; Prestations false/true ; Suivi false/false | FAIL configuration incohérente pour Parapharmacie, Examens et Prestations |
+| B01-SQL-PUBLIC-CATALOG-02 | B01 | Catalogue public et visibilité produit inconnu | Aucun résultat catalogue pour les univers interrogés sur le Replay vide ; UUID produit inconnu : `marketplace_produit_visible=false` | PARTIEL — absence de fixtures éligibles, ne prouve pas le verrou complet ni le parcours positif |
+| B02-SQL-ORG-ASSIGNMENT-INTEGRITY-01 | B02 | Organisations, affectations actives, profils/établissements cibles | 1 partenaire actif ; 10 pharmacies actives (9 démo) ; 9 affectations professionnelles Pharmacie actives ; 1 adhésion partenaire ; 0 affectation professionnelle partenaire ; 0 centre d'examens ; 0 affectation/personnel Centre | BLOQUÉ — cohortes multi-organisations et Centre non provisionnées |
+| B02-SQL-ASSIGNMENT-GUARDS-02 | B02 | Affectations vers profils/organisations inactifs, rôles actifs multiples, expiration | 0 affectation active vers profil ou organisation absent/inactif ; 0 contexte de rôle actif multiple ; 0 affectation active expirée ; 5 affectations actives concernent des pharmacies démo | PASS structurel limité ; confirmer le périmètre des fixtures démo |
+
+### Décisions de campagne à conserver
+- B00 n'est pas fermé : la cohérence Auth/Profile est PASS, mais le changement d'espace, les sessions expirées/révoquées et les tests Web/PWA/APK restent à prouver.
+- B01 n'est pas fermé : ne pas modifier les flags par automatisme. La contradiction Parapharmacie doit rester verrouillée côté Client ; Examens et Prestations sont prévus au catalogue maître mais leurs feature flags sont désactivés. Vérifier la décision de lancement et le code de consommation des flags avant toute mutation de configuration.
+- B02 ne peut pas passer au vert avec zéro centre d'examens, zéro affectation Centre et un seul partenaire. Les affectations sur pharmacies démo restent des fixtures Replay et ne valent pas une cohorte métier.
+- Les lots B03 à B16 ne sont pas déclarés exécutés par cette passe. L'ordre officiel reste B00 → B01 → B02 → B03 … → B16.
+- Ne pas réexécuter intégralement les sous-recettes R01–R09 déjà prouvées ; capitaliser seulement les scénarios dont le commit, les dépendances et le niveau de preuve sont toujours valides.
+
+**Verdict au 20/11/2026 :** première passe de requêtes bulk B00/B01/B02 exécutée partiellement sur Replay ; B00 référentiel PASS limité ; B01 configuration FAIL/PARTIEL ; B02 BLOQUÉ par les fixtures et organisations manquantes ; campagne globale non terminée ; NAXA non certifiée Go Live.
