@@ -669,3 +669,91 @@ Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refu
 - **VERT — parcours navigateur Web Support Client + Professionnel sur Chromium Desktop, incluant les cycles refus, partage répété, arrêt, clôture serveur et audit.**
 - **NON VERT — compatibilité universelle tous appareils : Android natif reste non implémenté ; iOS réel et sélecteur OS réel restent sans recette physique.**
 - Ne pas présenter le chantier complet multi-plateforme comme 100 % Vert tant que ces validations/implémentations ne sont pas clôturées.
+
+# Programme maître E2E bulk transversal — Web / PWA / Android — 20 novembre 2026
+
+## Décision de gouvernance et référence canonique
+
+- Le catalogue exécutable de conception est désormais le document docs/recettes/RECETTES_E2E_BULK_TRANSVERSALES_GO_LIVE.md.
+- Il comprend **17 lots B00 à B16**. Il remplace le découpage provisoire évoqué dans les échanges (B00–B22 / 23 lots) : ne pas maintenir deux nomenclatures concurrentes.
+- Les recettes Client historiques R01–R09, les tests SQL, les scripts Browser/Replay et les tests Android existants sont des **preuves/sous-recettes réutilisables**. Ils ne sont ni exclus, ni réputés suffisants pour un parcours transversal. Toute nouvelle liaison entre espaces, rôles ou plateformes doit être rejouée.
+- Une recette déjà exécutée est réutilisée comme preuve uniquement si son commit, son environnement, ses acteurs, son scénario et son résultat couvrent exactement le segment concerné. Une recette plus large doit rejouer les préconditions et les transitions inter-espaces qui la relient ; elle n'a pas à répéter aveuglément chaque test unitaire déjà valide.
+- Périmètre d'exécution : Replay/CI/local isolé uniquement. Production inchangée. Aucun déploiement. Android distribué par APK depuis le site NAXA, jamais via Play Store.
+
+## Couverture transversale obligatoire des univers
+
+Les recettes bulk ne sont pas une collection de tests indépendants par espace. Chaque lot doit suivre un parcours métier de bout en bout entre les acteurs qui produisent, valident, consomment ou contrôlent la même donnée.
+
+1. **Pharmacie** : Client → catalogue/offre → réservation/ordonnance → pharmacie → Promoteur/Responsable → Pharmacien → Gestionnaire stock/Magasinier → Caisse → Comptable → Livreur → Client → Administration NAXA si escalade.
+2. **Parapharmacie** : ERP professionnel Parapharmacie, titulaire/Promoteur, Responsable et collaborateurs affectés. Le catalogue Client Parapharmacie demeure verrouillé tant que la décision métier ne change pas ; tester l'ERP professionnel ne déverrouille jamais l'univers Client.
+3. **Bébé & Maman** : vérifier le verrou Client et l'absence d'effet métier ; tester seulement les fonctions professionnelles expressément autorisées. Aucun accès commercial implicite.
+4. **Examens médicaux** : Client → centre → accueil → caisse → technicien laboratoire / biologiste / manipulateur imagerie / radiologue → responsable qualité / responsable sécurité → publication contrôlée des résultats → Client. Tester également agenda, équipements, dossiers, personnel, sécurité, comptabilité et messages du centre.
+5. **Soins et prestations à domicile** : Client → catalogue/demande → titulaire indépendant / owner → manager → operator → disponibilité, affectation, exécution, suivi et clôture.
+6. **Dispositifs médicaux connectés** : Client, appareil, mesures et alertes privées ; partage éventuel avec un professionnel explicitement habilité et consenti. Tester collecte, révocation du consentement et séparation des comptes.
+7. **Services communs** : identité et cumul d'espaces, invitations/affectations, profil, notifications, messagerie, assistance, support agents, audit, administration, sécurité, fichiers, paiements et comptabilité selon les règles propres à chaque écosystème.
+
+**Contradiction à lever dans B01 :** R06 affirme que le catalogue Client Parapharmacie et Bébé & Maman restent bloqués ; la route source /parapharmacie rend pourtant un composant UniverseCatalog. Le test doit prouver le verrou au niveau registre, middleware, Server Actions, API/RPC et RLS, et l'absence d'effets métier. L'ERP professionnel Parapharmacie est une qualification distincte : le tester ne déverrouille pas l'univers Client.
+
+**Dispositifs connectés :** suivi privé, soumis à consentement ; ce n'est pas un catalogue commercial autonome.
+
+**Examens :** les règlements sont directs auprès du centre ; NAXA ne collecte pas le prix de l'examen.
+
+## Comptes professionnels à provisionner — aucun rôle générique
+
+- **Pharmacie / ERP** : Promoteur/propriétaire, Responsable, Pharmacien, Gestionnaire stock, Magasinier si distinct dans la configuration, Caisse/Caissier, Comptable, Livreur. Prévoir au moins deux pharmacies, deux utilisateurs par rôle critique lorsque l'isolation ou la concurrence est testée, et deux Livreurs pour les affectations concurrentes.
+- **Parapharmacie / ERP** : propriétaire/titulaire, Responsable et chaque fonction de personnel réellement disponible dans le modèle d'affectation Parapharmacie. Ne pas déduire la parité des rôles Pharmacie : dresser l'inventaire exact des rôles à partir du schéma, des politiques et des écrans Parapharmacie avant génération des comptes.
+- **Centre d'examens** : comptes séparés pour les dix rôles : Responsable du centre, Accueil, Caissier, Comptable, Technicien laboratoire, Biologiste, Manipulateur imagerie, Radiologue, Responsable qualité, Responsable sécurité. Aucun compte partagé ne peut représenter plusieurs postes lors des tests de séparation des droits.
+- **Soins à domicile** : titulaire indépendant/owner, manager, operator, plus Client distinct.
+- **NAXA central** : Administrateur, Agent Support A et Agent Support B (pour vérifier les frontières de file et de dossiers), et comptes de supervision uniquement si le code expose ces fonctions.
+- **Clients** : au moins Client A et Client B actifs, un profil incomplet, une session expirée, un profil global suspendu, un visiteur majeur et un cas de refus de déclaration d'âge.
+- Comptes distincts et données isolées par écosystème ; aucune identité de démonstration ou donnée de test ne doit apparaître dans l'espace public.
+
+## Matrice de plateformes : règle 3/3
+
+Pour chaque parcours annoncé disponible sur les trois versions, exécuter séparément :
+- **Web** : desktop et viewport mobile, navigation navigateur, rechargement, stockage, permissions, perte/retour réseau.
+- **PWA installée** : installation réelle, lancement autonome, Service Worker, cache/version, mise à jour, notifications push, stockage, perte/retour réseau et redémarrage.
+- **Android natif APK** : installation APK, parcours Kotlin/Compose, authentification, permissions système, stockage chiffré, tâches d'arrière-plan, redémarrage, notifications, caméra, Bluetooth et synchronisation.
+
+Résultat par fonctionnalité : Web PASS + PWA PASS + Android PASS = 3/3. Si une plateforme ne propose pas la fonction, inscrire **NON IMPLÉMENTÉ / NON PARITAIRE** et ouvrir un blocage Go Live si la fonction est essentielle ou annoncée. Un build Android, un test de catalogue de rôles ou un E2E Chromium ne prouve pas la parité fonctionnelle native.
+
+Les capacités intrinsèquement différentes (ex. partage écran système, Bluetooth, notifications, caméra, tâches en arrière-plan) ont une sous-recette technique spécifique à la plateforme et une preuve sur appareil réel. Le résultat d'un émulateur ou d'une capture synthétique est explicitement limité à ce qu'il démontre.
+
+## Hors ligne — transversal à chaque lot et B22 comme campagne de résilience
+
+- Ne pas limiter le hors ligne à la Caisse : injecter perte réseau, réseau instable, fermeture forcée, redémarrage, session expirée, changement de compte, suspension/révocation, retour réseau et conflit dans chaque espace qui autorise une opération locale.
+- Classer chaque action : consultation cache (avec fraîcheur affichée), brouillon local, opération différée à revalider serveur, ou action exigeant une connexion. Une écriture locale n'est pas une validation métier.
+- Prouver persistance locale, file durable, idempotence, ordre/sequence, absence de doublon, reprise partielle, isolation inter-compte, arbitrage de conflits, rejet des opérations devenues interdites, statut de synchronisation et audit serveur.
+- **Web** : IndexedDB/storage et reprise après reload/fermeture du navigateur.
+- **PWA** : Service Worker, cache, stockage durable, lancement offline, update du cache et reprise de Background Sync/fallback.
+- **Android** : base locale sécurisée, file persistante, WorkManager/contraintes réseau, redémarrage appareil/processus, restrictions batterie, permission et reprise des transferts.
+- Les opérations sensibles (paiement confirmé, approbation, suspension, validation clinique, publication de résultat, clôture comptable, acceptation/attribution de mission selon la règle métier) ne deviennent définitives qu'après décision serveur. Une session expirée ou un profil suspendu ne peut pas rejouer une commande locale pour contourner les droits.
+
+## Contrat commun d'une recette bulk
+
+Chaque scénario contient : identifiant stable ; lot ; univers ; plateforme et appareil/version ; rôles/comptes ; préconditions et fixtures ; action visible UI ; requête/API/RPC attendue ; tables/événements et RLS attendus ; notifications/fichiers ; variations offline ; assertions d'isolation/sécurité ; résultat après reconnexion/redémarrage ; nettoyage ; liens vers preuves antérieures réutilisées ; verdict et commit.
+
+États autorisés : **PASS**, **FAIL**, **BLOCKED**, **NOT RUN**, **NOT IMPLEMENTED**, **NOT APPLICABLE JUSTIFIED**. Aucun statut vide ne vaut PASS. SQL seul ne prouve pas l'UI ; Playwright seul ne prouve pas l'intégrité transactionnelle ; build ne prouve pas l'E2E ; notification créée ne prouve pas sa réception ; simulateur ne prouve pas appareil réel.
+
+## État vérifié à la mise à jour — 20 novembre 2026
+
+- Branche main, HEAD observé avant cette mise à jour : 7d88f8f72e8800f8c420a60f555fa250973c16eb.
+- Catalogue bulk : 17 lots B00–B16, conception documentée ; **campagne bulk non exécutée et NAXA non certifiée Go Live**. Le catalogue précise les scénarios et les dépendances ; il ne transforme pas les anciennes preuves en couverture globale.
+- Supabase Replay interrogé en lecture seule (pwfftcsjyeibxxqhwysw) : 1 profil Admin, 9 profils Client, 1 profil Promoteur ; 9 pharmacies démo et 1 pharmacie non démo ; affectations pharmacie observées : 2 Caisse, 1 Comptable, 2 Gestionnaire stock, 1 Livreur, 1 Pharmacien, 1 Responsable. Cette photographie ne démontre pas que les comptes Auth associés existent, qu'ils peuvent se connecter, ni que toutes les permissions fonctionnent.
+- La requête de comptage ne retourne aucun groupe pour les tables d'affectations du Centre d'examens et invitations du centre ; le jeu Replay consulté ne fournit donc pas de preuve de comptes d'examens provisionnés/acceptés. Les dix rôles du centre restent à créer et à tester individuellement.
+- Le même relevé n'a pas établi de couverture de comptes Parapharmacie professionnels. Leur inventaire et leur provisionnement sont à faire avant les recettes de rôle correspondantes.
+- Support navigateur : run Replay 44681037772 et qualité 44681037392 documentés verts pour le parcours Chromium Client + Comptable/Agent, y compris audio RTP soutenu, refus du sélecteur simulé, partage répété, arrêt UI et audit. Portée strictement navigateur/Chromium ; sélecteur système réel et appareils physiques non prouvés.
+- Android : le build natif ne suffit pas à valider les parcours. Le support natif Android (audio/partage écran) est documenté comme non implémenté ; l'E2E Support Android échoue sur le run de la campagne en cours. Ne pas déclarer la fonction Android paritaire.
+- Des tests offline/POS et contrats SQL préexistants sont réutilisables comme sous-recettes, notamment les preuves ciblées 281/283/284. Elles ne remplacent pas le passage transversal Web/PWA/Android.
+- Production : aucune requête d'écriture, migration ou déploiement effectué dans cette mise à jour.
+
+## Point de reprise exact
+
+1. Lire le catalogue maître B00–B16 et l'utiliser comme source canonique de la campagne.
+2. Établir le manifeste de fixtures Replay avec identifiants Auth réellement provisionnés pour tous les rôles Pharmacie, Parapharmacie, Centre d'examens, Soins à domicile, Client, Admin et Support ; commencer par les dix postes du Centre d'examens et les rôles Parapharmacie manquants.
+3. Faire l'inventaire exact des fonctions/affectations Parapharmacie depuis les tables, politiques RLS, Server Actions et routes ; ne pas copier la liste Pharmacie par supposition.
+4. Construire la matrice de traçabilité scénario → UI → API/RPC → table/RLS → test existant → preuve manquante pour chaque lot.
+5. Exécuter d'abord B00 (identité, cumul, session, affectation, révocation), puis les parcours transversaux dans l'ordre de dépendance défini par le catalogue. Pour chaque scénario, Web, PWA installée et APK sont trois exécutions distinctes.
+6. Intégrer les injections hors ligne dans chaque lot, puis rejouer la campagne de résilience sur les trois versions et appareils physiques.
+7. Maintenir Production intacte, aucun déploiement et aucun Play Store. Ne prononcer AU VERT global qu'après clôture des critères obligatoires, preuves 3/3, sécurité, pilote terrain et absence de blocage critique.
+
