@@ -10,6 +10,7 @@ on:
       - "android/app/src/debug/**"
       - "android/app/src/androidTest/**"
       - "scripts/e2e/naxa-support-native-android-e2e.cjs"
+      - "scripts/e2e/run-native-android-emulator.sh"
       - "android/README.md"
   workflow_dispatch:
 
@@ -171,45 +172,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim
-          script: |
-            set -eu
-            adb shell settings put system system_locales en-US || true
-            AGENT_LOG="$RUNNER_TEMP/naxa-native-support-agent.log"
-            node scripts/e2e/naxa-support-native-android-e2e.cjs --agent > "$AGENT_LOG" 2>&1 &
-            AGENT_PID=$!
-            agent_ready=0
-            for _ in $(seq 1 75); do
-              if grep -q "AGENT READY" "$AGENT_LOG" 2>/dev/null; then
-                agent_ready=1
-                break
-              fi
-              if ! kill -0 "$AGENT_PID" 2>/dev/null; then
-                cat "$AGENT_LOG" || true
-                echo "::error::L’Agent Support ne s’est pas préparé."
-                exit 1
-              fi
-              sleep 1
-            done
-            if [ "$agent_ready" -ne 1 ]; then
-              cat "$AGENT_LOG" || true
-              kill "$AGENT_PID" 2>/dev/null || true
-              echo "::error::L’Agent Support n’est pas prêt."
-              exit 1
-            fi
-            set +e
-            (cd android && gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest)
-            TEST_STATUS=$?
-            set -e
-            if [ "$TEST_STATUS" -ne 0 ]; then
-              kill "$AGENT_PID" 2>/dev/null || true
-            fi
-            set +e
-            wait "$AGENT_PID"
-            AGENT_STATUS=$?
-            set -e
-            cat "$AGENT_LOG"
-            test "$TEST_STATUS" -eq 0
-            test "$AGENT_STATUS" -eq 0
+          script: bash scripts/e2e/run-native-android-emulator.sh
       - name: Publier rapports Android
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
