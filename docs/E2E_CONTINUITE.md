@@ -719,7 +719,7 @@ Résultat par fonctionnalité : Web PASS + PWA PASS + Android PASS = 3/3. Si une
 
 Les capacités intrinsèquement différentes (ex. partage écran système, Bluetooth, notifications, caméra, tâches en arrière-plan) ont une sous-recette technique spécifique à la plateforme et une preuve sur appareil réel. Le résultat d'un émulateur ou d'une capture synthétique est explicitement limité à ce qu'il démontre.
 
-## Hors ligne — transversal à chaque lot et B22 comme campagne de résilience
+## Hors ligne — axe transversal à chacun des 17 lots B00–B16
 
 - Ne pas limiter le hors ligne à la Caisse : injecter perte réseau, réseau instable, fermeture forcée, redémarrage, session expirée, changement de compte, suspension/révocation, retour réseau et conflit dans chaque espace qui autorise une opération locale.
 - Classer chaque action : consultation cache (avec fraîcheur affichée), brouillon local, opération différée à revalider serveur, ou action exigeant une connexion. Une écriture locale n'est pas une validation métier.
