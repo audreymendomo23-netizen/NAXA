@@ -81,6 +81,7 @@ internal fun NativeSupportScreen(
     var subject by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var currentCall by remember { mutableStateOf<NativeSupportCall?>(null) }
+    var lastCallMessage by remember { mutableStateOf<String?>(null) }
     var rtcState by remember { mutableStateOf<NativeSupportRtcClient?>(null) }
     var realtimeState by remember { mutableStateOf<NaxaSupportRealtime?>(null) }
     var rtcStatus by remember { mutableStateOf("idle") }
@@ -107,6 +108,7 @@ internal fun NativeSupportScreen(
         try {
             val call = repository.requestCall(ticketId)
             currentCall = call
+            lastCallMessage = null
             attemptedRtcCallId = null
             rtcStatus = "connecting"
         } catch (error: Exception) {
@@ -310,7 +312,9 @@ internal fun NativeSupportScreen(
                         }
 
                         if (latest.status in TerminalCallStates) {
+                            lastCallMessage = supportCallStatus(latest.status)
                             closeMediaSession()
+                            currentCall = null
                             break
                         }
                         delay(2_500)
@@ -366,6 +370,8 @@ internal fun NativeSupportScreen(
                 SupportErrorCard(callError!!)
             }
 
+            lastCallMessage?.let { SupportInfoCard("Dernier appel", it) }
+
             currentCall?.let { call ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -390,6 +396,12 @@ internal fun NativeSupportScreen(
                                 color = SupportInk.copy(alpha = .72f),
                                 fontSize = 12.sp
                             )
+                            if (rtcState == null) {
+                                OutlinedButton(
+                                    onClick = { attemptedRtcCallId = null },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Réessayer la connexion audio") }
+                            }
                             if (screenShareActive) {
                                 Button(
                                     onClick = ::stopScreenShare,

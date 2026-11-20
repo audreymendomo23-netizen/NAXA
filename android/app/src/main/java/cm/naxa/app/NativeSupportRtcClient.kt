@@ -70,6 +70,7 @@ class NativeSupportRtcClient(
         check(!closed) { "La session audio native est déjà fermée." }
         callId = id
         channel = realtime
+        NaxaMediaProjectionService.startAudio(context)
         ensureFactory()
 
         val rtcIceServers = iceServers.map { server ->
@@ -209,7 +210,7 @@ class NativeSupportRtcClient(
         val id = callId ?: throw IllegalStateException("Aucun appel Support actif.")
         repository.screenShareEvent(id, sessionId, "consented")
         currentShareSessionId = sessionId
-        NaxaMediaProjectionService.start(context)
+        NaxaMediaProjectionService.startProjection(context)
 
         var startEventRecorded = false
         try {
@@ -260,7 +261,7 @@ class NativeSupportRtcClient(
         } catch (error: Exception) {
             negotiatedVideoSender?.setTrack(null, false)
             runCatching { stopCaptureResources() }
-            NaxaMediaProjectionService.stop(context)
+            NaxaMediaProjectionService.stopProjection(context)
             currentShareSessionId = null
             runCatching {
                 if (startEventRecorded) repository.screenShareEvent(id, sessionId, "stopped", "unexpected_track_end")
@@ -279,7 +280,7 @@ class NativeSupportRtcClient(
             try {
                 sender?.setTrack(null, false)
                 stopCaptureResources()
-                NaxaMediaProjectionService.stop(context)
+                NaxaMediaProjectionService.stopProjection(context)
                 runCatching {
                     channel?.broadcastSignal(
                         JSONObject().put("kind", "screen-share-stopped").put("shareSessionId", sessionId)
@@ -390,6 +391,7 @@ class NativeSupportRtcClient(
             audioSource = null
             factory?.dispose()
             factory = null
+            NaxaMediaProjectionService.stop(context)
             egl?.release()
             egl = null
         }
