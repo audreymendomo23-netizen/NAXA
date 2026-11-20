@@ -1625,3 +1625,7 @@ Vérifications ACL/configuration après migration :
 **Verdict au checkpoint :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL, correction de test relancée ; B02 PARTIEL avec sous-recettes Pharmacie et Centre vertes. Aucun des trois lots n'est déclaré totalement vert.
 
 **Point exact de reprise :** terminer 44736999133 et 44736999210, corriger tout nouvel écart navigateur, puis traiter le réglage Auth Replay et les organisations Parapharmacie/Prestations avec leurs tests d'isolation. Ne pas déployer et ne pas écrire en Production.
+#### Addendum — résultat qualité et état Replay après le checkpoint
+
+- Workflow qualité 44736999210 : **SUCCESS**. Syntaxe/actionlint, tests, TypeScript, lint et build Next.js terminés avec succès sur le commit code ad213a52fe6ae3ce9e97db3667ef3afda0987ec6.
+- Workflow Replay 44736999133 : les étapes préflight, fixtures, cohorte Pharmacie, Centre + neuf postes, installation Playwright, génération des secrets éphémères, build Next et installation Chrome stable sont **PASS**. Au dernier contrôle, l'étape Web Push Chrome réel était encore en cours ; crédit navigateur et Storage venaient ensuite. Aucun résultat final n'est encore attribué à ce run.
