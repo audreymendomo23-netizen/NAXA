@@ -1229,3 +1229,46 @@ Autres limites non levées :
 - ACL individuelles des 65 tables `public` : aucun privilège direct `SELECT/INSERT/UPDATE/DELETE` pour `anon` ou `authenticated`.
 - Réconciliation : **73/73 tables RLS sans policy sont fermées en accès direct pour les rôles API contrôlés**. Cela justifie le lint INFO dans ce périmètre, sous réserve de vérifier les appels indirects privilégiés et la liste réelle des schémas exposés PostgREST.
 - Le lint n'est donc pas une faille directe démontrée et aucune policy permissive ne doit être ajoutée pour faire disparaître l'alerte. L'action correcte est de conserver les tables internes fermées et d'auditer les fonctions SECURITY DEFINER qui les utilisent.
+
+
+### 10.12 Revue ciblée des RPC sensibles — paiements, rôles, stock, examens et livraison (20/11/2026)
+
+#### Périmètre et ACL observées sur Replay
+- Projet contrôlé : Replay `pwfftcsjyeibxxqhwysw`, état `ACTIVE_HEALTHY`, PostgreSQL 17.11. Production non interrogée ni modifiée.
+- Inventaire ciblé des fonctions `SECURITY DEFINER` publiques de paiement, abonnement, affectation/rôle et stock/examens/livraison : les façades utilisateur contrôlées ne sont pas exécutables par `anon`.
+- Les façades métier prévues pour les utilisateurs sont exécutables par `authenticated` et portent des contrôles d'identité, de rôle, d'affectation ou de périmètre ; les fonctions d'ingestion/rapprochement/confirmation automatiques examinées sont réservées à `service_role` (non exécutables par `anon` ni `authenticated`).
+- Cette séparation ACL ne prouve pas à elle seule que le serveur appelant une RPC `service_role` authentifie correctement l'utilisateur final : les call-sites serveur restent à relier et auditer.
+
+#### Contrôles statiques ciblés
+- **Paiement Client / livraison :** `naxa_client_set_delivery_payment_mode` exige `auth.uid()`, réservation du Client connecté, confirmation préalable de la livraison et état admissible ; `naxa_client_declarer_paiement_livraison` vérifie le propriétaire Client, le mode, l'état de commande, la référence et l'unicité dans la pharmacie. La variante `naxa_client_declarer_paiement_livraison_v2` est `service_role` uniquement.
+- **Liste et confirmation de paiement :** `naxa_delivery_pending_payment_list` et sa variante v2 exigent l'acteur Caisse autorisé pour la pharmacie. `admin_confirmer_reglement_partenaire` exige que `p_admin = auth.uid()`, `is_admin()` et un profil Admin actif ; les façades Admin de liste/refus contrôlent également `is_admin()` et l'activité du profil. `partner_soumettre_reglement_abonnement` exige un profil actif et l'appartenance titulaire (`owner`) au partenaire concerné.
+- **Frontière serveur paiement :** les fonctions de création/déclaration d'intention de paiement univers/commande, rapprochement SMS, capture et confirmation automatique sont ACL `service_role` uniquement dans l'inventaire consulté. Leur appelant serveur et l'association stricte entre JWT entrant, réservation/partenaire et paramètre Client restent à vérifier dans les routes/Edge Functions.
+- **Rôles et affectations :** `naxa_select_active_role` exige une session Auth et un profil actif ; le corps vérifie les droits de sélection selon l'affectation, le membre titulaire, l'état du partenaire, l'univers et le paiement confirmé. `naxa_grant_livreur_assignment` exige une session, une cible active/majeure/complète/consentante avec e-mail confirmé, une pharmacie active et une autorité Promoteur/Pharmacie/Admin conforme au périmètre. `naxa_revoke_professional_assignment` exige une session, une affectation active et une autorité hiérarchique ou Admin. `naxa_set_professional_assignment_status` passe par les privilèges serveur de suspension/réactivation Caisse.
+- **Stock :** les façades inspectées (`gestionnaire_stock_commande_preparation`, `gestionnaire_stock_confirmer_demande_livraison`, `offline_stock_set_quantity`, gestion des lots et sessions de stock) contrôlent session, pharmacie cible, affectation/privilège Stock et état de l'objet ; le chemin de livraison reste conditionné à la préparation et au paiement requis.
+- **Examens :** `book_exam_appointment` exige un Client actif connecté, un créneau ouvert/non expiré et disponible, un seul choix service/pack ; les RPC de gestion des statuts de centre/pack/service exigent un Admin actif et le respect des flags/états de publication. Les fonctions de dispatch de rappels sans grant utilisateur sont réservées au traitement serveur.
+- **Caisse POS :** `vente_ajouter_paiement` exige une session, une vente brouillon et `is_admin()` ou `can_operate_pharmacy()`; les modes électroniques sans confirmation opérateur intégrée sont explicitement refusés.
+
+#### Test négatif sans JWT — rôle PostgreSQL authenticated
+Transaction de test annulée par ROLLBACK ; `current_user=authenticated`, `auth.uid()=NULL`. Résultats observés :
+| RPC appelée sans session | Réponse observée | Verdict |
+|---|---|---|
+| `naxa_select_active_role('client',NULL,NULL)` | `Connexion requise` | PASS refus sans identité |
+| `naxa_grant_livreur_assignment(...)` | `Connexion requise` | PASS refus sans identité |
+| `naxa_client_set_delivery_payment_mode(...)` | `Connexion requise` | PASS refus sans identité |
+| `naxa_delivery_pending_payment_list(...)` | `La liste des paiements est réservée à la Caisse active de cette pharmacie` | PASS refus sans acteur Caisse |
+
+Aucune mutation n'a été conservée. Ce test ne remplace pas un appel PostgREST avec JWT signé, ni les tests positifs/negatifs multi-tenant avec comptes Client/Promoteur/Pharmacie/Caisse/Admin.
+
+#### Contradictions, limites et verdict
+- Aucune vulnérabilité exploitable n'est démontrée par cette passe sur les façades et chemins explicitement inspectés ; les contrôles de rôle et de périmètre sont présents dans les définitions SQL examinées.
+- Le filtre de nom et les extraits SQL ne constituent **pas** une revue exhaustive des 262 fonctions `SECURITY DEFINER`. Les dépendances de helpers, fonctions appelantes, vues, routes serveur et appels service_role ne sont pas tous cartographiés.
+- Le Security Advisor relancé après les contrôles conserve les mêmes constats : 73 RLS sans policy (INFO), 3 fonctions catalogue `SECURITY DEFINER` exécutables par anon (WARN), 262 fonctions `SECURITY DEFINER` exécutables par authenticated (WARN) et protection des mots de passe compromis désactivée (WARN). Ces volumes sont des alertes de surface, pas 265 failles prouvées.
+- **Verdict : PASS limité de revue statique et des refus sans JWT ; revue exhaustive des RPC = EN COURS ; tests avec JWT réel = BLOQUÉS ; sécurité globale = NON VERTE.**
+- Aucune correction ACL supplémentaire n'est justifiée sur les RPC inspectées à ce stade ; ne pas révoquer globalement les grants `authenticated` ni déplacer les façades métier sans cartographie des usages.
+
+#### Point exact de reprise
+1. Auditer les routes API/Server Actions/Edge Functions qui appellent les RPC `service_role` de paiement : vérifier l'identité JWT entrante, le lien Client/commande/partenaire, les paramètres acceptés et l'absence d'IDOR.
+2. Poursuivre la revue des autres fonctions `SECURITY DEFINER` par domaines (POS/comptabilité, résultats d'examens, données Client/santé, stockage et notifications), en remontant chaque helper.
+3. Obtenir des sessions Auth de test distinctes et exécuter les cas positifs/négatifs/inter-tenant via PostgREST.
+4. Faire activer et vérifier dans Auth Dashboard la protection contre les mots de passe compromis.
+5. Reprendre les recettes UI Web/PWA/APK et appareils physiques ; aucun PASS SQL ne certifie la parité utilisateur.
