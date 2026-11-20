@@ -168,10 +168,6 @@ async function run(env = process.env) {
     await clientPage.locator("#username").waitFor({ state: "visible", timeout: 30000 });
     await clientPage.locator("#username").fill(CLIENT_USERNAME);
     await clientPage.locator("#password").fill(clientPassword);
-    const menuStatusPromise = clientPage.waitForResponse(response =>
-      new URL(response.url()).pathname === "/api/universes/status"
-        && response.request().method() === "GET",
-    { timeout: 30000 });
     const loginPromise = clientPage.waitForResponse(response =>
       new URL(response.url()).pathname === "/api/auth/login"
         && response.request().method() === "POST",
@@ -187,9 +183,18 @@ async function run(env = process.env) {
     await clientPage.getByRole("button", { name: "Autres services", exact: true })
       .waitFor({ state: "visible", timeout: 30000 });
 
-    const menuStatus = await menuStatusPromise;
-    if (!menuStatus.ok()) throw new Error("Le menu Client n'a pas reçu le statut central des univers.");
-    assertUniverseStatus(await menuStatus.json());
+    // The header's availability fetch is an effect: do not race its first render
+    // with a listener attached before authentication. Query the same no-store API
+    // explicitly after the authenticated Client shell is mounted, then inspect the
+    // rendered menu independently.
+    const menuStatus = await clientPage.evaluate(async () => {
+      const response = await fetch("/api/universes/status", { cache: "no-store" });
+      return { ok: response.ok, status: response.status, body: await response.json() };
+    });
+    if (!menuStatus.ok) {
+      throw new Error("Le statut central des univers est indisponible (HTTP " + menuStatus.status + ").");
+    }
+    assertUniverseStatus(menuStatus.body);
     await clientPage.getByRole("button", { name: "Autres services", exact: true }).click();
     const menu = clientPage.locator('nav[data-naxa-client-menu][aria-label="Changer d’écosystème"]');
     await menu.waitFor({ state: "visible", timeout: 15000 });
