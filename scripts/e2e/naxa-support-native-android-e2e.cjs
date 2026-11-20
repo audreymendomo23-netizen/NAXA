@@ -1,15 +1,15 @@
 "use strict";
 const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
 const {createClient}=require("@supabase/supabase-js"),{createServerClient}=require("@supabase/ssr"),{chromium}=require("playwright");
-const REF="pwfftcsjyeibxxqhwysw",URL="https://"+REF+".supabase.co";
+const REF="pwfftcsjyeibxxqhwysw",SUPABASE_URL="https://"+REF+".supabase.co";
 const BASE=(process.env.NAXA_E2E_WEB_BASE_URL||"http://127.0.0.1:3000").replace(/\/+$/,"");
 const STATE=path.join(process.env.RUNNER_TEMP||"/tmp","naxa-support-native-android-e2e.json");
 const ANON=process.env.NAXA_STORAGE_E2E_ANON_KEY,ADMIN_KEY=process.env.NAXA_STORAGE_E2E_ADMIN_KEY;
 const required=(v,n)=>{if(!v)throw Error("Variable manquante : "+n);return v;};
 function adminClient(){
  const configured=required(process.env.NAXA_STORAGE_E2E_URL,"NAXA_STORAGE_E2E_URL");
- assert.equal(new globalThis.URL(configured).origin,URL,"Replay uniquement.");
- return createClient(URL,required(ADMIN_KEY,"NAXA_STORAGE_E2E_ADMIN_KEY"),{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ assert.equal(new globalThis.URL(configured).origin,SUPABASE_URL,"Replay uniquement.");
+ return createClient(SUPABASE_URL,required(ADMIN_KEY,"NAXA_STORAGE_E2E_ADMIN_KEY"),{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 }
 async function sessionFor(username,role){
  const admin=adminClient(),p=await admin.from("profiles").select("id,role,actif").eq("username",username).single();
@@ -17,7 +17,7 @@ async function sessionFor(username,role){
  const u=await admin.auth.admin.getUserById(p.data.id);if(u.error)throw u.error;
  assert.ok(u.data.user.email&&u.data.user.email_confirmed_at);
  const link=await admin.auth.admin.generateLink({type:"magiclink",email:u.data.user.email});if(link.error)throw link.error;
- const jar=new Map(),ssr=createServerClient(URL,required(ANON,"NAXA_STORAGE_E2E_ANON_KEY"),{
+ const jar=new Map(),ssr=createServerClient(SUPABASE_URL,required(ANON,"NAXA_STORAGE_E2E_ANON_KEY"),{
   cookies:{getAll:()=>[...jar.values()].map(({name,value})=>({name,value})),setAll:cs=>cs.forEach(c=>jar.set(c.name,c))}
  });
  const verify=await ssr.auth.verifyOtp({token_hash:link.data.properties.hashed_token,type:"magiclink"});if(verify.error)throw verify.error;
@@ -41,7 +41,7 @@ const save=s=>fs.writeFileSync(STATE,JSON.stringify(s),{mode:0o600});
 const load=()=>fs.existsSync(STATE)?JSON.parse(fs.readFileSync(STATE,"utf8")):null;
 async function prepare(){
  const clientSession=await sessionFor("naxa_e2e_acheteur","client"),adminSession=await sessionFor("e2e_admin_261104","admin");
- const client=createClient(URL,required(ANON,"NAXA_STORAGE_E2E_ANON_KEY"),{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ const client=createClient(SUPABASE_URL,required(ANON,"NAXA_STORAGE_E2E_ANON_KEY"),{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
  const set=await client.auth.setSession({access_token:clientSession.access,refresh_token:clientSession.refresh});if(set.error)throw set.error;
  const auth=await client.auth.getUser();if(auth.error)throw auth.error;assert.equal(auth.data.user.id,clientSession.profile.id);
  const tag=String(process.env.GITHUB_RUN_ID||Date.now()).slice(-8)+Math.random().toString(36).slice(2,6),subject="NAXA Android Support "+tag;
