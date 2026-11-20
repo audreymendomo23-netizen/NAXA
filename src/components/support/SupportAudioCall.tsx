@@ -234,15 +234,27 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
               setError("La piste vidéo est arrivée avant que l’aperçu distant soit disponible.");
               return;
             }
-            preview.srcObject = event.streams[0] ?? new MediaStream([event.track]);
-            void preview.play().catch(() => {
-              setError("La vidéo de partage est reçue, mais sa lecture est bloquée par le navigateur.");
-            });
-            setRemoteScreenActive(true);
-            event.track.addEventListener("ended", () => {
+            const remoteTrack = event.track;
+            preview.srcObject = event.streams[0] ?? new MediaStream([remoteTrack]);
+            setRemoteScreenActive(false);
+            const showReceivedFrames = () => {
+              if (remoteTrack.muted === true || remoteTrack.readyState !== "live") return;
+              void preview.play().then(() => {
+                if (remoteTrack.muted !== true && remoteTrack.readyState === "live") setRemoteScreenActive(true);
+              }).catch(() => {
+                setError("La vidéo de partage est reçue, mais sa lecture est bloquée par le navigateur.");
+              });
+            };
+            // Negotiating a recvonly m-line creates a receiver track before the
+            // requester consents and starts sending. Show an active screen only
+            // after the remote track becomes unmuted (actual media is flowing).
+            remoteTrack.addEventListener("unmute", showReceivedFrames);
+            remoteTrack.addEventListener("mute", () => setRemoteScreenActive(false));
+            remoteTrack.addEventListener("ended", () => {
               if (remoteScreenPreview.current) remoteScreenPreview.current.srcObject = null;
               setRemoteScreenActive(false);
             }, { once: true });
+            if (remoteTrack.muted === false) showReceivedFrames();
           }
         };
         pc.onicecandidate = (event) => {

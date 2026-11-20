@@ -77,6 +77,10 @@ assert.match(agentBrowser, /professionalAudit\[2\]\.details\.reason,"call_ended"
 assert.match(agentBrowser, /currentDirection\?\.includes\("send"\)/);
 
 assert.match(client, /replaceTrack\(track\)/);
+assert.match(client, /remoteTrack\.addEventListener\("unmute", showReceivedFrames\)/);
+assert.match(client, /remoteTrack\.addEventListener\("mute", \(\) => setRemoteScreenActive\(false\)\)/);
+assert.match(client, /remoteTrack\.muted === true/);
+assert.match(client, /remoteTrack\.muted === false/);
 assert.match(client, /J’accepte de partager mon écran avec l’Agent NAXA/);
 assert.match(client, /aucun contrôle à distance/i);
 assert.match(agentBrowser, /PASS GLOBAL — demandeur consent, partage et arrête/);

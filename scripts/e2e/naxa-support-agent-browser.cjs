@@ -455,6 +455,9 @@ async function run(){
   assert.equal(agentRtcProof.localCandidateType,"relay");
   console.log("PASS GLOBAL — audio WebRTC bidirectionnel via TURN, les deux pairs envoient et reçoivent des paquets RTP.");
   assert.equal(await a.page.getByRole("button",{name:"Partager mon écran",exact:true}).count(),0,"L’Agent ne doit pas initier le partage écran.");
+  await a.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:5000});
+  assert.equal(await a.page.locator('video[aria-label="Écran partagé par le demandeur"]:visible').count(),0,
+   "Le transceiver vidéo négocié ne doit pas être présenté comme un partage actif avant réception des images.");
   const agentCannotShare=await a.page.request.post(BASE+"/api/support/calls/"+callId+"/screen-share",{
     data:{action:"consented",share_session_id:"00000000-0000-4000-8000-000000000001"}
   });
