@@ -107,9 +107,16 @@ async function contextFor(browser,session){
   const audioContexts=[];
   Object.defineProperty(window,"__naxaE2EAudioContexts",{value:audioContexts,configurable:false});
   if(navigator.mediaDevices){
-   // CI's synthetic canvas validates the WebRTC transport, not a physical desktop picker.
+   // CI's synthetic canvas validates WebRTC transport, not a physical OS picker.
+   const displayCaptureState={denyNext:false,requests:0};
+   Object.defineProperty(window,"__naxaE2EDisplayCapture",{value:displayCaptureState,configurable:false});
    navigator.mediaDevices.getDisplayMedia=async constraints=>{
     if(constraints?.audio!==false)throw new Error("Le partage écran E2E ne doit pas capturer l’audio système.");
+    displayCaptureState.requests+=1;
+    if(displayCaptureState.denyNext){
+     displayCaptureState.denyNext=false;
+     throw new DOMException("E2E permission denied","NotAllowedError");
+    }
     const canvas=document.createElement("canvas");canvas.width=640;canvas.height=360;
     const context=canvas.getContext("2d");
     if(context){context.fillStyle="#0B3D26";context.fillRect(0,0,640,360);context.fillStyle="#FFE23D";context.font="bold 30px sans-serif";context.fillText("NAXA E2E SCREEN",36,90);}
@@ -286,6 +293,20 @@ async function rtcAudioProof(page,label){
   return inbound.reduce((sum,stat)=>sum+(stat.packetsReceived||0),0)>0
    &&outbound.reduce((sum,stat)=>sum+(stat.packetsSent||0),0)>0;
  },null,{timeout:15000}).then(()=>true).catch(()=>false);
+ const audioPacketBaseline=await page.evaluate(async()=>{
+  const pc=window.__naxaE2EPeerConnections.at(-1);
+  const rows=Array.from((await pc.getStats()).values());
+  const isAudio=stat=>stat.kind==="audio"||stat.mediaType==="audio";
+  return {
+   outbound:rows.filter(stat=>stat.type==="outbound-rtp"&&isAudio(stat))
+    .reduce((sum,stat)=>sum+(stat.packetsSent||0),0),
+   inbound:rows.filter(stat=>stat.type==="inbound-rtp"&&isAudio(stat))
+    .reduce((sum,stat)=>sum+(stat.packetsReceived||0),0)
+  };
+ });
+ // A single first packet proves only that RTP started. Hold the call open and
+ // require sustained bidirectional media, not merely a transient packet.
+ await page.waitForTimeout(1500);
  const finalProof=await page.evaluate(async()=>{
   const peers=window.__naxaE2EPeerConnections||[];
   const pc=peers[peers.length-1];
@@ -317,8 +338,19 @@ async function rtcAudioProof(page,label){
    remoteAudioPaused:audio?.paused??true,
   };
  });
- console.log("TRACE — preuve finale WebRTC "+label+" "+JSON.stringify(finalProof));
- assert.ok(withPackets,label+" : aucun paquet RTP audio dans les deux sens : "+JSON.stringify(finalProof));
+ const sustainedAudioRtp={
+  outboundDelta:finalProof.outboundPackets-audioPacketBaseline.outbound,
+  inboundDelta:finalProof.inboundPackets-audioPacketBaseline.inbound,
+  observationMs:1500
+ };
+ console.log("TRACE — RTP audio soutenu "+label+" "+JSON.stringify({
+  baseline:audioPacketBaseline,final:finalProof,delta:sustainedAudioRtp
+ }));
+ assert.ok(withPackets,label+" : aucun premier paquet RTP audio dans les deux sens : "+JSON.stringify(finalProof));
+ assert.ok(sustainedAudioRtp.outboundDelta>=10,
+  label+" : émission audio RTP non soutenue (<10 paquets / 1,5 s) : "+JSON.stringify({finalProof,sustainedAudioRtp}));
+ assert.ok(sustainedAudioRtp.inboundDelta>=10,
+  label+" : réception audio RTP non soutenue (<10 paquets / 1,5 s) : "+JSON.stringify({finalProof,sustainedAudioRtp}));
  assert.ok(finalProof.senders>0,label+" : aucune piste audio sortante : "+JSON.stringify(finalProof));
  assert.ok(finalProof.receivers>0,label+" : aucune piste audio entrante : "+JSON.stringify(finalProof));
  assert.ok(finalProof.outboundPackets>0,label+" : aucun paquet audio RTP sortant : "+JSON.stringify(finalProof));
@@ -497,7 +529,33 @@ async function run(){
   console.log("TRACE — transceivers vidéo du demandeur "+JSON.stringify(requesterVideoNegotiation));
   assert.equal(requesterVideoNegotiation.filter(t=>t.mid!==null&&t.currentDirection?.includes("send")).length,1,
    "Le demandeur doit posséder exactement un transceiver vidéo négocié en émission : "+JSON.stringify(requesterVideoNegotiation));
-  await clientPage.getByRole("checkbox",{name:/J’accepte de partager mon écran avec l’Agent NAXA/}).check();
+  const shareConsent=clientPage.getByRole("checkbox",{name:/J’accepte de partager mon écran avec l’Agent NAXA/});
+  await shareConsent.check();
+  await clientPage.evaluate(()=>{window.__naxaE2EDisplayCapture.denyNext=true;});
+  await shareButton.click();
+  await clientPage.getByRole("alert").filter({hasText:"E2E permission denied"}).waitFor({timeout:10000});
+  assert.equal(await clientPage.locator('video[aria-label="Aperçu de votre écran partagé"]:visible').count(),0,
+   "Un refus du sélecteur ne doit pas activer l’aperçu local.");
+  assert.equal(await shareConsent.isChecked(),false,
+   "Après un refus OS, le consentement de déclenchement doit être redemandé.");
+  let deniedAudit=null;
+  for(let attempt=0;attempt<20;attempt++){
+   const result=await admin.from("support_call_events").select("actor_user_id,event_code,details")
+    .eq("call_id",callId).eq("event_code","screen_share_denied").order("created_at",{ascending:false});
+   if(result.error)throw result.error;
+   deniedAudit=result.data?.[0]??null;
+   if(deniedAudit)break;
+   await new Promise(resolve=>setTimeout(resolve,250));
+  }
+  assert.ok(deniedAudit,"Le refus du sélecteur doit être journalisé.");
+  assert.equal(deniedAudit.actor_user_id,clientSession.profile.id,
+   "Le refus doit être attribué au demandeur authentifié.");
+  assert.equal(deniedAudit.details.reason,"browser_permission_denied",
+   "Le refus NotAllowedError doit garder sa cause exacte.");
+  assert.equal(await clientPage.evaluate(()=>window.__naxaE2EDisplayCapture.requests),1,
+   "Le premier appel getDisplayMedia simulé doit avoir été refusé.");
+  console.log("PASS — refus du sélecteur : aucun média démarré, consentement re-demandé et audit browser_permission_denied.");
+  await shareConsent.check();
   await shareButton.click();
   try {
    await a.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
@@ -558,6 +616,59 @@ async function run(){
   assert.ok(videoProof[1].receivers>0&&videoProof[1].packets>0&&videoProof[1].bytes>0&&videoProof[1].width===640&&videoProof[1].height===360,"RTP vidéo distant absent : "+JSON.stringify(videoProof));
   await clientPage.getByRole("button",{name:"Arrêter le partage",exact:true}).click();
   await a.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:10000});
+  // Re-share in the same call: the negotiated sender/receiver must resume
+  // without a second SDP negotiation, and the Agent must display fresh frames.
+  await shareConsent.check();
+  await shareButton.click();
+  try{
+   await a.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
+   await a.page.waitForFunction(()=>{
+    const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+    return !!video&&video.videoWidth===640&&video.videoHeight===360
+     &&video.readyState>=2&&!video.paused;
+   },null,{timeout:15000});
+  }catch(cause){
+   const [requesterState,agentState]=await Promise.all([
+    clientPage.evaluate(async()=>{
+     const pc=window.__naxaE2EPeerConnections.at(-1);
+     const rows=Array.from((await pc.getStats()).values());
+     const out=rows.filter(s=>s.type==="outbound-rtp"&&(s.kind==="video"||s.mediaType==="video"));
+     return {active:document.querySelector('video[aria-label="Aperçu de votre écran partagé"]')?.videoWidth??0,
+      transceivers:pc.getTransceivers().map(t=>({mid:t.mid,kind:t.receiver.track.kind,direction:t.currentDirection})),
+      packets:out.reduce((n,s)=>n+(s.packetsSent||0),0)};
+    }),
+    a.page.evaluate(async()=>{
+     const pc=window.__naxaE2EPeerConnections.at(-1);
+     const rows=Array.from((await pc.getStats()).values());
+     const input=rows.filter(s=>s.type==="inbound-rtp"&&(s.kind==="video"||s.mediaType==="video"));
+     const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
+     const track=video?.srcObject?.getVideoTracks?.()[0];
+     return {visible:!!video&&!video.classList.contains("hidden"),width:video?.videoWidth??0,
+      height:video?.videoHeight??0,readyState:video?.readyState??0,paused:video?.paused??true,
+      trackState:track?.readyState??null,trackMuted:track?.muted??null,
+      packets:input.reduce((n,s)=>n+(s.packetsReceived||0),0)};
+    })
+   ]);
+   throw new Error("Le second partage n’a pas repris sur le transceiver existant. Demandeur="+JSON.stringify(requesterState)+
+    ", Agent="+JSON.stringify(agentState)+", cause="+(cause instanceof Error?cause.message:String(cause)));
+  }
+  const resumedVideoPackets=await Promise.all([
+   clientPage.evaluate(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    return rows.filter(s=>s.type==="outbound-rtp"&&(s.kind==="video"||s.mediaType==="video"))
+     .reduce((n,s)=>n+(s.packetsSent||0),0);
+   }),
+   a.page.evaluate(async()=>{
+    const pc=window.__naxaE2EPeerConnections.at(-1),rows=Array.from((await pc.getStats()).values());
+    return rows.filter(s=>s.type==="inbound-rtp"&&(s.kind==="video"||s.mediaType==="video"))
+     .reduce((n,s)=>n+(s.packetsReceived||0),0);
+   })
+  ]);
+  assert.ok(resumedVideoPackets[0]>videoProof[0].packets&&resumedVideoPackets[1]>videoProof[1].packets,
+   "Le second partage doit produire de nouveaux paquets RTP sur le même appel : "+JSON.stringify({before:videoProof,after:resumedVideoPackets}));
+  console.log("PASS — second partage : reprise du même transceiver vidéo et nouveaux paquets RTP.");
+  await clientPage.getByRole("button",{name:"Arrêter le partage",exact:true}).click();
+  await a.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:10000});
   let screenAudit=null,screenAuditError=null;
   for(let attempt=0;attempt<20;attempt++){
    const result=await admin.from("support_call_events").select("event_code,details")
@@ -565,14 +676,28 @@ async function run(){
     .order("created_at",{ascending:true});
    if(result.error){screenAuditError=result.error;break;}
    screenAudit=result.data;
-   if((screenAudit||[]).some(event=>event.event_code==="screen_share_stopped"))break;
+   if((screenAudit||[]).filter(event=>event.event_code==="screen_share_stopped").length>=2)break;
    await new Promise(resolve=>setTimeout(resolve,250));
   }
   if(screenAuditError)throw screenAuditError;
-  assert.deepEqual((screenAudit||[]).map(event=>event.event_code),["screen_share_consented","screen_share_started","screen_share_stopped"],"Audit consentement/démarrage/arrêt incorrect : "+JSON.stringify(screenAudit));
+  assert.deepEqual((screenAudit||[]).map(event=>event.event_code),[
+   "screen_share_denied",
+   "screen_share_consented","screen_share_started","screen_share_stopped",
+   "screen_share_consented","screen_share_started","screen_share_stopped"
+  ],"Audit refus/consentement/démarrage/arrêt et reprise incorrect : "+JSON.stringify(screenAudit));
+  assert.equal(screenAudit[0].details.reason,"browser_permission_denied");
+  assert.equal(screenAudit[0].actor_user_id,clientSession.profile.id);
   assert.ok((screenAudit||[]).every(event=>typeof event.details.share_session_id==="string"),"Identifiant de session d’audit absent.");
+  assert.notEqual(screenAudit[0].details.share_session_id,screenAudit[1].details.share_session_id,
+   "Une capture refusée ne doit pas réutiliser l'identifiant d'une capture autorisée.");
+  assert.equal(screenAudit[1].details.share_session_id,screenAudit[4].details.share_session_id,
+   "La première capture autorisée doit garder un identifiant constant.");
+  assert.notEqual(screenAudit[1].details.share_session_id,screenAudit[5].details.share_session_id,
+   "Chaque redémarrage de partage doit avoir une session d'audit distincte.");
+  assert.equal(screenAudit[3].details.reason,"user_stopped");
+  assert.equal(screenAudit[6].details.reason,"user_stopped");
   assert.ok(!(screenAudit||[]).some(event=>Object.keys(event.details||{}).some(key=>/frame|image|video_blob|recording|sdp|candidate/i.test(key))),"Aucun média ne doit être stocké dans l’audit.");
-  console.log("PASS GLOBAL — demandeur consent, partage et arrête ; Agent reçoit le RTP vidéo ; audit append-only vérifié.");
+  console.log("PASS GLOBAL — refus OS journalisé, consentement explicite, deux partages RTP, deux arrêts et audit append-only.");
 
   const requesterEndPromise=clientPage.waitForResponse(r=>
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
@@ -726,11 +851,18 @@ async function run(){
   assert.ok(professionalVideoProof[1].liveReceivers>0&&professionalVideoProof[1].packets>0&&professionalVideoProof[1].bytes>0
    &&professionalVideoProof[1].width===640&&professionalVideoProof[1].height===360&&!professionalVideoProof[1].paused,
    "L’Agent ne reçoit pas la vidéo du Comptable : "+JSON.stringify(professionalVideoProof));
-  // Laisser le partage actif : la fermeture de l’appel doit enregistrer l’arrêt côté DB.
-  const endProfessionalCall=await c.page.request.patch(BASE+"/api/support/calls/"+professionalCallId,{
-   headers:{"Content-Type":"application/json"},data:{action:"end"}
-  });
-  assert.equal(endProfessionalCall.status(),200,"L’Agent doit pouvoir terminer l’appel professionnel.");
+  // Laisser le partage actif et terminer depuis le vrai contrôle de l'interface
+  // demandeur : la fermeture utilisateur doit déclencher l'arrêt SQL automatique.
+  const professionalEndPromise=professionalPage.waitForResponse(r=>
+   r.url().endsWith("/api/support/calls/"+professionalCallId)&&r.request().method()==="PATCH",
+   {timeout:15000}
+  );
+  await professionalPage.getByRole("button",{name:"Raccrocher",exact:true}).click();
+  const professionalEndResponse=await professionalEndPromise;
+  assert.equal(professionalEndResponse.status(),200,"Le Comptable doit pouvoir raccrocher depuis son interface.");
+  const professionalEndData=await professionalEndResponse.json();
+  assert.equal(professionalEndData.success,true,"La transition UI doit être confirmée par le serveur.");
+  await professionalPage.getByText("Appel terminé",{exact:false}).waitFor({timeout:15000});
   // The Agent preview block is intentionally unmounted once status leaves
   // "accepted". Wait for the terminal call state, then prove no remote video
   // or active-share label remains in the Agent UI.

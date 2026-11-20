@@ -515,3 +515,35 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Le RPC public naxa_support_call_accept vérifie fallback_at > clock_timestamp() avant de refuser un Agent autre que celui affecté. Après l'expiration, un Agent disposant de queue_view peut légitimement reprendre l'appel ; le 200 et l'événement call_reassigned étaient donc conformes à la fenêtre expirée, pas la preuve que l'API la contournait.
 - Correction du harnais : la tentative Agent B est faite immédiatement après la réponse POST de création de l'appel, avant UI et heartbeat. L'assertion 409 vérifie maintenant le vrai cas pré-fallback ; le contrôle du heartbeat 403 est conservé.
 - La recette doit ensuite confirmer que l'Agent A prend l'appel, puis dérouler les parcours Client et Comptable.
+
+# Durcissement de la recette de partage écran — après run vert 44668106123
+
+## État précédent objectivement vérifié
+- Commit `846a6a82d86dbf8fcaf32f19d40116f62f744e8b` : pipeline qualité PASS et scénario Agents Replay PASS.
+- Le parcours Comptable→Agent C avait prouvé TURN relay, pistes audio vivantes, lecteurs distants actifs et vidéo 640×360 reçue (25 paquets / 10 781 octets dans le relevé vidéo final).
+- Contradiction de robustesse : la preuve audio Comptable s'arrêtait dès le premier paquet : Agent C avait 1 paquet sortant et 2 entrants, tandis que le Comptable avait 2 sortants et 1 entrant au snapshot de 03:34:51Z. Cela confirme un démarrage RTP, mais ne prouve pas un flux audio soutenu.
+- Contradiction de bout en bout : l'arrêt Comptable était déclenché par un PATCH API Playwright direct, pas par le bouton visible « Raccrocher ». Le trigger SQL avait bien été prouvé, mais pas l'interaction utilisateur qui déclenche cette clôture.
+
+## Renforcement appliqué dans la recette
+- La preuve audio attend maintenant au moins 10 paquets RTP sortants et 10 entrants supplémentaires pendant une fenêtre observée de 1,5 seconde, de chaque côté, en plus de l'état ICE/DTLS connecté, des pistes vivantes, du flux distant et du couple TURN relay. Aucun seuil n'est abaissé.
+- Le sélecteur écran simulé peut refuser une seule tentative avec `NotAllowedError`. La recette exige alors : aucun aperçu, consentement redemandé, événement `screen_share_denied`, acteur demandeur et `reason=browser_permission_denied`.
+- Le même appel Client repartage ensuite une seconde fois sur le transceiver négocié déjà existant. La recette exige de nouveaux paquets RTP vidéo et un deuxième événement d'arrêt manuel. Cela vérifie le cycle de vie après `replaceTrack(null)`, et non uniquement la première négociation.
+- Le Comptable termine l'appel en cliquant sur le véritable bouton « Raccrocher » dans son interface. La recette attend la réponse HTTP, l'état terminal Agent, la disparition de l'aperçu, puis l'ordre d'audit `consented → started → stopped(actor_user_id NULL, reason=call_ended)`.
+
+## Synchronisation de migration Replay
+- Supabase Replay enregistre réellement la migration d'arrêt système sous la version `20261120032107`.
+- Le fichier du dépôt portait initialement le préfixe `20261120040000`, ce qui pouvait faire diverger `supabase migration list` et `supabase db push`.
+- Le fichier versionné est renommé `20261120032107_naxa_support_screen_share_auto_stop_system_actor.sql` pour correspondre exactement à l'historique Replay. Aucun SQL métier supplémentaire n'est appliqué lors de ce renommage.
+
+## Limites de plateforme constatées
+- La recette E2E utilise Chromium desktop avec un canvas synthétique. Elle vérifie le transport WebRTC/RTP et le protocole de consentement, pas le vrai sélecteur du système d'exploitation ni un téléphone physique.
+- Le dépôt Android est un client Kotlin/Jetpack Compose autonome ; son manifeste et ses dépendances actuels ne comprennent ni WebRTC, ni MediaProjection, ni service de projection, ni permission `FOREGROUND_SERVICE_MEDIA_PROJECTION`. Le README Android décrit les parcours Support natifs comme non encore intégrés.
+- Le navigateur Chrome Android ne prend pas actuellement en charge `getDisplayMedia()`; Safari iOS 27 a ajouté le support selon les données de compatibilité et tests publiés. L'application Android native ne peut donc pas être déclarée compatible partage écran sur la base de la recette web.
+- Une vraie intégration Android native exigerait un parcours MediaProjection avec consentement OS à chaque session, foreground service de type `mediaProjection`, jeton à usage unique par session, transport WebRTC et signalisation/identité Bearer adaptés. Ce n'est pas couvert par le correctif de recette web et ne doit pas être simulé par une simple permission ajoutée au manifeste.
+
+## Référence des preuves
+- Android MediaProjection : documentation Android officielle, consentement par session et exigences foreground service Android 14+.
+- Web Screen Capture : `getDisplayMedia()` exige un contexte sécurisé et une sélection explicite de surface par l'utilisateur.
+- Safari iOS 27 : compatibilité corrigée dans MDN Browser Compat Data après tests sur appareil iOS 27.0.
+
+Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refus OS, deux partages successifs dans le même appel, audio RTP soutenu et raccrochage UI réel. La compatibilité Android native reste une portée distincte, non encore implémentée.

@@ -45,3 +45,9 @@ Tests JVM présents : `CatalogueRepositoryTest` et `PharmacyRepositoryTest` vali
 Cette tranche couvre le contrôle de majorité, l'authentification, le catalogue, la recherche de pharmacies et le scanner local image/PDF. Elle ne couvre pas encore l'ensemble des parcours client, pharmacie, Promoteur, Admin, Responsable, comptable, pharmacien, gestionnaire de stock ou livreur. Le panier, les commandes, la livraison, les fonctions ERP, le mode offline métier et la synchronisation complète restent à implémenter et à tester contre les API autorisées.
 
 Aucun APK signé de production n'est généré ici. Le build Gradle, les tests instrumentés, la recette sur appareils Android et la signature de release doivent être exécutés avant toute diffusion. La distribution prévue reste l'APK signé depuis le site officiel NAXA, sans publication Play Store.
+
+
+## Assistance audio et partage d'écran — limite actuelle
+Le client Android natif Kotlin/Compose n'intègre pas encore les appels Support audio ni le partage d'écran natif. Le partage navigateur repose sur `getDisplayMedia()`, qui n'est pas disponible dans Chrome Android ; le client Android ne doit donc pas afficher cette fonction comme prise en charge native.
+
+L'intégration native future devra utiliser un consentement MediaProjection explicite pour chaque session, une notification/service foreground de type `mediaProjection`, un transport WebRTC natif et une signalisation API v1 authentifiée par Bearer/RLS. Elle devra arrêter la projection au raccrochage, à la révocation de session ou à l'arrêt du partage, sans enregistrement ni contrôle distant. La génération d'un APK ne constitue pas une preuve de compatibilité matérielle : une recette sur appareils Android réels est nécessaire.
