@@ -662,3 +662,7 @@ Commencer avec les comptes Auth séparés et les fixtures multi-organisations Re
 **B00 PARTIEL/BLOQUÉ ; B01 PARTIEL (correctif de recette relancé) ; B02 PARTIEL avec deux sous-recettes vertes : cohorte Pharmacie et équipe Centre.** Aucun des trois lots n'est certifié vert total. B03–B16 restent dépendants des critères bulk et ne sont pas déclarés verts.
 
 **Reprise exacte :** récupérer les conclusions et logs de 44736999133 / 44736999210 ; corriger et relancer tout échec ; obtenir l'accès de gestion Auth Replay pour activer la détection de réutilisation ; étendre B02 aux organisations Parapharmacie et Prestations et aux Promoteurs distincts. Production et déploiement restent hors périmètre.
+#### Addendum — qualité CI terminée, Replay toujours actif
+
+- Qualité GitHub Actions 44736999210 : **SUCCESS** — syntaxe/actionlint, tests, TypeScript, lint et build Next.js terminés sans échec.
+- Replay 44736999133 : préflight, fixtures, rôles Pharmacie, Centre + neuf postes, Playwright, build Next et Chrome stable PASS ; Web Push Chrome réel encore en cours au dernier contrôle. Les tests crédit navigateur et Storage restent à exécuter dans ce run. Ce run ne doit pas être compté comme PASS avant sa conclusion finale et ses logs.
