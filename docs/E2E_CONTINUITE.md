@@ -988,3 +988,10 @@ Le réglage PostgREST n'est pas exposé dans les paramètres SQL consultables (p
 3. Exécuter le cycle complet de création/activation d'un compte invité Centre, finalisation de profil et acceptation d'invitation ; vérifier ensuite les neuf rôles, leurs refus et révocations.
 4. Obtenir la configuration Exposed schemas de Replay et exécuter les appels REST privés avec JWT autorisé/non autorisé. Ne pas modifier les ACL avant cette preuve.
 5. Documenter les identifiants de fixtures non sensibles, les préconditions et les preuves ; poursuivre B00–B02 jusqu'aux PASS requis avant B03.
+
+
+### Complément de diagnostic — titulaires Replay éligibles — 20 novembre 2026
+
+Contrôle SQL agrégé, sans exposer d'adresses ni d'identifiants personnels : sur les 9 profils Client Replay, **9/9 satisfont les préconditions SQL du titulaire partenaire** (profil actif, âge majeur vérifié, consentement présent, e-mail Auth confirmé). Aucun profil Client actif correspondant n'a d'e-mail non confirmé dans ce jeu de données. Cela lève le doute sur l'existence d'un titulaire technique pour le futur test Centre/Parapharmacie ; cela ne fournit pas de session Admin authentifiée et n'autorise pas à exécuter la fonction en contexte postgres, car son contrôle public.is_admin() dépend de l'identité JWT de l'appelant.
+
+**Point de reprise affiné :** les données de titulaire sont disponibles. Le blocage restant pour initialiser le dossier Centre est l'obtention d'une session Admin de test et d'un appel authentifié de la Server Action/RPC. Ne pas contourner cette barrière par SQL direct.
