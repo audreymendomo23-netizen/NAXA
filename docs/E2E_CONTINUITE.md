@@ -1,3 +1,44 @@
+# Continuité E2E — NAXA | Qualification transversale Go Live
+
+## Programme maître actif — 20 novembre 2026
+
+Le catalogue de référence est [docs/recettes/RECETTES_E2E_BULK_TRANSVERSALES_GO_LIVE.md](recettes/RECETTES_E2E_BULK_TRANSVERSALES_GO_LIVE.md).
+
+- **Conception :** 17 lots transversaux B00–B16 ; chaque parcours relie les univers, établissements et rôles concernés.
+- **Plateformes obligatoires :** Web, PWA installée et Android natif APK ; aucune réussite d'une version ne vaut pour les deux autres.
+- **Univers inclus :** Pharmacie, ERP professionnel Parapharmacie, univers Client verrouillés, Examens médicaux et ses dix rôles, Soins à domicile, Dispositifs connectés, Administration et Support.
+- **Hors ligne :** B12 transversal à chaque parcours et aux trois versions, avec preuve technique propre à Web, PWA et Android.
+- **Historique :** R01–R09 conservées ; preuves exactes réutilisées comme sous-recettes ; extensions et liaisons nouvelles testées. R09 n'est pas recréée comme backlog séparé.
+- **Statut :** CONCEPTION DOCUMENTÉE — B00–B16 NON EXÉCUTÉS comme campagne transversale — NAXA NON CERTIFIÉE GO LIVE.
+
+### Comptes professionnels à créer séparément
+- Pharmacie : Promoteur, Responsable, Pharmacien, Gestionnaire stock, Magasinier, Caisse, Comptable, Livreur.
+- Parapharmacie : owner/Promoteur, Responsable/manager, Caisse, Gestionnaire stock, Magasinier, Pharmacien, Comptable selon affectations permises.
+- Centre d'examens : Directeur, Accueil, Caissier, Comptable, Technicien laboratoire, Biologiste, Manipulateur imagerie, Radiologue, Responsable qualité, Responsable sécurité.
+- Soins à domicile : titulaire/indépendant, owner, manager, operator.
+- Transverse : Client A/B, Admin, Agents Support et professionnels de suivi autorisés.
+
+### Preuves historiques capitalisées sans extrapolation
+- Marketplace B2 R01 : noyau recherche/favoris/réservation/anti-survente/confirmation/annulation/restitution stock/historique ; extensions R01 NON EXÉCUTÉES.
+- Identité/cumul : 5/5 suites SQL Replay du 16/11/2026 PASS ; recette UI et parité trois versions ouvertes.
+- POS : test 284 Replay PASS et tests 295–299 (36 assertions PASS selon recette pilote) ; UI multi-plateforme et appareils physiques ouverts.
+- Livraison : contrats SQL ciblés PASS documentés ; Auth multi-compte, push et appareils à prouver.
+- Support Web : run 44681037772 SUCCESS Client + Comptable sur Chromium Desktop.
+- Support Android natif : code ajouté ; run 44692082796 EN COURS au contrôle, aucun PASS inscrit.
+- R03–R08 : NON EXÉCUTÉES dans leurs périmètres bulk ; R06 reste le test de refus métier.
+- R09 : corrections et historique conservés ; contrôles dynamiques encore ouverts dans son document.
+- ERP Android/offline : README natif indique que les parcours ERP complets, commandes/livraison et offline métier restent à couvrir.
+- CI sur HEAD d050f598fe9731753af4d2f3f4ea9956724cea09 : qualité 44692082721 EN COURS ; build Android 44692087050 EN COURS ; E2E Support Android 44692082796 EN COURS ; secret scan 44692082746 SUCCESS. Ces états se rapportent à ce HEAD et peuvent évoluer.
+
+### Point de reprise exact
+Démarrer B00/B01/B02 sur Replay avec les comptes Auth séparés, plusieurs organisations et les trois plateformes. Le premier livrable opérationnel est le registre des identités/affectations et la preuve de routage autorisé/refusé. Ensuite seulement, ouvrir B03. B12 et B13 accompagnent chaque parcours.
+
+Aucun test bulk n'est déclaré exécuté par la rédaction de ce catalogue. Production et déploiement restent hors périmètre. vercel.json confirme deploymentEnabled.main=false.
+
+---
+
+## Historique technique Support — conservé intégralement
+
 # Continuité E2E — Service client NAXA
 
 ## Périmètre actif
