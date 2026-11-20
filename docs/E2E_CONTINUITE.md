@@ -860,3 +860,62 @@ Contrôles SQL en lecture seule, directement sur Replay :
 4. Exécuter les refus (auto-affectation, mauvais e-mail, invitation expirée/révoquée/consommée, compte incomplet/suspendu, doublon, accès inter-centre), puis les parcours positifs UI/RPC/RLS.
 5. Rattacher chaque scénario aux preuves Web, PWA installée et Android natif ; ne pas passer à B03 tant que les gardes B00–B02 bloquantes ne sont pas démontrées.
 
+---
+
+## Campagne bulk — deuxième passe diagnostic B02 / Parapharmacie — 20 novembre 2026
+
+**Périmètre :** audit SQL structurel complémentaire en lecture seule sur Supabase Replay `pwfftcsjyeibxxqhwysw`. Aucun enregistrement métier créé, aucune écriture Production, aucun déploiement.
+
+### Résultat positif — chemin réel du Directeur Centre identifié
+
+Le rôle `directeur` n'est pas une affectation ordinaire via formulaire/RPC. Le mécanisme réel est déclenché par les liens de direction du partenaire :
+
+- À l'insertion d'un `exam_center`, le trigger `exam_centers_sync_partner_directors` appelle `private.exam_sync_partner_directors()`.
+- Cette fonction récupère les membres du partenaire dont `member_role` est `owner` ou `manager`, et crée pour chacun une affectation `directeur` active si son profil est actif.
+- À l'ajout ou changement d'un membre owner/manager, `private.exam_sync_new_partner_director()` synchronise l'affectation Directeur sur les centres du partenaire ; la suppression ou perte du rôle révoque les affectations Directeur correspondantes.
+- La révocation du rôle Directeur par `exam_revoke_staff_assignment` est explicitement refusée : elle passe par le rattachement owner/manager du partenaire.
+
+**Conclusion de diagnostic :** le chemin de bootstrap Directeur est maintenant identifié. La recette doit créer le partenaire, son membership owner/manager, puis le centre ; elle doit vérifier l'affectation automatique, sa non-duplication et sa révocation à la perte du rôle. Cela ne prouve pas encore son exécution en E2E, car Replay ne contient actuellement aucun partenaire ni centre.
+
+### Résultat positif — modèle Parapharmacie identifié
+
+Le RPC `naxa_grant_partner_professional_assignment` confirme les contrôles serveur suivants :
+
+- Refus explicite du rôle `livreur` : circuit dédié exigé, conformément au périmètre du catalogue.
+- Cible obligatoirement active, majeure, complète, consentante et avec e-mail Auth confirmé.
+- Partenaire obligatoirement de type `parapharmacie`, actif et doté d'une architecture active.
+- Responsable limité aux architectures `PARENTS_AINES_CADETS` et `HYBRIDE`, avec quota contrôlé sous verrou transactionnel.
+- Le Promoteur doit être owner ; le Responsable ne peut affecter que la Caisse et doit posséder le privilège correspondant.
+- Les limites de Caisse, les privilèges, les chevauchements de périodes, l'auto-affectation et le propriétaire lui-même sont contrôlés côté serveur.
+- Une affectation crée/assure le membership partenaire puis écrit une ligne dans `naxa_partner_professional_assignments`.
+
+Le RPC de révocation vérifie également le périmètre du partenaire, les privilèges, et limite le Responsable à la révocation des Caisses autorisées.
+
+**Verdict : PASS structurel** pour l'identification des règles serveur Parapharmacie et l'interdiction Livreur. Ce n'est pas un PASS fonctionnel : aucune ligne partenaire/affectation n'existe sur Replay, et les parcours Auth/UI/RLS restent à exécuter.
+
+### Point de sécurité à qualifier — schéma privé et fonctions SECURITY DEFINER
+
+Les contrôles SQL montrent :
+- `USAGE` du schéma `private` accordé aux rôles PostgreSQL `authenticated` et `anon`.
+- `EXECUTE` accordé à `authenticated` sur plusieurs implémentations privées `exam_*_impl` définies `SECURITY DEFINER`, y compris création/acceptation d'invitation, liste, obtention du token et révocation.
+- Les fonctions auditées contrôlent individuellement `auth.uid()` et `private.exam_has_capability(...,'staff_manage')` avant les opérations sensibles ; l'obtention du token est également bornée au centre, à l'invitation en attente et non expirée.
+- Le réglage PostgREST `pgrst.db_schemas` n'est pas lisible depuis le contexte SQL utilisé ; on ne peut donc pas conclure ici que le schéma `private` est effectivement exposé à l'API REST.
+
+**Verdict : BLOCKED / risque de configuration non tranché, pas vulnérabilité confirmée.** Il faut vérifier la liste des schémas exposés dans la configuration Supabase/API et tester les appels directs des fonctions privées avec un JWT utilisateur autorisé puis non autorisé. Si `private` est exposé, retirer `USAGE` et les `EXECUTE` directs non nécessaires aux rôles clients, puis conserver l'accès via les RPC publiques contrôlées ; faire ensuite les tests de non-régression. Ne pas modifier les ACL à l'aveugle.
+
+### État actualisé
+
+- **PASS :** B00-IDENTITY-01 (4/4 contrôles de cohérence Auth/Profiles).
+- **PASS structurel :** mécanisme de synchronisation Directeur identifié ; règles serveur Parapharmacie et refus Livreur identifiés.
+- **BLOCKED :** B00/B02 E2E, faute de partenaires, centres et affectations Replay ; aucune création de comptes Auth de test ni bootstrap exécuté.
+- **BLOCKED sécurité :** exposition effective du schéma `private` et test des appels directs non établis.
+- **NON EXÉCUTÉ :** parcours UI/RPC avec JWT de test, tests négatifs, Web/PWA/Android, lots B01 et suivants.
+
+### Point de reprise exact
+
+1. Trouver le chemin applicatif documenté de provisionnement Auth et du dossier partenaire sur Replay ; ne pas créer directement des lignes Auth/Profiles artificielles.
+2. Provisionner via le parcours supporté un propriétaire Centre et son membership `owner`, puis créer un centre : vérifier le trigger et l'affectation Directeur.
+3. Provisionner les neuf comptes distincts du personnel Centre ; exécuter ajout direct et invitation acceptée, refuss, révocations et isolation inter-centre.
+4. Créer un partenaire Parapharmacie Replay par le flux métier ; tester toutes les fonctions autorisées, quotas, privilèges, expirations, chevauchements et refus Livreur.
+5. Vérifier la configuration réelle des schémas API exposés et les ACL depuis la console/configuration Supabase ; tester l'accès privé direct avec JWT.
+6. Mettre à jour le manifeste de fixtures et la matrice scénario → UI → RPC → tables/RLS → preuve avant d'ouvrir les lots suivants.
