@@ -82,6 +82,7 @@ export function SelectionEcosysteme({ onSelect }: Props) {
             return (
               <button
                 key={item.id}
+                data-universe-id={item.id}
                 type="button"
                 disabled={waiting || locked}
                 onClick={() => onSelect(item.id)}
