@@ -191,22 +191,24 @@ async function run(env = process.env) {
     const replay = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: first.refresh_token,
     }, "ancestor refresh token replay");
+    const familyFailures = [];
     if (replay.ok) {
-      throw new Error("Un refresh token ancêtre (deux rotations précédentes) reste accepté après 15 secondes.");
+      familyFailures.push("Un refresh token ancêtre reste accepté après deux rotations et 15 secondes.");
+    } else {
+      const replayError = readAuthErrorCode(replay.data);
+      if (replay.status !== 400 || replayError !== "refresh_token_already_used") {
+        familyFailures.push(
+          "Rejeu ancêtre non rejeté comme attendu : HTTP " + replay.status + ", code=" + replayError + "."
+        );
+      } else {
+        process.stdout.write(
+          "PASS — ancien refresh token ancêtre rejeté (HTTP " + replay.status
+          + ", code=" + replayError + ").\\n"
+        );
+      }
     }
-    const replayError = readAuthErrorCode(replay.data);
-    if (replay.status !== 400 || replayError !== "refresh_token_already_used") {
-      throw new Error(
-        "Le rejeu ancêtre n'a pas produit le rejet Auth attendu : HTTP "
-        + replay.status + ", code=" + replayError + "."
-      );
-    }
-    process.stdout.write(
-      "PASS — ancien refresh token ancêtre rejeté (HTTP " + replay.status
-      + ", code=" + replayError + ").\\n"
-    );
 
-    // Reuse detection must revoke the whole session, not merely reject the replay request.
+    // Réutilisation ancêtre : vérifier séparément la révocation de son descendant.
     const afterReuseDetection = await authRequest("/auth/v1/token?grant_type=refresh_token", {
       refresh_token: current.data.refresh_token,
     }, "current refresh token after ancestor reuse detection");
@@ -224,35 +226,35 @@ async function run(env = process.env) {
         );
         await new Promise(resolve => setTimeout(resolve, diagnosticHoldMs));
       }
-      throw new Error(
-        "La détection de réutilisation n'a pas révoqué la famille de session : "
-        + "le jeton ancêtre a été refusé (HTTP " + replay.status + ", code=" + replayError + "), "
-        + "mais le jeton descendant de la même session reste accepté (HTTP "
+      familyFailures.push(
+        "La détection de réutilisation n'a pas révoqué la famille : le refresh descendant reste accepté (HTTP "
         + afterReuseDetection.status + "). En-têtes du rejeu : rotated="
         + (replay.diagnostics.rotated || "absent") + ", reuse="
         + (replay.diagnostics.reuse || "absent") + ", reuseCause="
         + (replay.diagnostics.reuseCause || "absent") + ", counter="
         + (replay.diagnostics.counter || "absent") + "."
       );
+      process.stdout.write("FAIL — révocation de famille après rejeu ancêtre non prouvée.\\n");
+    } else {
+      const descendantError = readAuthErrorCode(afterReuseDetection.data);
+      const revokedCodes = new Set([
+        "refresh_token_already_used",
+        "refresh_token_not_found",
+        "session_not_found",
+        "session_expired",
+      ]);
+      if (afterReuseDetection.status !== 400 || !revokedCodes.has(descendantError)) {
+        familyFailures.push(
+          "Révocation de famille non prouvée : descendant HTTP "
+          + afterReuseDetection.status + ", code=" + descendantError + "."
+        );
+      } else {
+        process.stdout.write(
+          "PASS — session terminée après le rejeu : refresh descendant rejeté (HTTP "
+          + afterReuseDetection.status + ", code=" + descendantError + ").\\n"
+        );
+      }
     }
-    const descendantError = readAuthErrorCode(afterReuseDetection.data);
-    const revokedCodes = new Set([
-      "refresh_token_already_used",
-      "refresh_token_not_found",
-      "session_not_found",
-      "session_expired",
-    ]);
-    if (afterReuseDetection.status !== 400 || !revokedCodes.has(descendantError)) {
-      throw new Error(
-        "Révocation de famille non prouvée : le descendant a répondu HTTP "
-        + afterReuseDetection.status + ", code=" + descendantError
-        + " ; un rejet Auth de session/refresh token était attendu."
-      );
-    }
-    process.stdout.write(
-      "PASS — session terminée après le rejeu : le refresh descendant est rejeté (HTTP "
-      + afterReuseDetection.status + ", code=" + descendantError + ").\\n"
-    );
 
     // Independent session for explicit server-side revocation.
     const second = await passwordLogin();
@@ -272,7 +274,11 @@ async function run(env = process.env) {
     }
     process.stdout.write("PASS — révocation globale : refresh token de la session révoquée refusé.\n");
     process.stdout.write("NOTE — l'expiration naturelle du JWT (durée configurée du projet) n'a pas été attendue ; le test d'expiration ci-dessus porte sur le cookie navigateur et non sur l'expiration cryptographique du JWT.\n");
-  } finally {
+ 
+    if (familyFailures.length) {
+      throw new Error("B00 Auth — " + familyFailures.join(" | ")
+        + " La révocation globale indépendante a été testée séparément.");
+    } } finally {
     // Clean only sessions created through this runtime test. Avoid global sign-out
     // here because the dedicated E2E account may be used by another isolated job.
     for (const accessToken of [...new Set(authTokens)].reverse()) {
