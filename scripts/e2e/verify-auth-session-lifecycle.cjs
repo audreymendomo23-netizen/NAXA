@@ -278,7 +278,8 @@ async function run(env = process.env) {
     if (familyFailures.length) {
       throw new Error("B00 Auth — " + familyFailures.join(" | ")
         + " La révocation globale indépendante a été testée séparément.");
-    } } finally {
+    }
+  } finally {
     // Clean only sessions created through this runtime test. Avoid global sign-out
     // here because the dedicated E2E account may be used by another isolated job.
     for (const accessToken of [...new Set(authTokens)].reverse()) {
