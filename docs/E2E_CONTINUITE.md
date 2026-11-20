@@ -1555,3 +1555,45 @@ Vérifications ACL/configuration après migration :
 **Verdict à cet instant :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL ; B02 RECETTE AJOUTÉE, EXÉCUTION EN ATTENTE ; NAXA non certifiée Go Live.
 
 **Point exact de reprise :** attendre uniquement les conclusions des runs `44719574890` et `44719574822`, corriger leurs erreurs constatées, puis exécuter/valider le scénario Centre. Garder le périmètre Replay, sans Production ni déploiement.
+
+
+### 10.21 Résultats d'exécution B00/B01/B02 — 20/11/2026
+
+**Source actuelle :** `main` — HEAD `bb80ec1ae1b69ec20634d0c48c305cd3ec94e4b3`. Toutes les écritures métier de recette sont limitées au projet Supabase Replay `pwfftcsjyeibxxqhwysw`. Aucune écriture Production, aucun déploiement.
+
+#### B02 — VERT, configuration initiale Centre et personnel
+- Le run GitHub Actions Replay `44723159403`, commit `ca5e8199308a2f76d806631a1d2ef75cb8c2a779`, a terminé l'étape **« Recette Replay du Centre d'examens et de ses 9 postes » : success** (étape 12).
+- La preuve SQL Replay après exécution constate exactement :
+  - 1 Partenaire `centre_examen` en `pending` ;
+  - 1 dossier `examens` en `pending` ;
+  - univers `examens` désactivé (`enabled=false`) ;
+  - 1 Centre en `draft` ;
+  - 10 affectations actives, 10 utilisateurs distincts : Directeur + neuf rôles distincts (`accueil`, `caissier`, `comptable`, `technicien_laboratoire`, `biologiste`, `manipulateur_imagerie`, `radiologue`, `responsable_qualite`, `responsable_securite`) ;
+  - 1 invitation acceptée et 1 invitation révoquée.
+- Le contrat SQL `20261111163814_exam_staff_invites_contract.sql` passe sur Replay après adaptation à un Centre `pending/draft`, et le test transactionnel `20261120120000_exam_center_pending_setup_staff_manage.sql` passe également avec rollback.
+- La migration additive `20261120120000_exam_center_pending_setup_staff_manage.sql` est appliquée à Replay. Elle autorise uniquement le Directeur propriétaire/gestionnaire à gérer le personnel du Centre brouillon en dossier pending ; rendez-vous, gestion du Centre, finances, résultats et publication restent interdits avant paiement confirmé. Vérification JWT directe sur le Centre Replay : `staff_manage=true`, `appointments_read=false`, `center_manage=false`, `finance_read=false`, `results_draft=false`.
+- Le dashboard d'un Centre brouillon ne propose que Personnel. B02 **VERT pour l'initialisation du Centre et les neuf postes** ; cela ne signifie pas que le Partenaire est validé/payé ni que le Centre est ouvert au public.
+
+#### B01 — contrôles runtime partiellement prouvés, navigateur final en cours
+- Le contrôle manuel/Playwright précédent prouve l'API combinée 200, Pharmacie autorisée et les autres univers verrouillés, ainsi que les redirections des routes directes avec slug de verrouillage.
+- Le run précédent a échoué à cause du test Playwright qui sélectionnait une carte par sous-chaîne : « Pharmacie » correspondait aussi à « Parapharmacie ». Correction versionnée : `data-universe-id` stable sur les six cartes de sélection et les cinq entrées du menu Client ; assertions Playwright par identifiant exact et état disabled/aria-disabled.
+- Dernier Replay officiel `44723454124` sur le HEAD `bb80ec1` : en file d'attente derrière le run précédent au moment du checkpoint. Le test navigateur complet du menu et du sélecteur reste **à confirmer PASS** ; ne pas déclarer B01 entièrement vert avant son résultat.
+
+#### B00 — parcours crédit vert, cycle Auth encore bloqué
+- Les logs Replay du run `44721303780` confirment PASS : crédit comptoir et décision Promoteur, reprise de la vente et débit stock, remboursement via JWT Caisse, rapprochement comptable ; Marketplace crédit/justificatif/refus Promoteur ; comptabilité de crédit ; Storage `17 PASS / 0 SKIP`.
+- Le cycle navigateur prouve aussi que l'espace protégé est refusé après suppression du cookie de session.
+- Le test Supabase Auth réel prouve rotation des refresh tokens, maintien du même `session_id` pendant les rotations et rejet du refresh token ancêtre après deux rotations et 15 secondes (`HTTP 400 refresh_token_already_used`).
+- **Échec non résolu :** après le rejeu de l'ancêtre, le refresh token descendant de la même session est encore accepté (`HTTP 200`). La révocation de la famille de refresh tokens n'est donc pas prouvée. Ne pas transformer le rejet de l'ancêtre en preuve de révocation globale de la session.
+- La lecture de `auth.instances` sur Replay ne révèle aucune ligne de configuration ; la connexion Supabase disponible ne fournit pas d'action de gestion des paramètres Auth du projet. Aucune insertion SQL interne n'a été tentée pour simuler ce réglage.
+- B00 **PARTIEL/BLOQUÉ** jusqu'à ce que la rotation/réutilisation Auth soit réglée sur le service Replay et que le descendant soit réellement rejeté, et que la révocation globale indépendante et l'expiration JWT soient validées.
+
+#### Qualité, automatisations et état de livraison
+- Qualité complète du HEAD `bb80ec1` : run `44723453972` **SUCCESS** ; actionlint `447234847391` PASS ; tests contractuels, TypeScript, lint et build Next.js PASS.
+- Replay `44723159403` a passé l'étape de recette B02 et continue ses étapes de build, Web Push, crédit et Storage.
+- Replay `44723454124` sur `bb80ec1`, qui inclut les derniers correctifs des sélecteurs B01, attend la fin du run précédent.
+- Un run antérieur a relevé un abonnement Web Push FCM expiré (`410`) pour le Responsable. À recontrôler dans les derniers runs ; ce signal n'est pas confondu avec les critères B00/B01/B02.
+- B03–B16 ne sont pas déclarés verts sur ce checkpoint.
+
+**Verdict global au checkpoint :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL (contrôles négatifs API/routes prouvés, nouveau navigateur en attente) ; B02 VERT (Centre draft + Directeur + neuf postes). NAXA n'est pas encore certifiée Go Live.
+
+**Point de reprise précis :** récupérer le résultat navigateur du run `44723454124` pour B01 et terminer les étapes Replay `44723159403`. Pour B00, faire activer/vérifier la rotation Auth avec détection de réutilisation sur le projet Replay, puis rejouer le scénario qui doit rejeter le jeton descendant. Aucun changement Production, aucun déploiement.
