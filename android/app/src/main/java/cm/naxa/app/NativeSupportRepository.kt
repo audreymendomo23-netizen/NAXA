@@ -14,6 +14,12 @@ import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
+class NativeSupportApiException(
+    val statusCode: Int,
+    val code: String,
+    message: String
+) : IOException(message)
+
 data class NativeSupportTicket(
     val id: String,
     val reference: String,
@@ -222,7 +228,11 @@ class NativeSupportRepository(
         if (!response.isSuccessful) {
             val code = (parsed as? JSONObject)?.optString("code").orEmpty()
             val message = (parsed as? JSONObject)?.optString("message").orEmpty()
-            throw IOException(message.ifBlank { code.ifBlank { "Service Support indisponible (HTTP ${response.code})." } })
+            throw NativeSupportApiException(
+                statusCode = response.code,
+                code = code,
+                message = message.ifBlank { code.ifBlank { "Service Support indisponible (HTTP ${response.code})." } }
+            )
         }
         parsed
     }

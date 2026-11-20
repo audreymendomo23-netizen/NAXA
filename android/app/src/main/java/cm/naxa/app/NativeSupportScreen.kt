@@ -86,6 +86,7 @@ internal fun NativeSupportScreen(
     var realtimeState by remember { mutableStateOf<NaxaSupportRealtime?>(null) }
     var rtcStatus by remember { mutableStateOf("idle") }
     var attemptedRtcCallId by remember { mutableStateOf<String?>(null) }
+    var rtcRetryNonce by remember { mutableIntStateOf(0) }
     var screenShareConsent by remember { mutableStateOf(false) }
     var screenShareActive by remember { mutableStateOf(false) }
     var pendingShareSessionId by remember { mutableStateOf<String?>(null) }
@@ -251,7 +252,7 @@ internal fun NativeSupportScreen(
         }
     }
 
-    LaunchedEffect(currentCall?.id) {
+    LaunchedEffect(currentCall?.id, rtcRetryNonce) {
         val callId = currentCall?.id ?: return@LaunchedEffect
         if (currentCall?.status in TerminalCallStates) return@LaunchedEffect
 
@@ -265,6 +266,12 @@ internal fun NativeSupportScreen(
                             realtimeState?.updateAccessToken(repository.accessToken())
                         } catch (error: Exception) {
                             callError = error.message ?: "Le maintien de l’appel a échoué."
+                            if (error is NativeSupportApiException && error.statusCode in setOf(401, 403)) {
+                                closeMediaSession()
+                                lastCallMessage = "La session d’assistance a été fermée après révocation ou suspension du compte."
+                                currentCall = null
+                                break
+                            }
                         }
                         delay(15_000)
                     }
@@ -325,6 +332,11 @@ internal fun NativeSupportScreen(
             }
         } catch (error: Exception) {
             callError = error.message ?: "Le suivi de l’appel est interrompu."
+            if (error is NativeSupportApiException && error.statusCode in setOf(401, 403)) {
+                closeMediaSession()
+                lastCallMessage = "La session d’assistance a été fermée après révocation ou suspension du compte."
+                currentCall = null
+            }
         }
     }
 
@@ -396,9 +408,13 @@ internal fun NativeSupportScreen(
                                 color = SupportInk.copy(alpha = .72f),
                                 fontSize = 12.sp
                             )
-                            if (rtcState == null) {
+                            if (rtcState == null || rtcStatus in setOf("disconnected", "reconnecting", "error")) {
                                 OutlinedButton(
-                                    onClick = { attemptedRtcCallId = null },
+                                    onClick = {
+                                        closeMediaSession()
+                                        attemptedRtcCallId = null
+                                        rtcRetryNonce += 1
+                                    },
                                     modifier = Modifier.fillMaxWidth()
                                 ) { Text("Réessayer la connexion audio") }
                             }
