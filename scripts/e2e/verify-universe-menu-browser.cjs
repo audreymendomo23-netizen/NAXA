@@ -131,8 +131,11 @@ async function run(env = process.env) {
       if (await card.count() !== 1) {
         throw new Error("Carte publique absente ou dupliquée : " + item.id + " (" + item.label + ").");
       }
-      if (await card.getByText(item.label, { exact: true }).count() !== 1) {
-        throw new Error("Libellé public absent ou dupliqué pour " + item.label + ".");
+      const renderedLabel = await card.locator("span.min-w-0 > span.flex").evaluate(element =>
+        (element.childNodes[0]?.textContent || "").trim()
+      );
+      if (renderedLabel !== item.label) {
+        throw new Error("Libellé public inattendu pour " + item.id + " : " + renderedLabel + ".");
       }
       const enabled = await card.isEnabled();
       if (enabled !== (item.id === "pharmacie")) {
