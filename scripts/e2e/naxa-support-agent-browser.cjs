@@ -346,6 +346,11 @@ async function run(){
   await a.page.waitForURL(u=>u.pathname==="/equipe-support/dossiers/"+ticketA&&u.searchParams.get("callId")===callId,{timeout:20000});
   await waitForCallHeartbeat(callId,"agent_heartbeat_at","Heartbeat automatique de l’Agent");
   await a.page.getByRole("heading",{name:"Appel audio NAXA"}).waitFor({timeout:10000});
+  await Promise.all([
+   clientPage.getByText("Canal sécurisé connecté",{exact:true}).waitFor({timeout:15000}),
+   a.page.getByText("Canal sécurisé connecté",{exact:true}).waitFor({timeout:15000})
+  ]);
+  console.log("PASS — les deux participants sont authentifiés sur le canal privé Realtime.");
   const callProof=await admin.from("support_calls")
    .select("status,requester_user_id,agent_user_id,requester_heartbeat_at,agent_heartbeat_at")
    .eq("id",callId).single();
@@ -385,9 +390,13 @@ async function run(){
    r.url().endsWith("/api/support/calls/"+callId)&&r.request().method()==="PATCH",
    {timeout:20000}
   );
+  const hangupStartedAt=Date.now();
   await clientPage.getByRole("button",{name:"Raccrocher"}).click();
   const requesterEnd=await requesterEndPromise;
+  const hangupLatencyMs=Date.now()-hangupStartedAt;
   assert.equal(requesterEnd.status(),200,"Le demandeur doit pouvoir raccrocher l'appel actif.");
+  assert.ok(hangupLatencyMs<5000,"Le raccrochage ne doit pas attendre l’ACK Realtime (latence observée : "+hangupLatencyMs+" ms).");
+  console.log("PASS — raccrochage serveur confirmé en "+hangupLatencyMs+" ms.");
   const endedAssignedCall=await admin.from("support_calls").select("status,ended_at")
    .eq("id",callId).single();
   if(endedAssignedCall.error)throw endedAssignedCall.error;

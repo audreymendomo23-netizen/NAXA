@@ -14,6 +14,8 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   const [busy, setBusy] = useState(false);
   const [muted, setMuted] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "connected" | "error">("connecting");
+  const [realtimeRetry, setRealtimeRetry] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [audioBlocked, setAudioBlocked] = useState(false);
@@ -40,6 +42,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     offerStarted.current = false;
     readyReplySent.current = false;
     setConnected(false);
+    setRealtimeStatus("connecting");
   }, [supabase]);
 
   const sendSignal = useCallback(async (payload: Signal) => {
@@ -105,11 +108,32 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   }, [callId, status]);
 
   useEffect(() => {
-    if (!callId || status !== "accepted" || channel.current) return;
+    if (!callId || status !== "accepted") return;
     let active = true;
     let reconnectTimer: number | null = null;
+    const authState = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        window.setTimeout(() => {
+          if (active) void supabase.realtime.setAuth(session.access_token).catch(() => {
+            if (active) setRealtimeStatus("error");
+          });
+        }, 0);
+      }
+    });
     const connect = async () => {
       try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData.session) throw new Error("La session utilisateur n’est pas encore disponible pour la signalisation privée.");
+        const callResponse = await fetch("/api/support/calls/" + encodeURIComponent(callId), { cache: "no-store" });
+        const callState = await callResponse.json();
+        if (!callResponse.ok) throw new Error(callState.error || "Participants de l’appel indisponibles.");
+        const userId = sessionData.session.user.id;
+        if (userId !== callState.call?.requester_user_id && userId !== callState.call?.agent_user_id) {
+          throw new Error("Cette session n’est pas autorisée à rejoindre le canal de cet appel.");
+        }
+        await supabase.realtime.setAuth(sessionData.session.access_token);
+        if (!active) return;
+        setRealtimeStatus("connecting");
         const response = await fetch("/api/support/calls/" + encodeURIComponent(callId) + "/ice", { cache: "no-store" });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Configuration TURN indisponible.");
@@ -218,23 +242,32 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
           }
         });
 
-        realtime.subscribe((state) => {
+        realtime.subscribe((state, subscriptionError) => {
           if (!active) return;
-          if (state === "SUBSCRIBED") void sendSignal({ kind: "ready" }).catch((cause) => setError(cause instanceof Error ? cause.message : "Signalisation indisponible."));
+          if (state === "SUBSCRIBED") {
+            setRealtimeStatus("connected");
+            void sendSignal({ kind: "ready" }).catch((cause) => {
+              setRealtimeStatus("error");
+              setError(cause instanceof Error ? cause.message : "Signalisation indisponible.");
+            });
+          }
           if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
-            setError("La signalisation audio est interrompue. Réessaie ou poursuis par Livechat.");
+            setRealtimeStatus("error");
+            setError(subscriptionError?.message || "Le canal privé de signalisation a refusé ou perdu la connexion. Réessaie ou poursuis par Livechat.");
           }
         });
       } catch (cause) {
+        setRealtimeStatus("error");
         setError(cause instanceof Error ? cause.message : "Préparation de l’appel impossible.");
       }
     };
     void connect();
     return () => {
       active = false;
+      authState.data.subscription.unsubscribe();
       if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
     };
-  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase]);
+  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase, realtimeRetry]);
 
   useEffect(() => () => {
     peer.current?.close();
@@ -271,7 +304,6 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     setBusy(true);
     setError("");
     try {
-      try { await sendSignal({ kind: "hangup" }); } catch { /* La transition serveur reste prioritaire sur le signal best-effort. */ }
       const response = await fetch("/api/support/calls/" + encodeURIComponent(callId), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -281,6 +313,8 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       if (!response.ok) throw new Error(data.error || "Action d’appel impossible.");
       setStatus(data.call.status as CallState);
       stopMedia();
+      // The server transition is authoritative. The remote peer discovers it through
+      // the call-state poll; an unacknowledged Realtime broadcast must never delay hangup.
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Action d’appel impossible.");
     } finally {
@@ -306,6 +340,14 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
 
   async function retryConnection() {
     setError("");
+    if (!callId) return;
+    if (realtimeStatus !== "connected" || !channel.current || !peer.current) {
+      stopMedia();
+      setRealtimeStatus("connecting");
+      setRealtimeRetry((value) => value + 1);
+      setNotice("Recréation du canal privé et de la session média…");
+      return;
+    }
     try {
       if (mode === "requester") {
         await sendSignal({ kind: "restart-request" });
@@ -363,6 +405,9 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
         </div>
         {connected && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Connecté</span>}
       </div>
+      {status === "accepted" && <p role="status" className="text-xs text-slate-500">
+        {realtimeStatus === "connected" ? "Canal sécurisé connecté" : realtimeStatus === "connecting" ? "Connexion sécurisée en cours…" : "Canal sécurisé interrompu"}
+      </p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {notice && <p role="status" className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{notice}</p>}
       <audio ref={remoteAudio} autoPlay playsInline />
@@ -379,7 +424,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             {status === "queued" ? "En attente dans la file" : status === "ringing" ? "Agent appelé" : status === "accepted" ? "Appel en cours" : "Appel terminé"}
           </span>
           {status === "accepted" && <>
-            {error && <button type="button" disabled={busy} onClick={() => void retryConnection()} className="min-h-10 rounded-xl border border-amber-500 px-3 py-2 text-xs font-bold text-amber-900">Réessayer la connexion audio</button>}
+            {(error || realtimeStatus !== "connected") && <button type="button" disabled={busy} onClick={() => void retryConnection()} className="min-h-10 rounded-xl border border-amber-500 px-3 py-2 text-xs font-bold text-amber-900">Réessayer la connexion sécurisée</button>}
             <button type="button" onClick={toggleMute} className="min-h-10 rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold">{muted ? "Réactiver le micro" : "Couper le micro"}</button>
             <button type="button" disabled={busy} onClick={() => void transition("end")} className="min-h-10 rounded-xl bg-red-700 px-3 py-2 text-xs font-bold text-white">Raccrocher</button>
           </>}

@@ -22,7 +22,7 @@ export default async function PharmacieAidePage({ searchParams }: { searchParams
       .eq("ticket_id", current.id).eq("interne", false).order("created_at", { ascending: true }).limit(100)
     : { data: [] };
   return <main className="min-h-screen bg-[#F8FAF9] px-4 pb-12 text-slate-900"><div className="mx-auto max-w-4xl space-y-5 pt-4">
-    <header className="flex items-center justify-between gap-3"><Link href="/" className="font-bold text-[#064B2A]">← NAXA</Link><Link href="/pharmacie" className="font-bold text-[#064B2A] underline">"Espace pharmacie"</Link></header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><Link href="/" className="font-bold text-[#064B2A]">← NAXA</Link><div className="flex flex-wrap items-center gap-3"><Link href="/assistance" className="rounded-full bg-emerald-100 px-3 py-2 text-sm font-bold text-[#064B2A]">Support NAXA</Link><Link href="/pharmacie" className="font-bold text-[#064B2A] underline">Espace pharmacie</Link></div></header>
     <section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
       <div className="bg-[#064B2A] p-6 text-white"><p className="text-xs font-bold uppercase tracking-widest text-emerald-200">NAXA · Pharmacie</p><h1 className="mt-2 text-3xl font-black">Questions des clients</h1><p className="mt-2 text-sm text-emerald-50">Répondez aux conversations qui concernent votre pharmacie. Les réponses ne constituent pas un diagnostic médical.</p></div>
       {filters.erreur && <p role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Le message n’a pas pu être envoyé. Actualisez la page et réessayez.</p>}

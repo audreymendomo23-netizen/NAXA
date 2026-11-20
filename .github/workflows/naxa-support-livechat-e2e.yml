@@ -131,7 +131,7 @@ jobs:
           done
           if [ "$ready" -ne 1 ]; then
             echo "PID attendu : $TURN_PID ; port attendu : $TURN_PORT"
-            ps aux | grep '[t]urnserver' || true
+            pgrep -a -x turnserver || true
             ss -lntup || true
             cat "$RUNNER_TEMP/coturn.stdout.log" "$RUNNER_TEMP/coturn.log" 2>/dev/null || true
             echo "::error::L'instance TURN personnalisée n'est pas propriétaire de son socket UDP."

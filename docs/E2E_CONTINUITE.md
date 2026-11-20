@@ -278,3 +278,43 @@ La fonctionnalité ne sera déclarée prête qu'après des tests distincts :
 8. Mettre à jour ce document après chaque preuve ; ne déclarer le Support global vert qu'après validation de la portée retenue, sans assimiler une décision de périmètre à une fonctionnalité livrée.
 
 Les règles de gouvernance de la continuité restent inchangées : branche `main` uniquement, environnement Replay pour la recette, aucune modification Production et aucun déploiement pendant ces travaux.
+
+
+# Reprise d'implémentation — diagnostic ciblé audio / accès Support professionnel (20 novembre 2026)
+
+## Contradiction et causes comparées
+
+Le refus Realtime observé le 19 novembre (« Unauthorized … Channel topic ») ne prouvait pas à lui seul que la politique SQL était fautive. Les possibilités examinées étaient :
+- **JWT absent ou pas encore restauré dans le client navigateur au moment du subscribe** : probabilité élevée, car le composant souscrivait immédiatement après l'état `accepted`, sans attendre `auth.getSession()` ni définir explicitement le JWT Realtime.
+- **Prédicat SQL / rôle / participant incorrect** : possible, mais aucune preuve ne permettait de l'affirmer ; fonction et politiques existaient et vérifiaient rigoureusement l'identité et les permissions.
+- **Topic mal formé / extraction UUID erronée** : contredit par le format du topic émis et la longueur du préfixe (18 caractères, UUID à partir du caractère 19).
+- **Ticket déjà clôturé / profil inactif / agent non autorisé** : non établi pour l'instant de l'erreur ; l'appel était accepté et les deux heartbeats persistés.
+- **TURN ou RTP** : contredit comme cause première, car aucun peer media ni candidat n'était encore créé au moment du refus ; l'API ICE délivrait une configuration HTTP 200.
+
+La documentation Supabase confirme que le JWT transmis à Realtime est utilisé pour l'autorisation des canaux privés et les politiques RLS ; `realtime.setAuth(token)` définit ce JWT. Références officielles consultées : https://supabase.com/docs/reference/javascript/setauth et https://supabase.com/docs/guides/realtime/authorization. Le schéma `realtime` est protégé contre les DDL personnalisés : seules les politiques sur `realtime.messages` doivent être gérées dans le schéma public/privé approprié (changelog Supabase du 14 juillet 2026).
+
+## Correctifs de code préparés dans ce checkpoint
+
+- Attendre la session Supabase navigateur, vérifier que son `user.id` correspond au demandeur ou à l'Agent de l'appel via l'API d'état, puis exécuter `supabase.realtime.setAuth(session.access_token)` avant la souscription privée.
+- Réactualiser le JWT Realtime lors des événements de renouvellement de session, sans jamais journaliser le jeton.
+- Afficher l'état de souscription Realtime séparément de l'état ICE/audio ; permettre de recréer le canal et le peer après une erreur plutôt que de garder un `channel.current` obsolète.
+- Le raccrochage attend désormais la transition PATCH serveur en premier ; l'ACK Broadcast n'est plus un verrou avant la clôture. Le pair distant détecte la transition par le polling d'état existant.
+- Le test E2E Agent vérifie la souscription privée des deux participants et mesure le temps clic→réponse HTTP du raccrochage avec seuil de 5 secondes.
+- L'alerte ShellCheck `SC2009` est corrigée uniquement dans le diagnostic du processus Coturn (`pgrep -a -x turnserver`), sans changer le bootstrap/port/secrets TURN.
+- Les pages d'aide Pharmacie et Promoteur disposent maintenant d'un accès direct vers `/assistance`, tout en conservant le chat Client↔Pharmacie distinct. Le service /assistance partagé n'est pas dupliqué.
+
+## Limites de compatibilité partage écran à respecter
+
+La fonction web `getDisplayMedia()` exige un contexte sécurisé et un geste explicite de l'utilisateur ; MDN la classe à disponibilité limitée et documente la compatibilité navigateur. La cible initiale est l'ordinateur, avec repli clair vers Livechat/audio lorsque l'API est absente. Aucune promesse Android/iOS n'est admise sans recette sur appareils réels. Références : https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia et https://developer.mozilla.org/en-US/docs/Web/API/Screen_Capture_API/Using_Screen_Capture.
+
+## Résultat à établir par les prochains runs
+
+À ce stade, ces modifications sont des corrections candidates fondées sur le code et la documentation, pas encore un résultat vert. Le run ciblé devra confirmer :
+1. Client ET Agent affichent `Canal sécurisé connecté`.
+2. Les deux côtés échangent offer/answer/candidates et ICE passe à connected.
+3. Les deux côtés ont un candidat local et distant `relay`, des pistes vivantes et paquets RTP dans les deux sens, lecture distante effective.
+4. Le clic « Raccrocher » produit une transition serveur persistée en moins de 5 secondes.
+5. `actionlint` valide tous les workflows.
+6. Les nouvelles entrées Client/Professionnel accèdent au même Support NAXA sans exposer le chat Client↔Pharmacie.
+
+Le Support global et le partage d'écran restent NON VERT tant que l'extension de partage écran, son audit serveur et ses E2E dédiés n'ont pas été livrés et validés.
