@@ -107,25 +107,42 @@ begin
   perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
 
+  reset role;
   update public.partner_universes set enabled=true
    where partner_id=f.partner_id and universe_slug='examens';
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
   if private.exam_has_capability(f.center_id,'staff_manage') then
     raise exception 'Pending roster setup must not survive a non-disabled universe';
   end if;
+
+  reset role;
   update public.partner_universes set enabled=false
    where partner_id=f.partner_id and universe_slug='examens';
-
   update public.exam_centers set status='active' where id=f.center_id;
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
   if private.exam_has_capability(f.center_id,'staff_manage') then
     raise exception 'Pending dossier must not grant pre-opening access to an active center';
   end if;
-  update public.exam_centers set status='draft' where id=f.center_id;
 
+  reset role;
+  update public.exam_centers set status='draft' where id=f.center_id;
   update public.partners set status='active' where id=f.partner_id;
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
   if private.exam_has_capability(f.center_id,'staff_manage') then
     raise exception 'An active Partner with a pending dossier must not receive setup exemption';
   end if;
+
+  reset role;
   update public.partners set status='pending' where id=f.partner_id;
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub',f.owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.owner_id,'role','authenticated')::text,true);
 
   select count(*) into v_count
   from public.partners pa
