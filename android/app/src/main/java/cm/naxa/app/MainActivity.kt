@@ -232,7 +232,6 @@ private fun NaxaRoot(
                     repository = adminDashboard,
                     deepLinkNotice = deepLinkNotice,
                     onOpenNotifications = { showingNotifications = true },
-                    onOpenSupport = { showingSupport = true },
                     onLogout = {
                         loading = true
                         scope.launch {
