@@ -206,6 +206,7 @@ export function EnTeteClient() {
           return enabled ? (
             <Link
               key={item.id}
+              data-universe-id={item.id}
               href={item.href}
               onClick={() => {
                 closeSearchAndMenu();
@@ -217,7 +218,7 @@ export function EnTeteClient() {
               {contents}
             </Link>
           ) : (
-            <button key={item.id} type="button" disabled className={commonClass + " cursor-not-allowed opacity-60"} aria-disabled="true">
+            <button key={item.id} type="button" data-universe-id={item.id} disabled className={commonClass + " cursor-not-allowed opacity-60"} aria-disabled="true">
               {contents}
             </button>
           );
