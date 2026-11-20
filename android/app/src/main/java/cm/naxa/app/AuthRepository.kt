@@ -194,6 +194,11 @@ class AuthRepository(private val tokenStore: SecureTokenStore) {
         }
     }
 
+    suspend fun currentAccessToken(): String = withContext(Dispatchers.IO) {
+        restoreSession()
+        tokenStore.read()?.first ?: throw IOException("La session NAXA doit être renouvelée.")
+    }
+
     private fun requireConfigured() {
         if (BuildConfig.SUPABASE_URL.isBlank() || BuildConfig.SUPABASE_ANON_KEY.isBlank()) {
             throw IOException("Configuration Android manquante : SUPABASE_URL et SUPABASE_ANON_KEY.")
