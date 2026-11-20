@@ -1093,3 +1093,75 @@ La fonction interne contrôle en plus le rôle Gestionnaire de stock/Magasinier 
 3. Tester deux Livreurs en acceptation concurrente, refus, expiration, révocation, suspension pharmacie, changement de rôle actif et affectation multi-pharmacie.
 4. Terminer le trajet avec les deux confirmations, vérifier la clôture, le stock, les paiements, les notifications et le suivi Client ; rejouer sur Web, PWA installée et APK Android physique.
 5. Joindre les preuves UI, RPC, tables/events, notifications reçues, JWT et plateformes au manifeste E2E ; aucun statut fonctionnel Livreur ne doit être déclaré vert avant ces preuves.
+
+---
+
+## 10. Itération sécurité Replay — droits SQL par défaut et contrôles d'affectation (20/11/2026)
+
+### 10.1 Constat initial et cause racine
+
+- Inventaire SQL : **276 relations publiques** (tables, partitions, vues et relations assimilées) actuellement détenues par le rôle PostgreSQL `postgres`.
+- Les ACL par défaut du propriétaire `postgres` accordaient à `anon` et `authenticated` un ensemble trop large de privilèges sur les nouvelles tables : notamment DML, `TRUNCATE`, `REFERENCES`, `TRIGGER` et `MAINTAIN`.
+- Avant correction, les tables sensibles échantillonnées (`profiles`, `exam_staff_assignments`, `exam_results`, `reservations`) portaient effectivement ces droits pour `anon` et `authenticated`. Les politiques RLS de lecture examinées ciblaient `authenticated`, pas `anon`; les lectures anonymes de l'échantillon sensible avaient retourné zéro ligne. Cela ne neutralisait toutefois pas le privilège `TRUNCATE`, qui n'est pas filtré par RLS.
+- Aucun chemin PostgREST d'exécution SQL arbitraire n'a été démontré : le constat est un **sur-privilège de rôle à supprimer**, pas la preuve d'une exploitation à distance.
+- Aucune politique RLS `INSERT/UPDATE/DELETE/ALL` destinée à `anon` n'existe dans le schéma `public` au moment du contrôle. Les écritures anonymes directes ne sont donc pas un besoin produit identifié.
+
+### 10.2 Correction source + Replay
+
+- Migration versionnée ajoutée sur `main` : `supabase/migrations/20261120093000_harden_public_table_grants.sql`.
+- Commit source : `30337fbf8aed3d939d777070a012b1a923460390`.
+- Migration appliquée avec succès sur Replay sous le nom `harden_public_table_grants`, version enregistrée : `20261120083929`.
+- La première tentative incluant les ACL par défaut du rôle `supabase_admin` a échoué avec `42501 permission denied to change default privileges`. La transaction a été abandonnée ; aucun changement partiel n'a été conservé. Le contrôle des propriétaires a établi que les 276 relations publiques courantes appartiennent à `postgres`. La migration source a donc été corrigée pour ne modifier que les ACL de `postgres`, propriétaire effectif des objets actuels. Les ACL futures de `supabase_admin` ne sont pas modifiées ; aucun objet public courant ne lui appartient.
+- Aucun schéma métier, aucune ligne métier, aucune politique RLS et aucune donnée Replay n'ont été modifiés par cette migration.
+
+### 10.3 Tests post-correction — Replay
+
+| Contrôle | Résultat observé | Verdict |
+|---|---|---|
+| Tables publiques inspectées | 276 | PASS inventaire |
+| Tables où `anon` garde INSERT/UPDATE/DELETE/TRUNCATE | 0 | PASS |
+| Tables où `authenticated` garde TRUNCATE/REFERENCES/TRIGGER/MAINTAIN | 0 | PASS |
+| SELECT anonyme sur l'échantillon de tables publiques | Privilège SELECT conservé ; zéro ligne sensible retournée | PASS limité Replay |
+| Défauts futurs du rôle `postgres` | `anon`: SELECT seul ; `authenticated`: SELECT + DML, sans privilèges de maintenance | PASS |
+| Table-sonde créée puis annulée dans une transaction | ACL attendues constatées ; transaction ROLLBACK | PASS |
+| Migration enregistrée dans l'historique Replay | `20261120083929` | PASS |
+| Contrôle des lectures anonymes avant/après | 0 ligne sur profils, résultats/contenus d'examens, affectations, réservations et produits partenaires | PASS limité aux données Replay présentes |
+
+### 10.4 Contrôles d'affectation et de livraison
+
+- `exam_staff_assignments` possède un trigger `exam_staff_assignment_guard`. Le membre ne peut pas modifier lui-même `user_id`, `center_id`, `role_key`, `is_active`, `revoked_at`, `assigned_by` ou `note`; les modifications de gestion exigent la capacité `staff_manage`. Cela protège structurellement la politique de mise à jour personnelle, mais ne remplace pas un test sous session Auth réelle.
+- Les RPC Livreur vérifiées contrôlent le rôle actif, l'affectation et le périmètre pharmacie. `naxa_delivery_make_available` exige la préparation physique confirmée (`prete_au_retrait`) et un mode de paiement sélectionné/vérifié avant de publier une mission. `naxa_delivery_accept` revalide pharmacie active, mission disponible, préparation, paiement et affectation active. Ces éléments restent une **revue de code SQL**, pas un E2E fonctionnel.
+- Les politiques SELECT multiples sur examens, profils et réservations sont des politiques séparées par persona. Leur nombre seul ne prouve pas une fuite ; les expressions RLS doivent être validées avec des JWT Client, personnel, Admin et inter-tenant.
+
+### 10.5 État des alertes et blocages restants
+
+Contrôle Supabase Security Advisor après migration :
+
+| Alerte | Niveau / volume | État |
+|---|---:|---|
+| RLS activé sans policy | INFO / 73 | À justifier table par table ; ne pas ajouter de policy permissive par réflexe |
+| Fonctions SECURITY DEFINER exécutables par anon | WARN / 3 | Revue individuelle des trois fonctions publiques de catalogue à achever |
+| Fonctions SECURITY DEFINER exécutables par authenticated | WARN / 262 | Revue ciblée des RPC sensibles et des façades exposées à poursuivre ; l'alerte globale ne signifie pas 262 failles |
+| Protection des mots de passe compromis désactivée | WARN / 1 | **BLOQUANT** jusqu'à preuve d'activation dans les paramètres Auth Supabase |
+
+Autres limites non levées :
+- Les ACL par défaut du rôle `supabase_admin` ne sont pas modifiables avec le rôle SQL de cette connexion (`postgres` non-superuser et non membre de `supabase_admin`). Aucun objet public courant n'en dépend ; si la plateforme crée ultérieurement des objets publics sous ce propriétaire, il faudra revoir leur ACL.
+- Les tests SQL `SET ROLE anon` ne remplacent pas des requêtes REST PostgREST avec la vraie clé publique et des JWT représentatifs. Les tests Client/Personnel/Admin et les refus inter-tenant sous sessions réelles restent BLOQUÉS faute de sessions de test disponibles.
+- L'interface Supabase Auth ne peut pas être réglée/vérifiée par les outils SQL utilisés ici : la protection contre les mots de passe compromis reste à confirmer dans le Dashboard.
+- Les 73 tables RLS sans policy ne sont pas réputées vulnérables par défaut : l'accès direct est normalement fermé ; il faut confirmer leurs privilèges, leurs usages via fonctions SECURITY DEFINER et leur caractère interne.
+- Les builds/tests Web, PWA installée, APK natif et appareils physiques restent distincts. Aucun résultat SQL ne vaut PASS de parité 3/3.
+
+### 10.6 Gouvernance et reprise exacte
+
+- Travail effectué sur `main` ; aucun nouveau branchement/PR.
+- `vercel.json` relu : `git.deploymentEnabled.main=false`. Aucun déploiement n'a été lancé.
+- Environnement modifié : Replay uniquement (`pwfftcsjyeibxxqhwysw`). Production non touchée.
+- **Verdict :** correction ACL Replay **PASS** et migration source versionnée ; audit sécurité global toujours **PARTIEL / NON VERT**, pas de certification Go Live.
+
+**Point exact de reprise :**
+1. Examiner les 3 fonctions SECURITY DEFINER exécutables par `anon` (définition complète, grants, exposition REST et absence de fuite).
+2. Poursuivre la revue des RPC SECURITY DEFINER sensibles (Admin, paiements, affectations, rôles, stock, livraison), en séparant les façades authentifiées des helpers internes.
+3. Classer les 73 tables RLS sans policy par grants, propriétaire, exposition PostgREST et appels indirects.
+4. Vérifier la protection des mots de passe compromis dans Supabase Auth Dashboard.
+5. Obtenir des sessions Auth de test distinctes (Client A/B, Promoteur, Pharmacie, personnel, Admin) pour les tests REST/UI négatifs et positifs.
+6. Reprendre les E2E Web/PWA/APK et les essais sur appareils physiques ; ne certifier aucun lot sans preuve du même commit candidat.
