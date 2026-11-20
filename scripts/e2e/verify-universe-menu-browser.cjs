@@ -2,7 +2,6 @@
 "use strict";
 
 const fs = require("node:fs");
-const { chromium } = require("playwright");
 
 const PROJECT_REF = "pwfftcsjyeibxxqhwysw";
 const CLIENT_EMAIL = "naxa.e2e.client-acheteur@example.invalid";
@@ -79,6 +78,7 @@ function assertUniverseStatus(payload) {
 }
 
 async function run(env = process.env) {
+  const { chromium } = require("playwright");
   const supabaseUrl = assertReplayUrl(env.NAXA_STORAGE_E2E_URL || env.SUPABASE_URL);
   const anonKey = required(env.NAXA_STORAGE_E2E_ANON_KEY, "clé publique Replay");
   const webBase = String(env.NAXA_E2E_WEB_BASE_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
