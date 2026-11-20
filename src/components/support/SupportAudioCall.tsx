@@ -128,7 +128,8 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
 
   const resumeRemoteScreenPreview = useCallback(async () => {
     const preview = remoteScreenPreview.current;
-    const track = preview?.srcObject?.getVideoTracks?.()[0];
+    const remoteStream = preview?.srcObject instanceof MediaStream ? preview.srcObject : null;
+    const track = remoteStream?.getVideoTracks()[0];
     if (!preview || !track || track.readyState !== "live" || track.muted) return;
 
     cancelRemoteScreenFrameWait();

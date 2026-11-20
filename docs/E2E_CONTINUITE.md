@@ -576,3 +576,8 @@ Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refu
 - Le contrat qualité statique attendait encore l'ancien callback `mute` réduit à `setRemoteScreenActive(false)`.
 - Le composant remplace désormais ce handler par une annulation du frame callback, la sortie de l'état de décodage transparent et la désactivation de l'aperçu. Le contrat est aligné sur ces trois obligations de cycle de vie, sans supprimer de vérification.
 - L'écouteur `ended` de la capture locale est installé après l'acquittement du signal de démarrage ; si le signal échoue, le rollback ne peut pas déclencher un deuxième arrêt utilisateur.
+
+
+## Correction du typage du lecteur distant — 20 novembre 2026
+- Le premier build après reprise du lecteur a signalé TS2339 : `HTMLVideoElement.srcObject` est de type `MediaProvider`, pas uniquement `MediaStream`.
+- Le helper de reprise vérifie maintenant `srcObject instanceof MediaStream` avant d'accéder aux pistes vidéo. Il n'ajoute aucune hypothèse sur une source de type Blob ou MediaSource.
