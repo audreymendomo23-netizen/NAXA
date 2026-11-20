@@ -322,13 +322,22 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
               });
               await pc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
               for (const candidate of pendingCandidates.current.splice(0)) await pc.addIceCandidate(candidate);
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
               const negotiatedVideo = pc.getTransceivers().find((transceiver) =>
                 transceiver.mid !== null && transceiver.receiver.track.kind === "video"
               );
-              if (!negotiatedVideo || !negotiatedVideo.currentDirection?.includes("send")) {
-                throw new Error("Le SDP de l’appel ne contient pas de transceiver vidéo sortant associé.");
+              if (!negotiatedVideo) {
+                throw new Error("L’offre Agent ne contient pas de m-line vidéo négocié.");
+              }
+              // The video transceiver created from the remote recvonly m-line
+              // defaults to recvonly locally. That would produce an inactive
+              // answer because no display track exists yet. Reserve the m-line
+              // as sendonly now; replaceTrack() supplies the user-selected source
+              // later without renegotiation or capturing before consent.
+              negotiatedVideo.direction = "sendonly";
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              if (!negotiatedVideo.currentDirection?.includes("send")) {
+                throw new Error("Le SDP de réponse ne négocie pas l’émission vidéo vers l’Agent.");
               }
               screenShareSender.current = negotiatedVideo.sender;
               await sendSignal({ kind: "answer", sdp: answer.sdp ?? undefined });

@@ -67,7 +67,7 @@ async function contextFor(browser,session){
     super({...configuration,iceTransportPolicy:"relay"},...args);
     const diagnostics=[];
     Object.defineProperty(this,"__naxaE2EDiagnostics",{value:diagnostics,configurable:false});
-    const describeSdp=sdp=>String(sdp||"").split(/\\r?\\n/).filter(line=>
+    const describeSdp=sdp=>String(sdp||"").split(/\r?\n/).filter(line=>
      /^m=|^a=mid:|^a=(?:sendrecv|sendonly|recvonly|inactive)$|^a=ice-ufrag:/.test(line)
     );
     for(const method of ["setLocalDescription","setRemoteDescription","addIceCandidate"]){

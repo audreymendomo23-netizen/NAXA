@@ -414,3 +414,23 @@ Le run `44654715657` a dépassé le blocage initial du chargement mobile Promote
 - Causes encore discriminantes : réponse SDP non envoyée (y compris erreur du contrôle `currentDirection`), candidat ICE non émis par l'Agent, candidat perdu/non reçu via Broadcast, ou erreur `addIceCandidate` liée au MID/m-line/ufrag. Aucune correction réseau ou RLS n'est appliquée avant ces traces.
 - Le harnais est instrumenté pour la prochaine exécution : événements locaux ICE, erreurs `icecandidateerror`, appels et rejets `setRemoteDescription`/`setLocalDescription`/`addIceCandidate`, états ICE/signaling des deux pairs, m-lines et message UI. La preuve des deux pairs utilise désormais `Promise.allSettled` afin que l'erreur du premier ne masque pas l'état du second.
 - Partage vidéo non testé dans ce run. Chantier toujours NON VERT ; aucune modification Production ni déploiement.
+
+
+# Cause racine ICE/SDP confirmée — run 44660599940 (20 novembre 2026)
+
+## Preuves navigateur
+- Les deux pairs ont reçu les signaux initiaux : côté demandeur `setRemoteDescription(offer)` et `setLocalDescription(answer)` ont réussi ; deux candidats relay distants ont été acceptés par `addIceCandidate` sur les m-lines 0 et 1.
+- L'Agent est resté en `signalingState=have-local-offer`, avec `currentDirection=null` sur le transceiver vidéo ; sa réponse distante n'est jamais arrivée.
+- Le demandeur a affiché l'erreur `Le SDP de l’appel ne contient pas de transceiver vidéo sortant associé`. Son transceiver vidéo avait `mid=0`, `direction=recvonly`, `currentDirection=inactive`, sans piste sender. Le test n'a donc jamais envoyé l'answer à l'Agent.
+- L'Agent avait émis des candidats relay pour les deux m-lines ; le pair distant a aussi observé des candidats prflx. Le diagnostic ne soutient donc pas une panne du serveur TURN ni une perte globale de Broadcast. Le défaut est la direction du m-line dans l'answer.
+
+## Cause
+Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver vidéo correspondant au m-line distant. Sa direction locale préférée est `recvonly` par défaut. Comme aucun flux écran n'existe encore (sélection autorisée uniquement après consentement utilisateur), `createAnswer()` a produit une direction vidéo `inactive`. Le garde-fou `currentDirection.includes("send")` a alors correctement refusé d'envoyer une answer qui ne pourrait jamais transmettre la vidéo. La vérification était correcte ; il manquait la configuration du sens d'émission avant la création de la réponse.
+
+## Correction
+- Après réception de l'offre, le Client retrouve le transceiver vidéo associé (MID non nul) et définit `direction = "sendonly"` avant `createAnswer()`.
+- Le navigateur négocie donc à l'avance un m-line vidéo sortant sans démarrer de capture. Le flux n'est attaché qu'après consentement et choix natif de la source, via `RTCRtpSender.replaceTrack()`.
+- Après `setLocalDescription(answer)`, le code exige toujours `currentDirection` contenant `send`, puis lie ce sender négocié. L'answer est transmise seulement après ce contrôle.
+- L'instrumentation du harnais corrige aussi le découpage des lignes SDP afin de conserver les traces `m=`, `a=mid`, directions et ICE ufrag dans les prochains diagnostics.
+- Recherche documentaire vérifiée : MDN indique que `direction` exprime la direction préférée et sert à générer offer/answer, tandis que `currentDirection` ne reflète la direction négociée qu'après la fin de la négociation ; W3C définit `currentDirection` comme direction effectivement négociée. Références : https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver/direction ; https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver/currentDirection ; https://www.w3.org/TR/webrtc/.
+- Verdict reste NON VERT avant le nouveau run : audio bidirectionnel via ICE, émission RTP vidéo, réception/affichage Agent, audit des événements, arrêt local, arrêt à clôture, puis scénario professionnel.
