@@ -1629,3 +1629,34 @@ Vérifications ACL/configuration après migration :
 
 - Workflow qualité 44736999210 : **SUCCESS**. Syntaxe/actionlint, tests, TypeScript, lint et build Next.js terminés avec succès sur le commit code ad213a52fe6ae3ce9e97db3667ef3afda0987ec6.
 - Workflow Replay 44736999133 : les étapes préflight, fixtures, cohorte Pharmacie, Centre + neuf postes, installation Playwright, génération des secrets éphémères, build Next et installation Chrome stable sont **PASS**. Au dernier contrôle, l'étape Web Push Chrome réel était encore en cours ; crédit navigateur et Storage venaient ensuite. Aucun résultat final n'est encore attribué à ce run.
+
+### 10.23 — Conclusions finales du Replay 44736999133 et qualité courante — 20/11/2026
+
+**Périmètre :** Replay uniquement. Run testé sur le commit applicatif `ad213a52fe6ae3ce9e97db3667ef3afda0987ec6`. Le HEAD actuel de `main` est `4f22c724379f54ae751972fed0b54c3c9b88eec7`. La comparaison GitHub montre quatre commits d'avance depuis `ad213a52`, portant uniquement sur les deux documents E2E ; le code et le harnais testés n'ont donc pas changé depuis le run. Aucun déploiement, aucune écriture Production.
+
+#### Résultat final du run Replay
+
+- Run `44736999133` : **completed / FAILURE**, job unique terminé le 20/11/2026 à 12:45:03 UTC. C'est toujours le dernier run Replay de ce workflow visible dans l'historique vérifié ; aucun rerun E2E plus récent n'est présent.
+- **PASS :** préflight et contrats ; fixtures Admin/Promoteur/Client/Livreur ; cohorte de rôles Pharmacie préparée ; pharmacie technique et affectations ; provisionnement Caisse/Stock ; recette Centre d'examens + neuf postes ; installation Playwright/Chrome ; build Next du worker ; nettoyage final.
+- **B02 Centre : PASS de la sous-recette exécutée.** L'étape dédiée « Recette Replay du Centre d'examens et de ses 9 postes » est success. Le dossier et le Centre restent volontairement pending/draft, l'univers demeure désactivé ; aucun paiement, validation ou accès public n'a été simulé.
+- **B00 crédits navigateur : PASS.** Crédit comptoir (approbation Promoteur, reprise du brouillon et débit stock unique), remboursement réel via JWT Caisse, suivi Client et rapprochement comptable/outbox : PASS. Crédit Marketplace (soumission Client, justificatif privé, aucun hold/débit, refus Promoteur et stock inchangé) : PASS. Paramétrage comptable de recette : PASS.
+- **Storage : PASS — 17 PASS / 0 SKIP.** Les tests couvrent notamment propriété, refus inter-utilisateurs, buckets privés, Admin et Promoteur lié ; le nettoyage des objets et sessions temporaires est PASS.
+- **B00 Auth : FAIL/BLOQUÉ.** Connexion navigateur et refus middleware après suppression du cookie : PASS. Deux rotations conservent le même utilisateur et le même `session_id`. L'ancien refresh token ancêtre est rejeté (HTTP 400, `refresh_token_already_used`), mais le refresh token descendant reste accepté après rejeu de l'ancêtre (HTTP 200) : la révocation de famille n'est pas démontrée. La révocation globale indépendante est PASS. L'expiration naturelle/cryptographique du JWT n'a pas été testée.
+- **Web Push réel : FAIL/BLOQUÉ.** Les trois souscriptions Chrome sont persistées et relues, mais l'envoi ciblé au Responsable échoue chez le fournisseur FCM (`fcm.googleapis.com`, HTTP 410) : `sent=0`, `webPushSent=0`, `webPushFailures=1`. Le contrôle final dédié « Résultat Web Push » termine en échec. La réussite de l'étape d'exécution/installation Chrome ne vaut donc pas livraison Push.
+- **B01 navigateur menu : FAIL.** API combinée HTTP 200 et sélecteur public à six cartes (Pharmacie seule activée) : PASS. Après réponse positive du login Client et navigation vers `/client`, Playwright expire après 30 secondes en attendant le bouton accessible « Autres services ». Le test s'arrête avant l'appel explicite `/api/universes/status` (placé après cette attente dans le script) et avant les assertions du menu et des routes suivantes. Le défaut immédiat d'ordonnancement du harnais est donc identifié ; la cause du bouton absent/non exposé (rendu UI, nom accessible, visibilité ou état du shell) reste à isoler. Ne pas conclure que le menu métier est fonctionnel ou défectueux sans inspection du DOM rendu.
+- **B02 global : PARTIEL.** La sous-recette Centre + neuf postes passe et les sous-recettes Pharmacie déjà documentées restent valables sur leur périmètre ; les organisations Parapharmacie et Prestations, seconds Promoteurs et l'isolation multi-organisations restent non démontrés.
+
+#### Contrôle qualité et état de main
+
+- Qualité sur le commit testé `ad213a52` : run `44736999210` **SUCCESS**.
+- Qualité la plus récente sur le HEAD actuel `4f22c724379f54ae751972fed0b54c3c9b88eec7` : run `44737709192` **SUCCESS**. Les deux jobs — tests/TypeScript/lint/build Next.js et syntaxe/actionlint GitHub Actions — sont terminés en succès.
+- Le workflow qualité vert ne transforme pas le workflow Replay E2E en succès : ce sont deux périmètres différents.
+
+#### Verdict corrigé
+
+- **B00 : PARTIEL / BLOQUÉ** — crédit et Storage PASS ; révocation de famille Auth et Web Push FAIL/BLOQUÉ ; expiration JWT NOT RUN.
+- **B01 : PARTIEL** — API combinée et sélecteur public PASS ; menu browser FAIL ; parcours post-menu et parité PWA/Android non démontrés.
+- **B02 : PARTIEL** — sous-recette Centre PASS ; couverture globale multi-organisations incomplète.
+- **NAXA : NON CERTIFIÉE GO LIVE.**
+
+**Reprise exacte :** (1) inspecter le DOM/ARIA du shell Client immédiatement après login et navigation `/client`, puis corriger le vrai écart UI ou le locator ; déplacer la vérification API avant toute attente dépendante du bouton et relancer la recette complète ; (2) faire vérifier/activer le réglage de détection de réutilisation Auth sur le projet Replay par une voie autorisée, puis retester le rejet du descendant et l'expiration JWT ; (3) recréer une souscription Chrome fraîche et obtenir un envoi FCM réellement accepté/reçu ; (4) étendre B02 aux organisations Parapharmacie/Prestations et aux Promoteurs distincts. Garder Production et les déploiements hors périmètre.
