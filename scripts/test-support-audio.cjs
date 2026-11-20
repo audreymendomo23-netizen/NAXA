@@ -86,7 +86,8 @@ assert.match(agentBrowser, /currentDirection\?\.includes\("send"\)/);
 
 assert.match(client, /replaceTrack\(track\)/);
 assert.match(client, /remoteTrack\.addEventListener\("unmute", showReceivedFrames\)/);
-assert.match(client, /remoteTrack\.addEventListener\("mute", \(\) => setRemoteScreenActive\(false\)\)/);
+assert.match(client, /remoteTrack\.addEventListener\("mute", \(\) => \{/);
+assert.match(client, /cancelRemoteScreenFrameWait\(\);[\s\S]*?setRemoteScreenResuming\(false\);[\s\S]*?setRemoteScreenActive\(false\);/);
 assert.match(client, /remoteTrack\.muted === true/);
 assert.match(client, /remoteTrack\.muted === false/);
 assert.match(client, /kind: "screen-share-started"/);

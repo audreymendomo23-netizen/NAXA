@@ -570,3 +570,9 @@ Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refu
 - L'arrêt invalide les callbacks en attente, met le lecteur en pause et masque l'aperçu. L'identifiant de session écarte un signal d'arrêt retardé visant une session plus récente.
 - Le fallback sans `requestVideoFrameCallback` attend l'avancement réel de `currentTime`.
 - L'E2E compare désormais `currentTime` avant/après le second partage, en plus des nouveaux compteurs RTP. Les anciennes dimensions vidéo ne suffisent plus.
+
+
+## Ajustement du contrat de lecture distante — 20 novembre 2026
+- Le contrat qualité statique attendait encore l'ancien callback `mute` réduit à `setRemoteScreenActive(false)`.
+- Le composant remplace désormais ce handler par une annulation du frame callback, la sortie de l'état de décodage transparent et la désactivation de l'aperçu. Le contrat est aligné sur ces trois obligations de cycle de vie, sans supprimer de vérification.
+- L'écouteur `ended` de la capture locale est installé après l'acquittement du signal de démarrage ; si le signal échoue, le rollback ne peut pas déclencher un deuxième arrêt utilisateur.

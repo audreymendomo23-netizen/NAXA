@@ -660,8 +660,8 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       await sender.replaceTrack(track);
       await postScreenShareEvent("started", shareSessionId);
       startedAuditPersisted = true;
-      track.addEventListener("ended", () => void stopScreenShare("user_stopped"), { once: true });
       await sendSignal({ kind: "screen-share-started", shareSessionId });
+      track.addEventListener("ended", () => void stopScreenShare("user_stopped"), { once: true });
       setScreenShareActive(true);
       setNotice("Votre écran est partagé avec l’Agent. Vous pouvez arrêter à tout moment.");
     } catch (cause) {
