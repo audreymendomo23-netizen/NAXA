@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabasePublic } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// Les cinq espaces réglables dans l'Admin ; "suivi" est le slug DB de "dispositifs".
+// Le RPC renvoie uniquement l'état agrégé registre + feature flag.
+// La table feature_flags reste inaccessible à anon.
 const CONFIGURABLE_UNIVERSES = [
   "parapharmacie",
   "bebe-maman",
@@ -14,34 +14,53 @@ const CONFIGURABLE_UNIVERSES = [
 
 export async function GET() {
   try {
-    // The public universe registry is intentionally readable by anon.
-    // Admin updates it atomically with the associated feature flags.
-    const sb = supabasePublic(0);
-    const { data, error } = await sb
-      .from("universes")
-      .select("slug,enabled")
-      .in("slug", [...CONFIGURABLE_UNIVERSES]);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) throw new Error("public_supabase_not_configured");
 
-    if (error) {
-      return NextResponse.json(
-        { error: "universe_status_unavailable" },
-        { status: 503, headers: { "Cache-Control": "no-store" } },
-      );
-    }
-
-    const rows = new Map<string, boolean>(
-      (data ?? []).map((row) => [row.slug, row.enabled === true] as const),
+    const response = await fetch(
+      new URL("/rest/v1/rpc/get_universe_public_status", supabaseUrl),
+      {
+        method: "POST",
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+        cache: "no-store",
+      },
     );
-    const suiviEnabled = rows.get("suivi") === true;
+    if (!response.ok) throw new Error("universe_status_unavailable");
+
+    const payload: unknown = await response.json();
+    const rows = Array.isArray(payload) ? payload : [];
+    const states = new Map<string, boolean>(
+      rows.flatMap((row): [string, boolean][] =>
+        row && typeof row === "object"
+          && "slug" in row && typeof row.slug === "string"
+          && "enabled" in row && typeof row.enabled === "boolean"
+          ? [[row.slug, row.enabled]]
+          : []
+      ),
+    );
+
+    const suiviEnabled = states.get("suivi") === true;
     const universes: Record<string, boolean> = {
       pharmacie: true,
-      parapharmacie: rows.get("parapharmacie") === true,
-      "bebe-maman": rows.get("bebe-maman") === true,
-      examens: rows.get("examens") === true,
-      prestations: rows.get("prestations") === true,
+      parapharmacie: states.get("parapharmacie") === true,
+      "bebe-maman": states.get("bebe-maman") === true,
+      examens: states.get("examens") === true,
+      prestations: states.get("prestations") === true,
       dispositifs: suiviEnabled,
       suivi: suiviEnabled,
     };
+
+    // Un slug absent du RPC reste fermé, y compris si l'API répond 200.
+    for (const slug of CONFIGURABLE_UNIVERSES) {
+      if (!states.has(slug)) universes[slug] = false;
+    }
 
     return NextResponse.json(
       { universes },
