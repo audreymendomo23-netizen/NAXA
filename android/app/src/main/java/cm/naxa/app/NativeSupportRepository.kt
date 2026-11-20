@@ -81,7 +81,7 @@ class NativeSupportRepository(
                 .put("p_sujet", subject.trim())
                 .put("p_message", message.trim())
             val url = BuildConfig.SUPABASE_URL.trimEnd('/') + "/rest/v1/rpc/open_naxa_support_ticket"
-            val result = execute(request(url, "POST", body))
+            val result = executeValue(request(url, "POST", body))
             val row = when (result) {
                 is JSONArray -> result.optJSONObject(0)
                 is JSONObject -> result
@@ -97,7 +97,7 @@ class NativeSupportRepository(
         }
 
     suspend fun requestCall(ticketId: String): NativeSupportCall = withContext(Dispatchers.IO) {
-        val data = execute(
+        val data = executeObject(
             request(
                 BuildConfig.NAXA_BASE_URL.trimEnd('/') + "/api/v1/support/calls",
                 "POST",
@@ -117,7 +117,7 @@ class NativeSupportRepository(
     }
 
     suspend fun heartbeat(callId: String) = withContext(Dispatchers.IO) {
-        execute(
+        executeValue(
             request(
                 BuildConfig.NAXA_BASE_URL.trimEnd('/') + "/api/v1/support/calls/" + callId + "/heartbeat",
                 "POST",
@@ -184,7 +184,7 @@ class NativeSupportRepository(
             .put("action", action)
             .put("share_session_id", sessionId)
         if (reason != null) body.put("reason", reason)
-        execute(
+        executeValue(
             request(
                 BuildConfig.NAXA_BASE_URL.trimEnd('/') + "/api/v1/support/calls/" + callId + "/screen-share",
                 "POST",
@@ -212,7 +212,7 @@ class NativeSupportRepository(
         return builder.build()
     }
 
-    private fun execute(request: Request): Any = http.newCall(request).execute().use { response ->
+    private fun executeValue(request: Request): Any = http.newCall(request).execute().use { response ->
         val raw = response.body?.string().orEmpty()
         val parsed = try {
             if (raw.isBlank()) JSONObject() else JSONTokener(raw).nextValue()
@@ -227,8 +227,11 @@ class NativeSupportRepository(
         parsed
     }
 
+    private fun executeObject(request: Request): JSONObject =
+        executeValue(request) as? JSONObject ?: throw IOException("La réponse du service Support est invalide.")
+
     private fun executeArray(request: Request): JSONArray =
-        execute(request) as? JSONArray ?: throw IOException("La liste des dossiers Support est invalide.")
+        executeValue(request) as? JSONArray ?: throw IOException("La liste des dossiers Support est invalide.")
 
     private fun contextBuildRestUrl(table: String, query: Map<String, String>): String {
         val params = query.entries.joinToString("&") { (key, value) ->

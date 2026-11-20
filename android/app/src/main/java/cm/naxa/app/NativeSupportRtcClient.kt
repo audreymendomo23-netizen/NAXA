@@ -55,6 +55,7 @@ class NativeSupportRtcClient(
     private var screenCapturer: ScreenCapturerAndroid? = null
     private var screenSource: VideoSource? = null
     private var screenTrack: VideoTrack? = null
+    private var screenTextureHelper: SurfaceTextureHelper? = null
     private var currentShareSessionId: String? = null
     private var callId: String? = null
     @Volatile private var remoteDescriptionSet = false
@@ -200,8 +201,10 @@ class NativeSupportRtcClient(
 
         val id = callId ?: throw IllegalStateException("Aucun appel Support actif.")
         repository.screenShareEvent(id, sessionId, "consented")
+        currentShareSessionId = sessionId
         NaxaMediaProjectionService.start(context)
 
+        var startEventRecorded = false
         try {
             val eglContext = egl?.eglBaseContext
                 ?: throw IllegalStateException("Le moteur vidéo natif n’est pas prêt.")
@@ -217,8 +220,12 @@ class NativeSupportRtcClient(
                 }
             )
             screenCapturer = capturer
-            val source = factory?.createVideoSource(capturer)
+            val source = factory?.createVideoSource(true)
                 ?: throw IllegalStateException("La source de capture MediaProjection est indisponible.")
+            val textureHelper = SurfaceTextureHelper.create("NAXA-Screen-Capture", eglContext)
+                ?: throw IllegalStateException("Le thread de capture écran ne peut pas être initialisé.")
+            screenTextureHelper = textureHelper
+            capturer.initialize(textureHelper, context.applicationContext, source.capturerObserver)
             screenSource = source
             val video = factory?.createVideoTrack("naxa-support-screen", source)
                 ?: throw IllegalStateException("La piste vidéo native est indisponible.")
@@ -237,17 +244,21 @@ class NativeSupportRtcClient(
             if (!sender.setTrack(video, false)) {
                 throw IllegalStateException("La piste vidéo n’a pas pu être attachée au transceiver négocié.")
             }
-            currentShareSessionId = sessionId
             repository.screenShareEvent(id, sessionId, "started")
+            startEventRecorded = true
             channel?.broadcastSignal(
                 JSONObject().put("kind", "screen-share-started").put("shareSessionId", sessionId)
             )
             onStatus("screen_sharing")
         } catch (error: Exception) {
+            negotiatedVideoSender?.setTrack(null, false)
             runCatching { stopCaptureResources() }
             NaxaMediaProjectionService.stop(context)
             currentShareSessionId = null
-            runCatching { repository.screenShareEvent(id, sessionId, "denied", "unexpected_track_end") }
+            runCatching {
+                if (startEventRecorded) repository.screenShareEvent(id, sessionId, "stopped", "unexpected_track_end")
+                else repository.screenShareEvent(id, sessionId, "denied", "unexpected_track_end")
+            }
             throw error
         }
     }
@@ -286,6 +297,8 @@ class NativeSupportRtcClient(
         screenTrack = null
         screenSource?.let { runCatching { it.dispose() } }
         screenSource = null
+        screenTextureHelper?.let { runCatching { it.dispose() } }
+        screenTextureHelper = null
     }
 
     private fun observer() = object : PeerConnection.Observer {
@@ -353,7 +366,6 @@ class NativeSupportRtcClient(
             .setVideoEncoderFactory(encoder)
             .setVideoDecoderFactory(decoder)
             .createPeerConnectionFactory()
-        factory?.setVideoHwAccelerationOptions(rootEgl.eglBaseContext, rootEgl.eglBaseContext)
     }
 
     fun close() {
