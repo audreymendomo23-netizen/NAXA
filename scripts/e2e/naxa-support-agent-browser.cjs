@@ -191,8 +191,9 @@ async function rtcAudioProof(page,label){
  await page.waitForFunction(()=>{
   const peers=window.__naxaE2EPeerConnections||[];
   const pc=peers[peers.length-1];
-  return !pc||["connected","failed","closed"].includes(pc.connectionState)
-    ||["connected","completed","failed","closed"].includes(pc.iceConnectionState);
+  // connectionState aggregates ICE and DTLS transports. ICE may become
+  // connected before DTLS/media is ready, so do not stop waiting on ICE alone.
+  return !pc||["connected","failed","closed"].includes(pc.connectionState);
  },null,{timeout:30000}).catch(()=>undefined);
  const proof=await page.evaluate(async()=>{
   const peers=window.__naxaE2EPeerConnections||[];

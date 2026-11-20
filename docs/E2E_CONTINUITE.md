@@ -451,3 +451,24 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Un verrou `screenShareBusy` couvre toute l'opération d'arrêt afin d'empêcher un nouveau démarrage avant la fin du signal et de l'audit. Le contrôle serveur reste la source de vérité de l'audit `screen_share_stopped`.
 - La recette doit confirmer : arrêt manuel → signal reçu → aperçu distant masqué ; redémarrage éventuel sur même appel ; fin d'appel avec arrêt trigger `call_ended`.
 - Aucune migration ni aucun changement Production.
+
+
+# Correctif attente du transport agrégé — run 44663200455 (20 novembre 2026)
+
+## Faits de la recette
+- Le parcours Client est maintenant PASS jusqu'au bout : audio TURN bidirectionnel, offre vidéo `recvonly` et réponse `sendonly`, RTP vidéo Client→Agent, dimensions reçues 640×360, consentement/démarrage/arrêt dans le journal SQL, signal privé `screen-share-stopped` reçu et aperçu Agent masqué, raccrochage serveur en 902 ms.
+- Le scénario file centrale est également PASS : appel queued, acceptation Agent B, heartbeats, clôture.
+- Le scénario professionnel Comptable a créé un dossier caisse, a lancé un appel et a bien échangé les réponses SDP ; sur l'Agent C, l'état observé au premier instant était `iceConnectionState=connected`, `connectionState=connecting`, `signalingState=stable`, couple TURN `succeeded`, mais zéro paquet RTP à cet instant. Le harnais s'est arrêté immédiatement sur l'assertion `connectionState === "connected"`.
+
+## Diagnostic contradictoire
+- L'ICE connecté prouve qu'un couple de candidats utilisable est trouvé ; il ne suffit pas à conclure que toute la connexion WebRTC est opérationnelle.
+- MDN précise que `RTCPeerConnection.connectionState` agrège l'état de tous les transports ICE et DTLS. L'état `connecting` est compatible avec un `iceConnectionState` déjà `connected`, car un des transports est encore en cours d'établissement.
+- Le helper `rtcAudioProof` quittait son attente dès que `iceConnectionState` devenait connected, puis exigeait sans délai `connectionState=connected`. Il existait donc une course de synchronisation dans le harnais : l'assertion pouvait s'exécuter entre l'ICE réussi et la transition agrégée/DTLS. Les logs ne démontrent pas à ce stade une panne audio ou TURN du profil Comptable.
+- Référence vérifiée : https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState ; la propriété `iceConnectionState` porte uniquement sur l'agent ICE/STUN/TURN : https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/iceConnectionState.
+
+## Correction du harnais
+- `rtcAudioProof` attend maintenant uniquement un état terminal de `pc.connectionState` (`connected`, `failed` ou `closed`) ; ICE connecté ne débloque plus prématurément l'assertion.
+- Si le transport agrégé ne devient pas terminal dans la limite de 30 s, les états SDP/ICE, candidates, pistes et stats RTP restent inclus dans l'erreur détaillée.
+- La preuve exige ensuite les pistes audio vivantes et les paquets RTP dans les deux sens ; aucun seuil métier n'est assoupli.
+- Le contrat statique vérifie que le helper ne court-circuite plus l'attente sur le seul ICE.
+- Verdict reste NON VERT jusqu'à la nouvelle recette professionnelle complète : audio stable, consentement, vidéo RTP, arrêt/clôture auto, audit `call_ended`, nettoyage ; et pipeline qualité vert.
