@@ -786,12 +786,12 @@ Chaque scénario contient : identifiant stable ; lot ; univers ; plateforme et a
 
 États autorisés : **PASS**, **FAIL**, **BLOCKED**, **NOT RUN**, **NOT IMPLEMENTED**, **NOT APPLICABLE JUSTIFIED**. Aucun statut vide ne vaut PASS. SQL seul ne prouve pas l'UI ; Playwright seul ne prouve pas l'intégrité transactionnelle ; build ne prouve pas l'E2E ; notification créée ne prouve pas sa réception ; simulateur ne prouve pas appareil réel.
 
-## État vérifié à la mise à jour — 20 novembre 2026
+## État historique vérifié avant la campagne — 20 novembre 2026 (REMPLACÉ PAR LES SNAPSHOTS DÉTAILLÉS CI-DESSOUS)
 
 - Branche main, HEAD observé avant cette mise à jour : 7d88f8f72e8800f8c420a60f555fa250973c16eb.
-- Catalogue bulk : 17 lots B00–B16, conception documentée ; **campagne bulk non exécutée et NAXA non certifiée Go Live**. Le catalogue précise les scénarios et les dépendances ; il ne transforme pas les anciennes preuves en couverture globale.
-- Supabase Replay interrogé en lecture seule (pwfftcsjyeibxxqhwysw) : 1 profil Admin, 9 profils Client, 1 profil Promoteur ; 9 pharmacies démo et 1 pharmacie non démo ; affectations pharmacie observées : 2 Caisse, 1 Comptable, 2 Gestionnaire stock, 1 Livreur, 1 Pharmacien, 1 Responsable. Cette photographie ne démontre pas que les comptes Auth associés existent, qu'ils peuvent se connecter, ni que toutes les permissions fonctionnent.
-- La requête de comptage ne retourne aucun groupe pour les tables d'affectations du Centre d'examens et invitations du centre ; le jeu Replay consulté ne fournit donc pas de preuve de comptes d'examens provisionnés/acceptés. Les dix rôles du centre restent à créer et à tester individuellement.
+- Catalogue bulk : 17 lots B00–B16, conception documentée. À cette date, la campagne n'avait pas encore démarré ; voir les résultats d'exécution ajoutés ci-dessous, qui prévalent. Le catalogue précise les scénarios et les dépendances ; il ne transforme pas les anciennes preuves en couverture globale.
+- Ancien snapshot Replay (remplacé par le snapshot de la passe B00 ci-dessous) : 1 Admin, 9 Clients, 1 Promoteur et 10 pharmacies. Ne pas utiliser cet inventaire historique comme état courant.
+- Le premier relevé ne fournissait pas de preuve d'affectations/invitations Centre. Le snapshot actualisé ci-dessous confirme 0 centre, 0 affectation et 0 invitation.
 - Le même relevé n'a pas établi de couverture de comptes Parapharmacie professionnels. Leur inventaire et leur provisionnement sont à faire avant les recettes de rôle correspondantes.
 - Support navigateur : run Replay 44681037772 et qualité 44681037392 documentés verts pour le parcours Chromium Client + Comptable/Agent, y compris audio RTP soutenu, refus du sélecteur simulé, partage répété, arrêt UI et audit. Portée strictement navigateur/Chromium ; sélecteur système réel et appareils physiques non prouvés.
 - Android : le build natif ne suffit pas à valider les parcours. Le support natif Android (audio/partage écran) est documenté comme non implémenté ; l'E2E Support Android échoue sur le run de la campagne en cours. Ne pas déclarer la fonction Android paritaire.
