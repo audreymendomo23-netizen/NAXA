@@ -168,7 +168,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim
           script: |
-            set -euo pipefail
+            set -eu
             adb shell settings put system system_locales en-US || true
             AGENT_LOG="$RUNNER_TEMP/naxa-native-support-agent.log"
             node scripts/e2e/naxa-support-native-android-e2e.cjs --agent > "$AGENT_LOG" 2>&1 &
