@@ -22,9 +22,12 @@ begin
  select lower(pg_get_functiondef('private.naxa_partner_has_confirmed_payment(uuid)'::regprocedure))
  into v_definition;
  if position('owner_profile.actif=true' in v_definition)=0
-    or position('naxa_owner_subscription_is_current' in v_definition)=0
+    or position('partner_subscriptions' in v_definition)=0
+    or position('first_confirmed_payment_at' in v_definition)=0
+    or position('period_start' in v_definition)=0
+    or position('due_date' in v_definition)=0
     or position('naxa_owner_has_active_disciplinary_suspension' in v_definition)=0 then
-  raise exception 'Le contrôle partenaire ne vérifie plus identité propriétaire, abonnement et suspension';
+  raise exception 'Le contrôle partenaire ne vérifie plus identité propriétaire, abonnement indépendant de la structure et suspension';
  end if;
 
  select lower(coalesce(qual,'') || ' ' || coalesce(with_check,''))
