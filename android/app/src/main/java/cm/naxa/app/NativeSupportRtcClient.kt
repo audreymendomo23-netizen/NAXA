@@ -210,10 +210,12 @@ class NativeSupportRtcClient(
         val id = callId ?: throw IllegalStateException("Aucun appel Support actif.")
         repository.screenShareEvent(id, sessionId, "consented")
         currentShareSessionId = sessionId
-        NaxaMediaProjectionService.startProjection(context)
 
         var startEventRecorded = false
         try {
+            // Await the OS foreground-service acknowledgment before asking WebRTC
+            // to create the MediaProjection and its VirtualDisplay.
+            NaxaMediaProjectionService.startProjection(context)
             val eglContext = egl?.eglBaseContext
                 ?: throw IllegalStateException("Le moteur vidéo natif n’est pas prêt.")
             val capturer = ScreenCapturerAndroid(
@@ -245,13 +247,17 @@ class NativeSupportRtcClient(
             val display = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
             @Suppress("DEPRECATION")
             display.getRealMetrics(metrics)
-            val width = metrics.widthPixels.coerceAtLeast(640)
-            val height = metrics.heightPixels.coerceAtLeast(360)
+            // Cap the longer edge at 1280 px, preserving portrait/landscape ratio
+            // and avoiding unbounded 4K screen-share uplink from mobile devices.
+            val longestEdge = maxOf(metrics.widthPixels, metrics.heightPixels).coerceAtLeast(1)
+            val scale = minOf(1f, 1280f / longestEdge)
+            val width = ((metrics.widthPixels * scale).toInt() / 2 * 2).coerceAtLeast(2)
+            val height = ((metrics.heightPixels * scale).toInt() / 2 * 2).coerceAtLeast(2)
 
-            capturer.startCapture(width, height, 15)
             if (!sender.setTrack(video, false)) {
                 throw IllegalStateException("La piste vidéo n’a pas pu être attachée au transceiver négocié.")
             }
+            capturer.startCapture(width, height, 15)
             repository.screenShareEvent(id, sessionId, "started")
             startEventRecorded = true
             channel?.broadcastSignal(
