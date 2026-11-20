@@ -85,6 +85,8 @@ assert.match(rtc, /NaxaMediaProjectionService\.stop\(context\)/);
 assert.doesNotMatch(rtc, /createDataChannel\(|MediaRecorder|AudioRecord/);
 
 assert.match(service, /suspendCancellableCoroutine/);
+assert.match(service, /withTimeout\(10_000\)/);
+assert.match(service, /invokeOnCancellation/);
 assert.match(service, /startForegroundSession\(includeProjection = false\)/);
 assert.match(service, /startForegroundSession\(includeProjection = true\)/);
 assert.match(service, /resultReceiver\?\.send\(Activity\.RESULT_OK/);
@@ -99,6 +101,8 @@ assert.match(screen, /screenShareEvent\(callId, sessionId, "denied", "user_cance
 assert.match(screen, /repository\.transition\(call\.id, action\)/);
 assert.match(screen, /statusCode in setOf\(401, 403\)/);
 assert.match(screen, /LaunchedEffect\(currentCall\?\.id, rtcRetryNonce\)/);
+assert.match(screen, /catch \(cancelled: CancellationException\)/);
+assert.match(screen, /Keep the independent requester heartbeat alive during/);
 
 assert.match(main, /NativeSupportScreen\(/);
 assert.match(main, /onOpenSupport = \{ showingSupport = true \}/);

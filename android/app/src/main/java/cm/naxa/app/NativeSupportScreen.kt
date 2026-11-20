@@ -53,6 +53,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
@@ -257,7 +258,6 @@ internal fun NativeSupportScreen(
         val callId = currentCall?.id ?: return@LaunchedEffect
         if (currentCall?.status?.let { it in TerminalCallStates } == true) return@LaunchedEffect
 
-        var lastHeartbeatAt = 0L
         try {
             kotlinx.coroutines.coroutineScope {
                 val heartbeatJob = launch {
@@ -265,6 +265,8 @@ internal fun NativeSupportScreen(
                         try {
                             repository.heartbeat(callId)
                             realtimeState?.updateAccessToken(repository.accessToken())
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
                         } catch (error: Exception) {
                             callError = error.message ?: "Le maintien de l’appel a échoué."
                             if (error is NativeSupportApiException && error.statusCode in setOf(401, 403)) {
@@ -279,10 +281,11 @@ internal fun NativeSupportScreen(
                 }
                 try {
                     while (isActive) {
-                        val latest = repository.getCall(callId)
-                        currentCall = latest
+                        try {
+                            val latest = repository.getCall(callId)
+                            currentCall = latest
 
-                        if (latest.status == "accepted" && attemptedRtcCallId != callId) {
+                            if (latest.status == "accepted" && attemptedRtcCallId != callId) {
                             attemptedRtcCallId = callId
                             try {
                                 val iceServers = repository.iceServers(callId)
@@ -319,11 +322,25 @@ internal fun NativeSupportScreen(
                             }
                         }
 
-                        if (latest.status in TerminalCallStates) {
-                            lastCallMessage = supportCallStatus(latest.status)
-                            closeMediaSession()
-                            currentCall = null
-                            break
+                            if (latest.status in TerminalCallStates) {
+                                lastCallMessage = supportCallStatus(latest.status)
+                                closeMediaSession()
+                                currentCall = null
+                                break
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            callError = error.message ?: "Le suivi de l’appel est momentanément indisponible."
+                            if (error is NativeSupportApiException && error.statusCode in setOf(401, 403)) {
+                                closeMediaSession()
+                                lastCallMessage = "La session d’assistance a été fermée après révocation ou suspension du compte."
+                                currentCall = null
+                                break
+                            }
+                            // Keep the independent requester heartbeat alive during
+                            // transient API/network failures. The call reaper remains
+                            // the server-side final safety net if the device is offline.
                         }
                         delay(2_500)
                     }
@@ -331,6 +348,8 @@ internal fun NativeSupportScreen(
                     heartbeatJob.cancel()
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             callError = error.message ?: "Le suivi de l’appel est interrompu."
             if (error is NativeSupportApiException && error.statusCode in setOf(401, 403)) {

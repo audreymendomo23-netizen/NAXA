@@ -19,6 +19,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -101,7 +102,7 @@ class NaxaMediaProjectionService : Service() {
         private const val EXTRA_RESULT_RECEIVER = "cm.naxa.app.extra.FGS_RESULT_RECEIVER"
         private const val EXTRA_ERROR = "cm.naxa.app.extra.FGS_ERROR"
 
-        private suspend fun startAndAwait(context: Context, action: String) =
+        private suspend fun startAndAwait(context: Context, action: String) = withTimeout(10_000) {
             suspendCancellableCoroutine<Unit> { continuation ->
                 val receiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
                     override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
@@ -118,12 +119,18 @@ class NaxaMediaProjectionService : Service() {
                 val intent = Intent(context, NaxaMediaProjectionService::class.java)
                     .setAction(action)
                     .putExtra(EXTRA_RESULT_RECEIVER, receiver)
+                continuation.invokeOnCancellation {
+                    // A timed-out/cancelled start must not leave a partially
+                    // promoted microphone/projection service running.
+                    context.stopService(intent)
+                }
                 try {
                     ContextCompat.startForegroundService(context, intent)
                 } catch (error: Exception) {
                     if (continuation.isActive) continuation.resumeWithException(error)
                 }
             }
+        }
 
         suspend fun startAudio(context: Context) = startAndAwait(context, ACTION_START_AUDIO)
 
