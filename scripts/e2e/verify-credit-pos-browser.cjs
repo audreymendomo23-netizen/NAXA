@@ -437,14 +437,43 @@ async function run(env = process.env) {
     );
     if (existingDrafts.length) throw new Error("Un brouillon non réconcilié subsiste avant le début de la recette.");
 
+    const staleMarketplaceRequests = await rows(
+      "client_credit_requests?select=id,statut,consumed_at,origine,created_at&client_id=eq."
+        + encodeURIComponent(clientUserId) + "&pharmacie_id=eq."
+        + encodeURIComponent(PHARMACY_ID)
+        + "&origine=eq.marketplace&statut=eq.en_attente&consumed_at=is.null&limit=2"
+    );
+    if (staleMarketplaceRequests.length > 1) {
+      throw new Error("Plusieurs demandes Marketplace anciennes existent sur le Client technique ; récupération manuelle exigée.");
+    }
+    for (const stale of staleMarketplaceRequests) {
+      const createdAt = Date.parse(stale.created_at);
+      if (stale.statut !== "en_attente" || stale.origine !== "marketplace"
+        || !Number.isFinite(createdAt) || createdAt >= Date.now()) {
+        throw new Error("La demande Marketplace existante n'est pas une fixture ancienne sûre à récupérer.");
+      }
+      await rpc("client_credit_demande_decider", promoterToken, {
+        p_demande: stale.id, p_approuver: false,
+      }, "Refus métier de la demande Marketplace technique résiduelle");
+      const recovered = await rows(
+        "client_credit_requests?select=id,statut,decided_by,decided_at&id=eq."
+          + encodeURIComponent(stale.id) + "&limit=2"
+      );
+      if (recovered.length !== 1 || recovered[0].statut !== "rejetee"
+        || recovered[0].decided_by !== promoterUserId || !recovered[0].decided_at) {
+        throw new Error("La récupération métier de la demande Marketplace résiduelle n'est pas confirmée.");
+      }
+      process.stdout.write("RECOVERY PASS — demande Marketplace technique ancienne refusée par le Promoteur via RPC et auditée.\\n");
+    }
+
     const staleRequests = await rows(
-      "client_credit_requests?select=id,statut,consumed_at&client_id=eq."
+      "client_credit_requests?select=id,statut,consumed_at,origine&client_id=eq."
         + encodeURIComponent(clientUserId) + "&pharmacie_id=eq."
         + encodeURIComponent(PHARMACY_ID)
         + "&statut=in.(en_attente,approuvee)&consumed_at=is.null&limit=5"
     );
     if (staleRequests.length) {
-      throw new Error("Une demande de crédit technique non résolue subsiste ; récupération Caisse nécessaire avant une nouvelle recette.");
+      throw new Error("Une demande de crédit technique non résolue subsiste après récupération ciblée ; reprise Caisse requise.");
     }
 
     const accountRows = await rows(
