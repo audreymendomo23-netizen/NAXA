@@ -388,12 +388,8 @@ async function provision(env = process.env) {
       if (!securityAuth?.id) {
         throw new Error("Supabase Auth n'a pas retourné l'identité du Responsable sécurité Centre.");
       }
-      const securityPasswordFile = env.RUNNER_TEMP + "/naxa-e2e-exam-security-"
-        + randomBytes(8).toString("hex") + ".secret";
-      fs.writeFileSync(securityPasswordFile, securityPassword, { encoding: "utf8", flag: "wx", mode: 0o600 });
-      fs.appendFileSync(env.GITHUB_ENV,
-        "NAXA_STORAGE_E2E_EXAM_SECURITY_PASSWORD_FILE=" + securityPasswordFile + "\n",
-        { encoding: "utf8", mode: 0o600 });
+      // Mot de passe aléatoire jamais persisté : ce compte de poste n'ouvre
+      // aucune session interactive pendant la recette d'affectation.
       refreshedAuthUsers = await findAuthUsers();
       securityMatches = refreshedAuthUsers.filter(user =>
         String(user.email || "").trim().toLowerCase() === securityStaff.email);
