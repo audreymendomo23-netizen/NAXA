@@ -318,3 +318,12 @@ La fonction web `getDisplayMedia()` exige un contexte sécurisé et un geste exp
 6. Les nouvelles entrées Client/Professionnel accèdent au même Support NAXA sans exposer le chat Client↔Pharmacie.
 
 Le Support global et le partage d'écran restent NON VERT tant que l'extension de partage écran, son audit serveur et ses E2E dédiés n'ont pas été livrés et validés.
+
+
+## Itération de recette 1 — résultat et cause confirmée (20 novembre 2026)
+
+- Run `44645869735` : `actionlint` PASS ; suite de tests Node PASS, 618/618 ; étape TypeScript/build FAIL sur une incompatibilité de type connue : dans la version verrouillée `@supabase/supabase-js`, `supabase.realtime.setAuth(token)` retourne `void`, et non une Promise. L'appel au `.catch()` était donc invalide.
+- Run `44645869710` : la recette s'arrête à la construction Next.js sur cette même erreur de type, avant l'exécution de la recette browser Agents ; ce run ne fournit donc aucune nouvelle preuve Realtime/WebRTC.
+- L'étape « Démarrer TURN éphémère » est marquée PASS. Le message SQLite `/var/lib/turn/turndb` apparaît dans la sortie Coturn, mais n'a pas provoqué l'échec du step ; ne pas modifier le bootstrap TURN sur cette seule base. Le contrôle du socket UDP a bien passé.
+- Correctif ciblé : traiter `setAuth()` comme un appel synchrone et intercepter uniquement une exception synchrone dans le listener de renouvellement du JWT. Ne pas changer le flux de souscription initiale déjà précédé de `getSession()` et de `setAuth()`.
+- Reprise : relancer qualité + build + E2E Agents ciblé ; seulement après obtention des logs Realtime des deux participants décider si la cause JWT est confirmée ou si l'investigation doit se déplacer vers la configuration Realtime ou le prédicat SQL.

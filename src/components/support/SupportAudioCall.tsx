@@ -114,9 +114,15 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     const authState = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.access_token) {
         window.setTimeout(() => {
-          if (active) void supabase.realtime.setAuth(session.access_token).catch(() => {
-            if (active) setRealtimeStatus("error");
-          });
+          if (active) {
+            try {
+              // In @supabase/supabase-js 2.45.4 setAuth returns void.
+              // Its public contract is synchronous; catch only synchronous failures.
+              supabase.realtime.setAuth(session.access_token);
+            } catch {
+              if (active) setRealtimeStatus("error");
+            }
+          }
         }, 0);
       }
     });
