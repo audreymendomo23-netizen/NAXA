@@ -1597,3 +1597,31 @@ Vérifications ACL/configuration après migration :
 **Verdict global au checkpoint :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL (contrôles négatifs API/routes prouvés, nouveau navigateur en attente) ; B02 VERT (Centre draft + Directeur + neuf postes). NAXA n'est pas encore certifiée Go Live.
 
 **Point de reprise précis :** récupérer le résultat navigateur du run `44723454124` pour B01 et terminer les étapes Replay `44723159403`. Pour B00, faire activer/vérifier la rotation Auth avec détection de réutilisation sur le projet Replay, puis rejouer le scénario qui doit rejeter le jeton descendant. Aucun changement Production, aucun déploiement.
+
+### 10.22 — Reprise active B00/B01/B02 — 20/11/2026 — HEAD ad213a52
+
+**Périmètre :** Replay uniquement. Aucun changement Production, aucune migration Production, aucun déploiement. Ce checkpoint complète et supersède les verdicts antérieurs ; les anciens PASS de sous-recettes restent valables uniquement pour leur périmètre exact.
+
+#### Avancées prouvées sur Replay
+
+- **B02 — Centre d'examens, sous-recette personnel : PASS.** Run Replay 44724233040, étape « Recette Replay du Centre d'examens et de ses 9 postes » : success. Les logs prouvent la création du dossier par admin_create_partner_dossier, le Centre créé, la synchronisation automatique du Directeur, neuf comptes Client distincts pour les neuf postes, une invitation acceptée, huit affectations directes, refus d'un doublon, révocation d'un poste supplémentaire et révocation d'une invitation nominative. Le Partenaire reste pending, l'univers examens désactivé et le Centre draft ; aucune validation ni paiement n'a été simulé.
+- **B02 — Pharmacie, sous-recette cohortes : PASS sur les scénarios exécutés.** Les cinq profils Client/Caisse/Stock/Comptable/Pharmacien se connectent et résolvent leur rôle métier attendu ; caisse physique et lecture RLS du stock contrôlées ; approbation Pharmacien par Promoteur prouvée. Le Livreur issu de l'invitation est actif et son rôle/pharmacie sont vérifiés par JWT. Cela ne prouve pas encore toute la matrice multi-promoteurs et Parapharmacie/Prestations.
+- **B00 — crédit et pièces associées : PASS sur les sous-recettes navigateur exécutées.** Crédit comptoir, décision Promoteur, reprise du brouillon, débit stock unique, remboursement par JWT Caisse, suivi Client et rapprochement outbox/comptabilité : PASS. Marketplace : demande Client, justificatif privé, absence de réservation/débit, refus Promoteur et stock inchangé : PASS. Paramétrage comptable de recette : PASS. Storage : **17 PASS / 0 SKIP**.
+- **B01 — preuve navigateur partielle :** API combinée 200 et sélecteur public avec six cartes visibles, Pharmacie seule activée : PASS sur le run 44724233040.
+
+#### Écarts encore ouverts, non masqués
+
+- **B00 — Auth : BLOQUÉ.** Le navigateur accède au rôle Stock après authentification ; suppression des cookies Auth SSR renvoie bien vers /connexion. Deux rotations conservent le même utilisateur et le même session_id ; le refresh ancêtre est rejeté (HTTP 400, refresh_token_already_used). Mais le refresh descendant reste accepté (HTTP 200) après le rejeu d'un ancêtre, donc la révocation de toute la famille n'est pas démontrée. La révocation globale indépendante passe. L'expiration cryptographique naturelle du JWT n'a pas été attendue. La documentation Supabase indique qu'un rejeu hors des deux exceptions doit terminer la session ; le réglage refresh token reuse detection doit donc être vérifié/activé dans Auth Advanced Settings du projet Replay. Les outils Supabase disponibles dans cette session ne donnent pas accès à la modification des paramètres Auth du projet.
+- **B01 — navigateur menu :** le précédent test attendait un événement réseau émis par l'effet React du header et expirait avant la vérification du menu. Correction du harnais versionnée sur main : le test interroge explicitement /api/universes/status après le montage du shell Client, puis vérifie le menu rendu. Commit ad213a52fe6ae3ce9e97db3667ef3afda0987ec6 ; nouvelle exécution Replay 44736999133 en cours au checkpoint. B01 ne sera vert qu'après le résultat de cette exécution et la preuve des gardes URL/API/effets métier attendus.
+- **B02 global : PARTIEL.** La recette Centre + neuf postes et la cohorte Pharmacie passent, mais la campagne exige aussi deux Promoteurs distincts, les organisations Parapharmacie et Prestations, leurs owners/managers/operators et les contrôles d'isolation entre organisations. Ces branches n'ont pas encore été provisionnées et testées en E2E complet.
+
+#### Contrôles de code et exécution courante
+
+- HEAD main : ad213a52fe6ae3ce9e97db3667ef3afda0987ec6.
+- Workflow qualité 44736999210 : actionlint / syntaxe GitHub Actions PASS ; tests, TypeScript, lint et build encore en cours au dernier contrôle.
+- Workflow Replay 44736999133 : préflight Replay, comptes Promoteur/Admin/Client/Livreur, cohorte Pharmacie, pharmacie technique, provisionnement caisse/stock et recette Centre + neuf postes PASS ; installation Playwright en cours au dernier contrôle.
+- Le résultat final des deux workflows doit être relu avant de promouvoir un statut.
+
+**Verdict au checkpoint :** B00 PARTIEL/BLOQUÉ ; B01 PARTIEL, correction de test relancée ; B02 PARTIEL avec sous-recettes Pharmacie et Centre vertes. Aucun des trois lots n'est déclaré totalement vert.
+
+**Point exact de reprise :** terminer 44736999133 et 44736999210, corriger tout nouvel écart navigateur, puis traiter le réglage Auth Replay et les organisations Parapharmacie/Prestations avec leurs tests d'isolation. Ne pas déployer et ne pas écrire en Production.
