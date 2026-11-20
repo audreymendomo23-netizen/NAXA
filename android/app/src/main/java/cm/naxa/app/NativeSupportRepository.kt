@@ -109,7 +109,7 @@ class NativeSupportRepository(
     }
 
     suspend fun getCall(callId: String): NativeSupportCall = withContext(Dispatchers.IO) {
-        val data = execute(
+        val data = executeObject(
             request(BuildConfig.NAXA_BASE_URL.trimEnd('/') + "/api/v1/support/calls/" + callId, "GET")
         )
         data.optJSONObject("call")?.toCall()
@@ -128,7 +128,7 @@ class NativeSupportRepository(
 
     suspend fun transition(callId: String, action: String): NativeSupportCall = withContext(Dispatchers.IO) {
         require(action == "cancel" || action == "end") { "Transition Support non autorisée." }
-        val data = execute(
+        val data = executeObject(
             request(
                 BuildConfig.NAXA_BASE_URL.trimEnd('/') + "/api/v1/support/calls/" + callId,
                 "PATCH",
@@ -140,7 +140,7 @@ class NativeSupportRepository(
     }
 
     suspend fun iceServers(callId: String): List<NativeIceServer> = withContext(Dispatchers.IO) {
-        val data = execute(
+        val data = executeObject(
             request(BuildConfig.NAXA_BASE_URL.trimEnd('/') + "/api/v1/support/calls/" + callId + "/ice", "GET")
         )
         val servers = data.optJSONArray("iceServers") ?: JSONArray()

@@ -110,6 +110,7 @@ private fun NaxaRoot(
     var adultDeclared by remember { mutableStateOf(ageGate.isAdultDeclared()) }
     var guestMode by remember { mutableStateOf(false) }
     var showingNotifications by remember { mutableStateOf(false) }
+    var showingSupport by remember { mutableStateOf(false) }
     var showingSuiviBluetooth by remember { mutableStateOf(false) }
     var selectedClientTab by remember { mutableIntStateOf(0) }
     var searchPrefill by remember { mutableStateOf<String?>(null) }
@@ -206,6 +207,12 @@ private fun NaxaRoot(
                 },
                 onGuest = { guestMode = true }
             )
+            currentProfile != null && showingSupport ->
+                NativeSupportScreen(
+                    profile = currentProfile,
+                    authRepository = repository,
+                    onBack = { showingSupport = false }
+                )
             currentProfile != null && showingNotifications ->
                 NativeNotificationsScreen(
                     repository = notificationsRepository,
@@ -225,6 +232,7 @@ private fun NaxaRoot(
                     repository = adminDashboard,
                     deepLinkNotice = deepLinkNotice,
                     onOpenNotifications = { showingNotifications = true },
+                    onOpenSupport = { showingSupport = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -242,6 +250,7 @@ private fun NaxaRoot(
                 NativeCourierWorkspaceScreen(
                     repository = courierRepository,
                     onOpenNotifications = { showingNotifications = true },
+                    onOpenSupport = { showingSupport = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -260,6 +269,7 @@ private fun NaxaRoot(
                     profile = currentProfile,
                     workspace = "pharmacy",
                     onOpenNotifications = { showingNotifications = true },
+                    onOpenSupport = { showingSupport = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -280,6 +290,7 @@ private fun NaxaRoot(
                     profile = currentProfile,
                     workspace = "medical_exams",
                     onOpenNotifications = { showingNotifications = true },
+                    onOpenSupport = { showingSupport = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -300,6 +311,7 @@ private fun NaxaRoot(
                     profile = currentProfile,
                     workspace = "partner",
                     onOpenNotifications = { showingNotifications = true },
+                    onOpenSupport = { showingSupport = true },
                     onLogout = {
                         loading = true
                         scope.launch {
@@ -341,6 +353,10 @@ private fun NaxaRoot(
                 initialQuery = searchPrefill,
                 navigationRequestId = deepLinkNavigationId,
                 deepLinkNotice = deepLinkNotice,
+                onOpenSupport = {
+                    if (profile != null) showingSupport = true
+                    else deepLinkNotice = "Connectez-vous pour accéder à l’assistance."
+                },
                 onOpenNotifications = {
                     if (profile != null) showingNotifications = true
                     else deepLinkNotice = "Connectez-vous pour consulter vos notifications."
@@ -451,6 +467,7 @@ private fun NativeHome(
     navigationRequestId: Int,
     deepLinkNotice: String?,
     onOpenNotifications: () -> Unit,
+    onOpenSupport: () -> Unit,
     isGuest: Boolean,
     onSignIn: () -> Unit,
     onOpenSuiviBluetooth: () -> Unit,
@@ -513,6 +530,24 @@ private fun NativeHome(
                 0 -> {
                     Text("Vos services", fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     PharmaciesScreen(pharmacies)
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable(
+                            enabled = profile != null,
+                            onClick = onOpenSupport
+                        ),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Assistance NAXA", color = NaxaGreen, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                if (profile != null) "Créer un dossier ou joindre un Agent NAXA."
+                                else "Connexion requise pour contacter l’assistance.",
+                                color = Color(0xFF65776F), fontSize = 13.sp
+                            )
+                        }
+                    }
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable(enabled = !isGuest, onClick = onOpenSuiviBluetooth),
                         colors = CardDefaults.cardColors(containerColor = Color.White),

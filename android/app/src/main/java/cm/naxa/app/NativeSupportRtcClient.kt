@@ -59,6 +59,7 @@ class NativeSupportRtcClient(
     private var currentShareSessionId: String? = null
     private var callId: String? = null
     @Volatile private var remoteDescriptionSet = false
+    @Volatile private var readyReplySent = false
     @Volatile private var closed = false
 
     suspend fun prepare(
@@ -106,6 +107,12 @@ class NativeSupportRtcClient(
         scope.launch {
             try {
                 when (signal.optString("kind")) {
+                    "ready" -> {
+                        if (!readyReplySent) {
+                            readyReplySent = true
+                            channel?.broadcastSignal(JSONObject().put("kind", "ready"))
+                        }
+                    }
                     "offer" -> {
                         val sdp = signal.optString("sdp")
                         if (sdp.isNotBlank()) handleOffer(sdp)

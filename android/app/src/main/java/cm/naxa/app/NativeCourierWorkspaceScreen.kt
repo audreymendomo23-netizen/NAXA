@@ -44,6 +44,7 @@ private val CourierBackground = Color(0xFFF3F7F4)
 internal fun NativeCourierWorkspaceScreen(
     repository: CourierRepository,
     onOpenNotifications: () -> Unit,
+    onOpenSupport: () -> Unit,
     onLogout: () -> Unit
 ) {
     var missions by remember { mutableStateOf<List<CourierMission>>(emptyList()) }
@@ -82,7 +83,10 @@ internal fun NativeCourierWorkspaceScreen(
                     Text("Espace Livreur", color = CourierInk, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
                     Text("Missions transmises après préparation par Stock", color = CourierInk.copy(alpha = .68f), fontSize = 12.sp)
                 }
-                OutlinedButton(onClick = onLogout) { Text("Quitter") }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick = onOpenSupport) { Text("Assistance") }
+                    OutlinedButton(onClick = onLogout) { Text("Quitter") }
+                }
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

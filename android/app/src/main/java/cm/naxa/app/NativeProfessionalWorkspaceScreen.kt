@@ -362,6 +362,7 @@ internal fun NativeProfessionalWorkspaceScreen(
     profile: NaxaProfile,
     workspace: String,
     onOpenNotifications: () -> Unit,
+    onOpenSupport: () -> Unit,
     onLogout: () -> Unit
 ) {
     val definition = remember(profile.effectiveRole, workspace, profile.activePartnerType) {
@@ -404,6 +405,7 @@ internal fun NativeProfessionalWorkspaceScreen(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     OutlinedButton(onClick = onOpenNotifications) { Text("Alertes") }
+                    OutlinedButton(onClick = onOpenSupport) { Text("Assistance") }
                     OutlinedButton(onClick = onLogout) { Text("Quitter") }
                 }
             }
