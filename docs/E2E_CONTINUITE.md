@@ -590,3 +590,41 @@ Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refu
 - Correction : la recette compare désormais B aux événements 1/2/3, C aux événements 4/5/6, et B différent de C. Les raisons `user_stopped`, le refus `browser_permission_denied` et l'acteur demandeur restent exigés.
 - Le contrat statique protège les correspondances d'indices correctes.
 - Le scénario Comptable n'a pas encore été exécuté dans ce run, car l'assertion client a arrêté la recette avant la file centrale et le parcours professionnel.
+
+
+# Vérification finale navigateur Client + Professionnel — 20 novembre 2026
+
+## État de la branche et exécutions
+- Branche : `main`.
+- HEAD vérifié : `6f372bcfd0dda7d615bfaad4bfc1a724b741d959`.
+- Run qualité : [44681037392](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44681037392) — SUCCESS, TypeScript, lint, tests et build Next.js ; actionlint SUCCESS.
+- Run Support Replay : [44681037772](https://github.com/audreymendomo23-netizen/NAXA/actions/runs/44681037772) — SUCCESS ; build Replay, scénario Agents, tous les contrôles et nettoyages ont terminé sans échec.
+- Migration d'arrêt automatique confirmée dans l'historique Supabase Replay sous `20261120032107_naxa_support_screen_share_auto_stop_system_actor`. Aucun changement Production et aucun déploiement.
+
+## Preuves du run Support Replay 44681037772
+- Audio Client ↔ Agent : 76 paquets RTP sortants et 75–76 entrants supplémentaires par pair pendant 1,5 s ; ICE/DTLS `connected`, candidat sélectionné `relay`, pistes live et lecteur audio actif.
+- Refus du sélecteur OS : `NotAllowedError` simulé ; aucun aperçu actif, consentement re-demandé et audit `screen_share_denied` attribué au demandeur, motif `browser_permission_denied`.
+- Première capture : 22 paquets RTP / 7 916 octets sortants et entrants, réception Agent 640×360.
+- Deuxième capture sans nouvel appel ni renégociation : le même transceiver reçoit de nouvelles frames ; progression RTP confirmée. L'audit append-only contient exactement le refus puis deux séquences `consented → started → stopped`, avec un identifiant distinct par session et une raison `user_stopped` pour chaque arrêt.
+- Raccrochage Client déclenché depuis le vrai bouton d'interface et confirmé côté serveur en 716 ms ; transition terminale et libération de l'appel actif vérifiées.
+- Profil Professionnel Comptable ↔ Agent C : audio RTP soutenu (76 paquets par sens/pair sur 1,5 s), TURN relay ; vidéo 640×360, 25 paquets / 11 076 octets reçus par l'Agent.
+- Le Comptable termine par le bouton réel « Raccrocher » en laissant la capture active. La clôture SQL déclenche l'arrêt automatique ; le test confirme l'événement `screen_share_stopped`, `actor_user_id IS NULL` et `reason=call_ended`, ainsi que la disparition de l'aperçu Agent.
+- Les tests de file centrale, autorisations Agent, séparation RLS inter-Agent, suspension/révocation, Livechat et cycle de vie Agents passent.
+- Les nettoyages Replay retirent les comptes et données temporaires de test ; les événements d'audit restent conservés sans contenu média.
+
+## Cause racine du second partage et preuve de résolution
+- Le run `44677756807` a isolé l'écart : le transceiver SDP et TURN étaient sains ; le receiver distant restait `live` et `muted=false`, mais le lecteur Agent était en pause. Le deuxième flux ne déclenchait donc pas un nouvel événement `unmute`.
+- Le signal privé `screen-share-started` porte désormais l'identifiant de session. L'Agent reprend le même lecteur et le garde transparent pendant le décodage ; il ne réaffiche qu'après une nouvelle frame prouvée par `requestVideoFrameCallback` (avec fallback sur l'avancement réel de `currentTime`). Le signal d'arrêt annule les attentes en cours, et un identifiant ancien ne peut pas fermer une session plus récente.
+- La preuve du run `44681037772` montre que la capture locale, le sender WebRTC et le transport n'étaient pas la cause : la correction ciblait le rendu distant et la reprise du lecteur.
+
+## Portée de compatibilité et réserve appareils
+- Le parcours Support navigateur Client + Professionnel est vert sur Chromium Desktop/Replay.
+- `getDisplayMedia()` est une API de capture contrôlée par l'utilisateur ; la recette CI remplace le sélecteur système par une capture Canvas synthétique. Le refus `NotAllowedError`, la négociation WebRTC, les RTP, les cycles arrêt/reprise et le journal sont prouvés ; le sélecteur OS réel et les performances sur appareils physiques ne le sont pas.
+- Safari sur iOS 27.0+ annonce le support de `getDisplayMedia()` dans les données de compatibilité mises à jour en octobre 2026 ; cela reste à valider sur un appareil NAXA réel.
+- Chrome Android 157 est indiqué sans support de `getDisplayMedia()`. Le client Kotlin/Jetpack Compose NAXA n'intègre pas actuellement les appels Support ni une capture native MediaProjection/WebRTC. L'APK et l'émulateur Android compilent et passent leurs tests existants, mais ce n'est pas une preuve de partage écran Android.
+- Pour Android natif, le futur chantier est distinct : assistance audio + signalisation native WebRTC + `ScreenCapturerAndroid`/MediaProjection, service foreground `mediaProjection`, consentement système à chaque session, arrêt sur callback `onStop`, verrouillage et raccrochage. Android 14+ interdit de réutiliser une même permission MediaProjection ou de créer plusieurs VirtualDisplay sur un même jeton.
+
+## Verdict
+- **VERT — parcours navigateur Web Support Client + Professionnel sur Chromium Desktop, incluant les cycles refus, partage répété, arrêt, clôture serveur et audit.**
+- **NON VERT — compatibilité universelle tous appareils : Android natif reste non implémenté ; iOS réel et sélecteur OS réel restent sans recette physique.**
+- Ne pas présenter le chantier complet multi-plateforme comme 100 % Vert tant que ces validations/implémentations ne sont pas clôturées.
