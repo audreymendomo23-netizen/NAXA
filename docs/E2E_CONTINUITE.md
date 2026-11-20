@@ -1437,3 +1437,34 @@ Vérifications ACL/configuration après migration :
 - B03–B16 : non exécutés dans cette passe ; ne pas les marquer verts.
 - **NAXA reste NON CERTIFIÉE Go Live.**
 - Prochaine exécution : compléter B00 avec des sessions Auth réelles et parcours Web/PWA/APK ; résoudre B01 après vérification des consommateurs de flags ; préparer les fixtures synthétiques isolées nécessaires à B02 (deux organisations distinctes, Centre et comptes professionnels séparés), puis seulement ouvrir B03. Replay uniquement ; Production et déploiement exclus.
+
+
+### 10.17 Reprise bulk B00/B01 — inventaire sessions et audit des verrous de route (20/11/2026)
+
+#### B00 — Inventaire Auth.sessions sans exposition de secrets
+- Replay uniquement ; requêtes SQL en lecture seule.
+- 353 lignes dans auth.sessions, réparties sur les 11 utilisateurs Auth.
+- created_at et updated_at couvrent le 18/11/2026 au 20/11/2026.
+- Les 353 lignes ont not_after IS NULL et refreshed_at IS NULL. Les 11 utilisateurs ont un last_sign_in_at dans les 30 derniers jours.
+- Aucun jeton, refresh token, IP ou user-agent n'a été lu ni exposé.
+- Verdict : **BLOQUÉ** pour l'état de validité/révocation des sessions. Les métadonnées présentes ne permettent pas de déduire qu'une session est active, expirée ou révoquée ; aucun JWT signé ni appel PostgREST authentifié n'a été exécuté.
+- Aucun outil Supabase Auth Admin / provisioning utilisateur ou création de session n'est exposé dans les connecteurs disponibles. Aucun compte/session n'a été créé ou modifié.
+
+#### B01 — Cause racine de la contradiction flags / registre
+- Replay : feature flags universe.parapharmacie, universe.examens, universe.prestations désactivés ; registre universes.enabled=true pour ces trois univers. Bébé & Maman et Suivi sont false/false.
+- ACL : anon SELECT=false sur public.feature_flags, anon SELECT=true sur public.universes. Le middleware ne peut donc pas lire directement la table des flags avec la clé publique.
+- Source src/middleware.ts : le garde des routes Parapharmacie, Bébé & Maman, Suivi, Examens et Prestations lit uniquement universes.enabled. En cas d'état absent/erreur, il ferme l'accès, mais il ne vérifie pas le flag correspondant.
+- Source src/app/api/universes/status/route.ts : l'API de statut lit uniquement le registre universes. Le menu Client consomme cette API ; il peut afficher comme ouvert un univers dont le flag est désactivé.
+- Source src/app/parapharmacie/page.tsx et src/app/bebe-maman/page.tsx : la page rend directement UniverseCatalog, sans garde supplémentaire de page.
+- RPC public.get_universe_catalog_v2(text) : le catalogue vérifie les deux conditions universes.enabled=true et feature_flags.enabled=true pour les produits concernés. Cela réduit les résultats, mais ne remplace pas le garde URL/middleware.
+- Verdict : **FAIL B01 — verrou de route/menu incomplet**. Cause racine : le contrôle serveur et l'API de statut n'utilisent pas la même source de vérité que le RPC catalogue.
+- Pas de correction de code ni de configuration dans cette passe. Les flags restent inchangés : Parapharmacie doit rester bloquée côté Client ; Examens et Prestations restent désactivés tant que la décision de lancement et les prérequis ne sont pas confirmés.
+
+#### Point exact de reprise
+1. Concevoir une lecture serveur sûre et fail-closed de l'état combiné (registre + flag), sans exposer les flags en lecture anon.
+2. Faire consommer cette même décision combinée par le middleware et /api/universes/status, puis vérifier les routes directes, le menu et le RPC catalogue sur Replay.
+3. Garder Parapharmacie et Bébé & Maman bloqués côté Client ; ne pas activer Examens/Prestations sans décision de lancement explicite.
+4. Pour B00, obtenir une méthode contrôlée de provisioning Auth et des sessions réelles ; à défaut, maintenir les cas session comme BLOQUÉS et ne pas simuler un JWT signé.
+5. Reprendre B02 uniquement après résolution des prérequis de comptes/organisations ; ne pas ouvrir B03 avant fermeture B00–B02.
+
+**Limites de cette passe :** aucun changement SQL, aucune mutation de donnée métier, aucune écriture Production, aucun déploiement.
