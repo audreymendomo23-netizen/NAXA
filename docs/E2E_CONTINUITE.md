@@ -1393,3 +1393,47 @@ Vérifications ACL/configuration après migration :
 3. Obtenir des comptes/sessions Auth réels et tester les refus/accès autorisés via PostgREST, y compris les scénarios multi-tenant.
 4. Faire activer la protection contre les mots de passe compromis dans Auth Dashboard et vérifier le résultat.
 5. Reprendre les E2E Web/PWA/APK et les tests sur appareils physiques ; aucun résultat SQL ne remplace ces preuves.
+
+
+### 10.16 Reprise de la campagne selon le catalogue maître bulk — checkpoint B00/B01/B02 (20/11/2026)
+
+#### Règle de pilotage
+- La priorité d'exécution est désormais le catalogue maître `docs/recettes/RECETTES_E2E_BULK_TRANSVERSALES_GO_LIVE.md`, lots B00 → B16 dans l'ordre prescrit.
+- Les audits ponctuels de sécurité sont rattachés aux scénarios du lot concerné ; ils ne remplacent plus la progression bulk.
+- Environnement utilisé : Supabase Replay `pwfftcsjyeibxxqhwysw`, requêtes SQL en lecture seule. Aucune donnée métier ou fixture n'a été modifiée pendant cette passe.
+
+#### B00 — Identité, cycle de vie, sessions et changement d'espace
+- Snapshot Auth/Profile : 11 utilisateurs Auth, 11 profils, 11 emails confirmés ; 0 Auth sans profil et 0 profil sans Auth.
+- Les 11 profils sont actifs, avec âge vérifié et consentement enregistré ; répartition des profils : 9 Client, 1 Promoteur, 1 Admin.
+- La table des contextes actifs contient 10 rôles métier ; aucun profil n'a plusieurs contextes actifs. L'Admin n'est pas représenté dans cette table de contexte professionnel.
+- Verdict : **PASS référentiel limité** pour l'intégrité Auth/Profile ; **PARTIEL** pour la sélection/changement de rôle, les sessions et la révocation, non testés par ces requêtes. Aucun JWT signé ni parcours UI n'a été utilisé.
+
+#### B01 — Registre des univers, routes, droits et verrous
+- Contrôle en bulk des flags Replay :
+  - Parapharmacie : feature flag `false`, registre `universes.enabled=true` — contradiction ; le verrou Client reste la règle métier.
+  - Bébé & Maman : `false/false` — cohérent avec le verrou.
+  - Examens : feature flag `false`, registre `true` — contradiction à résoudre au regard du lancement prévu dans le catalogue maître.
+  - Prestations : feature flag `false`, registre `true` — contradiction à résoudre au regard du lancement prévu.
+  - Suivi : `false/false`.
+- Les requêtes catalogue n'ont retourné aucune ligne pour les univers interrogés dans ce Replay sans fixtures éligibles. Un UUID produit inconnu retourne `marketplace_produit_visible=false`.
+- Verdict : **FAIL configuration** pour les incohérences Parapharmacie/Examens/Prestations ; **PARTIEL** sur le verrou serveur et les parcours positifs, car le Replay ne possède pas de données admissibles pour démontrer les deux côtés du comportement.
+- Aucune modification de feature flag n'a été effectuée : vérifier les consommateurs applicatifs et la décision de lancement avant correction.
+
+#### B02 — Organisations, équipes et délégations
+- Replay : 1 partenaire actif, 1 adhésion partenaire, 0 affectation professionnelle partenaire ; 10 pharmacies actives dont 9 démo ; 9 affectations professionnelles Pharmacie actives ; 0 centre d'examens ; 0 affectation/personnel Centre ; 1 invitation Livreur historique, 0 invitation en attente.
+- Contrôles d'intégrité : 0 affectation active vers un profil ou une organisation absent/inactif ; 0 profil avec plusieurs contextes de rôle actifs ; 0 affectation active expirée. Cinq affectations actives concernent des pharmacies démo.
+- Verdict : **PASS structurel limité** sur les gardes contrôlées ; **BLOQUÉ** pour l'E2E multi-organisations, le Centre d'examens et les dix rôles séparés, faute de cohortes et de sessions réelles.
+- Aucun compte, centre, partenaire ou affectation n'a été créé pendant cette passe.
+
+#### Mise à jour du catalogue maître
+- Le journal d'exécution a été ajouté au catalogue maître bulk sur `main`, section 10.
+- Commit : `a5e889522e22025f0654ec24ef9b31e600bf3d90`.
+- Le journal contient les IDs de preuve `B00-SQL-IDENTITY-SNAPSHOT-01`, `B00-SQL-ROLE-CONTEXT-02`, `B01-SQL-UNIVERSE-FLAGS-01`, `B01-SQL-PUBLIC-CATALOG-02`, `B02-SQL-ORG-ASSIGNMENT-INTEGRITY-01` et `B02-SQL-ASSIGNMENT-GUARDS-02`.
+
+#### Verdict global et point exact de reprise
+- B00 : PASS limité (intégrité référentielle), reste partiel pour les sessions et le changement d'espace.
+- B01 : FAIL/PARTIEL ; contradictions de configuration non corrigées, preuve positive catalogue absente.
+- B02 : BLOQUÉ pour l'E2E complet par manque de cohortes multi-organisations et de Centre.
+- B03–B16 : non exécutés dans cette passe ; ne pas les marquer verts.
+- **NAXA reste NON CERTIFIÉE Go Live.**
+- Prochaine exécution : compléter B00 avec des sessions Auth réelles et parcours Web/PWA/APK ; résoudre B01 après vérification des consommateurs de flags ; préparer les fixtures synthétiques isolées nécessaires à B02 (deux organisations distinctes, Centre et comptes professionnels séparés), puis seulement ouvrir B03. Replay uniquement ; Production et déploiement exclus.
