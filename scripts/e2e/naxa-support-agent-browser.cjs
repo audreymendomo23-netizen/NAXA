@@ -617,16 +617,18 @@ async function run(){
   await clientPage.getByRole("button",{name:"Arrêter le partage",exact:true}).click();
   await a.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:10000});
   // Re-share in the same call: the negotiated sender/receiver must resume
-  // without a second SDP negotiation, and the Agent must display fresh frames.
+  // without a second SDP negotiation, and the Agent must display a fresh frame.
+  const agentVideoTimeBeforeResume=await a.page.locator('video[aria-label="Écran partagé par le demandeur"]')
+   .evaluate(video=>video.currentTime);
   await shareConsent.check();
   await shareButton.click();
   try{
    await a.page.getByLabel("Écran partagé par le demandeur").waitFor({state:"visible",timeout:15000});
-   await a.page.waitForFunction(()=>{
+   await a.page.waitForFunction((baselineMediaTime)=>{
     const video=document.querySelector('video[aria-label="Écran partagé par le demandeur"]');
     return !!video&&video.videoWidth===640&&video.videoHeight===360
-     &&video.readyState>=2&&!video.paused;
-   },null,{timeout:15000});
+     &&video.readyState>=2&&!video.paused&&video.currentTime>baselineMediaTime+0.05;
+   },agentVideoTimeBeforeResume,{timeout:15000});
   }catch(cause){
    const [requesterState,agentState]=await Promise.all([
     clientPage.evaluate(async()=>{

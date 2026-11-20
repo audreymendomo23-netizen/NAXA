@@ -552,3 +552,21 @@ Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refu
 ## Ajustement préalable du contrat d'audit — 20 novembre 2026
 - Revue de cohérence après ajout du scénario de refus et de partage répété : l'assertion E2E du refus doit vérifier `actor_user_id`, mais la requête de lecture de l'audit Client ne sélectionnait que `event_code,details`.
 - Correction avant exécution du test : la sélection inclut maintenant `actor_user_id`. L'assertion reste inchangée : le refus OS doit être attribué au demandeur authentifié.
+
+
+# Correction du second partage dans le même appel — 20 novembre 2026
+
+## Diagnostic par contradiction — run E2E `44677756807` / commit `bd3bc53`
+- Transport non défaillant : après arrêt manuel, le demandeur a envoyé 21 paquets RTP vidéo supplémentaires et l'Agent a reçu les mêmes 21 paquets.
+- SDP non défaillant : le même transceiver vidéo reste `mid=0`, `currentDirection=sendonly` côté demandeur ; aucune renégociation n'est nécessaire.
+- Piste non défaillante : receiver track côté Agent `readyState=live`, `muted=false`.
+- UI en défaut : l'élément vidéo Agent restait `paused=true` et masqué. Le signal `screen-share-stopped` l'avait mis en pause. Au second partage, le receiver étant resté live/unmuted, aucun nouvel événement `unmute` n'arrivait ; le chemin de réactivation était absent.
+- Les données excluent TURN, SDP, codec et capture locale : les nouvelles images arrivaient ; l'état de lecture/rendu côté Agent ne reprenait pas.
+
+## Correction
+- Le protocole privé inclut maintenant `screen-share-started` et `screen-share-stopped` avec l'identifiant de session.
+- Après `replaceTrack(track)` et l'audit `screen_share_started`, le demandeur envoie le signal de démarrage. En cas d'échec de livraison, la capture est arrêtée et l'audit se clôt comme `unexpected_track_end`, sans faux événement de refus OS.
+- L'Agent reprend le même élément/transceiver sans renégociation. Le lecteur reste transparent mais décodant jusqu'à ce que `requestVideoFrameCallback` prouve une nouvelle image (avance de `mediaTime` par rapport au dernier frame).
+- L'arrêt invalide les callbacks en attente, met le lecteur en pause et masque l'aperçu. L'identifiant de session écarte un signal d'arrêt retardé visant une session plus récente.
+- Le fallback sans `requestVideoFrameCallback` attend l'avancement réel de `currentTime`.
+- L'E2E compare désormais `currentTime` avant/après le second partage, en plus des nouveaux compteurs RTP. Les anciennes dimensions vidéo ne suffisent plus.

@@ -6,7 +6,13 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Props = { ticketId: string; mode: "requester" | "agent"; initialCallId?: string | null };
 type CallState = "queued" | "ringing" | "accepted" | "cancelled" | "declined" | "completed" | "failed" | "missed";
-type Signal = { kind: "ready" | "restart-request" | "offer" | "answer" | "candidate" | "hangup" | "screen-share-stopped"; sdp?: string; candidate?: RTCIceCandidateInit };
+type Signal = {
+  kind: "ready" | "restart-request" | "offer" | "answer" | "candidate" | "hangup"
+    | "screen-share-started" | "screen-share-stopped";
+  sdp?: string;
+  candidate?: RTCIceCandidateInit;
+  shareSessionId?: string;
+};
 type ScreenShareReason = "browser_permission_denied" | "browser_unsupported" | "user_cancelled" | "user_stopped" | "call_ended" | "requester_disconnected" | "unexpected_track_end";
 const subscribeScreenShareSupport = () => () => {};
 const getScreenShareSupport = () => typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
@@ -29,10 +35,14 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
   const [screenShareBusy, setScreenShareBusy] = useState(false);
   const [screenShareActive, setScreenShareActive] = useState(false);
   const [remoteScreenActive, setRemoteScreenActive] = useState(false);
+  const [remoteScreenResuming, setRemoteScreenResuming] = useState(false);
   const screenShareSupported = useSyncExternalStore(subscribeScreenShareSupport, getScreenShareSupport, getServerScreenShareSupport);
   const remoteAudio = useRef<HTMLAudioElement | null>(null);
   const localScreenPreview = useRef<HTMLVideoElement | null>(null);
   const remoteScreenPreview = useRef<HTMLVideoElement | null>(null);
+  const remoteScreenResumeGeneration = useRef(0);
+  const remoteScreenFrameCleanup = useRef<(() => void) | null>(null);
+  const remoteScreenShareSessionId = useRef<string | null>(null);
   const screenShareStream = useRef<MediaStream | null>(null);
   const screenShareSender = useRef<RTCRtpSender | null>(null);
   const screenShareSessionId = useRef<string | null>(null);
@@ -80,7 +90,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
           const result = await channel.current.send({
             type: "broadcast",
             event: "signal",
-            payload: { kind: "screen-share-stopped" } satisfies Signal,
+            payload: { kind: "screen-share-stopped", shareSessionId } satisfies Signal,
           });
           if (result !== "ok") throw new Error("Signal d’arrêt non confirmé.");
         } catch {
@@ -110,8 +120,98 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     };
   }, [screenShareActive]);
 
+  const cancelRemoteScreenFrameWait = useCallback(() => {
+    remoteScreenResumeGeneration.current += 1;
+    remoteScreenFrameCleanup.current?.();
+    remoteScreenFrameCleanup.current = null;
+  }, []);
+
+  const resumeRemoteScreenPreview = useCallback(async () => {
+    const preview = remoteScreenPreview.current;
+    const track = preview?.srcObject?.getVideoTracks?.()[0];
+    if (!preview || !track || track.readyState !== "live" || track.muted) return;
+
+    cancelRemoteScreenFrameWait();
+    const generation = remoteScreenResumeGeneration.current;
+    const baselineMediaTime = preview.currentTime;
+    setRemoteScreenActive(false);
+    setRemoteScreenResuming(true);
+
+    try {
+      // Keep the element decoding while transparent. display:none may prevent
+      // frame presentation and leave requestVideoFrameCallback waiting forever.
+      await preview.play();
+      if (generation !== remoteScreenResumeGeneration.current) return;
+
+      const isCurrent = () => generation === remoteScreenResumeGeneration.current
+        && remoteScreenPreview.current === preview
+        && track.readyState === "live"
+        && track.muted === false;
+
+      const activateOnFreshFrame = () => {
+        if (!isCurrent()) return;
+        remoteScreenFrameCleanup.current = null;
+        setRemoteScreenResuming(false);
+        setRemoteScreenActive(true);
+      };
+
+      if (typeof preview.requestVideoFrameCallback === "function") {
+        let callbackId: number | null = null;
+        const waitForFreshFrame = (_now: number, metadata: { mediaTime: number }) => {
+          callbackId = null;
+          if (generation !== remoteScreenResumeGeneration.current) return;
+          if (!isCurrent()) {
+            cancelRemoteScreenFrameWait();
+            setRemoteScreenResuming(false);
+            return;
+          }
+          if (metadata.mediaTime > baselineMediaTime + 0.001) {
+            activateOnFreshFrame();
+            return;
+          }
+          callbackId = preview.requestVideoFrameCallback(waitForFreshFrame);
+        };
+        callbackId = preview.requestVideoFrameCallback(waitForFreshFrame);
+        remoteScreenFrameCleanup.current = () => {
+          if (callbackId !== null) preview.cancelVideoFrameCallback(callbackId);
+          callbackId = null;
+        };
+        return;
+      }
+
+      // Fallback: wait for the media clock to advance, not retained dimensions.
+      const waitForMediaClock = () => {
+        if (generation !== remoteScreenResumeGeneration.current) return;
+        if (!isCurrent()) {
+          cancelRemoteScreenFrameWait();
+          setRemoteScreenResuming(false);
+          return;
+        }
+        if (preview.readyState >= 2 && preview.videoWidth > 0
+          && preview.currentTime > baselineMediaTime + 0.001) activateOnFreshFrame();
+      };
+      preview.addEventListener("timeupdate", waitForMediaClock);
+      preview.addEventListener("playing", waitForMediaClock);
+      remoteScreenFrameCleanup.current = () => {
+        preview.removeEventListener("timeupdate", waitForMediaClock);
+        preview.removeEventListener("playing", waitForMediaClock);
+      };
+      waitForMediaClock();
+    } catch {
+      if (generation === remoteScreenResumeGeneration.current) {
+        remoteScreenFrameCleanup.current = null;
+        setRemoteScreenResuming(false);
+        setRemoteScreenActive(false);
+        setError("La vidéo de partage est reçue, mais sa lecture est bloquée par le navigateur.");
+      }
+    }
+  }, [cancelRemoteScreenFrameWait]);
+
   const stopMedia = useCallback((reason: ScreenShareReason = "unexpected_track_end") => {
     void stopScreenShare(reason);
+    cancelRemoteScreenFrameWait();
+    remoteScreenShareSessionId.current = null;
+    setRemoteScreenResuming(false);
     peer.current?.close();
     peer.current = null;
     screenShareSender.current = null;
@@ -127,10 +227,10 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     readyReplySent.current = false;
     setConnected(false);
     setRealtimeStatus("connecting");
-  }, [supabase, stopScreenShare]);
+  }, [supabase, stopScreenShare, cancelRemoteScreenFrameWait]);
 
   const sendSignal = useCallback(async (payload: Signal) => {
-    if (!channel.current) return;
+    if (!channel.current) throw new Error("Le canal privé de signalisation n’est pas prêt.");
     const result = await channel.current.send({ type: "broadcast", event: "signal", payload });
     if (result !== "ok") throw new Error("La signalisation audio privée n’a pas confirmé la livraison.");
   }, []);
@@ -256,21 +356,24 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             const remoteTrack = event.track;
             preview.srcObject = event.streams[0] ?? new MediaStream([remoteTrack]);
             setRemoteScreenActive(false);
+            setRemoteScreenResuming(false);
+            // A second replaceTrack can keep this receiver live/unmuted and emit
+            // no new unmute event. The explicit start signal resumes this element.
             const showReceivedFrames = () => {
               if (remoteTrack.muted === true || remoteTrack.readyState !== "live") return;
-              void preview.play().then(() => {
-                if (remoteTrack.muted !== true && remoteTrack.readyState === "live") setRemoteScreenActive(true);
-              }).catch(() => {
-                setError("La vidéo de partage est reçue, mais sa lecture est bloquée par le navigateur.");
-              });
+              void resumeRemoteScreenPreview();
             };
-            // Negotiating a recvonly m-line creates a receiver track before the
-            // requester consents and starts sending. Show an active screen only
-            // after the remote track becomes unmuted (actual media is flowing).
             remoteTrack.addEventListener("unmute", showReceivedFrames);
-            remoteTrack.addEventListener("mute", () => setRemoteScreenActive(false));
+            remoteTrack.addEventListener("mute", () => {
+              cancelRemoteScreenFrameWait();
+              setRemoteScreenResuming(false);
+              setRemoteScreenActive(false);
+            });
             remoteTrack.addEventListener("ended", () => {
+              cancelRemoteScreenFrameWait();
+              remoteScreenShareSessionId.current = null;
               if (remoteScreenPreview.current) remoteScreenPreview.current.srcObject = null;
+              setRemoteScreenResuming(false);
               setRemoteScreenActive(false);
             }, { once: true });
             if (remoteTrack.muted === false) showReceivedFrames();
@@ -378,10 +481,19 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             } else if (signal.kind === "candidate" && signal.candidate) {
               if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
               else pendingCandidates.current.push(signal.candidate);
+            } else if (signal.kind === "screen-share-started" && mode === "agent") {
+              if (!signal.shareSessionId) throw new Error("Session de partage distante absente.");
+              remoteScreenShareSessionId.current = signal.shareSessionId;
+              // Resume the existing receiver without renegotiation; keep it
+              // transparent until a frame from this new session is presented.
+              void resumeRemoteScreenPreview();
             } else if (signal.kind === "screen-share-stopped" && mode === "agent") {
+              if (signal.shareSessionId && remoteScreenShareSessionId.current
+                && signal.shareSessionId !== remoteScreenShareSessionId.current) return;
+              remoteScreenShareSessionId.current = null;
+              cancelRemoteScreenFrameWait();
               remoteScreenPreview.current?.pause();
-              // Keep the negotiated receiver stream attached so a later unmute
-              // can display a new share without requiring renegotiation.
+              setRemoteScreenResuming(false);
               setRemoteScreenActive(false);
             } else if (signal.kind === "hangup") {
               setNotice("L’autre participant a terminé l’appel.");
@@ -417,9 +529,12 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       authState.data.subscription.unsubscribe();
       if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
     };
-  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase, realtimeRetry]);
+  }, [callId, status, mode, sendSignal, startMedia, stopMedia, supabase, realtimeRetry,
+    cancelRemoteScreenFrameWait, resumeRemoteScreenPreview]);
 
   useEffect(() => () => {
+    cancelRemoteScreenFrameWait();
+    remoteScreenShareSessionId.current = null;
     const shareSessionId = screenShareSessionId.current;
     screenShareSessionId.current = null;
     screenShareStream.current?.getTracks().forEach((track) => track.stop());
@@ -429,7 +544,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     peer.current?.close();
     stream.current?.getTracks().forEach((track) => track.stop());
     if (channel.current) void supabase.removeChannel(channel.current);
-  }, [supabase, postScreenShareEvent]);
+  }, [supabase, postScreenShareEvent, cancelRemoteScreenFrameWait]);
 
   async function requestCall() {
     setBusy(true);
@@ -506,6 +621,7 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       return;
     }
     const shareSessionId = crypto.randomUUID();
+    let startedAuditPersisted = false;
     let capturePromise: Promise<MediaStream>;
     try {
       // getDisplayMedia must be called in the user's click gesture before any await.
@@ -543,7 +659,9 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       await postScreenShareEvent("consented", shareSessionId);
       await sender.replaceTrack(track);
       await postScreenShareEvent("started", shareSessionId);
+      startedAuditPersisted = true;
       track.addEventListener("ended", () => void stopScreenShare("user_stopped"), { once: true });
+      await sendSignal({ kind: "screen-share-started", shareSessionId });
       setScreenShareActive(true);
       setNotice("Votre écran est partagé avec l’Agent. Vous pouvez arrêter à tout moment.");
     } catch (cause) {
@@ -554,11 +672,21 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       setScreenShareConsent(false);
       if (localScreenPreview.current) localScreenPreview.current.srcObject = null;
       setScreenShareActive(false);
-      const reason: ScreenShareReason = cause instanceof DOMException && cause.name === "NotAllowedError"
-        ? "browser_permission_denied"
-        : cause instanceof DOMException && ["AbortError", "NotFoundError"].includes(cause.name)
-          ? "user_cancelled" : "browser_unsupported";
-      await postScreenShareEvent("denied", shareSessionId, reason).catch(() => undefined);
+      if (startedAuditPersisted) {
+        // A signal failure after the started audit is a transport stop, not an
+        // operating-system picker denial. Keep the persisted lifecycle truthful.
+        await postScreenShareEvent("stopped", shareSessionId, "unexpected_track_end").catch(() => undefined);
+        await channel.current?.send({
+          type: "broadcast", event: "signal",
+          payload: { kind: "screen-share-stopped", shareSessionId } satisfies Signal,
+        }).catch(() => undefined);
+      } else {
+        const reason: ScreenShareReason = cause instanceof DOMException && cause.name === "NotAllowedError"
+          ? "browser_permission_denied"
+          : cause instanceof DOMException && ["AbortError", "NotFoundError"].includes(cause.name)
+            ? "user_cancelled" : "browser_unsupported";
+        await postScreenShareEvent("denied", shareSessionId, reason).catch(() => undefined);
+      }
       setError(cause instanceof Error ? cause.message : "Le partage d’écran n’a pas pu démarrer.");
     } finally {
       setScreenShareBusy(false);
@@ -660,7 +788,11 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
       {mode === "agent" && status === "accepted" && (
         <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
           <p className="text-xs font-semibold text-slate-700">{remoteScreenActive ? "Écran partagé par le demandeur" : "Aucun écran partagé par le demandeur"}</p>
-          <video ref={remoteScreenPreview} autoPlay playsInline muted aria-label="Écran partagé par le demandeur" className={remoteScreenActive ? "max-h-72 w-full rounded-lg border border-slate-200 bg-black object-contain" : "hidden"} />
+          <video ref={remoteScreenPreview} autoPlay playsInline muted aria-label="Écran partagé par le demandeur" className={remoteScreenActive
+            ? "max-h-72 w-full rounded-lg border border-slate-200 bg-black object-contain"
+            : remoteScreenResuming
+              ? "max-h-72 w-full rounded-lg border border-slate-200 bg-black object-contain opacity-0 pointer-events-none"
+              : "hidden"} />
           <p className="text-[11px] text-slate-500">Affichage uniquement · aucun contrôle à distance.</p>
         </div>
       )}
