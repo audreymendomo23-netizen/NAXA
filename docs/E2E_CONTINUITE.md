@@ -1345,3 +1345,51 @@ Aucune modification de profil n'a persisté et aucune demande n'a été modifié
 
 #### Point exact de reprise
 Poursuivre l'examen des fonctions de transition Client/Partenaire et des fonctions qui acceptent un identifiant d'utilisateur en paramètre, en vérifiant systématiquement le statut global du profil et le statut du partenaire avant toute mutation.
+
+
+### 10.15 Durcissement des helpers d'autorisation globale — profil suspendu (20/11/2026)
+
+#### Audit et contradiction
+- La revue des fonctions de transition a confirmé plusieurs protections correctes :
+  - `transition_exam_appointment` délègue à `private.exam_has_capability`, qui vérifie l'identité courante, l'affectation active, `profiles.actif=true` et le paiement partenaire confirmé.
+  - `gestionnaire_stock_inventaire_annuler` et `gestionnaire_stock_reservation_annuler` vérifient explicitement le profil actif et le périmètre/affectation pharmacie.
+  - `naxa_universe_cancel_payment_intent` est exécutable uniquement par `service_role` et vérifie que le Client fourni correspond au propriétaire de la réservation.
+  - `naxa_support_call_transition` est également réservé à `service_role`. Son appelant serveur doit encore être audité pour garantir que `p_actor_user_id` est lié à l'identité authentifiée et non simplement repris d'un paramètre client.
+- Une faiblesse transversale a été identifiée : `private.is_admin()` déduisait le rôle via `private.naxa_business_function(auth.uid())` sans contrôler directement `profiles.actif`. De même, le raccourci Admin de `private.naxa_has_privilege()` pouvait retourner `true` sans garde globale explicite.
+- Cette faiblesse affectait notamment `vente_annulation_decider`, qui s'appuie sur `public.is_admin()` pour autoriser la décision d'annulation. Un profil Admin suspendu pouvait donc encore être reconnu comme Admin par ce chemin.
+- Cause racine : le résolveur de fonction métier retourne le rôle enregistré indépendamment de l'état global du profil ; les helpers d'autorisation partagés doivent donc imposer eux-mêmes l'activité globale avant d'accorder un privilège.
+
+#### Correction appliquée
+- Migration créée sur `main` : `supabase/migrations/20261120110000_guard_suspended_profiles_in_authorization_helpers.sql`.
+- Commit de création de la migration : `c42cb14befa4221705e87ab9cf45b9a347fe3a31`.
+- Migration appliquée avec succès sur Replay uniquement : `guard_suspended_profiles_in_authorization_helpers`.
+- `private.is_admin()` exige maintenant un profil correspondant à `auth.uid()` avec `actif=true` avant de reconnaître le rôle Admin.
+- `private.naxa_has_privilege()` refuse immédiatement toute identité absente ou tout profil inactif, avant le raccourci Admin et avant le calcul des droits métier.
+- Les deux fonctions conservent `SECURITY DEFINER`, `search_path=''` et leurs grants attendus ; aucun accès `anon` n'est accordé.
+- Aucun changement de données métier, de politique RLS ou de configuration Production.
+
+#### Tests Replay
+Test exécuté dans une transaction annulée par `ROLLBACK`, avec rôle PostgreSQL `authenticated` et revendication `request.jwt.claim.sub` simulée (pas un JWT signé ni un appel HTTP PostgREST) :
+| Cas | `private.is_admin()` | `naxa_has_privilege('MANAGE_ACCOUNTING',...)` | Verdict |
+|---|---:|---:|---|
+| Profil Admin actif | `true` | `true` | PASS |
+| Même profil temporairement suspendu dans la transaction | `false` | `false` | PASS |
+
+Vérifications ACL/configuration après migration :
+- `anon EXECUTE=false` sur les deux helpers.
+- `authenticated EXECUTE=true` et `service_role EXECUTE=true`, conformément à l'usage existant.
+- `search_path` vide sur les deux fonctions.
+- La transaction a été annulée ; l'état du profil Admin est inchangé après le test.
+
+#### Verdict et limites
+- **PASS** : correction centrale appliquée sur Replay ; profil Admin actif conservé ; profil Admin suspendu privé de la reconnaissance Admin et du raccourci privilège.
+- **PASS limité** : fonctions de transition examinées ci-dessus ; la vérification des fonctions et call-sites n'est pas exhaustive.
+- **BLOQUÉ** : preuve PostgREST avec JWT signé et parcours fonctionnel réel ; audit du call-site serveur de `naxa_support_call_transition` et des appels `service_role` de paiement.
+- **Sécurité globale : NON VERTE.** La correction ne ferme pas les alertes restantes de l'Advisor, les 262 fonctions `SECURITY DEFINER` n'ont pas toutes été revues, et la protection Auth contre les mots de passe compromis reste désactivée.
+
+#### Point exact de reprise
+1. Auditer les call-sites serveur de `naxa_support_call_transition` et des RPC paiement `service_role` ; l'acteur doit être dérivé du JWT validé côté serveur et lié à la ressource, jamais accepté librement depuis le client.
+2. Continuer la revue des fonctions `SECURITY DEFINER` par domaine, en priorisant les chemins sans appel à `naxa_scope_allows`, `naxa_active_role_pharmacy` ou un contrôle équivalent.
+3. Obtenir des comptes/sessions Auth réels et tester les refus/accès autorisés via PostgREST, y compris les scénarios multi-tenant.
+4. Faire activer la protection contre les mots de passe compromis dans Auth Dashboard et vérifier le résultat.
+5. Reprendre les E2E Web/PWA/APK et les tests sur appareils physiques ; aucun résultat SQL ne remplace ces preuves.
