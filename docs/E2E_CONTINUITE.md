@@ -404,3 +404,13 @@ Le run `44654715657` a dépassé le blocage initial du chargement mobile Promote
 - Un scénario distinct avec le compte professionnel Replay Comptable doit prouver le même parcours professionnel→Agent et l'arrêt serveur automatique à la fin de l'appel, via l'événement append-only `screen_share_stopped` avec `actor_user_id IS NULL` et `reason=call_ended`.
 - Le sélecteur natif de l'ordinateur et les essais physiques Android/iOS restent hors de la capture canvas CI ; aucune compatibilité mobile physique n'est déclarée sans essai matériel.
 - Aucun déploiement ni changement Production. Verdict reste NON VERT jusqu'aux nouvelles preuves qualité et Replay.
+
+
+# Diagnostic ICE avant partage écran — run 44658725782 (20 novembre 2026)
+- Le build, TURN bootstrap et démarrage serveur Replay sont PASS. La recette Agents échoue avant le partage écran, dans la preuve audio Client : `connectionState=failed`, `iceConnectionState=disconnected`, `iceGatheringState=complete`, `signalingState=stable`, zéro paquet RTP entrant/sortant, aucun couple sélectionné ; un candidat local relay est visible, aucun candidat distant.
+- Les deux participants étaient authentifiés sur le canal privé Realtime ; le client reçoit l'état d'appel accepted et l'endpoint ICE répond 200. Cela exclut uniquement l'authentification initiale et l'absence de credentials TURN ; cela ne prouve pas la livraison de l'offre/réponse ni des candidats.
+- Le journal Coturn affiche un défaut SQLite sur `/var/lib/turn/turndb`, mais le serveur initialise ses relais et Chromium recueille un candidat relay local. Ce message n'est donc pas encore une cause établie.
+- Aucun refus Realtime n'apparaît dans le journal consulté pour cette fenêtre. On ne peut pas conclure que le canal transporte chaque candidat ICE.
+- Causes encore discriminantes : réponse SDP non envoyée (y compris erreur du contrôle `currentDirection`), candidat ICE non émis par l'Agent, candidat perdu/non reçu via Broadcast, ou erreur `addIceCandidate` liée au MID/m-line/ufrag. Aucune correction réseau ou RLS n'est appliquée avant ces traces.
+- Le harnais est instrumenté pour la prochaine exécution : événements locaux ICE, erreurs `icecandidateerror`, appels et rejets `setRemoteDescription`/`setLocalDescription`/`addIceCandidate`, états ICE/signaling des deux pairs, m-lines et message UI. La preuve des deux pairs utilise désormais `Promise.allSettled` afin que l'erreur du premier ne masque pas l'état du second.
+- Partage vidéo non testé dans ce run. Chantier toujours NON VERT ; aucune modification Production ni déploiement.

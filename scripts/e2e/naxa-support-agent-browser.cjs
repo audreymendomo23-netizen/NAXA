@@ -65,6 +65,41 @@ async function contextFor(browser,session){
   window.RTCPeerConnection=class extends NativePeerConnection{
    constructor(configuration,...args){
     super({...configuration,iceTransportPolicy:"relay"},...args);
+    const diagnostics=[];
+    Object.defineProperty(this,"__naxaE2EDiagnostics",{value:diagnostics,configurable:false});
+    const describeSdp=sdp=>String(sdp||"").split(/\\r?\\n/).filter(line=>
+     /^m=|^a=mid:|^a=(?:sendrecv|sendonly|recvonly|inactive)$|^a=ice-ufrag:/.test(line)
+    );
+    for(const method of ["setLocalDescription","setRemoteDescription","addIceCandidate"]){
+     const native=this[method].bind(this);
+     this[method]=async(...params)=>{
+      const value=params[0];
+      diagnostics.push({event:method+":start",type:value?.type??null,
+       mid:value?.sdpMid??null,mline:value?.sdpMLineIndex??null,
+       candidateType:typeof value?.candidate==="string"?value.candidate.match(/ typ ([a-z]+)/)?.[1]??null:null,
+       sdp:method==="addIceCandidate"?undefined:describeSdp(value?.sdp)});
+      try{
+       const result=await native(...params);
+       diagnostics.push({event:method+":ok",signalingState:this.signalingState,iceState:this.iceConnectionState});
+       return result;
+      }catch(error){
+       diagnostics.push({event:method+":error",name:error?.name??null,message:error?.message??String(error)});
+       throw error;
+      }
+     };
+    }
+    this.addEventListener("icecandidate",event=>diagnostics.push({
+     event:"icecandidate",mid:event.candidate?.sdpMid??null,mline:event.candidate?.sdpMLineIndex??null,
+     candidateType:event.candidate?.candidate?.match(/ typ ([a-z]+)/)?.[1]??(event.candidate?"unknown":"end")
+    }));
+    this.addEventListener("icecandidateerror",event=>diagnostics.push({
+     event:"icecandidateerror",code:event.errorCode??null,text:event.errorText??null,url:event.url??null
+    }));
+    for(const event of ["iceconnectionstatechange","connectionstatechange","signalingstatechange"]){
+     this.addEventListener(event,()=>diagnostics.push({
+      event,signalingState:this.signalingState,iceState:this.iceConnectionState,connectionState:this.connectionState
+     }));
+    }
     peerConnections.push(this);
    }
   };
@@ -197,6 +232,15 @@ async function rtcAudioProof(page,label){
    remoteAudioReadyState:audio?.readyState??0,
    remoteAudioPaused:audio?.paused??true,
    audioContextStates:(window.__naxaE2EAudioContexts||[]).map(item=>item.audioContext?.state??"unknown"),
+   videoTransceivers:pc.getTransceivers().filter(t=>t.receiver.track.kind==="video").map(t=>({
+    mid:t.mid,direction:t.direction,currentDirection:t.currentDirection,
+    senderTrack:t.sender.track?.kind??null,receiverTrack:t.receiver.track?.readyState??null
+   })),
+   pcDiagnostics:pc.__naxaE2EDiagnostics||[],
+   localSdp:(pc.localDescription?.sdp||"").split(/\\r?\\n/).filter(line=>/^m=|^a=mid:|^a=(?:sendrecv|sendonly|recvonly|inactive)$|^a=ice-ufrag:/.test(line)),
+   remoteSdp:(pc.remoteDescription?.sdp||"").split(/\\r?\\n/).filter(line=>/^m=|^a=mid:|^a=(?:sendrecv|sendonly|recvonly|inactive)$|^a=ice-ufrag:/.test(line)),
+   callPanelText:document.querySelector('section[aria-label="Appel audio NAXA"]')?.innerText??null,
+   alertTexts:Array.from(document.querySelectorAll('[role="alert"]')).map(node=>node.innerText),
   };
  });
  console.log("TRACE — diagnostic WebRTC "+label+" "+JSON.stringify(proof));
@@ -397,10 +441,16 @@ async function run(){
   }
   await clientPage.getByRole("button",{name:"Raccrocher",exact:true}).waitFor({timeout:15000});
   console.log("PASS — interface Client : état accepté et commande Raccrocher rendus.");
-  const [clientRtcProof,agentRtcProof]=await Promise.all([
+  const audioResults=await Promise.allSettled([
    rtcAudioProof(clientPage,"Client demandeur"),
    rtcAudioProof(a.page,"Agent affecté")
   ]);
+  assert.ok(audioResults.every(result=>result.status==="fulfilled"),
+   "Les deux pairs doivent prouver leur média audio : "+JSON.stringify(audioResults.map(result=>
+    result.status==="fulfilled"?{status:result.status}:{status:result.status,error:result.reason instanceof Error?result.reason.message:String(result.reason)}
+   )));
+  const clientRtcProof=audioResults[0].value;
+  const agentRtcProof=audioResults[1].value;
   assert.equal(clientRtcProof.localCandidateType,"relay");
   assert.equal(agentRtcProof.localCandidateType,"relay");
   console.log("PASS GLOBAL — audio WebRTC bidirectionnel via TURN, les deux pairs envoient et reçoivent des paquets RTP.");
