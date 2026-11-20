@@ -995,3 +995,57 @@ Le réglage PostgREST n'est pas exposé dans les paramètres SQL consultables (p
 Contrôle SQL agrégé, sans exposer d'adresses ni d'identifiants personnels : sur les 9 profils Client Replay, **9/9 satisfont les préconditions SQL du titulaire partenaire** (profil actif, âge majeur vérifié, consentement présent, e-mail Auth confirmé). Aucun profil Client actif correspondant n'a d'e-mail non confirmé dans ce jeu de données. Cela lève le doute sur l'existence d'un titulaire technique pour le futur test Centre/Parapharmacie ; cela ne fournit pas de session Admin authentifiée et n'autorise pas à exécuter la fonction en contexte postgres, car son contrôle public.is_admin() dépend de l'identité JWT de l'appelant.
 
 **Point de reprise affiné :** les données de titulaire sont disponibles. Le blocage restant pour initialiser le dossier Centre est l'obtention d'une session Admin de test et d'un appel authentifié de la Server Action/RPC. Ne pas contourner cette barrière par SQL direct.
+
+
+---
+
+## Campagne bulk — quatrième passe : advisory sécurité/performance et contrôle du rôle anon — 20 novembre 2026
+
+**Périmètre :** Supabase Replay `pwfftcsjyeibxxqhwysw` (ACTIVE_HEALTHY, PostgreSQL 17.11), appels advisors et SQL en lecture seule. Aucune modification SQL/ACL, aucun fixture ajouté, aucune écriture Production, aucun déploiement.
+
+### 1. Supabase Security Advisor — état observé
+
+Résultats de l'advisor sécurité à 08:10:55Z :
+- `rls_enabled_no_policy` : 73 tables RLS activé sans policy (niveau INFO). Cela bloque normalement l'accès direct via RLS, mais il faut confirmer pour chaque table que l'absence de policy est intentionnelle et que les flux nécessaires passent par des RPC contrôlées. Les tables privées/outbox et plusieurs tables sensibles sont concernées ; ce résultat n'est pas à lui seul une vulnérabilité.
+- `anon_security_definer_function_executable` : 3 fonctions publiques SECURITY DEFINER accessibles à `anon` : `get_universe_catalog_v2`, `marketplace_offre_stock_disponible`, `marketplace_produit_visible`. Leurs définitions ont été lues. Elles exposent un catalogue/offre de marketplace et délèguent le calcul de stock à la fonction privée guarded ; elles ne réalisent pas d'écriture. Leur accessibilité anonyme paraît cohérente avec la consultation publique du Marketplace, mais reste à valider par contrat métier et test REST HTTP. Ne pas révoquer automatiquement l'accès anonyme sans vérifier le parcours public.
+- `authenticated_security_definer_function_executable` : 262 fonctions publiques SECURITY DEFINER accessibles aux utilisateurs authentifiés (WARN). C'est un signal de revue de surface RPC, pas la preuve que 262 fonctions sont vulnérables. La revue doit prioriser les fonctions d'administration, paiements, rôles, stock, invitations et sécurité ; chaque fonction doit démontrer un contrôle serveur de rôle/périmètre.
+- `auth_leaked_password_protection` : protection des mots de passe compromis via HaveIBeenPwned désactivée (WARN). Le réglage est au niveau Auth Dashboard et n'est pas modifiable/vérifiable par les outils Supabase connectés disponibles dans cette session. Il demeure un critère bloquant de sécurité tant que la preuve d'activation n'est pas fournie.
+
+### 2. Contrôles SQL du catalogue public et des univers bloqués
+
+Les deux conditions de verrouillage sont vérifiées pour Parapharmacie et Bébé & Maman :
+- `universe.parapharmacie.enabled = false` ; `universes.parapharmacie.enabled = true`.
+- `universe.bebe-maman.enabled = false` ; `universes.bebe-maman.enabled = false`.
+- `universe.examens.enabled = false` (la ligne univers `examens` reste enabled, mais le feature flag bloque l'accès fonctionnel).
+
+La fonction `get_universe_catalog_v2` vérifie le flag et l'état de l'univers avant d'émettre les lignes correspondantes. Sous `SET LOCAL ROLE anon`, l'appel de cette fonction a retourné 0 ligne pour `pharmacie`, `parapharmacie` et `bebe-maman` dans le Replay actuel ; `marketplace_produit_visible` a retourné `false` pour un UUID inexistant. L'inventaire Replay de ce test est vide en offres partenaires/pharmacies publiques (0 produit partenaire actif, 0 pharmacie publique éligible) ; 101 lignes de stock positif ne constituent pas une preuve d'offres publiables.
+
+**Conclusion : PASS limité** pour le maintien du verrou fonctionnel par feature flags dans l'état courant ; **NON PROUVÉ** pour le test de non-contournement sur l'ensemble des couches (registry, middleware, Server Actions, API/RPC, RLS) et pour des offres réelles de test. La Parapharmacie professionnelle ERP doit rester testée séparément du verrou du catalogue Client.
+
+### 3. Lecture directe des tables sensibles par anon
+
+Une tentative réelle de SELECT sous `SET LOCAL ROLE anon` sur `public.naxa_payment_evidence_intake` a été rejetée par PostgreSQL avec `42501 permission denied for table`. Cela confirme que le rôle anon n'a pas le privilège SELECT sur cette table. La requête groupée sur d'autres tables sensibles a été interrompue dès cette première erreur ; aucune conclusion n'est donc tirée pour les autres tables à partir de cet essai. Le contrôle direct de `exam_staff_invites`, `naxa_livreur_invites`, `pharmacie_bebe_maman_produits` et des tables sécurité reste à faire individuellement avec vérification des ACL et du comportement RLS sous JWT.
+
+### 4. Supabase Performance Advisor — dette technique observée
+
+- 249 clés étrangères sans index couvrant (INFO).
+- 25 policies RLS utilisant `auth.*` / `current_setting()` sans sous-select (WARN `auth_rls_initplan`).
+- 48 cas de policies permissives multiples sur une même table/rôle/action (WARN) ; vérifier si les unions sont voulues ou si elles élargissent trop les accès.
+- 143 index non utilisés (INFO, à interpréter avec prudence sur un environnement Replay peu sollicité).
+
+Aucun index ni policy n'a été modifié. Il faut analyser la cardinalité, les requêtes, les règles d'accès et les plans avant toute correction ; ne pas supprimer des index sur la seule base de l'usage Replay.
+
+### 5. Verdict de cette passe
+
+- **PASS limité :** les flags Parapharmacie et Bébé & Maman sont désactivés ; le catalogue anonyme ne retourne aucune offre dans l'état Replay courant ; une table sensible testée refuse SELECT à anon.
+- **BLOCKED :** protection des mots de passe compromis non activée/non vérifiée ; exposition réelle PostgREST et tests REST JWT toujours indisponibles ; audit des 262 RPC SECURITY DEFINER et des 48 cas de policies permissives incomplet.
+- **À QUALIFIER :** 73 tables sans policy (souvent un refus par défaut attendu, à confirmer table par table) ; 249 index FK manquants ; 25 RLS initplan ; 143 index inutilisés.
+- **NON EXÉCUTÉ :** parcours authentifiés de bout en bout, test HTTP de chaque RPC anonyme, matrice de non-contournement du verrou par univers, recettes E2E métiers, PWA et APK physique.
+
+### Point de reprise exact
+
+1. Depuis le Dashboard Supabase Replay, fournir la preuve de l'activation de la protection des mots de passe compromis et la liste exacte des schémas API exposés ; aucun outil connecté actuel ne donne ces réglages Auth/API.
+2. Exécuter des appels REST HTTP avec anon key et JWT de test pour les trois RPC publiques ; vérifier qu'aucune donnée privée, pharmacie démo, stock non publié ou univers verrouillé n'est retourné.
+3. Auditer prioritairement les RPC SECURITY DEFINER d'administration, paiement, staff/invitations, rôles, stock et sécurité, en reliant chaque fonction à son contrôle `auth.uid()`, rôle et périmètre ; tester les refus avec JWT non autorisé.
+4. Vérifier individuellement les ACL et refus RLS des tables sensibles sans policy ; ne créer aucune policy générique pour faire disparaître l'advisor.
+5. Continuer B00–B02 sur Replay avec les sessions de test authentifiées ; le provisionnement initial partenaire/centre reste bloqué tant qu'aucune session Admin test n'est disponible.
