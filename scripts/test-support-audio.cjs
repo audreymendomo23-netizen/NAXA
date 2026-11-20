@@ -81,6 +81,10 @@ assert.match(client, /remoteTrack\.addEventListener\("unmute", showReceivedFrame
 assert.match(client, /remoteTrack\.addEventListener\("mute", \(\) => setRemoteScreenActive\(false\)\)/);
 assert.match(client, /remoteTrack\.muted === true/);
 assert.match(client, /remoteTrack\.muted === false/);
+assert.match(client, /kind: "screen-share-stopped"/);
+assert.match(client, /signal\.kind === "screen-share-stopped" && mode === "agent"/);
+assert.match(client, /remoteScreenPreview\.current\?\.pause\(\)/);
+assert.match(client, /setScreenShareBusy\(true\)[\s\S]*?setScreenShareBusy\(false\)/);
 assert.match(client, /J’accepte de partager mon écran avec l’Agent NAXA/);
 assert.match(client, /aucun contrôle à distance/i);
 assert.match(agentBrowser, /PASS GLOBAL — demandeur consent, partage et arrête/);

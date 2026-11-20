@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Props = { ticketId: string; mode: "requester" | "agent"; initialCallId?: string | null };
 type CallState = "queued" | "ringing" | "accepted" | "cancelled" | "declined" | "completed" | "failed" | "missed";
-type Signal = { kind: "ready" | "restart-request" | "offer" | "answer" | "candidate" | "hangup"; sdp?: string; candidate?: RTCIceCandidateInit };
+type Signal = { kind: "ready" | "restart-request" | "offer" | "answer" | "candidate" | "hangup" | "screen-share-stopped"; sdp?: string; candidate?: RTCIceCandidateInit };
 type ScreenShareReason = "browser_permission_denied" | "browser_unsupported" | "user_cancelled" | "user_stopped" | "call_ended" | "requester_disconnected" | "unexpected_track_end";
 const subscribeScreenShareSupport = () => () => {};
 const getScreenShareSupport = () => typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
@@ -64,16 +64,35 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
     const sender = screenShareSender.current;
     screenShareSessionId.current = null;
     screenShareStream.current = null;
+    setScreenShareBusy(true);
     setScreenShareActive(false);
     setScreenShareConsent(false);
     if (localScreenPreview.current) localScreenPreview.current.srcObject = null;
-    if (sender && peer.current?.signalingState !== "closed") {
-      try { await sender.replaceTrack(null); } catch { /* Local capture is still stopped below. */ }
-    }
-    capture?.getTracks().forEach((track) => track.stop());
-    if (shareSessionId && audit) {
-      try { await postScreenShareEvent("stopped", shareSessionId, reason); }
-      catch { setError("L’écran a été arrêté localement, mais la confirmation d’arrêt n’a pas pu être journalisée."); }
+    try {
+      if (sender && peer.current?.signalingState !== "closed") {
+        try { await sender.replaceTrack(null); } catch { /* Local capture is still stopped below. */ }
+      }
+      capture?.getTracks().forEach((track) => track.stop());
+      // A negotiated receiver track can remain live after replaceTrack(null).
+      // Explicitly tell the Agent to hide the preview; mute/ended remain fallback.
+      if (shareSessionId && channel.current) {
+        try {
+          const result = await channel.current.send({
+            type: "broadcast",
+            event: "signal",
+            payload: { kind: "screen-share-stopped" } satisfies Signal,
+          });
+          if (result !== "ok") throw new Error("Signal d’arrêt non confirmé.");
+        } catch {
+          setNotice("L’écran est arrêté sur cet appareil. L’affichage distant se synchronise.");
+        }
+      }
+      if (shareSessionId && audit) {
+        try { await postScreenShareEvent("stopped", shareSessionId, reason); }
+        catch { setError("L’écran a été arrêté localement, mais la confirmation d’arrêt n’a pas pu être journalisée."); }
+      }
+    } finally {
+      setScreenShareBusy(false);
     }
   }, [postScreenShareEvent]);
 
@@ -359,6 +378,11 @@ export function SupportAudioCall({ ticketId, mode, initialCallId = null }: Props
             } else if (signal.kind === "candidate" && signal.candidate) {
               if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
               else pendingCandidates.current.push(signal.candidate);
+            } else if (signal.kind === "screen-share-stopped" && mode === "agent") {
+              remoteScreenPreview.current?.pause();
+              // Keep the negotiated receiver stream attached so a later unmute
+              // can display a new share without requiring renegotiation.
+              setRemoteScreenActive(false);
             } else if (signal.kind === "hangup") {
               setNotice("L’autre participant a terminé l’appel.");
               stopMedia("call_ended");

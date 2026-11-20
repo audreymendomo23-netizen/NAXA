@@ -442,3 +442,12 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Recette E2E renforcée : après négociation audio et avant consentement, elle exige que le texte « Aucun écran partagé par le demandeur » soit visible et que la vidéo distante reste cachée. Après consentement, elle vérifiera les trames 640×360 et les octets/paquets RTP.
 - Référence : MDN décrit `track` comme l'ajout d'une piste au receiver, tandis que `mute`/`unmute` signalent le début et l'interruption de disponibilité des données média : https://developer.mozilla.org/en-US/docs/Web/API/RTCTrackEvent ; https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/mute_event ; https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/unmute_event.
 - Le verdict final attend toujours la recette complète Client puis Comptable et l'essai matériel mobile séparé.
+
+
+# Signal d'arrêt explicite vers l'Agent — 20 novembre 2026
+- Nouvelle preuve : avec `mute`/ `unmute`, l'Agent affichait correctement « aucun écran » avant consentement, mais le run `44662151666` échouait encore après l'arrêt manuel : le navigateur ne signalait pas la mutation du receiver dans le délai du test alors que l'API avait persisté `screen_share_stopped`.
+- Cause fonctionnelle : `replaceTrack(null)` peut laisser le transceiver et son `RTCRtpReceiver.track` négociés et vivants. Le receiver peut donc ne pas émettre immédiatement `mute`/ `ended`; le seul signal média n'est pas suffisant pour synchroniser l'état UI distant.
+- Correction : le demandeur émet maintenant un signal privé `screen-share-stopped` après avoir retiré la piste, en complément du journal serveur. L'Agent met en pause et masque son aperçu, mais conserve `srcObject` pour permettre le redémarrage du partage sur le même m-line sans renégociation. Les événements `mute`/`unmute`/`ended` restent des mécanismes de secours.
+- Un verrou `screenShareBusy` couvre toute l'opération d'arrêt afin d'empêcher un nouveau démarrage avant la fin du signal et de l'audit. Le contrôle serveur reste la source de vérité de l'audit `screen_share_stopped`.
+- La recette doit confirmer : arrêt manuel → signal reçu → aperçu distant masqué ; redémarrage éventuel sur même appel ; fin d'appel avec arrêt trigger `call_ended`.
+- Aucune migration ni aucun changement Production.
