@@ -200,10 +200,26 @@ async function run(env = process.env) {
       throw new Error("Le compte crédit Marketplace du Client doit être unique, actif et soldé.");
     }
 
-    const activeRequests = await rows("client_credit_requests?select=id,statut,consumed_at,origine"
-      + "&client_id=eq." + clientId + "&statut=in.(en_attente,approuvee)&consumed_at=is.null");
+    const activeRequests = await rows("client_credit_requests?select=id,statut,consumed_at,origine,created_at"
+      + "&client_id=eq." + clientId + "&pharmacie_id=eq." + PHARMACY_ID
+      + "&statut=in.(en_attente,approuvee)&consumed_at=is.null");
     if (activeRequests.length) {
-      throw new Error("Le Client a déjà une demande de crédit non consommée ; recette Marketplace arrêtée sans écraser son état.");
+      const recoverable = activeRequests.filter(item => item.statut === "en_attente"
+        && item.origine === "marketplace" && Number.isFinite(Date.parse(item.created_at))
+        && Date.parse(item.created_at) < Date.now());
+      if (activeRequests.length !== 1 || recoverable.length !== 1) {
+        throw new Error("Le Client a une demande de crédit active qui n'est pas une ancienne fixture Marketplace sûre à récupérer ; recette arrêtée sans écraser son état.");
+      }
+      await rpc("client_credit_demande_decider", promoterToken, {
+        p_demande: recoverable[0].id, p_approuver: false,
+      });
+      const recovered = await rows("client_credit_requests?select=id,statut,decided_by,decided_at&id=eq."
+        + recoverable[0].id + "&limit=2");
+      if (recovered.length !== 1 || recovered[0].statut !== "rejetee"
+        || recovered[0].decided_by !== promoterId || !recovered[0].decided_at) {
+        throw new Error("La récupération métier de l'ancienne demande Marketplace n'est pas confirmée.");
+      }
+      process.stdout.write("RECOVERY PASS — ancienne demande Marketplace technique refusée par le Promoteur et journalisée.\\n");
     }
 
     const changed = await request("/rest/v1/pharmacies?id=eq." + PHARMACY_ID, {
