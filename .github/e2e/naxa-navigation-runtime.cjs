@@ -875,6 +875,7 @@ async function run() {
     const promoterMobileContext = await browserContext(browser, promoterSession, { width: 390, height: 844 });
     const promoterMobilePage = await promoterMobileContext.newPage();
     promoterMobilePage.setDefaultTimeout(15000);
+    promoterMobilePage.setDefaultNavigationTimeout(30000);
     await promoterMobilePage.goto(BASE_URL + "/pharmacie/promoteur", { waitUntil: "domcontentloaded" });
     await promoterMobilePage.getByRole("button", { name: "Ouvrir le menu de navigation" }).click();
     const mobilePromoterLink = promoterMobilePage.locator('a[href="/pharmacie/promoteur/livraisons"]').first();
