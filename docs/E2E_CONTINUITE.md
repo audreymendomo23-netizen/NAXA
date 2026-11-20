@@ -472,3 +472,19 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - La preuve exige ensuite les pistes audio vivantes et les paquets RTP dans les deux sens ; aucun seuil métier n'est assoupli.
 - Le contrat statique vérifie que le helper ne court-circuite plus l'attente sur le seul ICE.
 - Verdict reste NON VERT jusqu'à la nouvelle recette professionnelle complète : audio stable, consentement, vidéo RTP, arrêt/clôture auto, audit `call_ended`, nettoyage ; et pipeline qualité vert.
+
+
+# Correctif assertion de fin d'appel dans l'UI Agent — 20 novembre 2026
+
+## Faits établis — run `44664163641` sur `db62a34`
+- Les deux parcours Client et Comptable ont prouvé audio RTP bidirectionnel via TURN relay et vidéo RTP 640×360 reçue par l'Agent.
+- Le parcours Client a prouvé l'arrêt manuel et le signal distant `screen-share-stopped`.
+- Le parcours Comptable a prouvé le trigger de fin d'appel : événements `screen_share_consented`, `screen_share_started`, puis `screen_share_stopped` avec `actor_user_id IS NULL` et `reason=call_ended`, au même instant que `call_completed`.
+- La seule panne de ce run était une attente Playwright sur le texte `Aucun écran partagé par le demandeur` après la fin d'appel. Le composant affiche la prévisualisation Agent uniquement lorsque `status === "accepted"` ; dès que le polling reçoit `completed`, ce bloc est volontairement démonté. Le test attendait donc un libellé qui ne doit plus exister en état terminal. Ce n'est pas une vidéo encore visible ni un trigger absent.
+
+## Correction du contrat E2E
+- Après la clôture serveur, la recette attend maintenant le message terminal réel `L’appel est terminé : completed.`.
+- Elle vérifie ensuite qu'aucun élément `video[aria-label="Écran partagé par le demandeur"]` visible ne subsiste et que le libellé actif « Écran partagé par le demandeur » a disparu.
+- Elle conserve la vérification d'audit SQL `consented → started → stopped`, l'acteur SQL nul et le motif `call_ended`. Aucun contrôle média ou de sécurité n'est supprimé ou abaissé.
+- Le contrat statique protège la nouvelle assertion pour éviter de réintroduire l'attente d'un bloc UI qui doit être démonté après clôture.
+- Verdict reste NON VERT jusqu'à un run complet vert, incluant nettoyages et build.

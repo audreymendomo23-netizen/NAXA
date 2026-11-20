@@ -709,7 +709,14 @@ async function run(){
    headers:{"Content-Type":"application/json"},data:{action:"end"}
   });
   assert.equal(endProfessionalCall.status(),200,"L’Agent doit pouvoir terminer l’appel professionnel.");
-  await c.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:15000});
+  // The Agent preview block is intentionally unmounted once status leaves
+  // "accepted". Wait for the terminal call state, then prove no remote video
+  // or active-share label remains in the Agent UI.
+  await c.page.getByText("L’appel est terminé : completed.",{exact:true}).waitFor({timeout:15000});
+  assert.equal(await c.page.locator('video[aria-label="Écran partagé par le demandeur"]:visible').count(),0,
+   "Aucune vidéo distante ne doit rester visible après la fin de l’appel Comptable.");
+  assert.equal(await c.page.getByText("Écran partagé par le demandeur",{exact:true}).count(),0,
+   "L’état de partage actif doit disparaître avec la clôture de l’appel.");
   const {data:professionalAudit,error:professionalAuditError}=await admin.from("support_call_events")
    .select("actor_user_id,event_code,details,created_at").eq("call_id",professionalCallId)
    .in("event_code",["screen_share_consented","screen_share_started","screen_share_stopped"])

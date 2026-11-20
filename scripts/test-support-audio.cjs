@@ -74,6 +74,9 @@ assert.match(client, /preview\.play\(\)/);
 assert.match(agentBrowser, /E2E Partage écran Comptable/);
 assert.match(agentBrowser, /professionalRole,"comptable"/);
 assert.match(agentBrowser, /professionalAudit\[2\]\.details\.reason,"call_ended"/);
+assert.match(agentBrowser, /L’appel est terminé : completed\./);
+assert.match(agentBrowser, /video\[aria-label="Écran partagé par le demandeur"\]:visible/);
+assert.match(agentBrowser, /État de partage actif doit disparaître/);
 assert.match(agentBrowser, /currentDirection\?\.includes\("send"\)/);
 
 assert.match(client, /replaceTrack\(track\)/);
