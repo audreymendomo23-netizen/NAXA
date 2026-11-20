@@ -49,7 +49,7 @@ class NaxaSupportRealtime(
 
         val base = supabaseUrl.trimEnd('/').toHttpUrl()
         val wsUrl = base.newBuilder()
-            .scheme("wss")
+            .scheme("https")
             .encodedPath("/realtime/v1/websocket")
             .addQueryParameter("apikey", anonKey)
             .addQueryParameter("vsn", "1.0.0")
