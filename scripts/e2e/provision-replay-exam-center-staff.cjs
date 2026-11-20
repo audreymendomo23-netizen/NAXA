@@ -23,6 +23,16 @@ const STAFF_ROLES = [
   "responsable_qualite",
   "responsable_securite",
 ];
+const EXAM_SECURITY_STAFF = {
+  username: "naxa_e2e_exam_security",
+  email: "naxa.e2e.exam-security@example.invalid",
+  phone: "+237600000087",
+  firstName: "Compte",
+  lastName: "Responsable Sécurité Centre E2E",
+  role_key: "responsable_securite",
+  fixturePersona: "exam_security",
+};
+const STAFF_FIXTURE_MARKER = "NAXA-E2E-EXAM-STAFF-20261120";
 const STAFF = [
   { username: "naxa_e2e_acheteur", email: "naxa.e2e.client-acheteur@example.invalid", role_key: "accueil", invite: true },
   { username: "naxa_e2e_caisse", email: "naxa.e2e.caisse@example.invalid", role_key: "caissier" },
@@ -32,7 +42,7 @@ const STAFF = [
   { username: "naxa_e2e_livreur", email: "naxa.e2e.livreur@example.invalid", role_key: "manipulateur_imagerie" },
   { username: "naxa_e2e_expiry_stock", email: "naxa.e2e.expiry-stock@example.invalid", role_key: "radiologue" },
   { username: "naxa_e2e_expiry_responsable", email: "naxa.e2e.expiry-responsable@example.invalid", role_key: "responsable_qualite" },
-  { username: "naxa_e2e_expiry_overflow", email: "naxa.e2e.expiry-responsable-overflow@example.invalid", role_key: "responsable_securite" },
+  EXAM_SECURITY_STAFF,
 ];
 
 function assertReplayUrl(value) {
@@ -59,6 +69,44 @@ function buildDirectorMetadata() {
     naxa_e2e_fixture: FIXTURE_MARKER,
     naxa_e2e_persona: "exam_director",
   };
+}
+
+function buildStaffMetadata(staff) {
+  return {
+    username: staff.username,
+    first_name: staff.firstName,
+    last_name: staff.lastName,
+    phone: staff.phone,
+    phone_country: "CM",
+    date_of_birth: "1990-01-01",
+    consent_accepted: true,
+    naxa_signup_completed: true,
+    naxa_signup_pending: false,
+    naxa_e2e_fixture: STAFF_FIXTURE_MARKER,
+    naxa_e2e_persona: staff.fixturePersona,
+  };
+}
+
+function assertStaffFixture(user, profile, staff) {
+  if (!user || !profile) throw new Error("Fixture Auth/profil absente pour " + staff.username + ".");
+  if (String(user.email || "").trim().toLowerCase() !== staff.email
+    || !user.id || profile.id !== user.id || !user.email_confirmed_at) {
+    throw new Error("Identité Auth confirmée et liée au profil requise pour " + staff.username + ".");
+  }
+  const metadata = user.user_metadata || user.raw_user_meta_data || {};
+  if (metadata.naxa_e2e_fixture !== STAFF_FIXTURE_MARKER
+    || metadata.naxa_e2e_persona !== staff.fixturePersona
+    || metadata.username !== staff.username
+    || metadata.naxa_signup_completed !== true) {
+    throw new Error("Marqueur Auth E2E absent ou incohérent pour " + staff.username + ".");
+  }
+  if (profile.role !== "client" || profile.actif !== true || profile.age_verified !== true
+    || !profile.consent_accepted_at || profile.username !== staff.username
+    || profile.first_name !== staff.firstName || profile.last_name !== staff.lastName
+    || profile.phone !== staff.phone || !profile.date_of_birth) {
+    throw new Error("Le profil du poste " + staff.role_key + " doit être un Client actif, majeur, consentant et complet.");
+  }
+  return true;
 }
 
 function assertDirectorFixture(user, profile) {
@@ -236,7 +284,7 @@ async function provision(env = process.env) {
       "NAXA_STORAGE_E2E_EXAM_DIRECTOR_PASSWORD_FILE=" + directorPasswordFile + "\n",
       { encoding: "utf8", mode: 0o600 });
 
-    const refreshedAuthUsers = await findAuthUsers();
+    let refreshedAuthUsers = await findAuthUsers();
     const refreshedMatches = refreshedAuthUsers.filter(user =>
       String(user.email || "").trim().toLowerCase() === DIRECTOR.email);
     if (refreshedMatches.length !== 1) throw new Error("Identité Directeur non unique après provisionnement.");
@@ -307,17 +355,80 @@ async function provision(env = process.env) {
       throw new Error("Le déclencheur doit attribuer automatiquement le poste Directeur au titulaire du Partenaire.");
     }
 
+    // Les huit comptes de personnel issus des cohortes Pharmacie/stock peuvent
+    // être réutilisés. Le neuvième poste reçoit une identité Auth Client dédiée,
+    // créée par l'Admin Replay seulement après contrôle d'unicité Auth/username/téléphone.
+    const securityStaff = EXAM_SECURITY_STAFF;
+    let securityMatches = refreshedAuthUsers.filter(user =>
+      String(user.email || "").trim().toLowerCase() === securityStaff.email);
+    if (securityMatches.length > 1) {
+      throw new Error("Plusieurs identités Auth portent l'email du Responsable sécurité Centre.");
+    }
+    const securityUsernameRows = await rows("profiles?select=id,username&username=eq."
+      + encodeURIComponent(securityStaff.username) + "&limit=2");
+    const securityPhoneRows = await rows("profiles?select=id,phone&phone=eq."
+      + encodeURIComponent(securityStaff.phone) + "&limit=2");
+    if (securityMatches.length === 0) {
+      if (securityUsernameRows.length || securityPhoneRows.length) {
+        throw new Error("Username ou téléphone Responsable sécurité déjà rattaché à une autre identité ; création refusée.");
+      }
+      const securityPassword = generateEphemeralPassword();
+      const createdSecurity = await request("/auth/v1/admin/users", {
+        method: "POST",
+        admin: true,
+        body: {
+          email: securityStaff.email,
+          password: securityPassword,
+          email_confirm: true,
+          user_metadata: buildStaffMetadata(securityStaff),
+        },
+        label: "Création Auth du Client Responsable sécurité Centre Replay",
+      });
+      const securityAuth = createdSecurity.data?.user || createdSecurity.data;
+      if (!securityAuth?.id) {
+        throw new Error("Supabase Auth n'a pas retourné l'identité du Responsable sécurité Centre.");
+      }
+      const securityPasswordFile = env.RUNNER_TEMP + "/naxa-e2e-exam-security-"
+        + randomBytes(8).toString("hex") + ".secret";
+      fs.writeFileSync(securityPasswordFile, securityPassword, { encoding: "utf8", flag: "wx", mode: 0o600 });
+      fs.appendFileSync(env.GITHUB_ENV,
+        "NAXA_STORAGE_E2E_EXAM_SECURITY_PASSWORD_FILE=" + securityPasswordFile + "\\n",
+        { encoding: "utf8", mode: 0o600 });
+      refreshedAuthUsers = await findAuthUsers();
+      securityMatches = refreshedAuthUsers.filter(user =>
+        String(user.email || "").trim().toLowerCase() === securityStaff.email);
+      process.stdout.write("PASS — identité Auth Client Responsable sécurité Centre créée et confirmée sur Replay.\\n");
+    }
+    if (securityMatches.length !== 1) {
+      throw new Error("Identité Auth Responsable sécurité absente ou dupliquée après création.");
+    }
+    const securityAuth = securityMatches[0];
+    const securityProfiles = await rows("profiles?select=id,username,role,actif,age_verified,consent_accepted_at,date_of_birth,first_name,last_name,phone&id=eq."
+      + encodeURIComponent(securityAuth.id) + "&limit=2");
+    if (securityProfiles.length !== 1) {
+      throw new Error("Le trigger Auth n'a pas créé le profil Client Responsable sécurité attendu.");
+    }
+    assertStaffFixture(securityAuth, securityProfiles[0], securityStaff);
+    if (securityUsernameRows.some(row => row.id !== securityAuth.id)
+      || securityPhoneRows.some(row => row.id !== securityAuth.id)) {
+      throw new Error("Username ou téléphone Responsable sécurité rattaché à une autre identité.");
+    }
+
     const usernames = STAFF.map(item => item.username);
     const profiles = await rows("profiles?select=id,username,role,actif,age_verified,consent_accepted_at,date_of_birth,first_name,last_name,phone&username=in.("
       + usernames.join(",") + ")");
     if (profiles.length !== STAFF.length) {
-      throw new Error("Les 9 profils Client attendus ne sont pas tous disponibles sur Replay.");
+      throw new Error("Les 9 profils Client attendus ne sont pas tous disponibles sur Replay après provisioning Auth.");
     }
     const usersByUsername = new Map(profiles.map(profile => [profile.username, profile]));
     const authByEmail = new Map(refreshedAuthUsers.map(user => [String(user.email || "").toLowerCase(), user]));
     for (const item of STAFF) {
       const profile = usersByUsername.get(item.username);
       const auth = authByEmail.get(item.email);
+      if (item === securityStaff) {
+        assertStaffFixture(auth, profile, securityStaff);
+        continue;
+      }
       if (!profile || !auth || profile.id !== auth.id || auth.email_confirmed_at == null
         || profile.role !== "client" || profile.actif !== true || profile.age_verified !== true
         || !profile.consent_accepted_at || !profile.date_of_birth || !profile.first_name
@@ -499,5 +610,8 @@ module.exports = {
   assertExamRoster,
   STAFF_ROLES,
   STAFF,
+  EXAM_SECURITY_STAFF,
+  buildStaffMetadata,
+  assertStaffFixture,
   provision,
 };
