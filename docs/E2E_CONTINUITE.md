@@ -1174,3 +1174,49 @@ Autres limites non levées :
 - Test sous `SET LOCAL ROLE anon` : les trois fonctions ont été appelées avec identifiants inconnus ; `marketplace_offre_stock_disponible` n'a renvoyé aucune ligne et `marketplace_produit_visible` a renvoyé `false`. `get_universe_catalog_v2` a renvoyé 0 ligne pour Pharmacie, Parapharmacie, Bébé & Maman et Examens sur Replay.
 - **Limite de preuve :** Replay ne contient actuellement aucune offre publique éligible ni produit partenaire actif ; ces résultats vides prouvent l'absence de fuite sur l'échantillon vide, pas le bon fonctionnement d'une offre publique réelle. Les scénarios positifs doivent être exécutés avec une fixture publique autorisée et les flags verrouillés.
 - Verdict : **revue statique favorable / test négatif limité PASS / test positif BLOQUÉ par absence de fixtures**. L'alerte Advisor de 3 fonctions reste à justifier ou à faire disparaître par une configuration de grants explicitement validée ; ne pas révoquer EXECUTE sans vérifier les appels publics attendus côté Client.
+
+### 10.8 Contrôle des 65 tables RLS sans policy et des vues publiques
+
+- Requête indépendante sur `pg_class` + `pg_policies` : **65 tables/partitions publiques** ont RLS activé et aucune policy. Le chiffre 73 rapporté par un ancien passage Advisor n'est donc pas reproduit par l'inventaire SQL actuel ; conserver l'écart comme différence de périmètre/version du lint, et ne pas présenter 73 comme nombre actuel de tables.
+- Pour les 65 tables sans policy, contrôle ACL individuel : aucun privilège direct `SELECT`, `INSERT`, `UPDATE` ou `DELETE` pour `anon` ou `authenticated`. Les tables concernées couvrent notamment les preuves de paiement, appareils, permissions caisse, invites, journaux de sécurité, données caméra, missions/livraisons, opérations offline et outbox notifications.
+- Verdict : **PASS de fermeture de l'accès direct Data API** sur les 65 tables inspectées. Les accès indirects via fonctions `SECURITY DEFINER` restent à examiner selon leur fonction appelante et leurs contrôles ; absence de policy ne signifie pas que les helpers privilégiés sont automatiquement sûrs.
+- Inventaire des vues publiques : 5 vues examinées, toutes avec option `security_invoker=true` ; les vues Marketplace exposées à `anon` ont également `security_barrier=true` lorsqu'observé. Cela évite le bypass RLS par privilège du propriétaire de vue.
+- Test sous rôle `anon` : `exam_accounting_trial_balance` échoue avec `42501 permission denied for table exam_chart_accounts`, preuve que la vue ne contourne pas les privilèges/RLS des tables sous-jacentes. `marketplace_assurance_conventions` retourne 0 ligne sur les données Replay présentes. Les vues `client_achats` et `v_reservations_ca` ne sont pas accordées à anon.
+- Limite : les résultats vides sur Replay ne prouvent pas le comportement avec données réelles. Les vues doivent être testées avec sessions JWT Client A/B, pharmacie A/B, comptable et Admin, en particulier les agrégats financiers par tenant.
+
+### 10.9 Analyse ciblée des 262 fonctions SECURITY DEFINER exposées à authenticated
+
+- Inventaire courant : **262** fonctions publiques `SECURITY DEFINER` avec exécution autorisée à `authenticated`, correspondant au volume de l'alerte Advisor examinée.
+- Filtre statique des fonctions dont le corps ne contient pas directement `auth.uid()` : 10 fonctions. Ce filtre est un détecteur de revue, pas un verdict de vulnérabilité : plusieurs délèguent leur contrôle à des helpers qui lisent explicitement `auth.uid()`.
+- Revue des 10 cas :
+  - `assurance_import_simuler_mode` délègue à `assurance_import_simuler`, qui refuse si `auth.uid()` est nul, exige une fonction professionnelle admissible et vérifie le périmètre pharmacie.
+  - `naxa_revoke_privilege` s'appuie sur `naxa_has_privilege` et `naxa_can_manage_privilege_target`. Le helper privé vérifie `auth.uid()`, profil actif, cible différente de l'acteur, affectation active, hiérarchie Promoteur/Responsable et périmètre pharmacie.
+  - `naxa_set_caisse_status` délègue à `naxa_can_manage_team_member` et `naxa_can`; les deux contrôlent l'identité via `auth.uid()`, l'état actif, le périmètre pharmacie, la cible Caisse et le privilège de suspension/réactivation.
+  - `pos_affichage_client_update` délègue à `can_operate_pharmacy`, qui vérifie la fonction métier issue de `auth.uid()`, le périmètre d'affectation et la pharmacie active.
+  - `set_garde` passe par `my_pharmacie()` et `authorize()`; `my_pharmacie` dérive le rôle actif à partir de `auth.uid()`, et `naxa_has_privilege` refuse lorsque l'identité est absente.
+  - `validites_pharmacies_admin` et `validites_promoteurs_admin` sont limitées par `is_admin()`, qui appelle le helper privé vérifiant le rôle métier du `auth.uid()`.
+  - Les trois fonctions catalogue anonymes ont été examinées dans la section 10.7 ; elles sont des lectures publiques intentionnelles, limitées aux offres/établissements publiables.
+- Les fonctions `_stats_admin` et `_stats_pharmacie` n'ont pas de grant EXECUTE à `anon`, `authenticated` ou PUBLIC dans l'ACL observée ; elles ne font pas partie des façades directement exposées identifiées par cette requête.
+- Sur les fonctions examinées : aucune faille d'autorisation directe n'a été démontrée dans les corps/helpers lus. La revue ne couvre pas encore les 262 corps un par un, les chemins d'appel applicatifs, ni les essais négatifs sous JWT réels. **Verdict : revue ciblée favorable, audit global des RPC toujours PARTIEL.**
+
+### 10.10 État consolidé après cette itération
+
+| Contrôle | État |
+|---|---|
+| ACL directes des tables publiques après migration | PASS — 276 relations inspectées |
+| 65 tables RLS sans policy | PASS — aucun accès direct anon/authenticated |
+| Vues publiques examinées | PASS structurel — security_invoker ; un test anon refusé comme attendu |
+| 3 RPC catalogue anon | PASS négatif limité ; positif bloqué faute d'offres Replay |
+| 10 fonctions exposées sans auth.uid() direct | PASS de revue des helpers examinés ; pas encore E2E JWT |
+| Revue exhaustive des 262 fonctions SECURITY DEFINER | PARTIEL |
+| Protection Auth contre mots de passe compromis | BLOQUANT — réglage Dashboard non vérifié |
+| Exposition réelle des schémas PostgREST | NON PROUVÉE par la connexion SQL seule |
+| Tests JWT Client/Personnel/Admin et isolation inter-tenant | BLOQUÉS faute de sessions de test |
+| E2E Web/PWA/APK + appareils physiques | NON TERMINÉS |
+
+**Reprise exacte suivante :**
+1. Examiner les fonctions SECURITY DEFINER restantes par lots métier (paiement, suspension/réactivation, profil/roles, réservation/stock, examen médical, livraison), en lisant les corps complets et helpers privés.
+2. Vérifier les vues et fonctions exposées par PostgREST avec les vrais paramètres Dashboard, puis tester les réponses HTTP avec clé publique et JWT réels.
+3. Faire activer et prouver la protection des mots de passe compromis dans Auth.
+4. Provisionner les sessions de test par rôle sans inventer de comptes ni contourner les contrôles de création.
+5. Exécuter les scénarios positifs/négatifs et inter-tenant sur Web, PWA installée et APK physique.
