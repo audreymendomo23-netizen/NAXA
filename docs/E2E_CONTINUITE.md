@@ -350,3 +350,20 @@ Le widget NAXA, déjà partagé dans les deux profils, fournit `Mes dossiers →
 ## Recette ciblée
 Le marqueur `[support-team-only]` saute seulement le scénario autonome Client↔Admin ; la recette professionnelle existante et la recette Agents s’exécutent. La recette Agents doit prouver l’interdiction côté Agent, le consentement côté demandeur, la réception de paquets vidéo RTP, l’arrêt et l’ordre d’audit.
 CI utilise une capture canvas synthétique : elle valide le transport WebRTC et l’audit applicatif, pas le sélecteur natif sur un véritable écran ni les essais physiques Android/iOS. Verdict global NON VERT jusqu’au succès des runs qualité et Replay ciblés.
+
+
+# Correctif RPC PostgREST partage écran — 20 novembre 2026
+
+## Contradiction trouvée après le premier commit
+- La route serveur utilise `supabaseAdmin().rpc("naxa_support_call_screen_share_event", ...)`.
+- Le factory `supabaseAdmin()` crée le client Supabase sans `.schema("private")` : le RPC PostgREST est donc résolu dans le schéma exposé `public`, pas directement dans `private`.
+- Le premier déploiement SQL avait créé le RPC domaine dans `private` uniquement. Le journal et les permissions étaient corrects, mais la route API ne pouvait pas résoudre ce nom via son client par défaut.
+
+## Correction appliquée à Replay
+- Migration Replay `20261120013251_naxa_support_screen_share_public_rpc`.
+- Création de `public.naxa_support_call_screen_share_event(...)`, wrapper `SECURITY DEFINER` avec `search_path=''` qui délègue au RPC privé.
+- `EXECUTE` accordé uniquement à `service_role`; privilèges révoqués à `public`, `anon` et `authenticated`.
+- Vérification SQL après application : service_role=true ; authenticated=false ; anon=false ; définition du wrapper appelle la fonction privée.
+- Cette migration et son test SQL sont maintenant versionnés dans le dépôt. Aucun accès direct au schéma privé n’est exposé aux utilisateurs.
+
+Le chantier reste NON VERT tant que la recette Agents n’a pas prouvé la séquence navigateur consentement → vidéo RTP bidirectionnelle unidirectionnelle demandeur→Agent → arrêt → audit serveur, et que le scénario professionnel Replay n’a pas terminé.

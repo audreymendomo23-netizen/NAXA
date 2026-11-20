@@ -15,7 +15,17 @@ begin
   if not has_function_privilege('service_role','private.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)','EXECUTE')
     or has_function_privilege('authenticated','private.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)','EXECUTE')
     or has_function_privilege('anon','private.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)','EXECUTE')
-  then raise exception 'RPC partage écran réservé à service_role'; end if;
+  then raise exception 'RPC privé partage écran réservé à service_role'; end if;
+
+  if not has_function_privilege('service_role','public.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)','EXECUTE')
+    or has_function_privilege('authenticated','public.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)','EXECUTE')
+    or has_function_privilege('anon','public.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)','EXECUTE')
+  then raise exception 'Wrapper PostgREST partage écran réservé à service_role'; end if;
+
+  select pg_get_functiondef('public.naxa_support_call_screen_share_event(uuid,uuid,uuid,text,text)'::regprocedure)
+    into v_definition;
+  if position('private.naxa_support_call_screen_share_event' in v_definition)=0
+  then raise exception 'Le wrapper public ne délègue pas au RPC privé'; end if;
 
   if not exists (
     select 1 from pg_trigger
