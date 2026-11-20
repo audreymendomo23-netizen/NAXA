@@ -547,3 +547,8 @@ Après `setRemoteDescription(offer)`, le navigateur crée/associe le transceiver
 - Safari iOS 27 : compatibilité corrigée dans MDN Browser Compat Data après tests sur appareil iOS 27.0.
 
 Verdict fonctionnel web reste conditionné au nouveau pipeline de recette : refus OS, deux partages successifs dans le même appel, audio RTP soutenu et raccrochage UI réel. La compatibilité Android native reste une portée distincte, non encore implémentée.
+
+
+## Ajustement préalable du contrat d'audit — 20 novembre 2026
+- Revue de cohérence après ajout du scénario de refus et de partage répété : l'assertion E2E du refus doit vérifier `actor_user_id`, mais la requête de lecture de l'audit Client ne sélectionnait que `event_code,details`.
+- Correction avant exécution du test : la sélection inclut maintenant `actor_user_id`. L'assertion reste inchangée : le refus OS doit être attribué au demandeur authentifié.

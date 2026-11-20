@@ -671,7 +671,7 @@ async function run(){
   await a.page.getByText("Aucun écran partagé par le demandeur",{exact:true}).waitFor({timeout:10000});
   let screenAudit=null,screenAuditError=null;
   for(let attempt=0;attempt<20;attempt++){
-   const result=await admin.from("support_call_events").select("event_code,details")
+   const result=await admin.from("support_call_events").select("actor_user_id,event_code,details")
     .eq("call_id",callId).in("event_code",["screen_share_consented","screen_share_started","screen_share_stopped","screen_share_denied"])
     .order("created_at",{ascending:true});
    if(result.error){screenAuditError=result.error;break;}
